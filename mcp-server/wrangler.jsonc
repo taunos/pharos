@@ -1,0 +1,24 @@
+{
+  // Pharos brand MCP server — Cloudflare Workers config.
+  // Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pharos-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-12-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  }
+  // NOTE: The original scaffold included a Durable Object binding for
+  // `agents/mcp`'s McpAgent session state. It was removed because the
+  // installed agents@0.0.50 has a bug in its `mount()` path (double-connect
+  // of the McpServer transport) that made it unusable. We now wire the MCP
+  // SDK's WebStandardStreamableHTTPServerTransport directly into fetch, which
+  // is stateless and needs no DO. Add `durable_objects` + `migrations` back
+  // if you later need cross-request session state.
+  //
+  // Add a custom domain after first deploy:
+  // "routes": [
+  //   { "pattern": "mcp.pharos.dev", "custom_domain": true }
+  // ]
+}

@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(echo \"PID=$!\")",
+      "Bash(disown)",
+      "Read(//tmp/**)",
+      "Bash(curl -s http://127.0.0.1:8787/.well-known/mcp.json)",
+      "Bash(curl -s http://127.0.0.1:8787/.well-known/mcp/server-card.json)",
+      "Bash(node /f/pharos/mcp-server/test-client.mjs)",
+      "PowerShell(Get-Process -Id 40196, 51496, 54076, 53472, 53668 -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep -Seconds 1; try { \\(Invoke-WebRequest -Uri http://127.0.0.1:8787/ -UseBasicParsing -TimeoutSec 2\\).StatusCode } catch { \"server down\" })",
+      "Bash(rm -f /tmp/wrangler.log)",
+      "Bash(curl -s http://127.0.0.1:8787/)",
+      "Bash(curl -sIL https://anthropic.com/llms.txt)",
+      "Bash(curl -sIL https://www.anthropic.com/llms.txt)",
+      "Bash(curl -sI https://llmstxt.org/llms.txt)",
+      "Bash(curl -sI https://docs.anthropic.com/llms.txt)",
+      "Bash(curl -s https://pharos-mcp.pharos-dev.workers.dev/)",
+      "Bash(curl -s https://pharos-mcp.pharos-dev.workers.dev/.well-known/mcp.json)",
+      "Bash(curl -s https://pharos-mcp.pharos-dev.workers.dev/.well-known/mcp/server-card.json)",
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(git add *)"
+    ]
+  }
+}
