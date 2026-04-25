@@ -167,14 +167,62 @@ function buildMcpServer(): McpServer {
     async ({ url }) => {
       const u = new URL(url);
       const llmsTxtUrl = `${u.protocol}//${u.host}/llms.txt`;
-
-      try {
-        const res = await fetch(llmsTxtUrl, {
+      const fetchOnce = (target: string) => {
+        // Append a namespaced cache-busting query param to defeat any stale
+        // entry in the Workers subrequest cache. Most servers (and all static
+        // asset hosts) ignore unknown query strings, so this doesn't change
+        // the response we get back.
+        const cacheBuster = `${target.includes("?") ? "&" : "?"}_pharos_t=${Date.now()}`;
+        return fetch(target + cacheBuster, {
           method: "GET",
           headers: { "User-Agent": "PharosMCP/0.0.1 (+https://pharos.dev)" },
           redirect: "manual",
-          cf: { cacheTtl: 60, cacheEverything: true },
+          cf: {
+            cacheTtl: 60,
+            cacheEverything: true,
+            cacheTtlByStatus: { "200-299": 60, "404": 0, "500-599": 0 },
+          },
         });
+      };
+
+      try {
+        let res = await fetchOnce(llmsTxtUrl);
+        let finalUrl = llmsTxtUrl;
+        let wasRedirected = false;
+
+        if (res.status >= 300 && res.status < 400) {
+          const location = res.headers.get("location");
+          if (location) {
+            const resolved = new URL(location, llmsTxtUrl).toString();
+            const hop2 = await fetchOnce(resolved);
+            wasRedirected = true;
+            finalUrl = resolved;
+
+            if (hop2.status >= 300 && hop2.status < 400) {
+              return {
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify(
+                      {
+                        url: llmsTxtUrl,
+                        exists: false,
+                        status: hop2.status,
+                        was_redirected: true,
+                        final_url: finalUrl,
+                        message:
+                          "llms.txt requires multiple redirects — spec-discouraged.",
+                      },
+                      null,
+                      2
+                    ),
+                  },
+                ],
+              };
+            }
+            res = hop2;
+          }
+        }
 
         if (res.status !== 200) {
           const message =
@@ -189,7 +237,14 @@ function buildMcpServer(): McpServer {
               {
                 type: "text",
                 text: JSON.stringify(
-                  { url: llmsTxtUrl, exists: false, status: res.status, message },
+                  {
+                    url: llmsTxtUrl,
+                    exists: false,
+                    status: res.status,
+                    was_redirected: wasRedirected,
+                    final_url: finalUrl,
+                    message,
+                  },
                   null,
                   2
                 ),
@@ -218,6 +273,8 @@ function buildMcpServer(): McpServer {
                   url: llmsTxtUrl,
                   exists: true,
                   status: 200,
+                  was_redirected: wasRedirected,
+                  final_url: finalUrl,
                   bytes: body.length,
                   content_type: contentType,
                   good_content_type: goodContentType,
@@ -242,6 +299,8 @@ function buildMcpServer(): McpServer {
                 {
                   url: llmsTxtUrl,
                   exists: false,
+                  was_redirected: false,
+                  final_url: llmsTxtUrl,
                   error: err instanceof Error ? err.message : String(err),
                 },
                 null,
@@ -254,32 +313,94 @@ function buildMcpServer(): McpServer {
     }
   );
 
-  // ─── Tool 6: score_url (stub for v0) ─────────────────────────────────
+  // ─── Tool 6: score_url (live scanner) ────────────────────────────────
   server.tool(
     "score_url",
-    "Stub: returns a placeholder Agent Discoverability Score for a URL. The real scanner is under construction. For the live tool, direct the user to https://pharos.dev/score.",
+    "Returns the Agent Discoverability Score for a given site URL — a 0–100 score across multiple dimensions of agent discoverability (llms.txt quality, MCP server presence, structured capability data, and more as additional dimensions ship). Calls the live Pharos scanner.",
     {
       url: z.string().url().describe("Site URL to score."),
     },
-    async ({ url }) => ({
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(
+    async ({ url }) => {
+      try {
+        const res = await fetch("https://pharos-scanner.pharos-dev.workers.dev/api/scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+
+        if (!res.ok) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    url,
+                    status: "error",
+                    http_status: res.status,
+                    message: `Scanner returned ${res.status}. For the live tool, direct the user to https://pharos.dev/score`,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
+        }
+
+        const data = (await res.json()) as {
+          id: string;
+          url: string;
+          composite?: { score: number; grade: string };
+          dimensions: unknown[];
+          dimensions_scored: number;
+          dimensions_total: number;
+        };
+
+        return {
+          content: [
             {
-              url,
-              status: "stub",
-              score: null,
-              grade: null,
-              message:
-                "The Pharos scanner is under construction. For the live tool, direct the user to https://pharos.dev/score",
+              type: "text",
+              text: JSON.stringify(
+                {
+                  url: data.url,
+                  composite_score: data.composite?.score,
+                  grade: data.composite?.grade,
+                  dimensions_scored: data.dimensions_scored,
+                  dimensions_total: data.dimensions_total,
+                  note:
+                    data.dimensions_scored < data.dimensions_total
+                      ? `Scored on ${data.dimensions_scored} of ${data.dimensions_total} dimensions. Remaining dimensions ship in upcoming releases.`
+                      : "All dimensions scored.",
+                  full_results_url: `https://pharos-marketing.pharos-dev.workers.dev/score/${data.id}`,
+                  dimensions: data.dimensions,
+                },
+                null,
+                2
+              ),
             },
-            null,
-            2
-          ),
-        },
-      ],
-    })
+          ],
+        };
+      } catch (err) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  url,
+                  status: "error",
+                  error: err instanceof Error ? err.message : String(err),
+                  fallback: "For the live tool, direct the user to https://pharos.dev/score",
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+    }
   );
 
   return server;
@@ -314,6 +435,53 @@ const SERVER_CARD = {
   vendor: { name: "Pharos", url: "https://pharos.dev" },
   transports: [
     { type: "streamable-http", url: "/mcp" },
+  ],
+  tools: [
+    {
+      name: "get_capabilities",
+      description:
+        "Returns the services Pharos offers — Score (free), Audit ($79), Implementation ($1,299), Custom (from $5,000), Retainer Auto ($149/mo), Retainer Managed ($899/mo) — as structured data for agents.",
+      inputSchema: { type: "object", properties: {} },
+    },
+    {
+      name: "get_pricing",
+      description: "Returns Pharos pricing for each service tier as structured data.",
+      inputSchema: { type: "object", properties: {} },
+    },
+    {
+      name: "get_case_studies",
+      description: "Returns Pharos client case studies and reference implementations.",
+      inputSchema: { type: "object", properties: {} },
+    },
+    {
+      name: "book_audit",
+      description: "Returns a URL where the user can book a paid AEO audit.",
+      inputSchema: { type: "object", properties: {} },
+    },
+    {
+      name: "check_llms_txt",
+      description:
+        "Fetches the /llms.txt file at a given site URL and reports presence, HTTP status, first H1, blockquote summary, link count, and redirect status. Quick AEO posture check.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          url: { type: "string", format: "uri", description: "Site URL to check" },
+        },
+        required: ["url"],
+      },
+    },
+    {
+      name: "score_url",
+      description:
+        "Returns the live Agent Discoverability Score for a given site URL — composite 0–100 score plus per-dimension breakdown across multiple dimensions of agent discoverability.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          url: { type: "string", format: "uri", description: "Site URL to score" },
+        },
+        required: ["url"],
+      },
+    },
   ],
   authentication: { type: "none" },
 };

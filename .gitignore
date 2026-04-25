@@ -14,6 +14,16 @@ out/
 .dev.vars
 .dev.vars.*
 
+# OpenNext build output
+.open-next/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Claude Code runtime locks (per-machine; settings.json stays tracked but is
+# user-local — don't commit modifications to it from a session)
+.claude/*.lock
+
 # Editor / OS
 .vscode/
 .idea/

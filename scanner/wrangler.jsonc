@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pharos-scanner",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-12-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pharos-scanner",
+      "database_id": "56dd16f8-b1ce-4c34-bfdf-b479cc2726d8"
+    }
+  ],
+  "kv_namespaces": [
+    { "binding": "CACHE", "id": "000bf34df96f4acdb86999854b32ae12" }
+  ],
+  "ai": { "binding": "AI" }
+}

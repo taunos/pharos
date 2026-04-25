@@ -1,0 +1,23 @@
+{
+  "name": "@pharos/scanner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "wrangler d1 execute pharos-scanner --file=./schema.sql",
+    "db:migrate:remote": "wrangler d1 execute pharos-scanner --remote --file=./schema.sql"
+  },
+  "dependencies": {
+    "hono": "^4.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250101.0",
+    "typescript": "^5.5.0",
+    "wrangler": "^4.0.0"
+  }
+}

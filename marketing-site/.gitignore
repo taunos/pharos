@@ -1,0 +1,18 @@
+# deps
+node_modules/
+
+# next
+.next/
+out/
+next-env.d.ts
+
+# opennext / wrangler
+.open-next/
+.wrangler/
+
+# env
+.env*.local
+
+# misc
+.DS_Store
+*.log

@@ -1,0 +1,22 @@
+# Pharos
+
+> Pharos is an Agent Discoverability service for B2B SaaS companies — we make sites structurally findable and invokable by AI agents (ChatGPT, Claude, Perplexity, Gemini) by implementing llms.txt, MCP servers, OpenAPI specs, structured capability data, and agent-parsable content. Free Score tool, paid Audits at $79, automated Implementations at $1,299, monthly retainers from $149.
+
+## Services
+
+- [Agent Discoverability Score](/score.md): Free. URL-input scan across 6 dimensions. Public score + emailed gap report + monthly rescan. Launching soon.
+- [AEO Audit](/audit.md): $79 one-time, instant delivery. Rich PDF — 6-dimension deep analysis, live citation audit across ChatGPT/Claude/Perplexity/Gemini, competitor comparison, prioritized lift estimates, machine-readable JSON export.
+- [AEO Implementation](/implementation.md): $1,299 one-time, <24h delivery. Automated build: llms.txt, MCP server, OpenAPI spec, JSON-LD schema, baseline monitoring. Delivered as a PR against your repo. For standard B2B SaaS sites.
+- [Custom Implementation](/custom.md): From $5,000. Bespoke builds for complex APIs, multi-region content, custom MCP tools, deep content rewrites, or multi-stakeholder engagements. Take the 2-minute fit check at /custom; if Custom is the right path, scoping call requires a $250 deposit (credited toward final quote) followed by fixed quote within 48 hours and a 2–4 week build.
+- [Monthly AEO Retainer — Auto](/retainer.md): $149/month, month-to-month. Monthly auto-rescan, auto-generated 6-section agent-traffic report, MCP uptime. Fully automated.
+- [Monthly AEO Retainer — Managed](/retainer.md): $899/month, month-to-month. Everything in Auto plus content updates, quarterly strategy calls, competitor tracking.
+
+## Technical surface (dogfood)
+
+- [MCP Server](https://pharos-mcp.pharos-dev.workers.dev/mcp): Streamable HTTP MCP endpoint exposing six tools agents can call — get_capabilities, get_pricing, get_case_studies, book_audit, check_llms_txt, score_url.
+- [MCP Server Card](https://pharos-mcp.pharos-dev.workers.dev/.well-known/mcp.json): SEP-1960 discovery metadata.
+- [How it works](/#how-it-works): The six dimensions of agent discoverability and what each one measures.
+
+## Contact
+
+- Email: hello@pharos.dev
