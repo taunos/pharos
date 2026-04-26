@@ -36,7 +36,7 @@ export const TRIAGE_CTAS: Record<Recommendation, TriageCta> = {
     label: "Buy Standard Implementation — $1,299",
     url: "https://checkout.dodopayments.com/buy/pdt_0NdQE5vccUUgOHMsF6Pzz?quantity=1",
     description:
-      "Pay, paste your URL, answer 5 quick scoping questions. Build delivered as a PR within 24 hours.",
+      "Pay, paste your URL, answer 5 quick scoping questions. Build delivered within 24 hours as a Git-applicable patch file you apply with `git am` in 5 minutes — no repo access needed from us.",
   },
   custom: {
     label: "Book your Custom scoping call ($250 deposit)",
@@ -107,7 +107,7 @@ export async function triageCacheKey(s: TriageSubmission): Promise<string> {
   const hex = Array.from(new Uint8Array(hash))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-  return `triage:v1:${hex}`;
+  return `triage:v2:${hex}`;
 }
 
 export function buildTriagePrompt(s: TriageSubmission): string {
@@ -123,14 +123,20 @@ Pharos has three engagement options:
    - Does NOT include: custom MCP tools, multi-region content, multi-language content, content rewrites beyond pricing/services pages, multi-stakeholder coordination
 
 2. CUSTOM IMPLEMENTATION (from $5,000, human-led, 2-4 weeks typical; $250 deposit at booking that's credited toward the final fixed quote)
-   - Suitable when standard tier insufficient
-   - Genuine Custom triggers: complex public APIs requiring tailored OpenAPI (10+ operations), multi-region or multi-language content, custom MCP tools specific to the business (industry inventory, real-time booking, etc.), major content rewrites (20+ pages), multi-stakeholder approvals (legal/ops/IT/marketing teams need a human liaison), aggressive deadlines under 2 weeks
+   - This is where ALL genuinely complex implementation needs go — never route them to not_fit
+   - Custom triggers (any of these alone is enough; two or more makes custom almost certain): complex public APIs requiring tailored OpenAPI (10+ operations), multi-region or multi-language content, custom MCP tools specific to the business (industry inventory, real-time booking, customer-state exposure), major content rewrites (20+ pages), multi-stakeholder approvals (legal/ops/IT/marketing need a human liaison), aggressive deadlines under 2 weeks
+   - Budget signal: $5K+ budget combined with any complexity factor → almost always custom
 
-3. NOT A FIT
-   - White-label agencies seeking reseller deals (different conversation, email follow-up)
+3. NOT A FIT (use ONLY for the four specific misalignment patterns below — never for "complex enough to warrant a call" or "needs more discussion")
+   - White-label agencies seeking reseller deals (different conversation entirely, email follow-up)
    - Content-only sites without commercial intent (free Score tool covers most of what they need)
-   - Projects so small they don't need professional implementation (e.g., personal blogs)
-   - Misaligned expectations (asking for unrelated services like SEO copywriting, paid ads management, etc.)
+   - Projects so small they don't need professional implementation (personal blogs, hobby projects)
+   - Misaligned expectations (asking for unrelated services like SEO copywriting, paid ads management, social media management)
+
+DECISION RULE (apply strictly):
+- not_fit is ONLY for the four patterns above. If a prospect is a B2B SaaS, B2C SaaS, e-commerce, or marketplace with genuine implementation needs — no matter how complex or how much "discussion" the project might warrant — they route to either standard or custom, never to not_fit.
+- "Needs a conversation," "needs to discuss specifics," or "exceeds Standard capabilities" all mean custom, not not_fit.
+- When uncertain between standard and custom, prefer custom. Surfacing a $250-deposit scoping call is always better than undersizing a complex project into a $1,299 standard build.
 
 PROSPECT SUBMISSION:
 - Site URL: ${s.site_url}
@@ -139,6 +145,20 @@ PROSPECT SUBMISSION:
 - Complexity factors checked: ${factors}
 - Budget range: ${s.budget_range}
 - Timeline: ${s.timeline}
+
+EXAMPLES (study these — your output should match this pattern):
+
+Example 1:
+Submission: B2B SaaS site, "Just want to be findable by AI agents, nothing fancy," no complexity factors checked, budget under $5K, flexible timeline.
+Output: {"recommendation": "standard", "explanation": "Your situation matches the 80% case our Standard Implementation is built for — typical B2B SaaS without special complexity. The $1,299 build covers everything you described and ships within 24 hours."}
+
+Example 2:
+Submission: B2B SaaS fintech, "Public API with 60+ operations across payments and accounts, MCP tools to expose customer-specific account state, content in 9 languages, legal sign-off required," complexity factors checked: multi-region, public API, custom MCP tools, multi-stakeholder, tight deadline; budget $25K+; timeline within a month.
+Output: {"recommendation": "custom", "explanation": "Your fintech setup triggers five distinct Custom paths — 60+ API operations needing tailored OpenAPI, multi-region content, customer-state-exposing MCP tools, multi-stakeholder approvals, and a tight deadline. Each one alone would warrant Custom; together they make it the only fit."}
+
+Example 3:
+Submission: 60-person SEO agency, "We want a white-label/reseller agreement to package your methodology under our brand and resell to our 180+ clients," no complexity factors, no specific budget, flexible timeline.
+Output: {"recommendation": "not_fit", "explanation": "Reseller and white-label arrangements are a separate business conversation from our standard implementation packages. Drop us an email and we'll discuss whether a partnership makes sense."}
 
 Decide which option fits best. Return ONLY a JSON object with this exact shape, no markdown, no preamble, no explanation outside the JSON:
 
@@ -184,24 +204,86 @@ export function fallbackResponse(): {
   };
 }
 
-export function isValidSubmission(body: unknown): body is TriageSubmission {
-  if (!body || typeof body !== "object") return false;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const VALID_COMPLEXITY_FACTORS: ReadonlySet<string> = new Set(COMPLEXITY_FACTORS);
+
+export type ValidationResult =
+  | { ok: true; value: TriageSubmission }
+  | { ok: false; error: string };
+
+export function validateSubmission(body: unknown): ValidationResult {
+  if (!body || typeof body !== "object") {
+    return { ok: false, error: "Body must be a JSON object." };
+  }
   const b = body as Record<string, unknown>;
-  if (typeof b.site_url !== "string" || b.site_url.trim().length === 0) return false;
+
+  if (typeof b.site_url !== "string" || b.site_url.trim().length === 0) {
+    return { ok: false, error: "site_url is required." };
+  }
   try {
     new URL(b.site_url);
   } catch {
-    return false;
+    return { ok: false, error: "site_url must be a valid URL." };
   }
-  if (typeof b.site_type !== "string" || b.site_type.trim().length === 0) return false;
-  if (typeof b.custom_needs !== "string") return false;
+
+  if (typeof b.site_type !== "string" || b.site_type.trim().length === 0) {
+    return { ok: false, error: "site_type is required." };
+  }
+
+  if (typeof b.custom_needs !== "string") {
+    return { ok: false, error: "custom_needs is required (50–2000 chars)." };
+  }
   const len = b.custom_needs.trim().length;
-  if (len < 50 || len > 500) return false;
-  if (!Array.isArray(b.complexity_factors)) return false;
-  if (!b.complexity_factors.every((x) => typeof x === "string")) return false;
-  if (typeof b.budget_range !== "string" || b.budget_range.trim().length === 0) return false;
-  if (typeof b.timeline !== "string" || b.timeline.trim().length === 0) return false;
-  if (b.email !== undefined && typeof b.email !== "string") return false;
-  if (b.honeypot !== undefined && typeof b.honeypot !== "string") return false;
-  return true;
+  if (len < 50 || len > 2000) {
+    return {
+      ok: false,
+      error: `custom_needs must be 50–2000 chars (got ${len}).`,
+    };
+  }
+
+  if (!Array.isArray(b.complexity_factors)) {
+    return { ok: false, error: "complexity_factors must be an array." };
+  }
+  if (!b.complexity_factors.every((x) => typeof x === "string")) {
+    return { ok: false, error: "complexity_factors must be an array of strings." };
+  }
+  for (const f of b.complexity_factors as string[]) {
+    if (!VALID_COMPLEXITY_FACTORS.has(f)) {
+      return {
+        ok: false,
+        error: `Invalid complexity_factors entry "${f}". Each value must be one of: ${COMPLEXITY_FACTORS.map((x) => `"${x}"`).join(", ")}.`,
+      };
+    }
+  }
+
+  if (typeof b.budget_range !== "string" || b.budget_range.trim().length === 0) {
+    return { ok: false, error: "budget_range is required." };
+  }
+  if (typeof b.timeline !== "string" || b.timeline.trim().length === 0) {
+    return { ok: false, error: "timeline is required." };
+  }
+
+  if (b.email !== undefined) {
+    if (typeof b.email !== "string") {
+      return { ok: false, error: "email must be a string if provided." };
+    }
+    if (b.email.length > 0 && !EMAIL_RE.test(b.email)) {
+      return {
+        ok: false,
+        error:
+          "Invalid email format. Either omit the email field or provide a valid address.",
+      };
+    }
+  }
+
+  if (b.honeypot !== undefined && typeof b.honeypot !== "string") {
+    return { ok: false, error: "honeypot must be a string." };
+  }
+
+  return { ok: true, value: b as unknown as TriageSubmission };
+}
+
+// Back-compat type-guard wrapper — kept for callers that only need a boolean.
+export function isValidSubmission(body: unknown): body is TriageSubmission {
+  return validateSubmission(body).ok;
 }

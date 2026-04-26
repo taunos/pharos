@@ -4,26 +4,27 @@
 **Delivery:** Instant (~60 seconds)
 **Checkout:** https://pharos.dev/audit
 
-Pay, paste your URL, get a rich PDF analysis of your site's agent discoverability in about 60 seconds. Six-dimension deep analysis, live citation audit across ChatGPT, Claude, Perplexity, and Gemini, competitor comparison, prioritized gap list with predicted referral lift. No call required — the scoring engine does all the work.
+Pay, paste your URL, get a rich PDF analysis of your site's agent discoverability in about 60 seconds. Six-dimension deep analysis with developer-ready remediation guidance for each gap, plus a machine-readable JSON export. No call required — the scoring engine does the work.
 
 ## The full analysis includes
 
 - Six-dimension deep analysis (each gap explained in plain language, scored against our public rubric)
-- Live citation audit: where your site is cited across ChatGPT, Claude, Perplexity, Gemini, and Google AI Overviews for prompts in your category
-- Competitor comparison: your citation share versus three inferred competitors
-- Prioritized recommendations ranked by predicted referral lift per fix
-- Implementation effort estimates (hours + dollar cost if we did it)
+- Per-gap remediation guidance: specific, actionable fixes a developer can implement directly
+- Effort estimates per fix
+- Composite score + grade you can share with stakeholders
 - Machine-readable data export (JSON) — for agents or programmatic workflows
+
+Coming in a future iteration: live citation audits across ChatGPT, Claude, Perplexity, and Gemini, and competitor citation comparison. We'll add them once we can deliver them at the same quality bar as the rest of the audit.
 
 ## Three steps
 
-1. **Pay.** Dodo Payments handles USD billing and tax as Merchant of Record. Delivery is triggered immediately on successful payment.
-2. **Paste your URL.** One field. No login, no questionnaire, no kickoff call.
-3. **Get your report.** Delivered to your email within 60 seconds, along with a JSON export for programmatic use.
+1. **Submit URL + email.** Two fields, one form. We use the email to send your audit if you ever lose the bookmark.
+2. **Pay.** Dodo Payments handles USD billing and tax as Merchant of Record. Delivery triggers the moment payment confirms.
+3. **Get your report.** We redirect you to a results page that polls until your PDF is ready — usually about 60 seconds. JSON export available alongside the PDF.
 
 ## What the Audit adds (over the free Score)
 
-The free Score gives you a public grade across six dimensions. The Audit goes deeper: actual competitor comparison against real prompts in your category, live citation data from the AI engines themselves, implementation estimates you can take to a developer, and the machine-readable JSON export. If the free score says "work on Dimension 4," the Audit tells you exactly which JSON-LD types to add, on which pages, and what lift to expect.
+The free Score gives you a public grade across six dimensions. The Audit goes deeper: per-gap remediation guidance written specifically for your site's findings (not generic playbook language), effort estimates you can take to a developer, and the machine-readable JSON export. If the free score says "work on Dimension 4," the Audit tells you exactly which JSON-LD types to add and on which pages.
 
 ## FAQ
 
@@ -31,10 +32,13 @@ The free Score gives you a public grade across six dimensions. The Audit goes de
 No. The audit is read-only. Just the URL.
 
 **How is this instant if the report is that deep?**
-LLM inference does the analysis, Profound's API handles the citation audit, and competitor identification is automated. Nothing human-gated.
+LLM inference does the analysis and remediation drafting; nothing is human-gated. PDF rendering takes a few extra seconds; the whole pipeline finishes in about 60 seconds end-to-end.
 
 **Can I audit a competitor instead?**
 Yes. Paste any URL you have a legitimate interest in analyzing.
+
+**Are citation audits and competitor comparisons in here yet?**
+Not in v0. We're shipping the deep 6-dimension analysis + per-gap remediation guidance now, and adding live citation data and competitor comparison in a future iteration. We'd rather under-promise + over-deliver than ship a hollow report.
 
 **What if the report is wrong?**
 Full refund, no questions, first 30 days. We'd rather have the feedback than the $79.

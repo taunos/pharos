@@ -40,16 +40,16 @@ const FAQS = [
     a: "The questionnaire catches common mismatches and steers you to Custom before you pay.",
   },
   {
-    q: "What repos do you support for the PR?",
-    a: "GitHub, GitLab, Bitbucket. Self-hosted Git via patch files.",
+    q: "Which Git providers do you support?",
+    a: "All of them. We deliver a Git-applicable patch file that works for GitHub, GitLab, Bitbucket, Azure DevOps, and self-hosted Git. Your team applies it locally with `git am` and reviews via your normal PR workflow. We never need direct access to your repo.",
   },
   {
-    q: "Do I need to provide admin access?",
-    a: "No. We deliver as a PR — you review and merge yourself.",
+    q: "Do you need write access to my repo?",
+    a: "No. The patch-file delivery model means we never touch your code directly. Many B2B security teams prefer this — fewer external service accounts with repo access is a security improvement, not a limitation. (If you're on the Custom tier and want us to open the PR for you, that can be arranged during the scoping call with a temporary deploy key.)",
   },
   {
-    q: "What if I'm not technical enough to merge a PR?",
-    a: "Add the Managed Retainer and we handle merges for you each month.",
+    q: "What if my team isn't comfortable applying patches?",
+    a: "Add the Managed Retainer and we handle the patch-application + merge workflow each month, plus ongoing optimization.",
   },
 ];
 
@@ -78,7 +78,7 @@ const STACK = [
   },
   {
     name: "JSON-LD schema",
-    body: "Organization, Service, Offer, FAQPage injected into your key pages. Delivered as a pull request against your repo (GitHub/GitLab/Bitbucket) or as a standalone patch.",
+    body: "Organization, Service, Offer, FAQPage injected into your key pages. Delivered as part of the Git-applicable patch you receive via email — works with any Git provider, no repo access from us required.",
   },
   {
     name: "Baseline monitoring",
@@ -86,7 +86,7 @@ const STACK = [
   },
   {
     name: "Handoff documentation",
-    body: "README in your repo explaining what was built and how to modify it.",
+    body: "README included in the patch, explaining what was built and how to modify it. Lands in your repo when your team applies the patch.",
   },
 ];
 
@@ -103,7 +103,7 @@ const FLOW = [
   { title: "Pay", body: "$1,299 via Dodo Payments." },
   {
     title: "Short questionnaire",
-    body: "Your site URL, repo URL (for the JSON-LD PR), what your three most important pages are, what your core service offerings are. 5 questions, ~3 minutes.",
+    body: "Your site URL, what your three most important pages are, what your core service offerings are, and a delivery email for the patch. 5 questions, ~3 minutes. No repo URL needed — we don't touch your code.",
   },
   {
     title: "Pipeline runs",
@@ -111,7 +111,7 @@ const FLOW = [
   },
   {
     title: "Delivery",
-    body: "Within 24 hours for standard sites. MCP server live, PR opened against your repo, monitoring dashboard URL in your inbox. You merge the PR on your schedule.",
+    body: "Within 24 hours for standard sites. MCP server live, monitoring dashboard URL in your inbox, plus a Git-applicable patch file your developer applies with `git am` in about five minutes. You review the diff in your repo's normal workflow and merge when ready — no access to your repo or infrastructure required from us.",
   },
 ];
 
@@ -149,11 +149,14 @@ export default function ImplementationPage() {
             AEO Implementation
           </h1>
           <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)] sm:text-xl">
-            An automated build pipeline deploys the full agent-discoverability
-            stack to your site — llms.txt, baseline MCP server, OpenAPI spec,
-            JSON-LD schema, baseline monitoring. For standard B2B SaaS sites, this
-            is enough. You pay, you answer a short scoping questionnaire, and the
-            pipeline runs.
+            An automated build pipeline generates your full agent-discoverability
+            stack — llms.txt, baseline MCP server, OpenAPI spec, JSON-LD schema,
+            baseline monitoring — and emails it within 24 hours as a Git-applicable
+            patch file. Your developer applies it with <code>git am</code> in about
+            five minutes, reviews the diff in your repo&apos;s normal workflow, and
+            merges when ready. We don&apos;t ask for any access to your repo or
+            infrastructure — the patch works entirely from your developer&apos;s
+            local environment.
           </p>
           <div className="mt-10 flex flex-col items-start gap-4">
             <Cta label="Start your implementation" />
@@ -247,9 +250,9 @@ export default function ImplementationPage() {
             <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)]">
               No black box. Every artifact lives on your infrastructure. MCP
               server on your Cloudflare account. JSON-LD and content in your
-              codebase via PR. No dependency on Pharos for ongoing operation. You
-              can cancel the retainer, move off our monitoring, or take everything
-              in-house at any time.
+              codebase via the patch your team applied. No dependency on Pharos
+              for ongoing operation. You can cancel the retainer, move off our
+              monitoring, or take everything in-house at any time.
             </p>
           </div>
         </section>

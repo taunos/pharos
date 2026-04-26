@@ -82,15 +82,18 @@ export default function TriageForm() {
     return <TriageResults data={result} onReset={reset} />;
   }
 
-  const customNeedsLen = customNeeds.trim().length;
+  const customNeedsLen = customNeeds.length;
+  const customNeedsTrimLen = customNeeds.trim().length;
   const customNeedsHint =
-    customNeedsLen === 0
-      ? "50–500 characters"
-      : customNeedsLen < 50
-        ? `${50 - customNeedsLen} more characters needed`
-        : customNeedsLen > 500
-          ? `${customNeedsLen - 500} characters over the 500 limit`
-          : `${customNeedsLen}/500 — looks good`;
+    customNeedsTrimLen === 0
+      ? "50–2000 characters"
+      : customNeedsTrimLen < 50
+        ? `${50 - customNeedsTrimLen} more characters needed`
+        : "looks good";
+  const counterCls =
+    customNeedsLen >= 1800
+      ? "text-amber-500"
+      : "text-[var(--color-muted)]";
 
   return (
     <form onSubmit={onSubmit} className="flex w-full flex-col gap-8" noValidate>
@@ -159,14 +162,19 @@ export default function TriageForm() {
           name="custom_needs"
           required
           minLength={50}
-          maxLength={500}
-          rows={4}
-          placeholder="e.g. We have a multi-region presence with content in 5 languages, and need MCP tools that expose our booking inventory in real time."
+          maxLength={2000}
+          rows={6}
+          placeholder="e.g. We have a multi-region presence with content in 5 languages, and need MCP tools that expose our booking inventory in real time. (50-2000 characters — give us the context we need to route you accurately.)"
           value={customNeeds}
           onChange={(e) => setCustomNeeds(e.target.value)}
           className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none"
         />
-        <p className="text-xs text-[var(--color-muted)]">{customNeedsHint}</p>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-[var(--color-muted)]">{customNeedsHint}</span>
+          <span className={`font-mono ${counterCls}`}>
+            {customNeedsLen} / 2000
+          </span>
+        </div>
       </div>
 
       {/* Complexity factors */}

@@ -28,7 +28,7 @@ The standard Implementation ($1,299, https://pharos.dev/implementation) covers 8
 3. **Fixed quote** — Delivered within 48 hours of the scoping call. Includes deliverables list, timeline, and milestone schedule. You approve or negotiate. The $250 deposit is applied as a credit against this quote.
 4. **Deposit + kickoff** — 50% of the agreed quote upfront (less the $250 already paid). Kickoff within a week.
 5. **Execute** — Weekly progress updates. You have a direct Slack/email channel throughout.
-6. **Handoff + final payment** — Same "you own everything" rule as standard Implementation. MCP on your infra, PR against your repo, docs in your codebase.
+6. **Handoff + final payment** — Same "you own everything" rule as standard Implementation. MCP on your infra, the build delivered as a Git-applicable patch (or, optionally for Custom-tier customers, opened as a PR via temporary deploy key / GitHub App if arranged during scoping), docs in your codebase.
 
 ## Why "from $5,000"?
 
@@ -38,16 +38,25 @@ $5K is the floor for a minimal custom engagement — roughly 40 hours of focused
 
 It's a seriousness filter. The fit-check form already routes most prospects to Standard or to a different path; only genuine Custom fits get to the scoping-call step. Asking for $250 (credited back) means we only take calls with prospects committed enough to put cash down. If you decide not to proceed after the scoping call, the deposit is non-refundable — it pays for the founder's time on a 30-minute call and the 48 hours of scoping work that produces the fixed quote.
 
-## FAQ
+## Common questions
 
-**Can the automated Implementation be upgraded to Custom mid-build?**
-Yes. If the questionnaire or our pipeline flags complexity it can't handle, we halt, refund the $1,299, and apply it as credit toward the Custom quote.
+**What's the $250 deposit for, and what happens if I don't proceed?**
+It secures your scoping call slot and is credited toward your final fixed quote — not an extra fee. The deposit is non-refundable if you decide not to proceed, but that's deliberate: it filters for prospects genuinely committed to exploring the engagement, not a profit center on its own. We'd rather have $250 from serious prospects than spend free 30-minute slots on tire-kickers.
 
-**Do you work with agencies white-labeling the service?**
-Yes. Separate pricing for agency engagements — ask during scoping.
+**How quickly will the scoping call be scheduled?**
+Within one business day of the deposit clearing. We send a Cal.com link with available 30-minute slots over the following 3–5 business days. Most prospects book within 24 hours of receiving the link.
 
-**What's the shortest Custom timeline you've delivered?**
-10 days for a standard-scope rush. Not guaranteed.
+**What happens if my project actually fits Standard Implementation after the scoping call?**
+We tell you, and credit your $250 deposit toward the Standard build instead of Custom. We'd rather lose Custom-tier margin than sell you a build you don't need — the trust is worth more long-term than the spread.
+
+**Can the fit-check be wrong?**
+It can. Edge cases sometimes route to Standard when they're actually Custom, or to "not a fit" when there's a real conversation worth having. If your situation feels different from what the recommendation says, email us — we read every override request, and the form is one input into the decision, not the decision itself.
+
+**Do you sign NDAs before the scoping call?**
+Yes. We use a standard mutual NDA we can send before the call, or sign yours if you have a preferred template. We regularly work with regulated industries (fintech, healthcare-adjacent) where NDA-first is the default.
+
+**Can my CTO or security team join the scoping call?**
+Yes, please bring them. Custom calls are often 3–4 people on the customer side (founder, CTO, sometimes security or compliance). 30 minutes works for an initial scoping conversation; for deeper technical reviews we'll schedule a follow-up.
 
 ## Related
 

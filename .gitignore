@@ -48,3 +48,7 @@ coverage/
 # Misc
 *.tgz
 .cache/
+
+# E2E scratch artifacts (manual fulfillment runs)
+test-audit.pdf
+test-audit.json

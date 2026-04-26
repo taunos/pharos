@@ -4,9 +4,9 @@ import {
   TRIAGE_CTAS,
   buildTriagePrompt,
   fallbackResponse,
-  isValidSubmission,
   parseLlmJson,
   triageCacheKey,
+  validateSubmission,
   type Recommendation,
   type TriageResponse,
 } from "@/lib/triage";
@@ -58,18 +58,11 @@ export async function POST(req: Request) {
     );
   }
 
-  if (!isValidSubmission(body)) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error:
-          "Invalid input. Required: site_url (valid URL), site_type, custom_needs (50–500 chars), complexity_factors (string[]), budget_range, timeline. Optional: email.",
-      },
-      { status: 400 }
-    );
+  const validated = validateSubmission(body);
+  if (!validated.ok) {
+    return NextResponse.json({ ok: false, error: validated.error }, { status: 400 });
   }
-
-  const submission = body;
+  const submission = validated.value;
   const env = getCloudflareContext().env as unknown as TriageEnv;
   const key = await triageCacheKey(submission);
 

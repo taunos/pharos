@@ -1,18 +1,16 @@
 import type { Metadata } from "next";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import AuditCheckoutForm from "@/components/AuditCheckoutForm";
 
 export const metadata: Metadata = {
   title: "AEO Audit — $79 instant delivery — Pharos",
   description:
-    "Pay $79, paste your URL, get a rich PDF in about 60 seconds. Six-dimension deep analysis, live citation audit, competitor comparison, prioritized gaps with lift estimates, and a JSON export.",
+    "Pay $79, paste your URL, get a rich PDF in about 60 seconds. Six-dimension deep analysis with developer-ready remediation guidance for each gap, plus a machine-readable JSON export.",
   alternates: {
     types: { "text/markdown": "/audit.md" },
   },
 };
-
-// TODO(bruno): replace with real Dodo Payments checkout URL before launch.
-const CHECKOUT_AUDIT_URL = "https://checkout.dodopayments.com/buy/pdt_0NdQDsS4Shhe1BrDzQDaa?quantity=1";
 
 const serviceLd = {
   "@context": "https://schema.org",
@@ -29,7 +27,7 @@ const serviceLd = {
     priceCurrency: "USD",
     url: "https://pharos.dev/audit",
     description:
-      "Instant automated audit. Rich PDF with 6-dimension analysis, live citation audit, competitor comparison, and prioritized gap list.",
+      "Instant automated audit. Rich PDF with 6-dimension analysis and developer-ready remediation guidance for each gap, plus machine-readable JSON export. Live citation tracking and competitor comparison are coming in a future iteration.",
   },
 };
 
@@ -40,11 +38,15 @@ const FAQS = [
   },
   {
     q: "How is this instant if the report is that deep?",
-    a: "LLM inference does the analysis, Profound's API handles the citation audit, and competitor identification is automated. Nothing human-gated.",
+    a: "LLM inference does the analysis and remediation drafting; nothing is human-gated. PDF rendering takes a few extra seconds; the whole pipeline finishes in about 60 seconds end-to-end.",
   },
   {
     q: "Can I audit a competitor instead?",
     a: "Yes. Paste any URL you have a legitimate interest in analyzing.",
+  },
+  {
+    q: "Is live citation tracking and competitor comparison in here yet?",
+    a: "Not in v0. We're shipping the deep 6-dimension analysis + per-gap remediation guidance now, and adding live citation data and competitor comparison in a future iteration. We'd rather under-promise + over-deliver than ship a hollow report.",
   },
   {
     q: "What if the report is wrong?",
@@ -64,38 +66,26 @@ const faqLd = {
 
 const INCLUDES = [
   "Six-dimension deep analysis (each gap explained in plain language, scored against our public rubric)",
-  "Live citation audit: where your site is cited across ChatGPT, Claude, Perplexity, Gemini, and Google AI Overviews for prompts in your category",
-  "Competitor comparison: your citation share versus three inferred competitors",
-  "Prioritized recommendations ranked by predicted referral lift per fix",
-  "Implementation effort estimates (hours + dollar cost if we did it)",
+  "Per-gap remediation guidance: specific, actionable fixes a developer can implement directly",
+  "Effort estimates per fix",
+  "Composite score + grade you can share with stakeholders",
   "Machine-readable data export (JSON) — for agents or programmatic workflows",
 ];
 
 const STEPS = [
   {
-    title: "Pay",
-    body: "Dodo Payments handles USD billing and tax as Merchant of Record. Delivery is triggered immediately on successful payment.",
+    title: "Submit URL + email",
+    body: "Two fields, one form. We use the email to send your audit if you ever lose the bookmark.",
   },
   {
-    title: "Paste your URL",
-    body: "One field. No login, no questionnaire, no kickoff call.",
+    title: "Pay",
+    body: "Dodo Payments handles USD billing and tax as Merchant of Record. Delivery triggers the moment payment confirms.",
   },
   {
     title: "Get your report",
-    body: "Delivered to your email within 60 seconds, along with a JSON export for programmatic use.",
+    body: "We redirect you to a results page that polls until your PDF is ready — usually about 60 seconds. JSON export available alongside the PDF.",
   },
 ];
-
-function Cta({ label }: { label: string }) {
-  return (
-    <a
-      href={CHECKOUT_AUDIT_URL}
-      className="inline-flex rounded-md bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
-    >
-      {label}
-    </a>
-  );
-}
 
 export default function AuditPage() {
   return (
@@ -120,14 +110,14 @@ export default function AuditPage() {
             AEO Audit
           </h1>
           <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)] sm:text-xl">
-            Pay, paste your URL, get a rich PDF analysis of your site&apos;s agent
-            discoverability in about 60 seconds. Six-dimension deep analysis, live
-            citation audit across ChatGPT, Claude, Perplexity, and Gemini, competitor
-            comparison, prioritized gap list with predicted referral lift. No call
-            required — the scoring engine does all the work.
+            Pay, paste your URL, get a rich PDF analysis of your site&apos;s
+            agent discoverability in about 60 seconds. Six-dimension deep
+            analysis with developer-ready remediation guidance for each gap,
+            plus a machine-readable JSON export. No call required — the
+            scoring engine does the work.
           </p>
           <div className="mt-10">
-            <Cta label="Run your audit" />
+            <AuditCheckoutForm />
           </div>
         </section>
 
@@ -140,11 +130,19 @@ export default function AuditPage() {
             <ul className="mt-10 flex flex-col gap-4 text-lg">
               {INCLUDES.map((i) => (
                 <li key={i} className="flex gap-4">
-                  <span className="mt-1 shrink-0 text-[var(--color-accent)]">✓</span>
+                  <span className="mt-1 shrink-0 text-[var(--color-accent)]">
+                    ✓
+                  </span>
                   <span className="text-[var(--color-muted)]">{i}</span>
                 </li>
               ))}
             </ul>
+            <p className="mt-6 max-w-3xl text-sm italic text-[var(--color-muted)]">
+              Coming in a future iteration: live citation tracking across
+              ChatGPT, Claude, Perplexity, and Gemini, plus competitor
+              visibility comparison. We&apos;ll add them once we can deliver
+              them at the same quality bar as the rest of the audit.
+            </p>
           </div>
         </section>
 
@@ -179,12 +177,12 @@ export default function AuditPage() {
             </h2>
             <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)]">
               The free Score gives you a public grade across six dimensions. The
-              Audit goes deeper: actual competitor comparison against real prompts
-              in your category, live citation data from the AI engines themselves,
-              implementation estimates you can take to a developer, and the
-              machine-readable JSON export. If the free score says &ldquo;work on
-              Dimension 4,&rdquo; the Audit tells you exactly which JSON-LD types
-              to add, on which pages, and what lift to expect.
+              Audit goes deeper: per-gap remediation guidance written
+              specifically for your site&apos;s findings (not generic playbook
+              language), effort estimates you can take to a developer, and the
+              machine-readable JSON export. If the free score says &ldquo;work
+              on Dimension 4,&rdquo; the Audit tells you exactly which
+              JSON-LD types to add and on which pages.
             </p>
           </div>
         </section>
@@ -192,7 +190,9 @@ export default function AuditPage() {
         {/* FAQ */}
         <section className="border-t border-[var(--color-border)]">
           <div className="mx-auto max-w-6xl px-6 py-20">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">FAQ</h2>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              FAQ
+            </h2>
             <dl className="mt-10 flex flex-col gap-6">
               {FAQS.map((f) => (
                 <div
@@ -214,7 +214,7 @@ export default function AuditPage() {
               Ready?
             </h2>
             <div className="mt-10">
-              <Cta label="Run your audit now" />
+              <AuditCheckoutForm />
             </div>
           </div>
         </section>
