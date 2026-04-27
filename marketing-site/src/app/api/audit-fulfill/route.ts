@@ -7,6 +7,7 @@ import {
   runScan,
   storeJson,
   storePdf,
+  REMEDIATION_ENGINE_VERSION_TAG,
   type AuditEnv,
 } from "@/lib/audit-pipeline";
 import type { AuditResult, SessionRecord } from "@/lib/audit-types";
@@ -99,8 +100,12 @@ export async function POST(req: Request) {
 
   try {
     const scan = await runScan(record.url);
-    const gaps = await llmEnrichGaps(env, scan);
-    const audit: AuditResult = { scan, gaps };
+    const gaps = await llmEnrichGaps(env, scan, sessionId);
+    const audit: AuditResult = {
+      scan,
+      gaps,
+      engine_version: REMEDIATION_ENGINE_VERSION_TAG,
+    };
     const html = renderAuditHtml(audit, sessionId);
     const pdf = await generatePdf(env, html);
     await storePdf(env, sessionId, pdf);
