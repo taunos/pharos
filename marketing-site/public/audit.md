@@ -47,5 +47,5 @@ Full refund, no questions, first 30 days. We'd rather have the feedback than the
 
 - Score (free, not-yet-launched): https://pharos.dev/score
 - Implementation ($1,299, <24h automated build): https://pharos.dev/implementation
-- Custom (bespoke, from $5K): https://pharos.dev/custom
-- Retainer: https://pharos.dev/retainer
+- Custom (bespoke, from $4,999): https://pharos.dev/custom
+- Subscriptions: https://pharos.dev/subscriptions

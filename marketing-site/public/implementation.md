@@ -52,11 +52,11 @@ All of them. We deliver a Git-applicable patch file that works for GitHub, GitLa
 No. The patch-file delivery model means we never touch your code directly. Many B2B security teams prefer this — fewer external service accounts with repo access is a security improvement, not a limitation. (If you're on the Custom tier and want us to open the PR for you, that can be arranged during the scoping call with a temporary deploy key.)
 
 **What if my team isn't comfortable applying patches?**
-Add the Managed Retainer and we handle the patch-application + merge workflow each month, plus ongoing optimization.
+Add the Concierge subscription and we handle the patch-application + merge workflow each month, plus ongoing optimization.
 
 ## Related
 
 - Score (free): https://pharos.dev/score
 - Audit ($79, instant): https://pharos.dev/audit
-- Custom (bespoke, from $5K): https://pharos.dev/custom
-- Retainer: https://pharos.dev/retainer
+- Custom (bespoke, from $4,999): https://pharos.dev/custom
+- Subscriptions: https://pharos.dev/subscriptions

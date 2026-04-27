@@ -49,7 +49,7 @@ const FAQS = [
   },
   {
     q: "What if my team isn't comfortable applying patches?",
-    a: "Add the Managed Retainer and we handle the patch-application + merge workflow each month, plus ongoing optimization.",
+    a: "Add the Concierge subscription and we handle the patch-application + merge workflow each month, plus ongoing optimization.",
   },
 ];
 
@@ -251,7 +251,7 @@ export default function ImplementationPage() {
               No black box. Every artifact lives on your infrastructure. MCP
               server on your Cloudflare account. JSON-LD and content in your
               codebase via the patch your team applied. No dependency on Pharos
-              for ongoing operation. You can cancel the retainer, move off our
+              for ongoing operation. You can cancel the subscription, move off our
               monitoring, or take everything in-house at any time.
             </p>
           </div>

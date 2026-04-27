@@ -49,7 +49,7 @@ const CORE_TIERS: Array<{
   },
   {
     name: "Custom",
-    price: "from $5,000",
+    price: "from $4,999",
     body: "Bespoke builds. Complex APIs, multi-region, custom tools.",
     href: "/custom",
     badge: "Call required",
@@ -57,23 +57,23 @@ const CORE_TIERS: Array<{
   },
 ];
 
-const RETAINER_TIERS: Array<{
+const SUBSCRIPTION_TIERS: Array<{
   name: string;
   price: string;
   body: string;
   href: string;
 }> = [
   {
-    name: "Retainer Auto",
+    name: "AutoPilot",
     price: "$149/mo",
     body: "Monthly scan, auto report, MCP uptime.",
-    href: "/retainer",
+    href: "/subscriptions",
   },
   {
-    name: "Retainer Managed",
+    name: "Concierge",
     price: "$899/mo",
-    body: "Auto + content updates + strategy calls.",
-    href: "/retainer",
+    body: "AutoPilot + content updates + strategy calls.",
+    href: "/subscriptions",
   },
 ];
 
@@ -88,7 +88,7 @@ const FAQS = [
   },
   {
     q: "Do I need a developer to use Pharos?",
-    a: "No. The free Score tool and the $79 Audit are entirely self-serve — paste your URL, get results. The $1,299 automated Implementation also doesn't require your developer to write any code; we email a Git-applicable patch file that your developer applies with `git am` in about five minutes and reviews via your normal PR workflow. We never need access to your repo or infrastructure. Only Custom builds (from $5,000) involve back-and-forth with your engineering team.",
+    a: "No. The free Score tool and the $79 Audit are entirely self-serve — paste your URL, get results. The $1,299 automated Implementation also doesn't require your developer to write any code; we email a Git-applicable patch file that your developer applies with `git am` in about five minutes and reviews via your normal PR workflow. We never need access to your repo or infrastructure. Only Custom builds (from $4,999) involve back-and-forth with your engineering team.",
   },
   {
     q: "What's the difference between the free Score and the paid Audit?",
@@ -100,7 +100,7 @@ const FAQS = [
   },
   {
     q: "How do I know agents are actually using the optimizations?",
-    a: "The monthly Retainer includes a 6-section report covering MCP invocations, agent-fetched pages, AI-referrer click-throughs, citation share across ChatGPT/Claude/Perplexity/Gemini, and conversion attribution. About 70% of AI-driven traffic doesn't carry a referrer in 2026 — measuring it well requires the layered measurement stack we operate.",
+    a: "Both subscription tiers include a 6-section monthly report covering MCP invocations, agent-fetched pages, AI-referrer click-throughs, citation share across ChatGPT/Claude/Perplexity/Gemini, and conversion attribution. About 70% of AI-driven traffic doesn't carry a referrer in 2026 — measuring it well requires the layered measurement stack we operate.",
   },
   {
     q: "What if AI search loses momentum and this becomes irrelevant?",
@@ -164,7 +164,7 @@ function CoreCard({ tier }: { tier: (typeof CORE_TIERS)[number] }) {
   );
 }
 
-function RetainerCard({ tier }: { tier: (typeof RETAINER_TIERS)[number] }) {
+function SubscriptionCard({ tier }: { tier: (typeof SUBSCRIPTION_TIERS)[number] }) {
   return (
     <Link
       href={tier.href}
@@ -276,8 +276,8 @@ export default function Page() {
               ))}
             </div>
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              {RETAINER_TIERS.map((t) => (
-                <RetainerCard key={t.name} tier={t} />
+              {SUBSCRIPTION_TIERS.map((t) => (
+                <SubscriptionCard key={t.name} tier={t} />
               ))}
             </div>
           </div>

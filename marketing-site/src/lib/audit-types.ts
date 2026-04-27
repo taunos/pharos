@@ -50,6 +50,7 @@ export type GapWithRemediation = {
 export type AuditResult = {
   scan: ScanResult;
   gaps: GapWithRemediation[];
+  engine_version: string;
 };
 
 export type SessionStatus =

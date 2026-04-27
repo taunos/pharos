@@ -152,9 +152,9 @@ export async function POST(req: Request) {
       console.error(
         `[dodo-webhook] custom scoping deposit received; manual followup needed. metadata=${JSON.stringify(metadata)}`
       );
-    } else if (tier === "retainer-auto" || tier === "retainer-managed") {
+    } else if (tier === "autopilot" || tier === "concierge") {
       console.error(
-        `[dodo-webhook] retainer purchased (tier=${tier}); future flow. metadata=${JSON.stringify(metadata)}`
+        `[dodo-webhook] subscription purchased (tier=${tier}); future flow. metadata=${JSON.stringify(metadata)}`
       );
     } else {
       console.error(

@@ -3,31 +3,31 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 
 export const metadata: Metadata = {
-  title: "Monthly Retainer — $149 Auto / $899 Managed — Pharos",
+  title: "Subscriptions — $149 AutoPilot / $899 Concierge — Pharos",
   description:
-    "Keep your agent-discoverability stack healthy and measure its impact. Two tiers: Auto ($149/month, fully automated) and Managed ($899/month, human updates + strategy). Month-to-month, cancel anytime.",
+    "Keep your agent-discoverability stack healthy and measure its impact. Two tiers: AutoPilot ($149/month, fully automated) and Concierge ($899/month, human updates + strategy). Month-to-month, cancel anytime.",
   alternates: {
-    types: { "text/markdown": "/retainer.md" },
+    types: { "text/markdown": "/subscriptions.md" },
   },
 };
 
 // TODO(bruno): replace with real Dodo Payments subscription URLs before launch.
-const CHECKOUT_AUTO_URL = "https://checkout.dodopayments.com/buy/pdt_0NdQEw8wrcH0nd5OlZ3IJ?quantity=1";
-const CHECKOUT_MANAGED_URL = "https://checkout.dodopayments.com/buy/pdt_0NdQEbaRcrAC3qQuCAlnh?quantity=1";
+const CHECKOUT_AUTOPILOT_URL = "https://checkout.dodopayments.com/buy/pdt_0NdQEw8wrcH0nd5OlZ3IJ?quantity=1";
+const CHECKOUT_CONCIERGE_URL = "https://checkout.dodopayments.com/buy/pdt_0NdQEbaRcrAC3qQuCAlnh?quantity=1";
 
 const serviceLd = [
   {
     "@context": "https://schema.org",
     "@type": "Service",
-    name: "Monthly Retainer — Auto",
+    name: "AutoPilot Subscription",
     provider: { "@type": "Organization", name: "Pharos" },
     serviceType: "Agent Engine Optimization",
     areaServed: "Worldwide",
-    url: "https://pharos.dev/retainer",
+    url: "https://pharos.dev/subscriptions",
     offers: {
       "@type": "Offer",
-      name: "Monthly Retainer — Auto",
-      url: "https://pharos.dev/retainer",
+      name: "AutoPilot Subscription",
+      url: "https://pharos.dev/subscriptions",
       priceSpecification: {
         "@type": "UnitPriceSpecification",
         price: "149",
@@ -41,15 +41,15 @@ const serviceLd = [
   {
     "@context": "https://schema.org",
     "@type": "Service",
-    name: "Monthly Retainer — Managed",
+    name: "Concierge Subscription",
     provider: { "@type": "Organization", name: "Pharos" },
     serviceType: "Agent Engine Optimization",
     areaServed: "Worldwide",
-    url: "https://pharos.dev/retainer",
+    url: "https://pharos.dev/subscriptions",
     offers: {
       "@type": "Offer",
-      name: "Monthly Retainer — Managed",
-      url: "https://pharos.dev/retainer",
+      name: "Concierge Subscription",
+      url: "https://pharos.dev/subscriptions",
       priceSpecification: {
         "@type": "UnitPriceSpecification",
         price: "899",
@@ -57,7 +57,7 @@ const serviceLd = [
         billingDuration: "P1M",
       },
       description:
-        "Everything in Auto plus content updates, quarterly strategy calls, and competitor tracking.",
+        "Everything in AutoPilot plus content updates, quarterly strategy calls, and competitor tracking.",
     },
   },
 ];
@@ -65,10 +65,10 @@ const serviceLd = [
 const FAQS = [
   {
     q: "Do I need to complete Implementation first?",
-    a: "No — you can start Auto anytime to get the monthly scan and report. Managed is strongest if you've done Implementation; otherwise there's less to \"manage.\"",
+    a: "No — you can start AutoPilot anytime to get the monthly scan and report. Concierge is strongest if you've done Implementation; otherwise there's less to \"manage.\"",
   },
   {
-    q: "Can I upgrade Auto to Managed mid-month?",
+    q: "Can I upgrade AutoPilot to Concierge mid-month?",
     a: "Yes. Prorated via Dodo Payments; takes effect immediately.",
   },
   {
@@ -87,14 +87,14 @@ const faqLd = {
   })),
 };
 
-const AUTO_INCLUDES = [
+const AUTOPILOT_INCLUDES = [
   "Hosted MCP server (uptime, security updates, MCP spec evolution)",
   "Monthly auto-generated 6-section agent-traffic report (PDF)",
   "Monthly auto-rescan of your site against the 6-dimension rubric",
   "Citation monitoring across ChatGPT, Claude, Perplexity, Gemini (read-only dashboard)",
 ];
 
-const MANAGED_EXTRAS = [
+const CONCIERGE_EXTRAS = [
   "Content updates as your site evolves (new pricing, new products, new case studies — reflected in the AEO stack)",
   "Quarterly strategy call",
   "Competitor tracking with narrative analysis, not just data",
@@ -104,14 +104,14 @@ const MANAGED_EXTRAS = [
 
 const EXCLUDED = [
   "New MCP tools or new feature builds (separate Implementation or Custom work)",
-  "Major content rewrites (small updates are in scope for Managed; full rewrites aren't)",
+  "Major content rewrites (small updates are in scope for Concierge; full rewrites aren't)",
   "Non-AEO SEO work (that's a different business, not ours)",
 ];
 
-function AutoCta({ label }: { label: string }) {
+function AutoPilotCta({ label }: { label: string }) {
   return (
     <a
-      href={CHECKOUT_AUTO_URL}
+      href={CHECKOUT_AUTOPILOT_URL}
       className="inline-flex rounded-md bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
     >
       {label}
@@ -119,10 +119,10 @@ function AutoCta({ label }: { label: string }) {
   );
 }
 
-function ManagedCta({ label }: { label: string }) {
+function ConciergeCta({ label }: { label: string }) {
   return (
     <a
-      href={CHECKOUT_MANAGED_URL}
+      href={CHECKOUT_CONCIERGE_URL}
       className="inline-flex rounded-md border border-[var(--color-accent)] px-6 py-3 text-base font-semibold text-[var(--color-accent)] transition hover:bg-[var(--color-accent)] hover:text-black"
     >
       {label}
@@ -130,7 +130,7 @@ function ManagedCta({ label }: { label: string }) {
   );
 }
 
-export default function RetainerPage() {
+export default function SubscriptionsPage() {
   return (
     <div className="min-h-screen">
       <script
@@ -147,13 +147,13 @@ export default function RetainerPage() {
         {/* HERO */}
         <section className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
           <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
-            Monthly Retainer
+            Subscriptions
           </h1>
           <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)] sm:text-xl">
             Keep your agent-discoverability stack healthy and measure its impact.
-            Two tiers: Auto (fully automated, $149/month) and Managed (includes
-            human content updates and strategy calls, $899/month). Month-to-month
-            on both. Cancel anytime.
+            Two tiers: AutoPilot ($149/month, fully automated) and Concierge
+            ($899/month, includes human content updates and strategy calls).
+            Month-to-month on both. Cancel anytime.
           </p>
         </section>
 
@@ -164,10 +164,10 @@ export default function RetainerPage() {
               Compare tiers
             </h2>
             <div className="mt-10 grid gap-6 lg:grid-cols-2">
-              {/* AUTO CARD */}
+              {/* AUTOPILOT CARD */}
               <div className="flex flex-col rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
                 <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="text-2xl font-semibold">Auto</h3>
+                  <h3 className="text-2xl font-semibold">AutoPilot</h3>
                   <span className="text-xl font-bold text-[var(--color-accent)]">
                     $149 / month
                   </span>
@@ -177,7 +177,7 @@ export default function RetainerPage() {
                   numbers, without human overhead.
                 </p>
                 <ul className="mt-6 flex flex-col gap-3 text-base">
-                  {AUTO_INCLUDES.map((i) => (
+                  {AUTOPILOT_INCLUDES.map((i) => (
                     <li key={i} className="flex gap-3">
                       <span className="mt-1 shrink-0 text-[var(--color-accent)]">
                         ✓
@@ -187,24 +187,24 @@ export default function RetainerPage() {
                   ))}
                 </ul>
                 <div className="mt-8">
-                  <AutoCta label="Start Auto" />
+                  <AutoPilotCta label="Start AutoPilot" />
                 </div>
               </div>
 
-              {/* MANAGED CARD */}
+              {/* CONCIERGE CARD */}
               <div className="flex flex-col rounded-lg border border-[var(--color-accent)] bg-[var(--color-surface)] p-6">
                 <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="text-2xl font-semibold">Managed</h3>
+                  <h3 className="text-2xl font-semibold">Concierge</h3>
                   <span className="text-xl font-bold text-[var(--color-accent)]">
                     $899 / month
                   </span>
                 </div>
                 <p className="mt-4 text-[var(--color-muted)]">
                   For teams post-Implementation who want ongoing hands-on
-                  optimization. Includes everything in Auto, plus:
+                  optimization. Includes everything in AutoPilot, plus:
                 </p>
                 <ul className="mt-6 flex flex-col gap-3 text-base">
-                  {MANAGED_EXTRAS.map((i) => (
+                  {CONCIERGE_EXTRAS.map((i) => (
                     <li key={i} className="flex gap-3">
                       <span className="mt-1 shrink-0 text-[var(--color-accent)]">
                         ✓
@@ -214,7 +214,7 @@ export default function RetainerPage() {
                   ))}
                 </ul>
                 <div className="mt-8">
-                  <ManagedCta label="Start Managed" />
+                  <ConciergeCta label="Start Concierge" />
                 </div>
               </div>
             </div>
@@ -245,7 +245,7 @@ export default function RetainerPage() {
               Clear boundaries
             </h2>
             <p className="mt-4 max-w-3xl text-lg text-[var(--color-muted)]">
-              Retainer is optimization and operations. It doesn&apos;t cover:
+              Subscriptions are optimization and operations. They don&apos;t cover:
             </p>
             <ul className="mt-10 flex flex-col gap-4 text-lg">
               {EXCLUDED.map((e) => (
@@ -283,11 +283,11 @@ export default function RetainerPage() {
               Ready?
             </h2>
             <div className="mt-10 flex flex-wrap gap-4">
-              <AutoCta label="Start Auto" />
-              <ManagedCta label="Start Managed" />
+              <AutoPilotCta label="Start AutoPilot" />
+              <ConciergeCta label="Start Concierge" />
             </div>
             <p className="mt-4 text-sm italic text-[var(--color-muted)]">
-              Not sure? Start with Auto and upgrade later — all settings carry
+              Not sure? Start with AutoPilot and upgrade later — all settings carry
               over.
             </p>
           </div>

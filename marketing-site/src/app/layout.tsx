@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     "Pharos makes B2B SaaS structurally discoverable and invokable by AI agents. We implement llms.txt, MCP servers, OpenAPI specs, structured capability data, and agent-parsable content — and monitor the results.",
   other: {
     "ai-summary":
-      "Pharos is an Agent Discoverability service for B2B SaaS. Automated tiers: Score (free), Audit ($79, instant PDF), Implementation ($1,299, <24h build), Custom (from $5K, bespoke). Retainers at $149/mo (Auto) and $899/mo (Managed). Agent-callable MCP at pharos-mcp.pharos-dev.workers.dev.",
+      "Pharos is an Agent Discoverability service for B2B SaaS. Automated tiers: Score (free), Audit ($79, instant PDF), Implementation ($1,299, <24h build), Custom (from $4,999, bespoke). Subscriptions at $149/mo (AutoPilot) and $899/mo (Concierge). Agent-callable MCP at pharos-mcp.pharos-dev.workers.dev.",
     "service-category":
       "Agent Engine Optimization, AEO, agent discoverability, LLM SEO",
   },
@@ -64,21 +64,21 @@ const jsonLd = [
         "@type": "Offer",
         name: "Custom Implementation",
         url: "https://pharos.dev/custom",
-        price: "5000",
+        price: "4999",
         priceCurrency: "USD",
         priceSpecification: {
           "@type": "PriceSpecification",
-          price: "5000",
+          price: "4999",
           priceCurrency: "USD",
           valueAddedTaxIncluded: false,
         },
         description:
-          "Bespoke builds for complex APIs, multi-region content, custom MCP tools. From $5,000 — fixed quote after scoping call.",
+          "Bespoke builds for complex APIs, multi-region content, custom MCP tools. From $4,999 — fixed quote after scoping call.",
       },
       {
         "@type": "Offer",
-        name: "Monthly Retainer — Auto",
-        url: "https://pharos.dev/retainer",
+        name: "AutoPilot Subscription",
+        url: "https://pharos.dev/subscriptions",
         priceSpecification: {
           "@type": "UnitPriceSpecification",
           price: "149",
@@ -90,8 +90,8 @@ const jsonLd = [
       },
       {
         "@type": "Offer",
-        name: "Monthly Retainer — Managed",
-        url: "https://pharos.dev/retainer",
+        name: "Concierge Subscription",
+        url: "https://pharos.dev/subscriptions",
         priceSpecification: {
           "@type": "UnitPriceSpecification",
           price: "899",
@@ -99,7 +99,7 @@ const jsonLd = [
           billingDuration: "P1M",
         },
         description:
-          "Everything in Auto plus content updates, quarterly strategy calls, and competitor tracking.",
+          "Everything in AutoPilot plus content updates, quarterly strategy calls, and competitor tracking.",
       },
     ],
   },

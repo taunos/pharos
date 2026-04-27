@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const MD_ROUTES = new Set(["/audit", "/implementation", "/custom", "/retainer", "/score"]);
+const MD_ROUTES = new Set(["/audit", "/implementation", "/custom", "/subscriptions", "/score"]);
 
 export function middleware(req: NextRequest) {
   const accept = (req.headers.get("accept") ?? "").toLowerCase();
@@ -18,5 +18,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/audit", "/implementation", "/custom", "/retainer", "/score"],
+  matcher: ["/audit", "/implementation", "/custom", "/subscriptions", "/score"],
 };

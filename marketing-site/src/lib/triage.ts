@@ -122,7 +122,7 @@ Pharos has three engagement options:
    - Includes: llms.txt generation, baseline MCP server with standard tools (get_capabilities, get_pricing, get_case_studies, book_demo, check_llms_txt, score_url), OpenAPI spec if a public API is detectable, JSON-LD schema injection, baseline monitoring
    - Does NOT include: custom MCP tools, multi-region content, multi-language content, content rewrites beyond pricing/services pages, multi-stakeholder coordination
 
-2. CUSTOM IMPLEMENTATION (from $5,000, human-led, 2-4 weeks typical; $250 deposit at booking that's credited toward the final fixed quote)
+2. CUSTOM IMPLEMENTATION (from $4,999, human-led, 2-4 weeks typical; $250 deposit at booking that's credited toward the final fixed quote)
    - This is where ALL genuinely complex implementation needs go — never route them to not_fit
    - Custom triggers (any of these alone is enough; two or more makes custom almost certain): complex public APIs requiring tailored OpenAPI (10+ operations), multi-region or multi-language content, custom MCP tools specific to the business (industry inventory, real-time booking, customer-state exposure), major content rewrites (20+ pages), multi-stakeholder approvals (legal/ops/IT/marketing need a human liaison), aggressive deadlines under 2 weeks
    - Budget signal: $5K+ budget combined with any complexity factor → almost always custom

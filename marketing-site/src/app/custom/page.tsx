@@ -23,11 +23,11 @@ const serviceLd = {
   offers: {
     "@type": "Offer",
     name: "Custom Implementation",
-    price: "5000",
+    price: "4999",
     priceCurrency: "USD",
     url: "https://pharos.dev/custom",
     description:
-      "Bespoke builds for complex APIs, multi-region content, custom MCP tools. From $5,000 — fixed quote after a $250-deposit scoping call (deposit is credited toward the final quote).",
+      "Bespoke builds for complex APIs, multi-region content, custom MCP tools. From $4,999 — fixed quote after a $250-deposit scoping call (deposit is credited toward the final quote).",
   },
 };
 
@@ -94,7 +94,7 @@ export default function CustomPage() {
         {/* HERO */}
         <section className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
           <div className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-sm font-mono text-[var(--color-muted)]">
-            From $5,000 · 2–4 weeks typical
+            From $4,999 · 2–4 weeks typical
           </div>
           <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-6xl">
             Custom Implementation

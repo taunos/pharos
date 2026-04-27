@@ -37,12 +37,12 @@ The free Score gives you a public grade across six dimensions. The $79 Audit add
 Soon. Drop your URL and email at https://pharos.dev/score and you'll be among the first to run it the day it ships.
 
 **Will you charge for the Score later?**
-No. The Score stays free. The paid tiers (Audit, Implementation, Custom, Retainer) go deeper.
+No. The Score stays free. The paid tiers (Audit, Implementation, Custom, Subscriptions) go deeper.
 
 ## Related
 
 - Audit (paid, instant): https://pharos.dev/audit
 - Implementation ($1,299, <24h build): https://pharos.dev/implementation
-- Custom (bespoke, from $5K): https://pharos.dev/custom
-- Retainer ($149/mo Auto, $899/mo Managed): https://pharos.dev/retainer
+- Custom (bespoke, from $4,999): https://pharos.dev/custom
+- Subscriptions ($149/mo AutoPilot, $899/mo Concierge): https://pharos.dev/subscriptions
 - MCP Server: https://pharos-mcp.pharos-dev.workers.dev/mcp

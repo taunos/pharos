@@ -1,6 +1,6 @@
 # Custom Implementation
 
-**Price:** From $5,000 (fixed quote after a $250-deposit scoping call — deposit is credited toward the final quote, not an extra fee)
+**Price:** From $4,999 (fixed quote after a $250-deposit scoping call — deposit is credited toward the final quote, not an extra fee)
 **Delivery:** 2–4 weeks typical
 **Fit check:** https://pharos.dev/custom
 
@@ -30,9 +30,9 @@ The standard Implementation ($1,299, https://pharos.dev/implementation) covers 8
 5. **Execute** — Weekly progress updates. You have a direct Slack/email channel throughout.
 6. **Handoff + final payment** — Same "you own everything" rule as standard Implementation. MCP on your infra, the build delivered as a Git-applicable patch (or, optionally for Custom-tier customers, opened as a PR via temporary deploy key / GitHub App if arranged during scoping), docs in your codebase.
 
-## Why "from $5,000"?
+## Why "from $4,999"?
 
-$5K is the floor for a minimal custom engagement — roughly 40 hours of focused work. Most Custom builds land in the $8K–$20K range. Complex or multi-region engagements can run higher. Every quote is fixed before work starts — no hourly billing surprises.
+$4,999 is the floor for a minimal custom engagement — roughly 40 hours of focused work. Most Custom builds land in the $8K–$20K range. Complex or multi-region engagements can run higher. Every quote is fixed before work starts — no hourly billing surprises.
 
 ## Why a $250 deposit to book the scoping call?
 
@@ -63,4 +63,4 @@ Yes, please bring them. Custom calls are often 3–4 people on the customer side
 - Score (free): https://pharos.dev/score
 - Audit ($79, instant): https://pharos.dev/audit
 - Implementation ($1,299, <24h automated): https://pharos.dev/implementation
-- Retainer: https://pharos.dev/retainer
+- Subscriptions: https://pharos.dev/subscriptions
