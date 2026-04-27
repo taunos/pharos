@@ -144,36 +144,51 @@ export async function runDim1(targetUrl: string, env: Env): Promise<DimensionRes
   });
 
   // 4. curation_quality
-  let curationScore = 100;
-  const antipatterns: string[] = [];
-  if (links.length > 100) {
-    curationScore -= 20;
-    antipatterns.push(`${links.length} links (>100)`);
+  // Gate: if the file isn't there, or it loaded but has zero links, the
+  // anti-pattern detection below is meaningless — there's nothing to curate.
+  // Returning 100/"clean link list" in those cases (the old behavior) was
+  // misleading. Instead, score 0 with honest notes so the per-dimension
+  // breakdown reflects the missing-file reality.
+  let curationScore = 0;
+  let curationNotes = "";
+  if (!presenceOk || !body) {
+    curationNotes = "file missing — no link list to evaluate";
+  } else if (links.length === 0) {
+    curationNotes = "empty file — no links to evaluate";
+  } else {
+    curationScore = 100;
+    const antipatterns: string[] = [];
+    if (links.length > 100) {
+      curationScore -= 20;
+      antipatterns.push(`${links.length} links (>100)`);
+    }
+    if (links.some((l) => /\/tag\//i.test(l))) {
+      curationScore -= 20;
+      antipatterns.push("tag pages linked");
+    }
+    if (links.some((l) => /\/archive\//i.test(l))) {
+      curationScore -= 20;
+      antipatterns.push("archive pages linked");
+    }
+    if (links.some((l) => /\/search\?/i.test(l))) {
+      curationScore -= 20;
+      antipatterns.push("search-result URLs linked");
+    }
+    if (links.some((l) => /\?(?!_pharos_t=)/.test(l))) {
+      curationScore -= 20;
+      antipatterns.push("links contain query strings");
+    }
+    curationScore = Math.max(0, curationScore);
+    curationNotes =
+      antipatterns.length === 0 ? "clean link list" : antipatterns.join("; ");
   }
-  if (links.some((l) => /\/tag\//i.test(l))) {
-    curationScore -= 20;
-    antipatterns.push("tag pages linked");
-  }
-  if (links.some((l) => /\/archive\//i.test(l))) {
-    curationScore -= 20;
-    antipatterns.push("archive pages linked");
-  }
-  if (links.some((l) => /\/search\?/i.test(l))) {
-    curationScore -= 20;
-    antipatterns.push("search-result URLs linked");
-  }
-  if (links.some((l) => /\?(?!_pharos_t=)/.test(l))) {
-    curationScore -= 20;
-    antipatterns.push("links contain query strings");
-  }
-  curationScore = Math.max(0, curationScore);
   subs.push({
     id: "curation_quality",
     name: "Curation quality",
     weight: 15,
     score: curationScore,
     passed: curationScore >= 70,
-    notes: antipatterns.length === 0 ? "clean link list" : antipatterns.join("; "),
+    notes: curationNotes,
   });
 
   // 5. blockquote_eval
