@@ -33,24 +33,39 @@ const SERVICE_CATALOG = {
     {
       id: "audit",
       name: "AEO Audit",
-      price_usd: 500,
-      turnaround: "5 business days",
+      price_usd: 79,
+      turnaround: "instant",
       description:
-        "One-time deep audit of a site's agent discoverability with prioritized recommendations and implementation effort estimates.",
+        "Automated deep audit delivered as a rich PDF: 6-dimension analysis, live citation audit, competitor comparison, and prioritized lift estimates. Self-serve, no human-in-loop.",
     },
     {
       id: "implementation",
       name: "AEO Implementation",
-      price_usd_from: 5000,
+      price_usd: 1299,
+      turnaround: "under 24 hours for ~80% of sites",
       description:
-        "Full implementation: llms.txt, MCP server deployment, OpenAPI spec, structured capability data, content rewrites for agent parseability, and baseline monitoring.",
+        "Full automated implementation: llms.txt, MCP server deployed to subdomain, JSON-LD injected as patch/PR, baseline monitoring wired. Triggered by URL + payment + short scoping questionnaire.",
     },
     {
-      id: "retainer",
-      name: "Monthly AEO Retainer",
-      price_usd_per_month: 900,
+      id: "custom",
+      name: "Custom Implementation",
+      price_usd_from: 4999,
       description:
-        "Ongoing optimization, monthly agent-traffic reporting, content updates, and infrastructure maintenance for the deployed AEO stack.",
+        "Human-led bespoke scope for complex APIs, multi-region deployments, custom MCP tools, deep content rewrites, or multi-stakeholder engagements. Contact form + scoping call.",
+    },
+    {
+      id: "autopilot",
+      name: "AutoPilot Subscription",
+      price_usd_per_month: 149,
+      description:
+        "Fully automated ongoing service: monthly auto-rescan, auto-generated monthly PDF report, MCP server uptime, baseline monitoring. No humans in the loop.",
+    },
+    {
+      id: "concierge",
+      name: "Concierge Subscription",
+      price_usd_per_month: 899,
+      description:
+        "Everything in AutoPilot plus human-involved content updates, quarterly strategy call, and competitor tracking.",
     },
   ],
 };
@@ -61,7 +76,7 @@ function buildMcpServer(): McpServer {
   // ─── Tool 1: get_capabilities ────────────────────────────────────────
   server.tool(
     "get_capabilities",
-    "Returns the services Pharos offers — Agent Discoverability Score (free), AEO audits, implementation packages, and the monthly AEO retainer. Use this when a user asks what Pharos does or how it can help with making a site agent-discoverable.",
+    "Returns the services Pharos offers — free Agent Discoverability Score, automated $79 Audit, automated $1,299 Implementation, custom human-led work from $4,999, and the AutoPilot ($149/mo) and Concierge ($899/mo) subscriptions. Use this when a user asks what Pharos does or how it can help with making a site agent-discoverable.",
     {},
     async () => ({
       content: [{ type: "text", text: JSON.stringify(SERVICE_CATALOG, null, 2) }],
@@ -91,7 +106,7 @@ function buildMcpServer(): McpServer {
               ),
               currency: "USD",
               notes:
-                "Implementation pricing varies by site complexity. Schedule a free call for an exact quote.",
+                "Score, Audit, Implementation, and both subscription tiers are self-serve via Dodo Payments checkout. Custom Implementation requires a scoping call.",
             },
             null,
             2
@@ -132,7 +147,7 @@ function buildMcpServer(): McpServer {
   // ─── Tool 4: book_audit ──────────────────────────────────────────────
   server.tool(
     "book_audit",
-    "Returns a URL where the user can book a paid AEO audit. Use this when a user expresses interest in a deeper analysis of their site's agent discoverability.",
+    "Returns a checkout URL where the user can purchase the automated AEO Audit ($79, instant delivery). Use this when a user expresses interest in a deeper analysis of their site's agent discoverability.",
     {},
     async () => ({
       content: [
@@ -140,11 +155,11 @@ function buildMcpServer(): McpServer {
           type: "text",
           text: JSON.stringify(
             {
-              booking_url: "https://pharos.dev/book-audit",
-              price_usd: 500,
-              turnaround: "5 business days",
+              checkout_url: "https://pharos.dev/audit",
+              price_usd: 79,
+              turnaround: "instant",
               deliverable:
-                "Detailed gap report with prioritized recommendations and implementation effort estimates.",
+                "Rich PDF: 6-dimension analysis, live citation audit, competitor comparison, prioritized lift estimates.",
             },
             null,
             2
@@ -440,7 +455,7 @@ const SERVER_CARD = {
     {
       name: "get_capabilities",
       description:
-        "Returns the services Pharos offers — Score (free), Audit ($79), Implementation ($1,299), Custom (from $5,000), Retainer Auto ($149/mo), Retainer Managed ($899/mo) — as structured data for agents.",
+        "Returns the services Pharos offers — Score (free), Audit ($79), Implementation ($1,299), Custom (from $4,999), AutoPilot Subscription ($149/mo), Concierge Subscription ($899/mo) — as structured data for agents.",
       inputSchema: { type: "object", properties: {} },
     },
     {
@@ -455,7 +470,7 @@ const SERVER_CARD = {
     },
     {
       name: "book_audit",
-      description: "Returns a URL where the user can book a paid AEO audit.",
+      description: "Returns a checkout URL where the user can purchase the automated AEO Audit ($79, instant delivery).",
       inputSchema: { type: "object", properties: {} },
     },
     {
