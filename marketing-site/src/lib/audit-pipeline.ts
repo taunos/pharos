@@ -23,6 +23,72 @@ const SCANNER_URL =
 
 const REMEDIATION_MODEL = "@cf/meta/llama-3.1-8b-instruct";
 const REMEDIATION_CACHE_TTL = 30 * 24 * 60 * 60;
+const REMEDIATION_ENGINE_VERSION = "v3";
+
+/**
+ * Per-check description of WHAT THE CHECK EXAMINES — the artifact (file, DNS record,
+ * schema block, etc.) the remediation must operate on. Passed into the LLM prompt
+ * so the model grounds its remediation in the correct subject instead of defaulting
+ * to "the homepage." See TF-18 in the Score MVP roadmap.
+ */
+export const CHECK_SUBJECTS: Record<string, string> = {
+  // Dimension 1 — llms.txt Quality (all sub-checks operate on the /llms.txt file)
+  presence: "the `/llms.txt` file at the site root",
+  spec_compliance:
+    "the structure of the `/llms.txt` file (its first H1 and blockquote summary)",
+  linked_pages_quality: "the pages linked from inside the `/llms.txt` file",
+  curation_quality: "the link list inside the `/llms.txt` file",
+  blockquote_eval: "the blockquote summary inside the `/llms.txt` file",
+
+  // Dimension 2 — MCP Server Discoverability (varied subjects)
+  well_known:
+    "the discovery card at `/.well-known/mcp.json` (or `/.well-known/mcp/server-card.json`)",
+  tool_coverage: "the `tools[]` array inside the MCP server discovery card",
+  oauth_metadata:
+    "the OAuth metadata at `/.well-known/oauth-authorization-server`",
+  live_invocation: "the transport URL declared in the MCP server discovery card",
+  dns_txt: "the DNS TXT record at `_mcp.<your-domain>`",
+
+  // Dimension 4 — Structured Capability Data (JSON-LD on various pages)
+  json_ld_present: "the JSON-LD `<script>` block(s) on the homepage",
+  organization_schema: "the Organization JSON-LD block on the homepage",
+  service_offer_schema:
+    "the Service / Product / Offer JSON-LD on commercial pages (homepage, pricing, services)",
+  faq_schema: "the FAQPage JSON-LD on the homepage or a dedicated FAQ page",
+  review_schema: "the Review or AggregateRating JSON-LD on relevant pages",
+
+  // Dimensions 3, 5, 6 — to be populated as those checks ship in Slice 2/3.
+};
+
+const DEFAULT_CHECK_SUBJECT = "the relevant artifact for this check";
+
+/**
+ * Per-check keyword set for the subject-coherence validator. The remediation must
+ * contain (case-insensitive) at least one of the listed keywords. False negatives
+ * are caught by retry-with-feedback; the templated fallback is the floor.
+ */
+export const CHECK_SUBJECT_KEYWORDS: Record<string, string[]> = {
+  // Dimension 1 — every check is about the llms.txt file
+  presence: ["llms.txt"],
+  spec_compliance: ["llms.txt"],
+  linked_pages_quality: ["llms.txt"],
+  curation_quality: ["llms.txt"],
+  blockquote_eval: ["llms.txt"],
+
+  // Dimension 2
+  well_known: ["mcp.json", ".well-known", "discovery card", "server card"],
+  tool_coverage: ["mcp", "server card", "discovery card", "tools["],
+  oauth_metadata: ["oauth", ".well-known"],
+  live_invocation: ["mcp", "transport", "server card", "discovery card"],
+  dns_txt: ["dns", "txt record", "_mcp"],
+
+  // Dimension 4 — JSON-LD schemas
+  json_ld_present: ["json-ld", "schema"],
+  organization_schema: ["organization", "json-ld", "schema"],
+  service_offer_schema: ["service", "product", "offer", "json-ld", "schema"],
+  faq_schema: ["faqpage", "faq", "json-ld", "schema"],
+  review_schema: ["review", "aggregaterating", "json-ld", "schema"],
+};
 
 export type AuditEnv = {
   AI: Ai;
@@ -57,71 +123,238 @@ async function sha256Hex(input: string): Promise<string> {
     .join("");
 }
 
+function subjectFor(checkId: string): string {
+  return CHECK_SUBJECTS[checkId] ?? DEFAULT_CHECK_SUBJECT;
+}
+
 function buildRemediationPrompt(
-  url: string,
-  dimensionName: string,
-  check: SubCheck
+  scanUrl: string,
+  check: SubCheck,
+  checkSubject: string
 ): string {
-  return `You write remediation guides for a developer-facing AEO (Agent Engine Optimization) audit.
+  return `You are generating remediation guidance for a single Agent Engine Optimization (AEO) check finding on one specific website. Your output is a single short paragraph that will appear in a paid PDF audit report. Customer trust depends on accuracy.
 
-The site at ${url} failed the "${check.name}" check (dimension: "${dimensionName}", score: ${check.score}/100).
+SITE BEING AUDITED: ${scanUrl}
+WHAT THIS CHECK EXAMINES: ${checkSubject}
 
-Finding notes from the scanner:
-${check.notes}
+CRITICAL CONSTRAINTS — violating any of these breaks the audit's value:
 
-Write 2-3 sentences of specific, actionable remediation guidance for a developer. Be concrete — name specific files, fields, or pages. Include an estimated effort like "30 min" or "2-3 hours".
+1. SUBJECT-GROUNDED CONSTRAINT. Your remediation MUST be about WHAT THIS CHECK EXAMINES (above). The check examines a specific artifact — a file, a DNS record, a schema block, a discovery card, etc. Your remediation must operate on that artifact. Do not redirect the customer to fix a different artifact (do not, for example, default to "the homepage" when the subject is the /llms.txt file or a DNS record).
 
-Example tone:
-"Add a JSON-LD Organization schema to your homepage with name, url, description, and at least 3 sameAs entries pointing to your social profiles. Estimated effort: 30 min."
+2. SINGLE-DOMAIN CONSTRAINT. Your remediation MUST apply only to ${scanUrl}. Never reference any other domain, URL, or website in your output. If you mention a URL, it must be on the same host as ${scanUrl}. When in doubt, do not mention any URL.
 
-Respond with ONLY the remediation paragraph — no preamble, no JSON, no markdown.`;
+3. STACK-AGNOSTIC CONSTRAINT. You do not know which framework, language, or file structure the site uses. Do NOT reference specific file names like "index.html", "pharos.json", "public/", "src/", "layout.tsx", or any specific build tool. Use stack-agnostic phrasing for HOW to make the change — but be specific about WHAT artifact is being changed (the subject above).
+
+4. NOTES-GROUNDED CONSTRAINT. The "Notes" field below describes the ACTUAL state observed — read it carefully. The "Check name" is a category label only. If the notes say something already exists but scores poorly (e.g. "7 Q&As detected, conversational eval 34/100"), do NOT recommend adding what already exists; recommend improving its quality. If the notes say something is missing, recommend creating or adding it.
+
+5. SPECIFICITY CONSTRAINT. The remediation must address what the notes describe, not the check name in the abstract. Quote or paraphrase a relevant detail from the notes in your remediation so it's clear you read them.
+
+FINDING:
+- Check name: ${check.name}
+- What this check examines: ${checkSubject}
+- Score: ${check.score}/100 (weight ${check.weight}% within its dimension)
+- Notes from the scanner: ${check.notes}
+
+OUTPUT FORMAT:
+A single paragraph, 2 to 4 sentences. Start by naming the subject (from WHAT THIS CHECK EXAMINES) and the specific change to make to it (grounded in the notes). Describe the change in stack-agnostic terms for the HOW, but specific about the WHAT (the subject). End with exactly: "Estimated effort: <duration>." where <duration> is one of:
+
+- "under 30 minutes" — only when the change is trivial (single field add, copy-paste of standard markup)
+- "30 minutes to 1 hour" — typical config or small file edit
+- "1 to 2 hours" — typical schema authoring or content writing
+- "2 to 4 hours" — involves writing, rewriting, or coordinating across multiple files
+- "4+ hours" — complex multi-step changes (DNS + content + multiple schemas)
+
+Default to the LONGER estimate when uncertain. Do not under-promise effort.
+
+Output ONLY the remediation paragraph. No preamble, no markdown headers, no JSON wrapping. Plain text.`;
+}
+
+function buildRetryPrompt(
+  originalPrompt: string,
+  failedRemediation: string,
+  reason: string
+): string {
+  return `${originalPrompt}
+
+YOUR PREVIOUS ATTEMPT WAS REJECTED.
+
+Previous output:
+${failedRemediation}
+
+Rejection reason: ${reason}
+
+Try again. Strictly obey the constraints above. Do not repeat the rejected output.`;
+}
+
+export type RemediationValidation =
+  | { valid: true }
+  | { valid: false; reason: string };
+
+export function validateRemediation(
+  remediation: string,
+  scanUrl: string,
+  checkId: string
+): RemediationValidation {
+  const scanHost = (() => {
+    try {
+      return new URL(scanUrl).host;
+    } catch {
+      return null;
+    }
+  })();
+
+  // 1. URL guard — no foreign domains
+  if (scanHost) {
+    const urlMatches = remediation.match(/https?:\/\/[^\s)\]'"]+/g) ?? [];
+    for (const m of urlMatches) {
+      try {
+        const host = new URL(m).host;
+        if (host !== scanHost) {
+          return {
+            valid: false,
+            reason: `foreign domain in remediation: ${host}`,
+          };
+        }
+      } catch {
+        // malformed URL — let it pass; not our problem here
+      }
+    }
+  }
+
+  // 2. Fabricated-path guard
+  const forbidden: RegExp[] = [
+    /\bindex\.html\b/i,
+    /\bpharos\.json\b/i,
+    /\bpublic\/[a-z0-9_.-]+\.(html|json|txt)\b/i,
+  ];
+  for (const re of forbidden) {
+    if (re.test(remediation)) {
+      return { valid: false, reason: `forbidden path pattern: ${re.source}` };
+    }
+  }
+
+  // 3. Subject-coherence guard — keyword presence (low precision, high recall).
+  const subjectCheck = validateSubjectCoherence(remediation, checkId);
+  if (!subjectCheck.valid) return subjectCheck;
+
+  return { valid: true };
+}
+
+function validateSubjectCoherence(
+  remediation: string,
+  checkId: string
+): RemediationValidation {
+  const keywords = CHECK_SUBJECT_KEYWORDS[checkId];
+  if (!keywords || keywords.length === 0) {
+    console.warn(
+      `[validateSubjectCoherence] no keyword set for check_id=${checkId}; skipping`
+    );
+    return { valid: true };
+  }
+  const lower = remediation.toLowerCase();
+  const matched = keywords.some((kw) => lower.includes(kw.toLowerCase()));
+  if (!matched) {
+    return {
+      valid: false,
+      reason: `remediation does not reference subject. Expected one of: ${keywords.join(" | ")}. Received: "${remediation.slice(0, 200)}..."`,
+    };
+  }
+  return { valid: true };
+}
+
+function fallbackRemediation(check: SubCheck): string {
+  const trimmed = check.notes.trim().replace(/\s+/g, " ").slice(0, 240);
+  const checkSubject = subjectFor(check.id);
+  return `This check scored ${check.score}/100 because: ${trimmed}. Review ${checkSubject} on your site and address what the notes describe. Estimated effort: 1 to 2 hours.`;
+}
+
+async function callModel(
+  env: AuditEnv,
+  prompt: string
+): Promise<string> {
+  try {
+    const r = (await env.AI.run(REMEDIATION_MODEL, {
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 250,
+      temperature: 0,
+      seed: 42,
+    })) as { response?: string };
+    return (r.response ?? "").trim();
+  } catch {
+    return "";
+  }
 }
 
 async function enrichGap(
   env: AuditEnv,
-  url: string,
-  dimensionName: string,
+  scanUrl: string,
+  sessionId: string,
   check: SubCheck
 ): Promise<string> {
-  const cacheInput = `${check.id}|${check.score}|${check.notes}`;
-  const cacheKey = `audit:remediation:v1:${await sha256Hex(cacheInput)}`;
+  // v2 cache key: includes scanUrl so per-site remediations don't bleed across
+  // tenants, and bumps the version to invalidate the broken-prompt v1 entries.
+  const cacheInput = `${scanUrl}|${check.id}|${check.score}|${check.notes}`;
+  const cacheKey = `audit:remediation:${REMEDIATION_ENGINE_VERSION}:${await sha256Hex(cacheInput)}`;
 
   const cached = await env.SESSIONS.get(cacheKey);
   if (cached !== null) return cached;
 
-  const prompt = buildRemediationPrompt(url, dimensionName, check);
-  let raw = "";
-  try {
-    const r = (await env.AI.run(REMEDIATION_MODEL, {
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 220,
-      temperature: 0,
-      seed: 42,
-    })) as { response?: string };
-    raw = (r.response ?? "").trim();
-  } catch {
-    raw = "";
-  }
-  if (!raw) {
-    raw = `Address the "${check.name}" gap based on the scanner notes above. Effort varies by site (typically 1-3 hours).`;
+  const checkSubject = subjectFor(check.id);
+  const prompt = buildRemediationPrompt(scanUrl, check, checkSubject);
+
+  // First attempt.
+  let raw = await callModel(env, prompt);
+  let result: string | null = null;
+  if (raw) {
+    const v = validateRemediation(raw, scanUrl, check.id);
+    if (v.valid) {
+      result = raw;
+    } else {
+      // Retry once with the validator's reason fed back in.
+      const retryPrompt = buildRetryPrompt(prompt, raw, v.reason);
+      const raw2 = await callModel(env, retryPrompt);
+      if (raw2) {
+        const v2 = validateRemediation(raw2, scanUrl, check.id);
+        if (v2.valid) {
+          result = raw2;
+        } else {
+          console.warn(
+            `[audit-fulfill] remediation validator failed twice (session=${sessionId}, check=${check.id}): first="${v.reason}", retry="${v2.reason}"; using fallback.`
+          );
+        }
+      } else {
+        console.warn(
+          `[audit-fulfill] remediation retry returned empty (session=${sessionId}, check=${check.id}); using fallback.`
+        );
+      }
+    }
+  } else {
+    console.warn(
+      `[audit-fulfill] remediation initial call returned empty (session=${sessionId}, check=${check.id}); using fallback.`
+    );
   }
 
-  await env.SESSIONS.put(cacheKey, raw, {
+  if (result === null) {
+    result = fallbackRemediation(check);
+  }
+
+  await env.SESSIONS.put(cacheKey, result, {
     expirationTtl: REMEDIATION_CACHE_TTL,
   });
-  return raw;
+  return result;
 }
 
 export async function llmEnrichGaps(
   env: AuditEnv,
-  scan: ScanResult
+  scan: ScanResult,
+  sessionId: string
 ): Promise<GapWithRemediation[]> {
   const tasks: Promise<GapWithRemediation>[] = [];
   for (const dim of scan.dimensions) {
     for (const sc of dim.sub_checks) {
       if (!isGap(sc)) continue;
       tasks.push(
-        enrichGap(env, scan.url, dim.dimension_name, sc).then((rem) => ({
+        enrichGap(env, scan.url, sessionId, sc).then((rem) => ({
           dimension_id: dim.dimension_id,
           dimension_name: dim.dimension_name,
           check_id: sc.id,
@@ -142,6 +375,8 @@ export async function llmEnrichGaps(
   });
   return out;
 }
+
+export const REMEDIATION_ENGINE_VERSION_TAG = REMEDIATION_ENGINE_VERSION;
 
 function escapeHtml(s: string): string {
   return s
