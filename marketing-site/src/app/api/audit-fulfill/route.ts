@@ -11,9 +11,12 @@ import {
   type AuditEnv,
 } from "@/lib/audit-pipeline";
 import type { AuditResult, SessionRecord } from "@/lib/audit-types";
+import { writeAuditToCorpus } from "@/lib/corpus-write";
 
 interface FulfillEnv extends AuditEnv {
   INTERNAL_FULFILL_KEY: string;
+  PHAROS_CORPUS: D1Database;
+  CORPUS_DEAD_LETTER: KVNamespace;
 }
 
 const SESSION_TTL_SEC = 30 * 24 * 60 * 60;
@@ -99,7 +102,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const scan = await runScan(record.url);
+    const scan = await runScan(record.url, env.INTERNAL_FULFILL_KEY);
     const gaps = await llmEnrichGaps(env, scan, sessionId);
     const audit: AuditResult = {
       scan,
@@ -121,6 +124,47 @@ export async function POST(req: Request) {
       grade: scan.composite.grade,
     };
     await writeSession(env, next);
+
+    // ── Corpus write — non-blocking on customer delivery ────────────────────
+    // Per pharos-corpus-layer-spec.md and the dead-letter design: a corpus
+    // write failure NEVER blocks the customer Audit. The PDF + JSON have
+    // already been stored above; the session is already "ready". Best-effort
+    // from here. Failures land in CORPUS_DEAD_LETTER for manual replay.
+    try {
+      const corpusScanId = await writeAuditToCorpus(
+        env.PHAROS_CORPUS,
+        REMEDIATION_ENGINE_VERSION_TAG,
+        { sessionRecord: next, audit }
+      );
+      console.error(
+        `[corpus] wrote scan_event session=${sessionId} scan_id=${corpusScanId} gaps=${gaps.length}`
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(
+        `[corpus] write failed (session=${sessionId}, dead-lettered): ${msg}`
+      );
+      try {
+        await env.CORPUS_DEAD_LETTER.put(
+          `dlq:${Date.now()}:${sessionId}`,
+          JSON.stringify({
+            session_id: sessionId,
+            url: next.url,
+            error: msg,
+            audit_engine_version: REMEDIATION_ENGINE_VERSION_TAG,
+            failed_at: Date.now(),
+            // Enough to manually replay: include the audit payload itself
+            // (already in R2 too, but having a copy in DLQ avoids a fetch).
+            payload: audit,
+          }),
+          { expirationTtl: 60 * 60 * 24 * 30 } // 30-day retention
+        );
+      } catch (dlqErr) {
+        console.error(
+          `[corpus] dead-letter write ALSO failed (session=${sessionId}): ${dlqErr instanceof Error ? dlqErr.message : String(dlqErr)}`
+        );
+      }
+    }
 
     return NextResponse.json({
       ok: true,

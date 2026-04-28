@@ -8,7 +8,7 @@ import ScanForm from "@/components/ScanForm";
 export const metadata: Metadata = {
   title: "Agent Discoverability Score — Pharos",
   description:
-    "A live URL-input scan across the dimensions of agent discoverability. Free, public score on screen, no signup. Slice 1 covers 3 of 6 dimensions; remaining ship soon.",
+    "A live URL-input scan across the dimensions of agent discoverability. Free, public score on screen, no signup. Slice 2a covers 4 of 6 dimensions; remaining ship soon.",
   alternates: {
     types: { "text/markdown": "/score.md" },
   },
@@ -39,8 +39,12 @@ const FAQS = [
     a: "The free Score gives you a public grade across the dimensions we currently cover. The $79 Audit adds live citation audit across major AI engines, competitor comparison, implementation estimates, and a JSON export for programmatic use. If you just want to know where you stand, use the Score. If you want a prioritized action plan, use the Audit.",
   },
   {
-    q: "Why does it say \"3 of 6 dimensions\"?",
-    a: "Slice 1 ships the three dimensions that need no external API access: llms.txt Quality, MCP Server Discoverability, and Structured Capability Data. Dimensions 3 (OpenAPI), 5 (Agent-Parsable Content), and 6 (Citation Visibility) ship in upcoming releases. Your score is computed on what's currently scored — when more dimensions ship, your scan will rerun automatically if you opted into the monthly rescan.",
+    q: "Why does it say \"4 of 6 dimensions\"?",
+    a: "Slice 2a ships four dimensions: llms.txt Quality, MCP Server Discoverability, Structured Capability Data, and Agent-Parsable Content. The remaining two — OpenAPI Documentation (Dim 3) and Citation Visibility (Dim 6) — ship in upcoming releases. Your score is computed on what's currently scored; when more dimensions ship, your scan will rerun automatically if you opted into the monthly rescan.",
+  },
+  {
+    q: "What's the free tier vs paid tier difference for Dim 5?",
+    a: "Dim 5 (Agent-Parsable Content) checks whether your homepage content is visible without JavaScript. The free Score uses a static fetch — it tells you if the static-only signal is healthy. The $79 Audit additionally runs a real browser render and diffs the two: the diff is what reveals which content (pricing, FAQs, capabilities) requires JS to appear. If your site is static-rendered or SSR'd, the free check is sufficient. If it's a JS-heavy SPA, the Audit's render diff is where the real signal lives.",
   },
   {
     q: "Will you charge for the Score later?",
@@ -97,9 +101,10 @@ export default function ScorePage() {
           </h1>
           <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)] sm:text-xl">
             Live URL-input scan across the technical dimensions of agent
-            discoverability. Public score on screen — no signup. Slice 1 covers
-            3 of 6 dimensions today (llms.txt, MCP, Structured Data); the
-            remaining three ship in upcoming releases.
+            discoverability. Public score on screen — no signup. Slice 2a covers
+            4 of 6 dimensions today (llms.txt, MCP, Structured Data,
+            Agent-Parsable Content); the remaining two ship in upcoming
+            releases.
           </p>
           <div className="mt-10">
             <ScanForm />

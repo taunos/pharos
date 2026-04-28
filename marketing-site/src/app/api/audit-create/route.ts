@@ -71,6 +71,13 @@ export async function POST(req: Request) {
   }
   const email = b.email.trim();
 
+  // Optional conversion-arc field: source_scan_id from the prior free Score.
+  // Accepts any non-empty string; the corpus FK enforces validity at write time.
+  const sourceScanId =
+    typeof b.source_scan_id === "string" && b.source_scan_id.trim().length > 0
+      ? b.source_scan_id.trim()
+      : undefined;
+
   const env = getCloudflareContext().env as unknown as AuditCreateEnv;
   if (!env.DODO_API_KEY) {
     return NextResponse.json(
@@ -84,10 +91,17 @@ export async function POST(req: Request) {
 
   let checkout: { checkout_url: string; checkout_session_id: string };
   try {
+    const checkoutMetadata: Record<string, string> = {
+      url: normalizedUrl,
+      email,
+      session_id,
+      tier: "audit",
+    };
+    if (sourceScanId) checkoutMetadata.source_scan_id = sourceScanId;
     checkout = await createCheckoutSession(env, {
       product_id: AUDIT_PRODUCT_ID,
       customer_email: email,
-      metadata: { url: normalizedUrl, email, session_id, tier: "audit" },
+      metadata: checkoutMetadata,
       return_url: `${origin}/audit-results/${session_id}`,
       cancel_url: `${origin}/audit?canceled=1`,
     });
@@ -108,6 +122,7 @@ export async function POST(req: Request) {
     email,
     status: "awaiting_payment",
     created_at: Date.now(),
+    ...(sourceScanId ? { source_scan_id: sourceScanId } : {}),
   };
   await env.SESSIONS.put(`audit:${session_id}`, JSON.stringify(record), {
     expirationTtl: SESSION_TTL_SEC,

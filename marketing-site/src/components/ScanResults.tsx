@@ -9,6 +9,7 @@ export type SubCheck = {
   score: number;
   passed: boolean;
   notes: string;
+  na?: boolean;
 };
 
 export type DimensionResult = {
@@ -84,17 +85,38 @@ function DimensionCard({ dim }: { dim: DimensionResult }) {
       </button>
       {open ? (
         <ul className="mt-4 flex flex-col gap-3 border-t border-[var(--color-border)] pt-4">
-          {dim.sub_checks.map((s) => (
-            <li key={s.id} className="text-sm">
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="font-medium text-[var(--color-fg)]">{s.name}</span>
-                <span className="font-mono text-[var(--color-muted)]">
-                  {s.score}/100 · weight {s.weight}%
-                </span>
-              </div>
-              <p className="mt-1 text-[var(--color-muted)]">{s.notes}</p>
-            </li>
-          ))}
+          {dim.sub_checks.map((s) => {
+            const freeTierBadge = s.notes.includes(
+              "Full render diff (Puppeteer-vs-static) available in $79 Audit"
+            );
+            const naBadge = !!s.na;
+            return (
+              <li key={s.id} className="text-sm">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="font-medium text-[var(--color-fg)]">
+                    {s.name}
+                    {naBadge ? (
+                      <span className="ml-2 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-[var(--color-muted)]">
+                        N/A
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="font-mono text-[var(--color-muted)]">
+                    {naBadge ? "—" : `${s.score}/100`} · weight {s.weight}%
+                  </span>
+                </div>
+                <p className="mt-1 text-[var(--color-muted)]">{s.notes}</p>
+                {freeTierBadge ? (
+                  <a
+                    href="/audit"
+                    className="mt-2 inline-flex items-center gap-2 rounded-md border border-[var(--color-accent)] bg-[var(--color-accent)]/10 px-3 py-1 text-xs font-semibold text-[var(--color-accent)] transition hover:bg-[var(--color-accent)] hover:text-black"
+                  >
+                    Run the $79 Audit for the full render diff →
+                  </a>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       ) : null}
     </div>

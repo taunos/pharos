@@ -69,7 +69,7 @@ export default function ScanForm() {
           </button>
         </div>
         <p className="mt-3 text-sm italic text-[var(--color-muted)]">
-          Free public scan. Slice 1 covers 3 of 6 dimensions; the rest ship soon.
+          Free public scan. Slice 2a covers 4 of 6 dimensions; the rest ship soon.
         </p>
         {status === "scanning" ? (
           <p className="mt-4 flex items-center gap-2 text-sm text-[var(--color-muted)]">

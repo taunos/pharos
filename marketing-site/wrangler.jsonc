@@ -19,6 +19,17 @@
 		{
 			"binding": "SESSIONS",
 			"id": "38690f7816c74546b18ec9828c83ae44"
+		},
+		{
+			"binding": "CORPUS_DEAD_LETTER",
+			"id": "89bdae7af4584f6fb4dd3a2286ae1b28"
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "PHAROS_CORPUS",
+			"database_name": "pharos_corpus",
+			"database_id": "c95451fd-5cb6-4f51-b4e2-bf4f7dd49272"
 		}
 	],
 	"ai": {

@@ -1,24 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Status = "idle" | "submitting" | "redirecting" | "error";
 
 export default function AuditCheckoutForm() {
   const [url, setUrl] = useState("");
   const [email, setEmail] = useState("");
+  const [sourceScanId, setSourceScanId] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Read source_scan_id from the URL query string at mount. The /score page's
+  // "Buy Audit" CTA forwards the prior scan_id as `?source_scan_id=…` so the
+  // conversion arc is recoverable in the corpus.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sid = new URL(window.location.href).searchParams.get("source_scan_id");
+    if (sid && sid.trim().length > 0) setSourceScanId(sid.trim());
+  }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setStatus("submitting");
     setErrorMsg(null);
     try {
+      const body: Record<string, string> = { url, email };
+      if (sourceScanId) body.source_scan_id = sourceScanId;
       const res = await fetch("/api/audit-create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, email }),
+        body: JSON.stringify(body),
       });
       const data = (await res.json()) as {
         ok: boolean;

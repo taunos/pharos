@@ -11,6 +11,7 @@ export type SubCheck = {
   score: number;
   passed: boolean;
   notes: string;
+  na?: boolean;
 };
 
 export type DimensionResult = {
@@ -34,6 +35,9 @@ export type ScanResult = {
   dimensions_scored: number;
   dimensions_total: number;
   created_at: number;
+  // Slice 2a additions; older scanner versions may not produce these.
+  scoring_version?: string;
+  tier?: "free" | "paid";
 };
 
 export type GapWithRemediation = {
@@ -65,6 +69,10 @@ export type SessionRecord = {
   email: string;
   status: SessionStatus;
   created_at: number;
+  // Conversion-arc plumbing: when an Audit originates from a free Score scan,
+  // the prior scan_id is stamped here at audit-create time and read back by
+  // audit-fulfill for the corpus write. Optional — direct purchases have none.
+  source_scan_id?: string;
   started_at?: number;
   completed_at?: number;
   pdf_url?: string;

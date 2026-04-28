@@ -1,3 +1,11 @@
+// Architectural privacy guarantee (pharos-corpus-layer-spec.md §2.4):
+// The scanner Worker MUST NOT have a D1 binding to pharos_corpus.
+// Corpus writes happen exclusively from paid-tier writer services
+// (audit-fulfill, future Implementation pipeline, future AutoPilot rescan
+// job). The DB binding below is the scanner's OWN scan-history database
+// (pharos-scanner / 56dd16f8-...), distinct from pharos_corpus
+// (c95451fd-5cb6-4f51-b4e2-bf4f7dd49272). This comment is a reminder
+// during PR review — do not remove without re-spec.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "pharos-scanner",
@@ -15,5 +23,12 @@
   "kv_namespaces": [
     { "binding": "CACHE", "id": "000bf34df96f4acdb86999854b32ae12" }
   ],
-  "ai": { "binding": "AI" }
+  "ai": { "binding": "AI" },
+  // CF_ACCOUNT_ID is needed by Dim 5's paid-tier Browser Rendering REST call.
+  // Same account id used by marketing-site. Not secret (visible in dashboard URLs).
+  // CF_API_TOKEN and INTERNAL_FULFILL_KEY are set via `wrangler secret put`.
+  // Until secrets land, paid-tier scans gracefully degrade to free-tier.
+  "vars": {
+    "CF_ACCOUNT_ID": "e265950ef2b3e0e186ffe1c4d2bee4be"
+  }
 }

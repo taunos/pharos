@@ -57,7 +57,19 @@ export const CHECK_SUBJECTS: Record<string, string> = {
   faq_schema: "the FAQPage JSON-LD on the homepage or a dedicated FAQ page",
   review_schema: "the Review or AggregateRating JSON-LD on relevant pages",
 
-  // Dimensions 3, 5, 6 — to be populated as those checks ship in Slice 2/3.
+  // Dimension 5 — Agent-Parsable Content (Slice 2a)
+  js_vs_no_js_render_diff:
+    "the rendered HTML of your homepage and key commercial pages (the difference between what static HTTP clients see and what JavaScript-rendered DOM produces)",
+  page_weight_lcp:
+    "the page weight and load timing of your key public pages (homepage, pricing, services)",
+  markdown_negotiation:
+    "your server's handling of `Accept: text/markdown` requests, and any `.md` variants of your key pages",
+  pricing_text_visibility:
+    "your pricing page's price visibility — whether prices appear as plain text or are gated behind images, modals, or login walls",
+  case_study_scannability:
+    "the structure of your case study pages — headings, plain-text metrics, and skim-friendly markup",
+
+  // Dimensions 3, 6 — to be populated as those checks ship in Slice 3.
 };
 
 const DEFAULT_CHECK_SUBJECT = "the relevant artifact for this check";
@@ -88,6 +100,40 @@ export const CHECK_SUBJECT_KEYWORDS: Record<string, string[]> = {
   service_offer_schema: ["service", "product", "offer", "json-ld", "schema"],
   faq_schema: ["faqpage", "faq", "json-ld", "schema"],
   review_schema: ["review", "aggregaterating", "json-ld", "schema"],
+
+  // Dimension 5 — Agent-Parsable Content
+  js_vs_no_js_render_diff: [
+    "javascript",
+    "render",
+    "static",
+    "spa",
+    "rendered html",
+    "dom",
+  ],
+  page_weight_lcp: ["page weight", "lcp", "load time", "page size", "performance"],
+  markdown_negotiation: [
+    "markdown",
+    "accept",
+    "text/markdown",
+    ".md",
+    "content negotiation",
+  ],
+  pricing_text_visibility: [
+    "pricing",
+    "price",
+    "modal",
+    "image",
+    "login wall",
+    "text-based",
+  ],
+  case_study_scannability: [
+    "case stud",
+    "customer stor",
+    "success stor",
+    "headings",
+    "metrics",
+    "scannab",
+  ],
 };
 
 export type AuditEnv = {
@@ -98,11 +144,22 @@ export type AuditEnv = {
   CF_API_TOKEN: string;
 };
 
-export async function runScan(url: string): Promise<ScanResult> {
+export async function runScan(
+  url: string,
+  internalFulfillKey?: string
+): Promise<ScanResult> {
+  // audit-fulfill is a paid-tier scan: full Browser Rendering for Dim 5's
+  // js_vs_no_js_render_diff. We send tier="paid" plus the same internal
+  // fulfill key so the scanner accepts it; without the key the scanner
+  // silently degrades to free-tier (graceful, not an error).
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (internalFulfillKey) {
+    headers["x-internal-fulfill-key"] = internalFulfillKey;
+  }
   const res = await fetch(SCANNER_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url }),
+    headers,
+    body: JSON.stringify({ url, tier: internalFulfillKey ? "paid" : "free" }),
   });
   if (!res.ok) {
     const body = await res.text();
