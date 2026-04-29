@@ -21,7 +21,7 @@ import {
 
 const FETCH_TIMEOUT_MS = 8000;
 const BR_TIMEOUT_MS = 30_000;
-const STATIC_UA = "PharosScanner-Static/1.1.0";
+const STATIC_UA = "AstrantScanner-Static/1.1.0";
 
 const FREE_TIER_DISCLOSURE =
   "Free-tier signal: static fetch only. Full render diff (Puppeteer-vs-static) available in $79 Audit.";

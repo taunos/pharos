@@ -70,7 +70,7 @@ export async function runDim1(targetUrl: string, env: Env): Promise<DimensionRes
   const subs: SubCheck[] = [];
 
   // 1. presence
-  const res = await timedFetch(llmsUrl, { headers: { "User-Agent": "PharosScanner/0.1" } });
+  const res = await timedFetch(llmsUrl, { headers: { "User-Agent": "AstrantScanner/0.1" } });
   const ct = res?.headers.get("content-type") ?? "";
   const presenceOk = !!res && res.status === 200;
   const ctOk = /^text\/(plain|markdown)/.test(ct);

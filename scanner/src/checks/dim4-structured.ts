@@ -70,7 +70,7 @@ ${sample}`;
 export async function runDim4(targetUrl: string, env: Env): Promise<DimensionResult> {
   const subs: SubCheck[] = [];
 
-  const res = await timedFetch(targetUrl, { headers: { "User-Agent": "PharosScanner/0.1", Accept: "text/html" } });
+  const res = await timedFetch(targetUrl, { headers: { "User-Agent": "AstrantScanner/0.1", Accept: "text/html" } });
   let html = "";
   let blocks: unknown[] = [];
   let invalidCount = 0;

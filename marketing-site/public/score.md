@@ -1,7 +1,7 @@
 # Agent Discoverability Score
 
 **Price:** Free
-**Status:** Launching soon — join waitlist at https://pharos.dev/score
+**Status:** Launching soon — join waitlist at https://astrant.io/score
 
 A URL-input scan across 6 dimensions of agent discoverability. Public score on screen, detailed gap report to your inbox, monthly auto-rescan so you can watch your score improve.
 
@@ -26,7 +26,7 @@ Cloudflare shipped a free Agent Readiness Score tool in 2026 that does pass/fail
 
 ## Want the deeper analysis now?
 
-The $79 Audit delivers the full 6-dimension report with live citation data in 60 seconds — no waitlist. See https://pharos.dev/audit
+The $79 Audit delivers the full 6-dimension report with live citation data in 60 seconds — no waitlist. See https://astrant.io/audit
 
 ## FAQ
 
@@ -34,15 +34,15 @@ The $79 Audit delivers the full 6-dimension report with live citation data in 60
 The free Score gives you a public grade across six dimensions. The $79 Audit adds live citation audit across major AI engines, competitor comparison, implementation estimates, and a JSON export for programmatic use. If you just want to know where you stand, use the Score. If you want a prioritized action plan, use the Audit.
 
 **When does the Score launch?**
-Soon. Drop your URL and email at https://pharos.dev/score and you'll be among the first to run it the day it ships.
+Soon. Drop your URL and email at https://astrant.io/score and you'll be among the first to run it the day it ships.
 
 **Will you charge for the Score later?**
 No. The Score stays free. The paid tiers (Audit, Implementation, Custom, Subscriptions) go deeper.
 
 ## Related
 
-- Audit (paid, instant): https://pharos.dev/audit
-- Implementation ($1,299, <24h build): https://pharos.dev/implementation
-- Custom (bespoke, from $4,999): https://pharos.dev/custom
-- Subscriptions ($149/mo AutoPilot, $899/mo Concierge): https://pharos.dev/subscriptions
-- MCP Server: https://pharos-mcp.pharos-dev.workers.dev/mcp
+- Audit (paid, instant): https://astrant.io/audit
+- Implementation ($1,299, <24h build): https://astrant.io/implementation
+- Custom (bespoke, from $4,999): https://astrant.io/custom
+- Subscriptions ($149/mo AutoPilot, $899/mo Concierge): https://astrant.io/subscriptions
+- MCP Server: https://mcp.astrant.io/mcp

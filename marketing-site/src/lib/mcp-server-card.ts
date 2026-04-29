@@ -7,29 +7,29 @@
 
 export const SERVER_CARD = {
   $schema: "https://modelcontextprotocol.io/schema/server-card-v1",
-  name: "Pharos",
+  name: "Astrant",
   version: "0.0.1",
   description:
-    "Pharos: Agent Discoverability as a Service for B2B SaaS. Tools for AEO posture inspection, capability discovery, and audit booking.",
-  vendor: { name: "Pharos", url: "https://pharos-marketing.pharos-dev.workers.dev" },
+    "Astrant: Agent Discoverability as a Service for B2B SaaS. Tools for AEO posture inspection, capability discovery, and audit booking.",
+  vendor: { name: "Astrant", url: "https://astrant.io" },
   transports: [
-    { type: "streamable-http", url: "https://pharos-mcp.pharos-dev.workers.dev/mcp" },
+    { type: "streamable-http", url: "https://mcp.astrant.io/mcp" },
   ],
   tools: [
     {
       name: "get_capabilities",
       description:
-        "Returns the services Pharos offers — Score (free), Audit ($79), Implementation ($1,299), Custom (from $4,999), AutoPilot Subscription ($149/mo), Concierge Subscription ($899/mo) — as structured data for agents.",
+        "Returns the services Astrant offers — Score (free), Audit ($79), Implementation ($1,299), Custom (from $4,999), AutoPilot Subscription ($149/mo), Concierge Subscription ($899/mo) — as structured data for agents.",
       inputSchema: { type: "object", properties: {} },
     },
     {
       name: "get_pricing",
-      description: "Returns Pharos pricing for each service tier as structured data.",
+      description: "Returns Astrant pricing for each service tier as structured data.",
       inputSchema: { type: "object", properties: {} },
     },
     {
       name: "get_case_studies",
-      description: "Returns Pharos client case studies and reference implementations.",
+      description: "Returns Astrant client case studies and reference implementations.",
       inputSchema: { type: "object", properties: {} },
     },
     {

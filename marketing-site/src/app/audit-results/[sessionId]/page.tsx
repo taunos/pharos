@@ -4,7 +4,7 @@ import SiteFooter from "@/components/SiteFooter";
 import AuditResultsPoller from "@/components/AuditResultsPoller";
 
 export const metadata: Metadata = {
-  title: "Your Pharos Audit — Pharos",
+  title: "Your Astrant Audit — Astrant",
   robots: { index: false, follow: false },
 };
 
@@ -21,7 +21,7 @@ export default async function AuditResultsPage({
       <main>
         <section className="mx-auto max-w-3xl px-6 py-20">
           <div className="inline-flex rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm font-mono text-emerald-400">
-            Pharos · AEO Audit
+            Astrant · AEO Audit
           </div>
           <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl">
             Your audit

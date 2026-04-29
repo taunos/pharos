@@ -6,7 +6,7 @@ import SixDimensions from "@/components/SixDimensions";
 import ScanForm from "@/components/ScanForm";
 
 export const metadata: Metadata = {
-  title: "Agent Discoverability Score — Pharos",
+  title: "Agent Discoverability Score — Astrant",
   description:
     "A live URL-input scan across the dimensions of agent discoverability. Free, public score on screen, no signup. Slice 2a covers 4 of 6 dimensions; remaining ship soon.",
   alternates: {
@@ -18,16 +18,16 @@ const serviceLd = {
   "@context": "https://schema.org",
   "@type": "Service",
   name: "Agent Discoverability Score",
-  provider: { "@type": "Organization", name: "Pharos" },
+  provider: { "@type": "Organization", name: "Astrant" },
   serviceType: "Agent Engine Optimization",
   areaServed: "Worldwide",
-  url: "https://pharos.dev/score",
+  url: "https://astrant.io/score",
   offers: {
     "@type": "Offer",
     name: "Agent Discoverability Score",
     price: "0",
     priceCurrency: "USD",
-    url: "https://pharos.dev/score",
+    url: "https://astrant.io/score",
     description:
       "Free URL-input scan across 6 dimensions with public score and emailed gap report.",
   },
@@ -179,12 +179,12 @@ export default function ScorePage() {
             <p className="mt-6 text-base">
               See our MCP server →{" "}
               <a
-                href="https://pharos-mcp.pharos-dev.workers.dev/mcp"
+                href="https://mcp.astrant.io/mcp"
                 target="_blank"
                 rel="noreferrer"
                 className="font-mono text-[var(--color-accent)] underline-offset-4 hover:underline"
               >
-                https://pharos-mcp.pharos-dev.workers.dev/mcp
+                https://mcp.astrant.io/mcp
               </a>
             </p>
           </div>

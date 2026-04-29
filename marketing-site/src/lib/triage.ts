@@ -31,22 +31,30 @@ export type TriageResponse = {
   cached: boolean;
 };
 
+// PRE-LAUNCH MODE — paid checkouts disabled site-wide. The standard + custom
+// CTAs that previously pointed at Dodo checkout URLs now route to the audit
+// waitlist (which captures URL + email via /api/waitlist) so prospects don't
+// hit a "merchant offline" error and we still capture intent.
+//
+// To restore real checkouts, swap the URLs below back to:
+//   standard: https://checkout.dodopayments.com/buy/pdt_0NdQE5vccUUgOHMsF6Pzz?quantity=1
+//   custom:   https://checkout.dodopayments.com/buy/pdt_0NdQEI47SFpulVd0Wo5IP?quantity=1
 export const TRIAGE_CTAS: Record<Recommendation, TriageCta> = {
   standard: {
-    label: "Buy Standard Implementation — $1,299",
-    url: "https://checkout.dodopayments.com/buy/pdt_0NdQE5vccUUgOHMsF6Pzz?quantity=1",
+    label: "Notify me when Standard Implementation launches",
+    url: "/audit#waitlist",
     description:
-      "Pay, paste your URL, answer 5 quick scoping questions. Build delivered within 24 hours as a Git-applicable patch file you apply with `git am` in 5 minutes — no repo access needed from us.",
+      "Pre-launch — drop your URL and email and we'll let you know the moment Standard Implementation opens. Build is delivered within 24 hours of payment as a Git-applicable patch file you apply with `git am` in 5 minutes — no repo access needed from us.",
   },
   custom: {
-    label: "Book your Custom scoping call ($250 deposit)",
-    url: "https://checkout.dodopayments.com/buy/pdt_0NdQEI47SFpulVd0Wo5IP?quantity=1",
+    label: "Notify me when Custom scoping opens",
+    url: "/audit#waitlist",
     description:
-      "$250 deposit secures your slot — credited toward your final fixed quote, not an extra fee. 30-minute scoping call within 1 business day; fixed quote within 48 hours. Build delivered over 2-4 weeks with weekly progress updates.",
+      "Pre-launch — drop your URL and email and we'll let you know the moment Custom opens. Custom is a $250 deposit credited toward final fixed quote (not an extra fee), 30-minute scoping call within 1 business day, fixed quote within 48 hours, build over 2–4 weeks.",
   },
   not_fit: {
     label: "Email us about your situation",
-    url: "mailto:hello@pharos.dev?subject=Pharos%20fit%20check%20%E2%80%94%20unusual%20case",
+    url: "mailto:hello@astrant.io?subject=Astrant%20fit%20check%20%E2%80%94%20unusual%20case",
     description:
       "Quick email exchange to explore whether there's a different way we can help, or point you to better-suited alternatives.",
   },
@@ -113,9 +121,9 @@ export async function triageCacheKey(s: TriageSubmission): Promise<string> {
 export function buildTriagePrompt(s: TriageSubmission): string {
   const factors =
     s.complexity_factors.length > 0 ? s.complexity_factors.join(", ") : "none";
-  return `You are a fit-check analyst for Pharos, an Agent Discoverability service for B2B SaaS companies.
+  return `You are a fit-check analyst for Astrant, an Agent Discoverability service for B2B SaaS companies.
 
-Pharos has three engagement options:
+Astrant has three engagement options:
 
 1. STANDARD IMPLEMENTATION ($1,299, automated, delivered in <24 hours)
    - Suitable for the 80% case: typical B2B SaaS sites with standard product/service offerings

@@ -3,7 +3,7 @@
 **AutoPilot tier:** $149 / month
 **Concierge tier:** $899 / month
 **Billing:** Month-to-month, cancel anytime
-**Checkout:** https://pharos.dev/subscriptions
+**Checkout:** https://astrant.io/subscriptions
 
 Keep your agent-discoverability stack healthy and measure its impact. Two tiers. Month-to-month on both.
 
@@ -51,7 +51,7 @@ You keep every artifact. MCP server stays live on your Cloudflare account. Month
 
 ## Related
 
-- Score (free): https://pharos.dev/score
-- Audit ($79, instant): https://pharos.dev/audit
-- Implementation ($1,299, <24h automated): https://pharos.dev/implementation
-- Custom (bespoke, from $4,999): https://pharos.dev/custom
+- Score (free): https://astrant.io/score
+- Audit ($79, instant): https://astrant.io/audit
+- Implementation ($1,299, <24h automated): https://astrant.io/implementation
+- Custom (bespoke, from $4,999): https://astrant.io/custom

@@ -8,7 +8,11 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "observability": {
     "enabled": true
-  }
+  },
+  "routes": [
+    { "pattern": "mcp.astrant.io", "custom_domain": true }
+  ],
+  "workers_dev": true
   // NOTE: The original scaffold included a Durable Object binding for
   // `agents/mcp`'s McpAgent session state. It was removed because the
   // installed agents@0.0.50 has a bug in its `mount()` path (double-connect
@@ -16,9 +20,4 @@
   // SDK's WebStandardStreamableHTTPServerTransport directly into fetch, which
   // is stateless and needs no DO. Add `durable_objects` + `migrations` back
   // if you later need cross-request session state.
-  //
-  // Add a custom domain after first deploy:
-  // "routes": [
-  //   { "pattern": "mcp.pharos.dev", "custom_domain": true }
-  // ]
 }

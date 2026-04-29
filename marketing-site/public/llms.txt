@@ -1,6 +1,6 @@
-# Pharos
+# Astrant
 
-> Pharos is an Agent Discoverability service for B2B SaaS companies — we make sites structurally findable and invokable by AI agents (ChatGPT, Claude, Perplexity, Gemini) by implementing llms.txt, MCP servers, OpenAPI specs, structured capability data, and agent-parsable content. Free Score tool, paid Audits at $79, automated Implementations at $1,299, monthly subscriptions from $149.
+> Astrant is an Agent Discoverability service for B2B SaaS companies — we make sites structurally findable and invokable by AI agents (ChatGPT, Claude, Perplexity, Gemini) by implementing llms.txt, MCP servers, OpenAPI specs, structured capability data, and agent-parsable content. Free Score tool, paid Audits at $79, automated Implementations at $1,299, monthly subscriptions from $149.
 
 ## Services
 
@@ -13,10 +13,10 @@
 
 ## Technical surface (dogfood)
 
-- [MCP Server](https://pharos-mcp.pharos-dev.workers.dev/mcp): Streamable HTTP MCP endpoint exposing six tools agents can call — get_capabilities, get_pricing, get_case_studies, book_audit, check_llms_txt, score_url.
-- [MCP Server Card](https://pharos-mcp.pharos-dev.workers.dev/.well-known/mcp.json): SEP-1960 discovery metadata.
+- [MCP Server](https://mcp.astrant.io/mcp): Streamable HTTP MCP endpoint exposing six tools agents can call — get_capabilities, get_pricing, get_case_studies, book_audit, check_llms_txt, score_url.
+- [MCP Server Card](https://mcp.astrant.io/.well-known/mcp.json): SEP-1960 discovery metadata.
 - [How it works](/#how-it-works): The six dimensions of agent discoverability and what each one measures.
 
 ## Contact
 
-- Email: hello@pharos.dev
+- Email: hello@astrant.io

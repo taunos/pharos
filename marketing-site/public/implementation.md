@@ -2,11 +2,11 @@
 
 **Price:** $1,299 one-time
 **Delivery:** <24 hours for standard B2B SaaS sites
-**Checkout:** https://pharos.dev/implementation
+**Checkout:** https://astrant.io/implementation
 
 An automated build pipeline generates your full agent-discoverability stack and emails it within 24 hours as a Git-applicable patch file. Your developer applies it with `git am` in about five minutes, reviews the diff in your repo's normal workflow, and merges when ready. We don't ask for any access to your repo or infrastructure — the patch works entirely from your developer's local environment.
 
-Need something custom? See https://pharos.dev/custom
+Need something custom? See https://astrant.io/custom
 
 ## The full standard stack
 
@@ -19,7 +19,7 @@ Need something custom? See https://pharos.dev/custom
 
 ## Go Custom if you need any of these
 
-The $1,299 Implementation tier works for about 80% of B2B SaaS sites. Consider Custom (https://pharos.dev/custom) if:
+The $1,299 Implementation tier works for about 80% of B2B SaaS sites. Consider Custom (https://astrant.io/custom) if:
 
 - Complex public API with dozens of operations requiring tailored OpenAPI work
 - Multi-region or multi-language content
@@ -38,7 +38,7 @@ The $1,299 Implementation tier works for about 80% of B2B SaaS sites. Consider C
 
 ## Everything we build, you own
 
-No black box. Every artifact lives on your infrastructure. MCP server on your Cloudflare account. JSON-LD and content in your codebase via the patch your team applied. No dependency on Pharos for ongoing operation. You can cancel the retainer, move off our monitoring, or take everything in-house at any time.
+No black box. Every artifact lives on your infrastructure. MCP server on your Cloudflare account. JSON-LD and content in your codebase via the patch your team applied. No dependency on Astrant for ongoing operation. You can cancel the retainer, move off our monitoring, or take everything in-house at any time.
 
 ## FAQ
 
@@ -56,7 +56,7 @@ Add the Concierge subscription and we handle the patch-application + merge workf
 
 ## Related
 
-- Score (free): https://pharos.dev/score
-- Audit ($79, instant): https://pharos.dev/audit
-- Custom (bespoke, from $4,999): https://pharos.dev/custom
-- Subscriptions: https://pharos.dev/subscriptions
+- Score (free): https://astrant.io/score
+- Audit ($79, instant): https://astrant.io/audit
+- Custom (bespoke, from $4,999): https://astrant.io/custom
+- Subscriptions: https://astrant.io/subscriptions

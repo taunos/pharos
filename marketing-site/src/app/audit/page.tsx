@@ -4,7 +4,7 @@ import SiteFooter from "@/components/SiteFooter";
 import AuditCheckoutForm from "@/components/AuditCheckoutForm";
 
 export const metadata: Metadata = {
-  title: "AEO Audit — $79 instant delivery — Pharos",
+  title: "AEO Audit — $79 instant delivery — Astrant",
   description:
     "Pay $79, paste your URL, get a rich PDF in about 60 seconds. Six-dimension deep analysis with developer-ready remediation guidance for each gap, plus a machine-readable JSON export.",
   alternates: {
@@ -16,16 +16,16 @@ const serviceLd = {
   "@context": "https://schema.org",
   "@type": "Service",
   name: "AEO Audit",
-  provider: { "@type": "Organization", name: "Pharos" },
+  provider: { "@type": "Organization", name: "Astrant" },
   serviceType: "Agent Engine Optimization",
   areaServed: "Worldwide",
-  url: "https://pharos.dev/audit",
+  url: "https://astrant.io/audit",
   offers: {
     "@type": "Offer",
     name: "AEO Audit",
     price: "79",
     priceCurrency: "USD",
-    url: "https://pharos.dev/audit",
+    url: "https://astrant.io/audit",
     description:
       "Instant automated audit. Rich PDF with 6-dimension analysis and developer-ready remediation guidance for each gap, plus machine-readable JSON export. Live citation tracking and competitor comparison are coming in a future iteration.",
   },

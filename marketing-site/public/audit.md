@@ -2,7 +2,7 @@
 
 **Price:** $79 one-time
 **Delivery:** Instant (~60 seconds)
-**Checkout:** https://pharos.dev/audit
+**Checkout:** https://astrant.io/audit
 
 Pay, paste your URL, get a rich PDF analysis of your site's agent discoverability in about 60 seconds. Six-dimension deep analysis with developer-ready remediation guidance for each gap, plus a machine-readable JSON export. No call required — the scoring engine does the work.
 
@@ -45,7 +45,7 @@ Full refund, no questions, first 30 days. We'd rather have the feedback than the
 
 ## Related
 
-- Score (free, not-yet-launched): https://pharos.dev/score
-- Implementation ($1,299, <24h automated build): https://pharos.dev/implementation
-- Custom (bespoke, from $4,999): https://pharos.dev/custom
-- Subscriptions: https://pharos.dev/subscriptions
+- Score (free, not-yet-launched): https://astrant.io/score
+- Implementation ($1,299, <24h automated build): https://astrant.io/implementation
+- Custom (bespoke, from $4,999): https://astrant.io/custom
+- Subscriptions: https://astrant.io/subscriptions

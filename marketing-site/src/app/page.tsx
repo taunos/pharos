@@ -87,7 +87,7 @@ const FAQS = [
     a: "Traditional SEO optimizes for human search behavior on Google. Agent discoverability optimizes for programmatic consumption by language models — an entirely different surface. Some techniques overlap (clean URLs, structured data), but the core deliverables — llms.txt, MCP servers, agent-parsable content — are AEO-specific. Most SEO agencies don't do this work yet.",
   },
   {
-    q: "Do I need a developer to use Pharos?",
+    q: "Do I need a developer to use Astrant?",
     a: "No. The free Score tool and the $79 Audit are entirely self-serve — paste your URL, get results. The $1,299 automated Implementation also doesn't require your developer to write any code; we email a Git-applicable patch file that your developer applies with `git am` in about five minutes and reviews via your normal PR workflow. We never need access to your repo or infrastructure. Only Custom builds (from $4,999) involve back-and-forth with your engineering team.",
   },
   {
@@ -96,7 +96,7 @@ const FAQS = [
   },
   {
     q: "Will my customers see anything change on my site?",
-    a: "No. All the changes Pharos makes are invisible to human visitors — they live in /llms.txt, /.well-known/ files, JSON-LD schema, and content reformatted for agent parseability. Your existing design, copy, and brand are untouched.",
+    a: "No. All the changes Astrant makes are invisible to human visitors — they live in /llms.txt, /.well-known/ files, JSON-LD schema, and content reformatted for agent parseability. Your existing design, copy, and brand are untouched.",
   },
   {
     q: "How do I know agents are actually using the optimizations?",
@@ -200,7 +200,7 @@ export default function Page() {
             Is your site findable by AI agents?
           </h1>
           <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)] sm:text-xl">
-            Pharos makes businesses structurally discoverable and invokable by
+            Astrant makes businesses structurally discoverable and invokable by
             ChatGPT, Claude, Perplexity, and every agent built on MCP. We implement
             the technical layer — llms.txt, MCP server, structured capability data,
             agent-parsable content — and monitor the results.
@@ -290,7 +290,7 @@ export default function Page() {
         >
           <div className="mx-auto max-w-6xl px-6 py-20">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Pharos is its own first reference implementation
+              Astrant is its own first reference implementation
             </h2>
             <p className="mt-4 max-w-3xl text-lg text-[var(--color-muted)]">
               Every layer we sell is live on our own brand. You can inspect the
@@ -310,12 +310,12 @@ export default function Page() {
                 <span className="font-semibold">MCP Server</span> —{" "}
                 <code className="font-mono">
                   <a
-                    href="https://pharos-mcp.pharos-dev.workers.dev/mcp"
+                    href="https://mcp.astrant.io/mcp"
                     target="_blank"
                     rel="noreferrer"
                     className="text-[var(--color-accent)] underline-offset-4 hover:underline"
                   >
-                    https://pharos-mcp.pharos-dev.workers.dev/mcp
+                    https://mcp.astrant.io/mcp
                   </a>
                 </code>{" "}
                 — six tools, including <code>check_llms_txt</code> you can call
@@ -325,12 +325,12 @@ export default function Page() {
                 <span className="font-semibold">Server Card</span> —{" "}
                 <code className="font-mono">
                   <a
-                    href="https://pharos-mcp.pharos-dev.workers.dev/.well-known/mcp.json"
+                    href="https://mcp.astrant.io/.well-known/mcp.json"
                     target="_blank"
                     rel="noreferrer"
                     className="text-[var(--color-accent)] underline-offset-4 hover:underline"
                   >
-                    https://pharos-mcp.pharos-dev.workers.dev/.well-known/mcp.json
+                    https://mcp.astrant.io/.well-known/mcp.json
                   </a>
                 </code>{" "}
                 — SEP-1960 discovery metadata

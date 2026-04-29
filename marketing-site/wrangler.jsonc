@@ -7,6 +7,15 @@
 		"nodejs_compat",
 		"global_fetch_strictly_public"
 	],
+	// Custom-domain routes on the astrant.io zone. The workers.dev URL stays
+	// available in parallel (Cloudflare exposes it for any deployed Worker
+	// regardless of `routes`). Don't disable workers.dev yet — it's a useful
+	// debug fallback during the brand transition.
+	"routes": [
+		{ "pattern": "astrant.io", "custom_domain": true },
+		{ "pattern": "www.astrant.io", "custom_domain": true }
+	],
+	"workers_dev": true,
 	"assets": {
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"

@@ -13,6 +13,8 @@ import { SCORING_VERSION } from "./version";
 const VERSION = "0.2.0";
 
 const ALLOWED_ORIGINS = new Set([
+  "https://astrant.io",
+  "https://www.astrant.io",
   "https://pharos-marketing.pharos-dev.workers.dev",
   "http://localhost:3000",
   "http://localhost:3001",
@@ -175,14 +177,14 @@ app.get("/api/scan/:id", async (c) => {
 app.get("/", (c) =>
   c.text(
     [
-      `Pharos Scanner v${VERSION} (scoring v${SCORING_VERSION})`,
+      `Astrant Scanner v${VERSION} (scoring v${SCORING_VERSION})`,
       "",
       "Endpoints:",
       "  POST /api/scan    {url, email?, tier?}  → run a scan",
       "  GET  /api/scan/:id                     → fetch saved scan",
       "  GET  /health",
       "",
-      "More: https://pharos.dev/score",
+      "More: https://astrant.io/score",
     ].join("\n")
   )
 );

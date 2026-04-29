@@ -108,9 +108,9 @@ export default function AuditResultsPoller({ sessionId }: { sessionId: string })
           Email{" "}
           <a
             className="text-[var(--color-accent)] hover:underline"
-            href={`mailto:hello@pharos.dev?subject=Pharos%20audit%20issue%20%E2%80%94%20session%20${sessionId}`}
+            href={`mailto:hello@astrant.io?subject=Astrant%20audit%20issue%20%E2%80%94%20session%20${sessionId}`}
           >
-            hello@pharos.dev
+            hello@astrant.io
           </a>{" "}
           with session ID <code className="font-mono">{sessionId}</code> if you just
           paid and this isn&apos;t resolving.
@@ -174,7 +174,7 @@ export default function AuditResultsPoller({ sessionId }: { sessionId: string })
             Re-check status
           </button>
           <a
-            href={`mailto:hello@pharos.dev?subject=Pharos%20audit%20error%20%E2%80%94%20session%20${sessionId}`}
+            href={`mailto:hello@astrant.io?subject=Astrant%20audit%20error%20%E2%80%94%20session%20${sessionId}`}
             className="rounded-md border border-[var(--color-border)] px-5 py-2 text-sm text-[var(--color-fg)] transition hover:bg-[var(--color-surface)]"
           >
             Email us
@@ -204,9 +204,9 @@ export default function AuditResultsPoller({ sessionId }: { sessionId: string })
           This is taking longer than expected. We&apos;ve been notified. Email{" "}
           <a
             className="text-[var(--color-accent)] hover:underline"
-            href={`mailto:hello@pharos.dev?subject=Pharos%20audit%20slow%20%E2%80%94%20session%20${sessionId}`}
+            href={`mailto:hello@astrant.io?subject=Astrant%20audit%20slow%20%E2%80%94%20session%20${sessionId}`}
           >
-            hello@pharos.dev
+            hello@astrant.io
           </a>{" "}
           with session ID <code className="font-mono">{sessionId}</code>.
         </p>

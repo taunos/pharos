@@ -26,7 +26,7 @@ const SERVICE_CATALOG = {
       id: "score",
       name: "Agent Discoverability Score",
       price: "free",
-      url: "https://pharos.dev/score",
+      url: "https://astrant.io/score",
       description:
         "URL-input scan across 6 dimensions of agent discoverability — llms.txt, MCP, OpenAPI, structured data, agent-parsable content, and citation visibility. Returns a 0–100 score, letter grade, and prioritized gap report.",
     },
@@ -71,12 +71,12 @@ const SERVICE_CATALOG = {
 };
 
 function buildMcpServer(): McpServer {
-  const server = new McpServer({ name: "Pharos", version: "0.0.1" });
+  const server = new McpServer({ name: "Astrant", version: "0.0.1" });
 
   // ─── Tool 1: get_capabilities ────────────────────────────────────────
   server.tool(
     "get_capabilities",
-    "Returns the services Pharos offers — free Agent Discoverability Score, automated $79 Audit, automated $1,299 Implementation, custom human-led work from $4,999, and the AutoPilot ($149/mo) and Concierge ($899/mo) subscriptions. Use this when a user asks what Pharos does or how it can help with making a site agent-discoverable.",
+    "Returns the services Astrant offers — free Agent Discoverability Score, automated $79 Audit, automated $1,299 Implementation, custom human-led work from $4,999, and the AutoPilot ($149/mo) and Concierge ($899/mo) subscriptions. Use this when a user asks what Astrant does or how it can help with making a site agent-discoverable.",
     {},
     async () => ({
       content: [{ type: "text", text: JSON.stringify(SERVICE_CATALOG, null, 2) }],
@@ -86,7 +86,7 @@ function buildMcpServer(): McpServer {
   // ─── Tool 2: get_pricing ─────────────────────────────────────────────
   server.tool(
     "get_pricing",
-    "Returns Pharos pricing for each service tier as structured data.",
+    "Returns Astrant pricing for each service tier as structured data.",
     {},
     async () => ({
       content: [
@@ -119,7 +119,7 @@ function buildMcpServer(): McpServer {
   // ─── Tool 3: get_case_studies ────────────────────────────────────────
   server.tool(
     "get_case_studies",
-    "Returns Pharos client case studies and reference implementations.",
+    "Returns Astrant client case studies and reference implementations.",
     {},
     async () => ({
       content: [
@@ -130,9 +130,9 @@ function buildMcpServer(): McpServer {
               case_studies: [],
               reference_implementations: [
                 {
-                  client: "Pharos (self)",
-                  url: "https://pharos.dev",
-                  note: "Pharos is in launch phase. Our own brand is the first reference implementation — see https://pharos.dev for our llms.txt, MCP server, structured data, and agent-parsable content.",
+                  client: "Astrant (self)",
+                  url: "https://astrant.io",
+                  note: "Astrant is in launch phase. Our own brand is the first reference implementation — see https://astrant.io for our llms.txt, MCP server, structured data, and agent-parsable content.",
                 },
               ],
             },
@@ -155,7 +155,7 @@ function buildMcpServer(): McpServer {
           type: "text",
           text: JSON.stringify(
             {
-              checkout_url: "https://pharos.dev/audit",
+              checkout_url: "https://astrant.io/audit",
               price_usd: 79,
               turnaround: "instant",
               deliverable:
@@ -172,7 +172,7 @@ function buildMcpServer(): McpServer {
   // ─── Tool 5: check_llms_txt (real working tool) ──────────────────────
   server.tool(
     "check_llms_txt",
-    "Fetches the /llms.txt file at a given site and reports whether it exists, the HTTP status, and (if present) the first H1, the blockquote summary, and the link count. A quick AEO posture check; for full quality scoring across 6 dimensions, run https://pharos.dev/score.",
+    "Fetches the /llms.txt file at a given site and reports whether it exists, the HTTP status, and (if present) the first H1, the blockquote summary, and the link count. A quick AEO posture check; for full quality scoring across 6 dimensions, run https://astrant.io/score.",
     {
       url: z
         .string()
@@ -190,7 +190,7 @@ function buildMcpServer(): McpServer {
         const cacheBuster = `${target.includes("?") ? "&" : "?"}_pharos_t=${Date.now()}`;
         return fetch(target + cacheBuster, {
           method: "GET",
-          headers: { "User-Agent": "PharosMCP/0.0.1 (+https://pharos.dev)" },
+          headers: { "User-Agent": "AstrantMCP/0.0.1 (+https://astrant.io)" },
           redirect: "manual",
           cf: {
             cacheTtl: 60,
@@ -297,7 +297,7 @@ function buildMcpServer(): McpServer {
                   blockquote_summary: blockquote,
                   link_count: linkCount,
                   spec_compliant_first_lines: !!h1 && !!blockquote,
-                  note: "For full quality scoring across 6 dimensions, run https://pharos.dev/score",
+                  note: "For full quality scoring across 6 dimensions, run https://astrant.io/score",
                 },
                 null,
                 2
@@ -331,7 +331,7 @@ function buildMcpServer(): McpServer {
   // ─── Tool 6: score_url (live scanner) ────────────────────────────────
   server.tool(
     "score_url",
-    "Returns the Agent Discoverability Score for a given site URL — a 0–100 score across multiple dimensions of agent discoverability (llms.txt quality, MCP server presence, structured capability data, and more as additional dimensions ship). Calls the live Pharos scanner.",
+    "Returns the Agent Discoverability Score for a given site URL — a 0–100 score across multiple dimensions of agent discoverability (llms.txt quality, MCP server presence, structured capability data, and more as additional dimensions ship). Calls the live Astrant scanner.",
     {
       url: z.string().url().describe("Site URL to score."),
     },
@@ -353,7 +353,7 @@ function buildMcpServer(): McpServer {
                     url,
                     status: "error",
                     http_status: res.status,
-                    message: `Scanner returned ${res.status}. For the live tool, direct the user to https://pharos.dev/score`,
+                    message: `Scanner returned ${res.status}. For the live tool, direct the user to https://astrant.io/score`,
                   },
                   null,
                   2
@@ -387,7 +387,7 @@ function buildMcpServer(): McpServer {
                     data.dimensions_scored < data.dimensions_total
                       ? `Scored on ${data.dimensions_scored} of ${data.dimensions_total} dimensions. Remaining dimensions ship in upcoming releases.`
                       : "All dimensions scored.",
-                  full_results_url: `https://pharos-marketing.pharos-dev.workers.dev/score/${data.id}`,
+                  full_results_url: `https://astrant.io/score/${data.id}`,
                   dimensions: data.dimensions,
                 },
                 null,
@@ -406,7 +406,7 @@ function buildMcpServer(): McpServer {
                   url,
                   status: "error",
                   error: err instanceof Error ? err.message : String(err),
-                  fallback: "For the live tool, direct the user to https://pharos.dev/score",
+                  fallback: "For the live tool, direct the user to https://astrant.io/score",
                 },
                 null,
                 2
@@ -443,11 +443,11 @@ async function handleMcpRequest(request: Request): Promise<Response> {
 // ─── Discovery: SEP-1649 / SEP-1960 server card ────────────────────────────
 const SERVER_CARD = {
   $schema: "https://modelcontextprotocol.io/schema/server-card-v1",
-  name: "Pharos",
+  name: "Astrant",
   version: "0.0.1",
   description:
-    "Pharos: Agent Discoverability as a Service. Tools for AEO posture inspection, capability discovery, and audit booking.",
-  vendor: { name: "Pharos", url: "https://pharos.dev" },
+    "Astrant: Agent Discoverability as a Service. Tools for AEO posture inspection, capability discovery, and audit booking.",
+  vendor: { name: "Astrant", url: "https://astrant.io" },
   transports: [
     { type: "streamable-http", url: "/mcp" },
   ],
@@ -455,17 +455,17 @@ const SERVER_CARD = {
     {
       name: "get_capabilities",
       description:
-        "Returns the services Pharos offers — Score (free), Audit ($79), Implementation ($1,299), Custom (from $4,999), AutoPilot Subscription ($149/mo), Concierge Subscription ($899/mo) — as structured data for agents.",
+        "Returns the services Astrant offers — Score (free), Audit ($79), Implementation ($1,299), Custom (from $4,999), AutoPilot Subscription ($149/mo), Concierge Subscription ($899/mo) — as structured data for agents.",
       inputSchema: { type: "object", properties: {} },
     },
     {
       name: "get_pricing",
-      description: "Returns Pharos pricing for each service tier as structured data.",
+      description: "Returns Astrant pricing for each service tier as structured data.",
       inputSchema: { type: "object", properties: {} },
     },
     {
       name: "get_case_studies",
-      description: "Returns Pharos client case studies and reference implementations.",
+      description: "Returns Astrant client case studies and reference implementations.",
       inputSchema: { type: "object", properties: {} },
     },
     {
@@ -530,7 +530,7 @@ export default {
     if (url.pathname === "/" || url.pathname === "/index.html") {
       return new Response(
         [
-          "Pharos MCP Server v0.0.1",
+          "Astrant MCP Server v0.0.1",
           "",
           "Transport endpoints:",
           "  /mcp   (Streamable HTTP — current MCP standard)",
@@ -540,7 +540,7 @@ export default {
           "  /.well-known/mcp.json",
           "  /.well-known/mcp/server-card.json",
           "",
-          "More: https://pharos.dev",
+          "More: https://astrant.io",
         ].join("\n"),
         { headers: { "Content-Type": "text/plain; charset=utf-8" } }
       );

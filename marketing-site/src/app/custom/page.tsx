@@ -4,7 +4,7 @@ import SiteFooter from "@/components/SiteFooter";
 import TriageForm from "@/components/TriageForm";
 
 export const metadata: Metadata = {
-  title: "Custom Implementation — fit check — Pharos",
+  title: "Custom Implementation — fit check — Astrant",
   description:
     "Custom Implementation is for B2B SaaS sites that exceed our standard scope — complex APIs, multi-region content, bespoke MCP tools. Take the 2-minute fit check; an LLM triage agent will recommend Standard, Custom, or a different path.",
   alternates: {
@@ -16,16 +16,16 @@ const serviceLd = {
   "@context": "https://schema.org",
   "@type": "Service",
   name: "Custom Implementation",
-  provider: { "@type": "Organization", name: "Pharos" },
+  provider: { "@type": "Organization", name: "Astrant" },
   serviceType: "Agent Engine Optimization",
   areaServed: "Worldwide",
-  url: "https://pharos.dev/custom",
+  url: "https://astrant.io/custom",
   offers: {
     "@type": "Offer",
     name: "Custom Implementation",
     price: "4999",
     priceCurrency: "USD",
-    url: "https://pharos.dev/custom",
+    url: "https://astrant.io/custom",
     description:
       "Bespoke builds for complex APIs, multi-region content, custom MCP tools. From $4,999 — fixed quote after a $250-deposit scoping call (deposit is credited toward the final quote).",
   },

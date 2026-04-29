@@ -25,6 +25,23 @@ function originFromRequest(req: Request): string {
 }
 
 export async function POST(req: Request) {
+  // PRE-LAUNCH MODE — paid checkouts disabled. The /audit form has been
+  // swapped to a waitlist (posts to /api/waitlist instead). This endpoint
+  // is kept reachable so any hand-crafted client gets a clean 503 with a
+  // clear message rather than a real Dodo charge. To re-enable, set
+  // PRELAUNCH_PAID_CHECKOUTS_DISABLED to false (or delete the guard).
+  const PRELAUNCH_PAID_CHECKOUTS_DISABLED = true;
+  if (PRELAUNCH_PAID_CHECKOUTS_DISABLED) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "Astrant Audit is in pre-launch verification. Paid checkouts open in the next few days. Drop your URL + email at https://astrant.io/audit and we'll email you the moment it goes live.",
+      },
+      { status: 503 }
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();

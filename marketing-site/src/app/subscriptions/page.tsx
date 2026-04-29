@@ -3,7 +3,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 
 export const metadata: Metadata = {
-  title: "Subscriptions — $149 AutoPilot / $899 Concierge — Pharos",
+  title: "Subscriptions — $149 AutoPilot / $899 Concierge — Astrant",
   description:
     "Keep your agent-discoverability stack healthy and measure its impact. Two tiers: AutoPilot ($149/month, fully automated) and Concierge ($899/month, human updates + strategy). Month-to-month, cancel anytime.",
   alternates: {
@@ -11,23 +11,27 @@ export const metadata: Metadata = {
   },
 };
 
-// TODO(bruno): replace with real Dodo Payments subscription URLs before launch.
-const CHECKOUT_AUTOPILOT_URL = "https://checkout.dodopayments.com/buy/pdt_0NdQEw8wrcH0nd5OlZ3IJ?quantity=1";
-const CHECKOUT_CONCIERGE_URL = "https://checkout.dodopayments.com/buy/pdt_0NdQEbaRcrAC3qQuCAlnh?quantity=1";
+// PRE-LAUNCH MODE — paid checkouts disabled site-wide. Subscription CTAs
+// now point at the /audit waitlist (which captures URL + email via
+// /api/waitlist). To restore real Dodo checkouts, swap these back to:
+//   AUTOPILOT: https://checkout.dodopayments.com/buy/pdt_0NdQEw8wrcH0nd5OlZ3IJ?quantity=1
+//   CONCIERGE: https://checkout.dodopayments.com/buy/pdt_0NdQEbaRcrAC3qQuCAlnh?quantity=1
+const CHECKOUT_AUTOPILOT_URL = "/audit#waitlist";
+const CHECKOUT_CONCIERGE_URL = "/audit#waitlist";
 
 const serviceLd = [
   {
     "@context": "https://schema.org",
     "@type": "Service",
     name: "AutoPilot Subscription",
-    provider: { "@type": "Organization", name: "Pharos" },
+    provider: { "@type": "Organization", name: "Astrant" },
     serviceType: "Agent Engine Optimization",
     areaServed: "Worldwide",
-    url: "https://pharos.dev/subscriptions",
+    url: "https://astrant.io/subscriptions",
     offers: {
       "@type": "Offer",
       name: "AutoPilot Subscription",
-      url: "https://pharos.dev/subscriptions",
+      url: "https://astrant.io/subscriptions",
       priceSpecification: {
         "@type": "UnitPriceSpecification",
         price: "149",
@@ -42,14 +46,14 @@ const serviceLd = [
     "@context": "https://schema.org",
     "@type": "Service",
     name: "Concierge Subscription",
-    provider: { "@type": "Organization", name: "Pharos" },
+    provider: { "@type": "Organization", name: "Astrant" },
     serviceType: "Agent Engine Optimization",
     areaServed: "Worldwide",
-    url: "https://pharos.dev/subscriptions",
+    url: "https://astrant.io/subscriptions",
     offers: {
       "@type": "Offer",
       name: "Concierge Subscription",
-      url: "https://pharos.dev/subscriptions",
+      url: "https://astrant.io/subscriptions",
       priceSpecification: {
         "@type": "UnitPriceSpecification",
         price: "899",
@@ -187,7 +191,7 @@ export default function SubscriptionsPage() {
                   ))}
                 </ul>
                 <div className="mt-8">
-                  <AutoPilotCta label="Start AutoPilot" />
+                  <AutoPilotCta label="Notify me when AutoPilot launches" />
                 </div>
               </div>
 
@@ -214,7 +218,7 @@ export default function SubscriptionsPage() {
                   ))}
                 </ul>
                 <div className="mt-8">
-                  <ConciergeCta label="Start Concierge" />
+                  <ConciergeCta label="Notify me when Concierge launches" />
                 </div>
               </div>
             </div>
@@ -283,8 +287,8 @@ export default function SubscriptionsPage() {
               Ready?
             </h2>
             <div className="mt-10 flex flex-wrap gap-4">
-              <AutoPilotCta label="Start AutoPilot" />
-              <ConciergeCta label="Start Concierge" />
+              <AutoPilotCta label="Notify me when AutoPilot launches" />
+              <ConciergeCta label="Notify me when Concierge launches" />
             </div>
             <p className="mt-4 text-sm italic text-[var(--color-muted)]">
               Not sure? Start with AutoPilot and upgrade later — all settings carry

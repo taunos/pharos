@@ -4,7 +4,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 
 export const metadata: Metadata = {
-  title: "AEO Implementation — $1,299, delivered in <24h — Pharos",
+  title: "AEO Implementation — $1,299, delivered in <24h — Astrant",
   description:
     "Automated build pipeline. Pay $1,299, answer 5 scoping questions, and we deploy the full agent-discoverability stack — llms.txt, MCP server, OpenAPI, JSON-LD, baseline monitoring — within 24 hours. For standard B2B SaaS sites.",
   alternates: {
@@ -12,23 +12,26 @@ export const metadata: Metadata = {
   },
 };
 
-// TODO(bruno): replace with real Dodo Payments checkout URL before launch.
-const CHECKOUT_IMPL_URL = "https://checkout.dodopayments.com/buy/pdt_0NdQE5vccUUgOHMsF6Pzz?quantity=1";
+// PRE-LAUNCH MODE — paid checkouts disabled site-wide. CTAs now point at the
+// /audit waitlist (which captures URL + email via /api/waitlist). To restore
+// real Dodo checkouts, swap this back to the original Dodo URL:
+//   "https://checkout.dodopayments.com/buy/pdt_0NdQE5vccUUgOHMsF6Pzz?quantity=1"
+const CHECKOUT_IMPL_URL = "/audit#waitlist";
 
 const serviceLd = {
   "@context": "https://schema.org",
   "@type": "Service",
   name: "AEO Implementation",
-  provider: { "@type": "Organization", name: "Pharos" },
+  provider: { "@type": "Organization", name: "Astrant" },
   serviceType: "Agent Engine Optimization",
   areaServed: "Worldwide",
-  url: "https://pharos.dev/implementation",
+  url: "https://astrant.io/implementation",
   offers: {
     "@type": "Offer",
     name: "AEO Implementation",
     price: "1299",
     priceCurrency: "USD",
-    url: "https://pharos.dev/implementation",
+    url: "https://astrant.io/implementation",
     description:
       "Automated technical build delivered in under 24 hours. llms.txt, MCP server, OpenAPI, JSON-LD schema, baseline monitoring.",
   },
@@ -159,7 +162,7 @@ export default function ImplementationPage() {
             local environment.
           </p>
           <div className="mt-10 flex flex-col items-start gap-4">
-            <Cta label="Start your implementation" />
+            <Cta label="Notify me when Implementation launches" />
             <Link
               href="/custom"
               className="text-sm text-[var(--color-muted)] underline-offset-4 hover:text-[var(--color-fg)] hover:underline"
@@ -250,7 +253,7 @@ export default function ImplementationPage() {
             <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)]">
               No black box. Every artifact lives on your infrastructure. MCP
               server on your Cloudflare account. JSON-LD and content in your
-              codebase via the patch your team applied. No dependency on Pharos
+              codebase via the patch your team applied. No dependency on Astrant
               for ongoing operation. You can cancel the subscription, move off our
               monitoring, or take everything in-house at any time.
             </p>
@@ -282,7 +285,7 @@ export default function ImplementationPage() {
               Ready?
             </h2>
             <div className="mt-10">
-              <Cta label="Start your implementation" />
+              <Cta label="Notify me when Implementation launches" />
             </div>
           </div>
         </section>

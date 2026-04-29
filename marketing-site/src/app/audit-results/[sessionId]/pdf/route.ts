@@ -19,7 +19,7 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
-  const filename = `pharos-audit-${sessionId.slice(0, 8)}.pdf`;
+  const filename = `astrant-audit-${sessionId.slice(0, 8)}.pdf`;
   return new Response(obj.body, {
     status: 200,
     headers: {
