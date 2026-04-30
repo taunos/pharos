@@ -19,7 +19,10 @@ export default function TriageForm() {
   const [budget, setBudget] = useState<string>("");
   const [timeline, setTimeline] = useState<string>("");
   const [email, setEmail] = useState("");
-  const [honeypot, setHoneypot] = useState("");
+  // Honeypot. JSON payload key is `referral_code` (matches route handler
+  // validator after the Slice 2b rename); the HTML `name` attribute below
+  // is `website_url_2` for an extra layer of bot misdirection.
+  const [referralCode, setReferralCode] = useState("");
 
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +53,7 @@ export default function TriageForm() {
         budget_range: budget,
         timeline,
         ...(email ? { email } : {}),
-        ...(honeypot ? { honeypot } : {}),
+        ...(referralCode ? { referral_code: referralCode } : {}),
       };
       const res = await fetch("/api/triage", {
         method: "POST",
@@ -106,8 +109,8 @@ export default function TriageForm() {
           name="website_url_2"
           tabIndex={-1}
           autoComplete="off"
-          value={honeypot}
-          onChange={(e) => setHoneypot(e.target.value)}
+          value={referralCode}
+          onChange={(e) => setReferralCode(e.target.value)}
         />
       </div>
 

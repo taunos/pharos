@@ -14,7 +14,12 @@ export type TriageSubmission = {
   budget_range: string;
   timeline: string;
   email?: string;
-  honeypot?: string;
+  // Honeypot field. Renamed from `honeypot` to `referral_code` in Slice 2b
+  // because `honeypot` is a heavily-fingerprinted name on bot-framework
+  // skip-lists. `referral_code` is plausible-real-form-field that humans
+  // skip without thinking. Excluded from `triageCacheKey` canonical hash
+  // (see below) so the rename is cache-safe — no version bump needed.
+  referral_code?: string;
 };
 
 export type TriageCta = {
@@ -284,8 +289,8 @@ export function validateSubmission(body: unknown): ValidationResult {
     }
   }
 
-  if (b.honeypot !== undefined && typeof b.honeypot !== "string") {
-    return { ok: false, error: "honeypot must be a string." };
+  if (b.referral_code !== undefined && typeof b.referral_code !== "string") {
+    return { ok: false, error: "referral_code must be a string." };
   }
 
   return { ok: true, value: b as unknown as TriageSubmission };

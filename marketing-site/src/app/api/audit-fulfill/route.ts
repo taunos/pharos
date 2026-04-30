@@ -12,6 +12,7 @@ import {
 } from "@/lib/audit-pipeline";
 import type { AuditResult, SessionRecord } from "@/lib/audit-types";
 import { writeAuditToCorpus } from "@/lib/corpus-write";
+import { constantTimeEqual } from "@/lib/dodo";
 
 interface FulfillEnv extends AuditEnv {
   INTERNAL_FULFILL_KEY: string;
@@ -51,10 +52,12 @@ export async function POST(req: Request) {
   const env = getCloudflareContext().env as unknown as FulfillEnv;
 
   const provided = req.headers.get("x-internal-fulfill-key");
+  // F-03: constant-time comparison to deny timing-side-channel inference
+  // of the secret. Length-mismatch short-circuits to false in the helper.
   if (
     !env.INTERNAL_FULFILL_KEY ||
     !provided ||
-    provided !== env.INTERNAL_FULFILL_KEY
+    !constantTimeEqual(provided, env.INTERNAL_FULFILL_KEY)
   ) {
     return NextResponse.json(
       { ok: false, error: "Unauthorized" },

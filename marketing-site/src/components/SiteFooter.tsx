@@ -15,6 +15,12 @@ export default function SiteFooter() {
           <a href="/llms.txt" className="hover:text-[var(--color-fg)]">
             llms.txt
           </a>
+          <a href="/privacy" className="hover:text-[var(--color-fg)]">
+            Privacy
+          </a>
+          <a href="/terms" className="hover:text-[var(--color-fg)]">
+            Terms
+          </a>
           <a href="mailto:hello@astrant.io" className="hover:text-[var(--color-fg)]">
             hello@astrant.io
           </a>

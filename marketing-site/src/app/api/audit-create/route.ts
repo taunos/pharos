@@ -4,6 +4,7 @@ import {
   createCheckoutSession,
   type DodoEnvBindings,
 } from "@/lib/dodo";
+import { normalizeEmail } from "@/lib/email-normalize";
 import type { SessionRecord } from "@/lib/audit-types";
 
 const AUDIT_PRODUCT_ID = "pdt_0NdQDsS4Shhe1BrDzQDaa";
@@ -86,7 +87,10 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  const email = b.email.trim();
+  // F-01: normalize before sending to Dodo, persisting in SESSIONS, and
+  // populating customer_email on the checkout (Dodo will display the
+  // lowercased form back to the customer; matches industry norm).
+  const email = normalizeEmail(b.email);
 
   // Optional conversion-arc field: source_scan_id from the prior free Score.
   // Accepts any non-empty string; the corpus FK enforces validity at write time.

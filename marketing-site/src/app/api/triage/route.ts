@@ -10,6 +10,8 @@ import {
   type Recommendation,
   type TriageResponse,
 } from "@/lib/triage";
+import { hashEmailForLog } from "@/lib/score-tokens";
+import { normalizeEmail } from "@/lib/email-normalize";
 
 const MODEL = "@cf/meta/llama-3.1-8b-instruct";
 const CACHE_TTL_SECONDS = 30 * 24 * 60 * 60;
@@ -17,6 +19,7 @@ const CACHE_TTL_SECONDS = 30 * 24 * 60 * 60;
 interface TriageEnv {
   TRIAGE_CACHE: KVNamespace;
   AI: Ai;
+  UNSUBSCRIBE_SECRET?: string;
 }
 
 function buildResponse(
@@ -46,8 +49,8 @@ export async function POST(req: Request) {
   if (
     body &&
     typeof body === "object" &&
-    typeof (body as { honeypot?: unknown }).honeypot === "string" &&
-    ((body as { honeypot: string }).honeypot.trim().length > 0)
+    typeof (body as { referral_code?: unknown }).referral_code === "string" &&
+    ((body as { referral_code: string }).referral_code.trim().length > 0)
   ) {
     return NextResponse.json(
       buildResponse(
@@ -63,6 +66,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: validated.error }, { status: 400 });
   }
   const submission = validated.value;
+  // F-01: normalize the optional email before any downstream use (cache key
+  // is computed without email anyway, but log redaction must hash the
+  // canonical form so the same address always produces the same hash).
+  if (submission.email) {
+    submission.email = normalizeEmail(submission.email);
+  }
   const env = getCloudflareContext().env as unknown as TriageEnv;
   const key = await triageCacheKey(submission);
 
@@ -118,8 +127,15 @@ export async function POST(req: Request) {
   }
 
   if (submission.email) {
+    // F-04: never log raw email. Hash with UNSUBSCRIBE_SECRET when bound;
+    // fall back to "[unsalted]" marker so a missing-binding error is loud.
+    // The marketing-site Worker already has UNSUBSCRIBE_SECRET bound (Slice
+    // 2b); verify wrangler.jsonc exposes it to this route.
+    const emailHash = env.UNSUBSCRIBE_SECRET
+      ? await hashEmailForLog(submission.email, env.UNSUBSCRIBE_SECRET)
+      : "[unsalted]";
     console.error(
-      `[triage] new submission url=${submission.site_url} email=${submission.email} → ${result.recommendation}`
+      `[triage] new submission url=${submission.site_url} email_hash=${emailHash} → ${result.recommendation}`
     );
   }
 

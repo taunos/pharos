@@ -568,7 +568,7 @@ export function renderAuditHtml(audit: AuditResult, sessionId: string): string {
 </head>
 <body>
   <div class="header">
-    <span class="brand">PHAROS · AEO Audit</span>
+    <span class="brand">Astrant · AEO Audit</span>
     <span class="timestamp">Generated ${formatTimestamp(scan.created_at)} · session ${escapeHtml(sessionShort)}</span>
   </div>
 

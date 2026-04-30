@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { hashEmailForLog } from "@/lib/score-tokens";
+import { normalizeEmail } from "@/lib/email-normalize";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -45,7 +48,15 @@ export async function POST(req: Request) {
     );
   }
 
-  console.log("[waitlist]", { url, email, at: new Date().toISOString() });
+  // F-01: normalize before any downstream use.
+  const normalizedEmail = normalizeEmail(email);
+
+  // F-04: never log raw email. Hash with UNSUBSCRIBE_SECRET when bound.
+  const env = getCloudflareContext().env as unknown as { UNSUBSCRIBE_SECRET?: string };
+  const emailHash = env.UNSUBSCRIBE_SECRET
+    ? await hashEmailForLog(normalizedEmail, env.UNSUBSCRIBE_SECRET)
+    : "[unsalted]";
+  console.log("[waitlist]", { url, email_hash: emailHash, at: new Date().toISOString() });
 
   return NextResponse.json({ ok: true });
 }

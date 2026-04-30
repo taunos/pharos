@@ -9,6 +9,9 @@ import { runDim2 } from "./checks/dim2-mcp";
 import { runDim4 } from "./checks/dim4-structured";
 import { runDim5 } from "./checks/dim5-parsable";
 import { SCORING_VERSION } from "./version";
+import { mountScoreAdmin } from "./score-admin";
+import { normalizeEmail } from "./email-normalize";
+import { constantTimeEqual } from "./auth";
 
 const VERSION = "0.2.0";
 
@@ -28,10 +31,23 @@ app.use(
   cors({
     origin: (origin) => (origin && ALLOWED_ORIGINS.has(origin) ? origin : ""),
     allowMethods: ["POST", "GET", "OPTIONS"],
-    allowHeaders: ["Content-Type", "x-internal-fulfill-key"],
+    allowHeaders: [
+      "Content-Type",
+      "x-internal-fulfill-key",
+      "x-internal-scanner-admin-key",
+    ],
     maxAge: 86400,
   })
 );
+
+// TODO: Phase 2 of 2b — robots.txt pre-fetch and Disallow respect
+// before invoking checks against an external site (TF-13 / roadmap §6.4).
+// Current state: scanner runs on user submission without robots.txt check.
+
+// Slice 2b admin endpoints (capture-email, pdf-generated, unsubscribe,
+// delete-pii, by-email-internal, email read-back, state). All require
+// INTERNAL_SCANNER_ADMIN_KEY (separate trust domain from INTERNAL_FULFILL_KEY).
+mountScoreAdmin(app);
 
 app.get("/health", (c) =>
   c.json({ ok: true, version: VERSION, scoring_version: SCORING_VERSION })
@@ -64,7 +80,12 @@ app.post("/api/scan", async (c) => {
       400
     );
   }
-  const { url, email } = parsed.data;
+  const { url } = parsed.data;
+  // F-01: normalize email at storage entry so D1 always holds the canonical
+  // form. Marketing-site applies the same normalization at its entry points;
+  // this defense-in-depth ensures direct scanner callers (e.g. MCP tools or
+  // tests) get identical behavior.
+  const email = parsed.data.email ? normalizeEmail(parsed.data.email) : undefined;
   const requestedTier: ScanTier = parsed.data.tier ?? "free";
 
   // Internal-auth gating for paid-tier requests. A misconfigured paid call
@@ -73,10 +94,11 @@ app.post("/api/scan", async (c) => {
   let tier: ScanTier = "free";
   if (requestedTier === "paid") {
     const provided = c.req.header("x-internal-fulfill-key");
+    // F-03: constant-time comparison.
     if (
       c.env.INTERNAL_FULFILL_KEY &&
       provided &&
-      provided === c.env.INTERNAL_FULFILL_KEY
+      constantTimeEqual(provided, c.env.INTERNAL_FULFILL_KEY)
     ) {
       tier = "paid";
     } else {

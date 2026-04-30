@@ -10,6 +10,13 @@ export interface Env {
   // Optional internal-auth secret for paid-tier scans. When absent, the scan
   // endpoint silently treats every request as free-tier (graceful degradation).
   INTERNAL_FULFILL_KEY?: string;
+  // Slice 2b: separate trust domain for Score email-capture admin endpoints.
+  // Distinct from INTERNAL_FULFILL_KEY (which gates paid-tier audit/scan flows
+  // and money-handling paths) so a single secret compromise no longer breaches
+  // money flows + PII read-back + destructive actions + state changes in one
+  // stroke. Both secrets initially hold independent random values and are
+  // rotated independently. When absent, all Slice 2b admin endpoints reject.
+  INTERNAL_SCANNER_ADMIN_KEY?: string;
 }
 
 export type ScanTier = "free" | "paid";

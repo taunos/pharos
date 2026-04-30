@@ -16,7 +16,9 @@
   "dependencies": {
     "next": "^15.5.15",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "react-markdown": "^10.1.0",
+    "resend": "^6.12.2"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260425.1",

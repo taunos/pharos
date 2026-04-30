@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import EmailGate from "./score/EmailGate";
 
 export type SubCheck = {
   id: string;
@@ -124,37 +125,6 @@ function DimensionCard({ dim }: { dim: DimensionResult }) {
 }
 
 export default function ScanResults({ data }: { data: ScanResultData }) {
-  const [email, setEmail] = useState("");
-  const [waitlistStatus, setWaitlistStatus] = useState<"idle" | "submitting" | "done" | "error">(
-    "idle"
-  );
-  const [waitlistMsg, setWaitlistMsg] = useState<string | null>(null);
-
-  async function onWaitlistSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setWaitlistStatus("submitting");
-    setWaitlistMsg(null);
-    try {
-      const res = await fetch("/api/waitlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: data.url, email }),
-      });
-      const j = (await res.json()) as { ok: boolean; error?: string };
-      if (res.ok && j.ok) {
-        setWaitlistStatus("done");
-        setWaitlistMsg("Got it. We'll send the next monthly rescan to your inbox.");
-        setEmail("");
-      } else {
-        setWaitlistStatus("error");
-        setWaitlistMsg(j.error ?? "Couldn't save that — try again.");
-      }
-    } catch {
-      setWaitlistStatus("error");
-      setWaitlistMsg("Network error. Try again.");
-    }
-  }
-
   return (
     <div className="flex flex-col gap-8">
       <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
@@ -181,42 +151,7 @@ export default function ScanResults({ data }: { data: ScanResultData }) {
       </div>
 
       <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-        <h3 className="text-lg font-semibold">Watch your score over time</h3>
-        <p className="mt-2 text-sm text-[var(--color-muted)]">
-          Optional: drop your email and we&apos;ll auto-rescan this URL each month and email you
-          the diff. Unsubscribe anytime.
-        </p>
-        <form onSubmit={onWaitlistSubmit} className="mt-4 flex flex-col gap-3 sm:flex-row">
-          <input
-            type="email"
-            required
-            placeholder="you@company.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={waitlistStatus === "submitting"}
-            className="flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-2 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none disabled:opacity-60"
-          />
-          <button
-            type="submit"
-            disabled={waitlistStatus === "submitting" || waitlistStatus === "done"}
-            className="rounded-md border border-[var(--color-accent)] px-5 py-2 text-base font-semibold text-[var(--color-accent)] transition hover:bg-[var(--color-accent)] hover:text-black disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {waitlistStatus === "submitting"
-              ? "Sending…"
-              : waitlistStatus === "done"
-                ? "Subscribed"
-                : "Send me a monthly auto-rescan"}
-          </button>
-        </form>
-        {waitlistMsg ? (
-          <p
-            className={`mt-3 text-sm ${
-              waitlistStatus === "done" ? "text-emerald-400" : "text-red-400"
-            }`}
-          >
-            {waitlistMsg}
-          </p>
-        ) : null}
+        <EmailGate scanId={data.id} scanUrl={data.url} />
       </div>
     </div>
   );
