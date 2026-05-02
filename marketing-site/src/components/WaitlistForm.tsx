@@ -48,7 +48,10 @@ export default function WaitlistForm({ idPrefix }: { idPrefix: string }) {
           placeholder="https://your-site.com"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          className="flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none"
+          // Logo + Foundation slice — WaitlistForm is the 503-gated waitlist
+          // entrypoint, so per decision 5 EXCEPTION the amber focus border + CTA
+          // fill are preserved. Only the radii are stripped.
+          className="flex-1 border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none"
         />
         <input
           id={`${idPrefix}-email`}
@@ -58,12 +61,12 @@ export default function WaitlistForm({ idPrefix }: { idPrefix: string }) {
           placeholder="you@company.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none"
+          className="flex-1 border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none"
         />
         <button
           type="submit"
           disabled={status === "submitting"}
-          className="rounded-md bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          className="bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {status === "submitting" ? "Sending…" : "Run free score"}
         </button>

@@ -58,24 +58,31 @@ export default function ScanForm() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={status === "scanning"}
-            className="flex-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none disabled:opacity-60"
+            // Logo + Foundation slice: input focus border demoted accent → fg.
+            // Radius stripped.
+            className="flex-1 border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-fg)] focus:outline-none disabled:opacity-60"
           />
+          {/* Logo + Foundation slice: primary-CTA fill — amber retained per
+              decision 5 (this IS the canonical primary CTA). Radius stripped. */}
           <button
             type="submit"
             disabled={status === "scanning"}
-            className="rounded-md bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            className="bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {status === "scanning" ? "Scanning…" : "Run free scan"}
           </button>
         </div>
         <p className="mt-3 text-sm italic text-[var(--color-muted)]">
-          Free public scan. Slice 2a covers 4 of 6 dimensions; the rest ship soon.
+          Free public scan. Slice 3a covers 5 of 6 dimensions; Citation Visibility ships next.
         </p>
         {status === "scanning" ? (
           <p className="mt-4 flex items-center gap-2 text-sm text-[var(--color-muted)]">
+            {/* Logo + Foundation slice: progress pulse demoted accent → muted.
+                rounded-full retained — required to render the dot as a circle
+                (functional shape, not aesthetic — radius-free allowlist). */}
             <span
               aria-hidden="true"
-              className="inline-block h-3 w-3 animate-pulse rounded-full bg-[var(--color-accent)]"
+              className="inline-block h-3 w-3 animate-pulse rounded-full bg-[var(--color-muted)]"
             />
             Scanning your site… typically 10–20 seconds.
           </p>

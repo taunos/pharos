@@ -76,7 +76,7 @@ export default function EmailGate({
 
   if (status === "success") {
     return (
-      <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-6 text-base text-[var(--color-fg)]">
+      <div className="border border-emerald-500/40 bg-emerald-500/5 p-6 text-base text-[var(--color-fg)]">
         <p className="font-semibold text-emerald-400">
           {pdfDeferred
             ? "Your gap report is queued."
@@ -89,9 +89,10 @@ export default function EmailGate({
           {resultsUrl ? (
             <>
               If you don&apos;t see an email in 5 minutes, view it directly at{" "}
+              {/* Logo + Foundation slice: link demoted accent → fg. */}
               <a
                 href={resultsUrl}
-                className="text-[var(--color-accent)] underline-offset-4 hover:underline"
+                className="text-[var(--color-fg)] underline-offset-4 hover:underline"
               >
                 {resultsUrl}
               </a>
@@ -111,7 +112,7 @@ export default function EmailGate({
         Get the full PDF gap report
       </h3>
       <p className="mt-2 text-base text-[var(--color-muted)]">
-        4 of 6 dimensions analyzed. Predicted lift per gap. Remediation paths.
+        5 of 6 dimensions analyzed. Predicted lift per gap. Remediation paths.
       </p>
 
       {/* Honeypot — visually hidden, attractive to bots. JSON key is
@@ -147,7 +148,7 @@ export default function EmailGate({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={disabled}
-          className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none disabled:opacity-60"
+          className="border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-fg)] focus:outline-none disabled:opacity-60"
         />
         <label className="flex items-start gap-2 text-sm text-[var(--color-muted)]">
           <input
@@ -165,25 +166,29 @@ export default function EmailGate({
         </label>
         <p className="text-xs text-[var(--color-muted)]">
           By submitting, you agree to our{" "}
+          {/* Logo + Foundation slice: legal links demoted accent → fg. */}
           <a
             href="/privacy"
-            className="text-[var(--color-accent)] underline-offset-4 hover:underline"
+            className="text-[var(--color-fg)] underline-offset-4 hover:underline"
           >
             Privacy Policy
           </a>{" "}
           and{" "}
           <a
             href="/terms"
-            className="text-[var(--color-accent)] underline-offset-4 hover:underline"
+            className="text-[var(--color-fg)] underline-offset-4 hover:underline"
           >
             Terms
           </a>
           .
         </p>
+        {/* Logo + Foundation slice: primary CTA — Score email-gate is the
+            user's main action to receive the PDF gap report. Amber retained
+            per decision 5; radius stripped per decision 4. */}
         <button
           type="submit"
           disabled={disabled}
-          className="rounded-md bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          className="bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {disabled ? "Sending…" : "Email me the PDF report"}
         </button>

@@ -28,8 +28,9 @@ export default function DeleteMePage() {
           <p className="mt-3 text-sm italic text-[var(--color-muted)]">
             Anonymous scan records (with PII removed) may be retained for
             aggregate metrics. No identifying information remains. See our{" "}
+            {/* Logo + Foundation slice: link demoted accent → fg. */}
             <a
-              className="text-[var(--color-accent)] underline-offset-4 hover:underline"
+              className="text-[var(--color-fg)] underline-offset-4 hover:underline"
               href="/privacy"
             >
               Privacy Policy

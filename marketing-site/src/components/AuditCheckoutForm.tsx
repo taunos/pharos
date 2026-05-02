@@ -50,8 +50,12 @@ export default function AuditCheckoutForm() {
         : "Notify me when Audit launches";
 
   return (
+    // Logo + Foundation slice — entire form is the 503-gated paid-checkout
+    // waitlist (PRE-LAUNCH MODE comment at top of file). Per decision 5
+    // EXCEPTION amber stays on the pre-launch banner + focus borders + CTA.
+    // Only the radii are stripped per decision 4.
     <form onSubmit={onSubmit} className="w-full max-w-2xl">
-      <div className="rounded-md border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5 p-4 text-sm text-[var(--color-fg)]">
+      <div className="border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5 p-4 text-sm text-[var(--color-fg)]">
         <strong className="text-[var(--color-accent)]">Pre-launch.</strong>{" "}
         Astrant Audit is in final pre-launch verification. Drop your URL and
         email — we&apos;ll notify you the moment paid checkouts open (next
@@ -62,7 +66,7 @@ export default function AuditCheckoutForm() {
         >
           astrant.io/score
         </a>{" "}
-        gives you 4 of 6 dimensions immediately.
+        gives you 5 of 6 dimensions immediately.
       </div>
       <div className="mt-4 flex flex-col gap-3">
         <input
@@ -74,7 +78,7 @@ export default function AuditCheckoutForm() {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           disabled={disabled}
-          className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none disabled:opacity-60"
+          className="border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none disabled:opacity-60"
         />
         <input
           name="email"
@@ -84,12 +88,12 @@ export default function AuditCheckoutForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={disabled}
-          className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none disabled:opacity-60"
+          className="border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none disabled:opacity-60"
         />
         <button
           type="submit"
           disabled={disabled}
-          className="rounded-md bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          className="bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {buttonLabel}
         </button>

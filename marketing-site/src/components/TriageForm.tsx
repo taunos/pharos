@@ -93,6 +93,9 @@ export default function TriageForm() {
       : customNeedsTrimLen < 50
         ? `${50 - customNeedsTrimLen} more characters needed`
         : "looks good";
+  // Logo + Foundation slice: amber-500 retained as semantic-warning hue for
+  // approach-the-limit indication on the textarea counter — this is functional
+  // status (warning), not brand accent. Distinct from --color-accent.
   const counterCls =
     customNeedsLen >= 1800
       ? "text-amber-500"
@@ -127,7 +130,7 @@ export default function TriageForm() {
           placeholder="https://your-company.com"
           value={siteUrl}
           onChange={(e) => setSiteUrl(e.target.value)}
-          className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none"
+          className="w-full border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-fg)] focus:outline-none"
         />
       </div>
 
@@ -138,7 +141,7 @@ export default function TriageForm() {
           {SITE_TYPES.map((t) => (
             <label
               key={t}
-              className="flex cursor-pointer items-center gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm hover:border-[var(--color-accent)]"
+              className="flex cursor-pointer items-center gap-3 border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-sm hover:border-[var(--color-fg)]"
             >
               <input
                 type="radio"
@@ -147,7 +150,7 @@ export default function TriageForm() {
                 checked={siteType === t}
                 onChange={() => setSiteType(t)}
                 required
-                className="accent-[var(--color-accent)]"
+                className="accent-[var(--color-fg)]"
               />
               <span>{t}</span>
             </label>
@@ -170,7 +173,7 @@ export default function TriageForm() {
           placeholder="e.g. We have a multi-region presence with content in 5 languages, and need MCP tools that expose our booking inventory in real time. (50-2000 characters — give us the context we need to route you accurately.)"
           value={customNeeds}
           onChange={(e) => setCustomNeeds(e.target.value)}
-          className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none"
+          className="w-full border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-fg)] focus:outline-none"
         />
         <div className="flex items-center justify-between text-xs">
           <span className="text-[var(--color-muted)]">{customNeedsHint}</span>
@@ -192,7 +195,7 @@ export default function TriageForm() {
           {COMPLEXITY_FACTORS.map((f) => (
             <label
               key={f}
-              className="flex cursor-pointer items-start gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm hover:border-[var(--color-accent)]"
+              className="flex cursor-pointer items-start gap-3 border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-sm hover:border-[var(--color-fg)]"
             >
               <input
                 type="checkbox"
@@ -200,7 +203,7 @@ export default function TriageForm() {
                 value={f}
                 checked={factors.includes(f)}
                 onChange={() => toggleFactor(f)}
-                className="mt-1 accent-[var(--color-accent)]"
+                className="mt-1 accent-[var(--color-fg)]"
               />
               <span>{f}</span>
             </label>
@@ -215,7 +218,7 @@ export default function TriageForm() {
           {BUDGET_RANGES.map((b) => (
             <label
               key={b}
-              className="flex cursor-pointer items-center gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm hover:border-[var(--color-accent)]"
+              className="flex cursor-pointer items-center gap-3 border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-sm hover:border-[var(--color-fg)]"
             >
               <input
                 type="radio"
@@ -224,7 +227,7 @@ export default function TriageForm() {
                 checked={budget === b}
                 onChange={() => setBudget(b)}
                 required
-                className="accent-[var(--color-accent)]"
+                className="accent-[var(--color-fg)]"
               />
               <span>{b}</span>
             </label>
@@ -239,7 +242,7 @@ export default function TriageForm() {
           {TIMELINES.map((t) => (
             <label
               key={t}
-              className="flex cursor-pointer items-center gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm hover:border-[var(--color-accent)]"
+              className="flex cursor-pointer items-center gap-3 border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-sm hover:border-[var(--color-fg)]"
             >
               <input
                 type="radio"
@@ -248,7 +251,7 @@ export default function TriageForm() {
                 checked={timeline === t}
                 onChange={() => setTimeline(t)}
                 required
-                className="accent-[var(--color-accent)]"
+                className="accent-[var(--color-fg)]"
               />
               <span>{t}</span>
             </label>
@@ -271,7 +274,7 @@ export default function TriageForm() {
           placeholder="you@company.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none"
+          className="w-full border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-fg)] focus:outline-none"
         />
       </div>
 
@@ -280,7 +283,9 @@ export default function TriageForm() {
         <button
           type="submit"
           disabled={status === "submitting"}
-          className="rounded-md bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          // Logo + Foundation slice: primary CTA (live triage tool, not 503-gated).
+          // Amber retained per decision 5; radius stripped per decision 4.
+          className="bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {status === "submitting" ? "Analyzing…" : "Get my recommendation"}
         </button>

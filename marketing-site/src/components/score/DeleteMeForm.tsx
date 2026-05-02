@@ -44,7 +44,7 @@ export default function DeleteMeForm() {
 
   if (status === "success") {
     return (
-      <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-6 text-base text-[var(--color-fg)]">
+      <div className="border border-emerald-500/40 bg-emerald-500/5 p-6 text-base text-[var(--color-fg)]">
         <p className="font-semibold text-emerald-400">Check your email.</p>
         <p className="mt-2 text-[var(--color-muted)]">
           We&apos;ve sent a confirmation link to <strong>{email}</strong>. The
@@ -68,7 +68,7 @@ export default function DeleteMeForm() {
         ? Math.ceil(retryAfterSec / 60)
         : null;
     return (
-      <div className="rounded-md border border-orange-400/40 bg-orange-400/5 p-6 text-base text-[var(--color-fg)]">
+      <div className="border border-orange-400/40 bg-orange-400/5 p-6 text-base text-[var(--color-fg)]">
         <p className="font-semibold text-orange-400">
           We&apos;ve already sent you a confirmation link.
         </p>
@@ -119,12 +119,13 @@ export default function DeleteMeForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={disabled}
-          className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none disabled:opacity-60"
+          className="border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-fg)] focus:outline-none disabled:opacity-60"
         />
+        {/* Logo + Foundation slice: primary CTA — radius stripped, amber kept. */}
         <button
           type="submit"
           disabled={disabled}
-          className="rounded-md bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          className="bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {disabled ? "Sending…" : "Send me a confirmation link"}
         </button>

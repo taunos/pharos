@@ -118,11 +118,14 @@ const FLOW = [
   },
 ];
 
+// Logo + Foundation slice: 503-gated waitlist CTA (CHECKOUT_IMPL_URL points
+// at /audit#waitlist) — amber retained per decision 5 EXCEPTION; radius
+// stripped per decision 4.
 function Cta({ label }: { label: string }) {
   return (
     <a
       href={CHECKOUT_IMPL_URL}
-      className="inline-flex rounded-md bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
+      className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
     >
       {label}
     </a>
@@ -182,7 +185,7 @@ export default function ImplementationPage() {
               {STACK.map((s) => (
                 <div
                   key={s.name}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
+                  className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6"
                 >
                   <h3 className="text-lg font-semibold">{s.name}</h3>
                   <p className="mt-3 text-[var(--color-muted)]">{s.body}</p>
@@ -204,16 +207,19 @@ export default function ImplementationPage() {
             </p>
             <ul className="mt-10 flex flex-col gap-4 text-lg">
               {CUSTOM_TRIGGERS.map((t) => (
+                // Logo + Foundation slice: arrow-bullet color demoted accent → muted.
                 <li key={t} className="flex gap-4">
-                  <span className="mt-1 shrink-0 text-[var(--color-accent)]">→</span>
+                  <span className="mt-1 shrink-0 text-[var(--color-muted)]">→</span>
                   <span className="text-[var(--color-muted)]">{t}</span>
                 </li>
               ))}
             </ul>
             <div className="mt-8">
+              {/* Logo + Foundation slice: secondary navigation CTA — hover-border
+                  demoted accent → fg; radius stripped. */}
               <Link
                 href="/custom"
-                className="inline-flex rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-3 text-base font-semibold text-[var(--color-fg)] transition hover:border-[var(--color-accent)]"
+                className="inline-flex border border-[var(--color-border)] bg-[var(--color-surface-2)] px-6 py-3 text-base font-semibold text-[var(--color-fg)] transition hover:border-[var(--color-fg)]"
               >
                 See the Custom tier →
               </Link>
@@ -229,11 +235,13 @@ export default function ImplementationPage() {
             </h2>
             <ol className="mt-10 flex flex-col gap-6">
               {FLOW.map((f, i) => (
+                // Logo + Foundation slice: rounded-lg stripped; step caption
+                // demoted accent → muted.
                 <li
                   key={f.title}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
+                  className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6"
                 >
-                  <div className="text-sm font-mono text-[var(--color-accent)]">
+                  <div className="text-sm font-mono text-[var(--color-muted)]">
                     Step {i + 1}
                   </div>
                   <h3 className="mt-2 text-xl font-semibold">{f.title}</h3>
@@ -268,7 +276,7 @@ export default function ImplementationPage() {
               {FAQS.map((f) => (
                 <div
                   key={f.q}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
+                  className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6"
                 >
                   <dt className="text-lg font-semibold">{f.q}</dt>
                   <dd className="mt-2 text-[var(--color-muted)]">{f.a}</dd>

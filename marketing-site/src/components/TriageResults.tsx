@@ -19,13 +19,21 @@ export default function TriageResults({
   const { recommendation, explanation, cta } = data;
   const isHighlight = recommendation !== "not_fit";
 
+  // Logo + Foundation slice:
+  // - rounded-lg/rounded-md stripped (decision 4).
+  // - Highlight-card amber border replaced with shadow + full-opacity surface;
+  //   the muted/non-highlight variant uses /60 surface — visual hierarchy
+  //   preserved without --color-accent on a card border (decision 5).
+  // - Highlight CTA fill keeps amber (primary CTA — recommended action).
+  // - Non-highlight CTA hover-border demoted accent → fg.
+  // - Status pill rounded-full retained (functional pill shape).
   const cardCls = isHighlight
-    ? "rounded-lg border border-[var(--color-accent)] bg-[var(--color-surface)] p-8 shadow-lg shadow-black/30"
-    : "rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/60 p-8";
+    ? "border border-[var(--color-border)] bg-[var(--color-surface-2)] p-8 shadow-lg shadow-black/30"
+    : "border border-[var(--color-border)] bg-[var(--color-surface-2)]/60 p-8";
 
   const buttonCls = isHighlight
-    ? "inline-flex rounded-md bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
-    : "inline-flex rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-6 py-3 text-base font-semibold text-[var(--color-fg)] transition hover:border-[var(--color-accent)]";
+    ? "inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
+    : "inline-flex border border-[var(--color-border)] bg-[var(--color-bg)] px-6 py-3 text-base font-semibold text-[var(--color-fg)] transition hover:border-[var(--color-fg)]";
 
   return (
     <div className="flex flex-col gap-6">

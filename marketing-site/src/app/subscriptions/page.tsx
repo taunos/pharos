@@ -112,11 +112,14 @@ const EXCLUDED = [
   "Non-AEO SEO work (that's a different business, not ours)",
 ];
 
+// Logo + Foundation slice — both CTAs are 503-gated waitlist mode (per the
+// CHECKOUT_*_URL constants pointing at /audit#waitlist). Decision 5 EXCEPTION:
+// 503-gated CTAs keep amber. Only the radius is stripped per decision 4.
 function AutoPilotCta({ label }: { label: string }) {
   return (
     <a
       href={CHECKOUT_AUTOPILOT_URL}
-      className="inline-flex rounded-md bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
+      className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
     >
       {label}
     </a>
@@ -127,7 +130,7 @@ function ConciergeCta({ label }: { label: string }) {
   return (
     <a
       href={CHECKOUT_CONCIERGE_URL}
-      className="inline-flex rounded-md border border-[var(--color-accent)] px-6 py-3 text-base font-semibold text-[var(--color-accent)] transition hover:bg-[var(--color-accent)] hover:text-black"
+      className="inline-flex border border-[var(--color-accent)] px-6 py-3 text-base font-semibold text-[var(--color-accent)] transition hover:bg-[var(--color-accent)] hover:text-black"
     >
       {label}
     </a>
@@ -169,10 +172,12 @@ export default function SubscriptionsPage() {
             </h2>
             <div className="mt-10 grid gap-6 lg:grid-cols-2">
               {/* AUTOPILOT CARD */}
-              <div className="flex flex-col rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+              {/* Logo + Foundation slice: rounded-lg stripped; price color
+                  demoted accent → fg; checkmarks demoted accent → muted. */}
+              <div className="flex flex-col border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
                 <div className="flex items-baseline justify-between gap-3">
                   <h3 className="text-2xl font-semibold">AutoPilot</h3>
-                  <span className="text-xl font-bold text-[var(--color-accent)]">
+                  <span className="text-xl font-bold text-[var(--color-fg)]">
                     $149 / month
                   </span>
                 </div>
@@ -183,7 +188,7 @@ export default function SubscriptionsPage() {
                 <ul className="mt-6 flex flex-col gap-3 text-base">
                   {AUTOPILOT_INCLUDES.map((i) => (
                     <li key={i} className="flex gap-3">
-                      <span className="mt-1 shrink-0 text-[var(--color-accent)]">
+                      <span className="mt-1 shrink-0 text-[var(--color-muted)]">
                         ✓
                       </span>
                       <span className="text-[var(--color-muted)]">{i}</span>
@@ -196,10 +201,13 @@ export default function SubscriptionsPage() {
               </div>
 
               {/* CONCIERGE CARD */}
-              <div className="flex flex-col rounded-lg border border-[var(--color-accent)] bg-[var(--color-surface)] p-6">
+              {/* Logo + Foundation slice: pricing-card highlight (amber border)
+                  dropped entirely per decision 5 — differentiate via copy + ordering.
+                  rounded-lg stripped; price + checkmarks demoted as in AutoPilot card. */}
+              <div className="flex flex-col border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
                 <div className="flex items-baseline justify-between gap-3">
                   <h3 className="text-2xl font-semibold">Concierge</h3>
-                  <span className="text-xl font-bold text-[var(--color-accent)]">
+                  <span className="text-xl font-bold text-[var(--color-fg)]">
                     $899 / month
                   </span>
                 </div>
@@ -210,7 +218,7 @@ export default function SubscriptionsPage() {
                 <ul className="mt-6 flex flex-col gap-3 text-base">
                   {CONCIERGE_EXTRAS.map((i) => (
                     <li key={i} className="flex gap-3">
-                      <span className="mt-1 shrink-0 text-[var(--color-accent)]">
+                      <span className="mt-1 shrink-0 text-[var(--color-muted)]">
                         ✓
                       </span>
                       <span className="text-[var(--color-muted)]">{i}</span>
@@ -270,7 +278,7 @@ export default function SubscriptionsPage() {
               {FAQS.map((f) => (
                 <div
                   key={f.q}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
+                  className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6"
                 >
                   <dt className="text-lg font-semibold">{f.q}</dt>
                   <dd className="mt-2 text-[var(--color-muted)]">{f.a}</dd>

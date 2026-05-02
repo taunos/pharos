@@ -135,6 +135,8 @@ function Badge({ kind, label }: { kind: BadgeKind; label: string }) {
       ? "border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)]"
       : "border-emerald-500/40 bg-emerald-500/10 text-emerald-400";
   return (
+    // Logo + Foundation slice: rounded-full retained — small badge pill is the
+    // shape token for status chips; not a card. Will revisit per page slice.
     <span
       className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-mono ${cls}`}
     >
@@ -145,19 +147,23 @@ function Badge({ kind, label }: { kind: BadgeKind; label: string }) {
 
 function CoreCard({ tier }: { tier: (typeof CORE_TIERS)[number] }) {
   return (
+    // Logo + Foundation slice: card border-hover demoted from --color-accent
+    // (decision 5) to --color-fg; rounded-lg stripped per radius-free aesthetic.
     <Link
       href={tier.href}
-      className="group flex flex-col rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6 transition hover:border-[var(--color-accent)] hover:shadow-lg hover:shadow-black/30"
+      className="group flex flex-col border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6 transition hover:border-[var(--color-fg)] hover:shadow-lg hover:shadow-black/30"
     >
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-xl font-semibold">{tier.name}</h3>
         <Badge kind={tier.badgeKind} label={tier.badge} />
       </div>
-      <div className="mt-2 text-2xl font-bold text-[var(--color-accent)]">
+      {/* Logo + Foundation slice: price color demoted accent → fg (already bold). */}
+      <div className="mt-2 text-2xl font-bold text-[var(--color-fg)]">
         {tier.price}
       </div>
       <p className="mt-4 text-[var(--color-muted)]">{tier.body}</p>
-      <div className="mt-6 flex justify-end text-sm font-medium text-[var(--color-accent)] opacity-80 transition group-hover:opacity-100">
+      {/* Logo + Foundation slice: "Learn more" affordance demoted accent → muted. */}
+      <div className="mt-6 flex justify-end text-sm font-medium text-[var(--color-muted)] opacity-80 transition group-hover:opacity-100 group-hover:text-[var(--color-fg)]">
         Learn more →
       </div>
     </Link>
@@ -166,18 +172,19 @@ function CoreCard({ tier }: { tier: (typeof CORE_TIERS)[number] }) {
 
 function SubscriptionCard({ tier }: { tier: (typeof SUBSCRIPTION_TIERS)[number] }) {
   return (
+    // Logo + Foundation slice: same demotions as CoreCard. Radius stripped.
     <Link
       href={tier.href}
-      className="group flex flex-col rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/60 p-5 transition hover:border-[var(--color-accent)] hover:bg-[var(--color-surface)]"
+      className="group flex flex-col border border-[var(--color-border)] bg-[var(--color-surface-2)]/60 p-5 transition hover:border-[var(--color-fg)] hover:bg-[var(--color-surface-2)]"
     >
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-base font-semibold">{tier.name}</h3>
-        <span className="text-sm font-bold text-[var(--color-accent)]">
+        <span className="text-sm font-bold text-[var(--color-fg)]">
           {tier.price}
         </span>
       </div>
       <p className="mt-2 text-sm text-[var(--color-muted)]">{tier.body}</p>
-      <div className="mt-3 flex justify-end text-xs font-medium text-[var(--color-accent)] opacity-70 transition group-hover:opacity-100">
+      <div className="mt-3 flex justify-end text-xs font-medium text-[var(--color-muted)] opacity-70 transition group-hover:opacity-100 group-hover:text-[var(--color-fg)]">
         Learn more →
       </div>
     </Link>
@@ -218,11 +225,13 @@ export default function Page() {
             </h2>
             <div className="mt-10 grid gap-6 sm:grid-cols-3">
               {STATS.map((s) => (
+                // Logo + Foundation slice: rounded-lg stripped; stat figure
+                // demoted accent → fg (already bold = sufficient hierarchy).
                 <div
                   key={s.figure}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
+                  className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6"
                 >
-                  <div className="text-4xl font-bold text-[var(--color-accent)]">
+                  <div className="text-4xl font-bold text-[var(--color-fg)]">
                     {s.figure}
                   </div>
                   <p className="mt-3 text-[var(--color-muted)]">{s.label}</p>
@@ -299,9 +308,11 @@ export default function Page() {
             <ul className="mt-10 flex flex-col gap-4 text-base">
               <li>
                 <span className="font-semibold">llms.txt</span> —{" "}
+                {/* Logo + Foundation slice: link color demoted accent → fg;
+                    underline-on-hover preserved as sole affordance. */}
                 <a
                   href="/llms.txt"
-                  className="font-mono text-[var(--color-accent)] underline-offset-4 hover:underline"
+                  className="font-mono text-[var(--color-fg)] underline-offset-4 hover:underline"
                 >
                   <code>https://this-site/llms.txt</code>
                 </a>
@@ -309,11 +320,12 @@ export default function Page() {
               <li>
                 <span className="font-semibold">MCP Server</span> —{" "}
                 <code className="font-mono">
+                  {/* Logo + Foundation slice: link demoted accent → fg. */}
                   <a
                     href="https://mcp.astrant.io/mcp"
                     target="_blank"
                     rel="noreferrer"
-                    className="text-[var(--color-accent)] underline-offset-4 hover:underline"
+                    className="text-[var(--color-fg)] underline-offset-4 hover:underline"
                   >
                     https://mcp.astrant.io/mcp
                   </a>
@@ -324,11 +336,12 @@ export default function Page() {
               <li>
                 <span className="font-semibold">Server Card</span> —{" "}
                 <code className="font-mono">
+                  {/* Logo + Foundation slice: link demoted accent → fg. */}
                   <a
                     href="https://mcp.astrant.io/.well-known/mcp.json"
                     target="_blank"
                     rel="noreferrer"
-                    className="text-[var(--color-accent)] underline-offset-4 hover:underline"
+                    className="text-[var(--color-fg)] underline-offset-4 hover:underline"
                   >
                     https://mcp.astrant.io/.well-known/mcp.json
                   </a>
@@ -353,7 +366,7 @@ export default function Page() {
               {AUDIENCES.map((a) => (
                 <div
                   key={a.name}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
+                  className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6"
                 >
                   <h3 className="text-xl font-semibold">{a.name}</h3>
                   <p className="mt-4 text-[var(--color-muted)]">{a.body}</p>
@@ -373,7 +386,7 @@ export default function Page() {
               {FAQS.map((f) => (
                 <div
                   key={f.q}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
+                  className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6"
                 >
                   <dt className="text-lg font-semibold">{f.q}</dt>
                   <dd className="mt-2 text-[var(--color-muted)]">{f.a}</dd>

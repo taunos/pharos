@@ -93,7 +93,9 @@ export default function CustomPage() {
       <main>
         {/* HERO */}
         <section className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
-          <div className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-sm font-mono text-[var(--color-muted)]">
+          {/* Logo + Foundation slice: rounded-full retained — small status pill
+              (functional shape — radius-free allowlist). */}
+          <div className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-1 text-sm font-mono text-[var(--color-muted)]">
             From $4,999 · 2–4 weeks typical
           </div>
           <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-6xl">
@@ -107,9 +109,11 @@ export default function CustomPage() {
             route you to the right option.
           </p>
           <div className="mt-8">
+            {/* Logo + Foundation slice: primary CTA (live triage tool, not a
+                paid checkout) — amber retained per decision 5; radius stripped. */}
             <a
               href="#fit-check"
-              className="inline-flex rounded-md bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
+              className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
             >
               Take the fit check ↓
             </a>
@@ -140,8 +144,9 @@ export default function CustomPage() {
             </h2>
             <ul className="mt-10 flex flex-col gap-4 text-lg">
               {CUSTOM_TRIGGERS.map((t) => (
+                // Logo + Foundation slice: checkmark color demoted accent → muted.
                 <li key={t} className="flex gap-4">
-                  <span className="mt-1 shrink-0 text-[var(--color-accent)]">✓</span>
+                  <span className="mt-1 shrink-0 text-[var(--color-muted)]">✓</span>
                   <span className="text-[var(--color-muted)]">{t}</span>
                 </li>
               ))}
@@ -152,7 +157,7 @@ export default function CustomPage() {
               seriousness filter so we only take calls with prospects committed
               enough to put cash down.
             </p>
-            <div className="mt-6 max-w-3xl rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+            <div className="mt-6 max-w-3xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
               <h3 className="text-base font-semibold text-[var(--color-fg)]">
                 Bonus for Custom-tier customers
               </h3>
@@ -196,7 +201,7 @@ export default function CustomPage() {
               {FAQS.map((f) => (
                 <div
                   key={f.q}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
+                  className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6"
                 >
                   <dt className="text-lg font-semibold">{f.q}</dt>
                   <dd className="mt-2 text-[var(--color-muted)]">{f.a}</dd>

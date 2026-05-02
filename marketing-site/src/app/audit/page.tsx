@@ -129,8 +129,9 @@ export default function AuditPage() {
             </h2>
             <ul className="mt-10 flex flex-col gap-4 text-lg">
               {INCLUDES.map((i) => (
+                // Logo + Foundation slice: checkmark color demoted accent → muted.
                 <li key={i} className="flex gap-4">
-                  <span className="mt-1 shrink-0 text-[var(--color-accent)]">
+                  <span className="mt-1 shrink-0 text-[var(--color-muted)]">
                     ✓
                   </span>
                   <span className="text-[var(--color-muted)]">{i}</span>
@@ -154,11 +155,14 @@ export default function AuditPage() {
             </h2>
             <ol className="mt-10 grid gap-6 lg:grid-cols-3">
               {STEPS.map((s, i) => (
+                // Logo + Foundation slice: rounded-lg stripped; step-number
+                // mono caption demoted accent → muted (mono uppercase already
+                // sufficient affordance).
                 <li
                   key={s.title}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
+                  className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6"
                 >
-                  <div className="text-sm font-mono text-[var(--color-accent)]">
+                  <div className="text-sm font-mono text-[var(--color-muted)]">
                     Step {i + 1}
                   </div>
                   <h3 className="mt-2 text-xl font-semibold">{s.title}</h3>
@@ -197,7 +201,7 @@ export default function AuditPage() {
               {FAQS.map((f) => (
                 <div
                   key={f.q}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
+                  className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6"
                 >
                   <dt className="text-lg font-semibold">{f.q}</dt>
                   <dd className="mt-2 text-[var(--color-muted)]">{f.a}</dd>
