@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ScanResults, { type ScanResultData } from "./ScanResults";
+import { normalizeUrl } from "@/lib/normalize-url";
 
 type Status = "idle" | "scanning" | "done" | "error";
 
@@ -13,6 +14,12 @@ export default function ScanForm() {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const normalized = normalizeUrl(url);
+    if (!normalized) {
+      setError("Please enter a valid URL (e.g. example.com or https://example.com).");
+      setStatus("error");
+      return;
+    }
     setStatus("scanning");
     setError(null);
     setResult(null);
@@ -20,7 +27,7 @@ export default function ScanForm() {
       const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: normalized }),
       });
       const data = (await res.json()) as ScanResultData | { ok: false; error?: string };
       if (!res.ok) {
@@ -51,10 +58,11 @@ export default function ScanForm() {
           <input
             id="scan-url"
             name="url"
-            type="url"
+            type="text"
             required
             inputMode="url"
-            placeholder="https://your-site.com"
+            autoComplete="url"
+            placeholder="your-site.com"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={status === "scanning"}

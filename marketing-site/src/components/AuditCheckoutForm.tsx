@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { normalizeUrl } from "@/lib/normalize-url";
 
 // PRE-LAUNCH MODE — paid checkouts disabled. The form below captures email
 // + URL as a waitlist entry instead of creating a Dodo checkout session.
@@ -17,20 +18,26 @@ export default function AuditCheckoutForm() {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const normalized = normalizeUrl(url);
+    if (!normalized) {
+      setStatus("error");
+      setErrorMsg("Please enter a valid URL (e.g. example.com or https://example.com).");
+      return;
+    }
     setStatus("submitting");
     setErrorMsg(null);
     try {
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, email }),
+        body: JSON.stringify({ url: normalized, email }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (!res.ok || !data.ok) {
         setStatus("error");
         setErrorMsg(
           data.error ??
-            "Couldn't save that. Try again or email hello@astrant.io."
+            "Couldn't save that. Try again or email contact@astrant.io."
         );
         return;
       }
@@ -71,10 +78,11 @@ export default function AuditCheckoutForm() {
       <div className="mt-4 flex flex-col gap-3">
         <input
           name="url"
-          type="url"
+          type="text"
           required
           inputMode="url"
-          placeholder="https://your-site.com"
+          autoComplete="url"
+          placeholder="your-site.com"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           disabled={disabled}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import WaitlistForm from "@/components/WaitlistForm";
+import ScanForm from "@/components/ScanForm";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import SixDimensions from "@/components/SixDimensions";
@@ -213,7 +213,11 @@ export default function Page() {
             agent-parsable content — and monitor the results.
           </p>
           <div className="mt-10">
-            <WaitlistForm idPrefix="hero" />
+            {/* The free Score scanner is live (Slices 2a/2b/3a/3b shipped).
+                Hero CTA runs the actual scan instead of the legacy pre-launch
+                waitlist form. ScanForm hosts its own results panel, email-gate,
+                and dimension breakdown. */}
+            <ScanForm />
           </div>
         </section>
 
@@ -402,8 +406,19 @@ export default function Page() {
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               Ready to see how agent-ready your site is?
             </h2>
-            <div className="mt-10">
-              <WaitlistForm idPrefix="cta" />
+            <p className="mt-4 max-w-3xl text-lg text-[var(--color-muted)]">
+              Free 5-of-6-dimension scan, public composite score on screen, no signup. Optional email for the gap-report PDF and monthly auto-rescan.
+            </p>
+            <div className="mt-8">
+              {/* Bottom CTA links back to the dedicated /score page rather
+                  than rendering a second ScanForm — ScanForm uses a unique
+                  id="scan-url" that can't appear twice on a single page. */}
+              <Link
+                href="/score"
+                className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
+              >
+                Run your free score →
+              </Link>
             </div>
           </div>
         </section>

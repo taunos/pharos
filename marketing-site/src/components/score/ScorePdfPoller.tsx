@@ -99,9 +99,9 @@ export default function ScorePdfPoller({
           {/* Logo + Foundation slice: link demoted accent → fg. */}
           <a
             className="text-[var(--color-fg)] underline-offset-4 hover:underline"
-            href="mailto:hello@astrant.io"
+            href="mailto:contact@astrant.io"
           >
-            hello@astrant.io
+            contact@astrant.io
           </a>
           .
         </p>

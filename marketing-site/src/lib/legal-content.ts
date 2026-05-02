@@ -86,7 +86,7 @@ Our infrastructure runs on Cloudflare's global network. Your data may be process
 ## Contact
 
 - **Privacy questions:** [privacy@astrant.io](mailto:privacy@astrant.io)
-- **General contact:** [hello@astrant.io](mailto:hello@astrant.io)
+- **General contact:** [contact@astrant.io](mailto:contact@astrant.io)
 
 ## Changes
 
@@ -165,7 +165,7 @@ We'll update this page if we materially change the terms. Material changes will 
 
 ## Contact
 
-- **Terms questions:** [hello@astrant.io](mailto:hello@astrant.io)
+- **Terms questions:** [contact@astrant.io](mailto:contact@astrant.io)
 - **Privacy questions:** [privacy@astrant.io](mailto:privacy@astrant.io)
 
 ## Severability

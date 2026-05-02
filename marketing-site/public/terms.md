@@ -66,7 +66,7 @@ We'll update this page if we materially change the terms. Material changes will 
 
 ## Contact
 
-- **Terms questions:** [hello@astrant.io](mailto:hello@astrant.io)
+- **Terms questions:** [contact@astrant.io](mailto:contact@astrant.io)
 - **Privacy questions:** [privacy@astrant.io](mailto:privacy@astrant.io)
 
 ## Severability

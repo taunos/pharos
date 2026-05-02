@@ -22,8 +22,15 @@ export default function SiteHeader() {
           />
           <span className="text-2xl font-bold tracking-tight">Astrant</span>
         </Link>
-        <nav className="flex items-center gap-6 text-sm text-[var(--color-muted)]">
-          <Link href="/#how-it-works" className="hover:text-[var(--color-fg)]">
+        {/* Mobile (< md): show Pricing + Dogfood only — "How it works" is
+            the longest item and wraps when the viewport squeezes the nav.
+            md+ shows all three with the wider gap. whitespace-nowrap prevents
+            individual links wrapping internally even if the row gets tight. */}
+        <nav className="flex items-center gap-3 whitespace-nowrap text-sm text-[var(--color-muted)] sm:gap-6">
+          <Link
+            href="/#how-it-works"
+            className="hidden hover:text-[var(--color-fg)] md:inline"
+          >
             How it works
           </Link>
           <Link href="/#pricing" className="hover:text-[var(--color-fg)]">

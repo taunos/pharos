@@ -72,7 +72,7 @@ export default function TriageResults({
         </div>
         <p className="mt-8 text-sm">
           <a
-            href="mailto:hello@astrant.io?subject=Astrant%20fit%20check%20%E2%80%94%20override"
+            href="mailto:contact@astrant.io?subject=Astrant%20fit%20check%20%E2%80%94%20override"
             className="text-[var(--color-muted)] underline-offset-4 hover:text-[var(--color-fg)] hover:underline"
           >
             Got a different read? Email us →

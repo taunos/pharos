@@ -59,7 +59,7 @@ export const TRIAGE_CTAS: Record<Recommendation, TriageCta> = {
   },
   not_fit: {
     label: "Email us about your situation",
-    url: "mailto:hello@astrant.io?subject=Astrant%20fit%20check%20%E2%80%94%20unusual%20case",
+    url: "mailto:contact@astrant.io?subject=Astrant%20fit%20check%20%E2%80%94%20unusual%20case",
     description:
       "Quick email exchange to explore whether there's a different way we can help, or point you to better-suited alternatives.",
   },

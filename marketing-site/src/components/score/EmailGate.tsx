@@ -61,7 +61,7 @@ export default function EmailGate({
         setStatus("error");
         setErrorMsg(
           data.error ??
-            "Couldn't save that. Try again or email hello@astrant.io."
+            "Couldn't save that. Try again or email contact@astrant.io."
         );
         return;
       }

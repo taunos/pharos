@@ -7,6 +7,7 @@ import {
   SITE_TYPES,
   TIMELINES,
 } from "@/lib/triage";
+import { normalizeUrl } from "@/lib/normalize-url";
 import TriageResults, { type TriageResultData } from "./TriageResults";
 
 type Status = "idle" | "submitting" | "done" | "error";
@@ -42,11 +43,17 @@ export default function TriageForm() {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const normalizedSiteUrl = normalizeUrl(siteUrl);
+    if (!normalizedSiteUrl) {
+      setStatus("error");
+      setError("Please enter a valid site URL (e.g. example.com or https://example.com).");
+      return;
+    }
     setStatus("submitting");
     setError(null);
     try {
       const payload = {
-        site_url: siteUrl,
+        site_url: normalizedSiteUrl,
         site_type: siteType,
         custom_needs: customNeeds,
         complexity_factors: factors,
@@ -125,9 +132,11 @@ export default function TriageForm() {
         <input
           id="site_url"
           name="site_url"
-          type="url"
+          type="text"
           required
-          placeholder="https://your-company.com"
+          inputMode="url"
+          autoComplete="url"
+          placeholder="your-company.com"
           value={siteUrl}
           onChange={(e) => setSiteUrl(e.target.value)}
           className="w-full border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-fg)] focus:outline-none"

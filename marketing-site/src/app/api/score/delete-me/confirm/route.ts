@@ -85,7 +85,7 @@ export async function GET(req: Request) {
       "Astrant — error",
       `<h1>We couldn't process your deletion right now.</h1>
        <p>Try again in a minute, or email
-       <a href="mailto:hello@astrant.io">hello@astrant.io</a>.</p>`
+       <a href="mailto:contact@astrant.io">contact@astrant.io</a>.</p>`
     );
   }
   const scanIds = scansRes.scan_ids;
@@ -122,7 +122,7 @@ export async function GET(req: Request) {
       "Astrant — error",
       `<h1>We couldn't process your deletion right now.</h1>
        <p>Try again in a minute, or email
-       <a href="mailto:hello@astrant.io">hello@astrant.io</a> with the
+       <a href="mailto:contact@astrant.io">contact@astrant.io</a> with the
        subject "deletion failed" so we can purge manually.</p>`
     );
   }

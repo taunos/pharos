@@ -329,7 +329,7 @@ export async function POST(req: Request) {
         results_url: `${origin}/score/${scanId}?t=${scanToken}`,
         pdf_url: `${origin}/api/score/${scanId}/pdf?t=${scanToken}`,
         message:
-          "We saved your email but couldn't generate the PDF right now. Refresh the results page in a few minutes or email hello@astrant.io for help.",
+          "We saved your email but couldn't generate the PDF right now. Refresh the results page in a few minutes or email contact@astrant.io for help.",
       });
     }
   }

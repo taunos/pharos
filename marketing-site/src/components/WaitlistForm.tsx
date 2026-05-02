@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { normalizeUrl } from "@/lib/normalize-url";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -12,13 +13,19 @@ export default function WaitlistForm({ idPrefix }: { idPrefix: string }) {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const normalized = normalizeUrl(url);
+    if (!normalized) {
+      setStatus("error");
+      setMessage("Please enter a valid URL (e.g. example.com or https://example.com).");
+      return;
+    }
     setStatus("submitting");
     setMessage(null);
     try {
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, email }),
+        body: JSON.stringify({ url: normalized, email }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (res.ok && data.ok) {
@@ -42,10 +49,11 @@ export default function WaitlistForm({ idPrefix }: { idPrefix: string }) {
         <input
           id={`${idPrefix}-url`}
           name="url"
-          type="url"
+          type="text"
           required
           inputMode="url"
-          placeholder="https://your-site.com"
+          autoComplete="url"
+          placeholder="your-site.com"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           // Logo + Foundation slice — WaitlistForm is the 503-gated waitlist

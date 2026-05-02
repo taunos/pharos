@@ -19,7 +19,11 @@ export default function SiteFooter() {
           />
           <span>&copy; 2026 Astrant</span>
         </div>
-        <div className="flex items-center gap-6 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-dim)]">
+        {/* flex-wrap lets the 5-link row wrap onto multiple lines on narrow
+            viewports (332px iPhone-SE-class) instead of overflowing horizontally
+            and forcing a body-level scrollbar. gap-x-4 + gap-y-1 on mobile,
+            gap-6 (single-row) at sm+ where the full row fits comfortably. */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px] uppercase tracking-[0.08em] text-[var(--color-dim)] sm:gap-x-6">
           <a
             href="https://mcp.astrant.io/mcp"
             target="_blank"
@@ -37,8 +41,12 @@ export default function SiteFooter() {
           <a href="/terms" className="hover:text-[var(--color-fg)]">
             Terms
           </a>
-          <a href="mailto:hello@astrant.io" className="hover:text-[var(--color-fg)]">
-            hello@astrant.io
+          {/* Visible label is the verb "Contact" matching the capitalization
+              style of the other 4 links. mailto target is the canonical
+              contact@astrant.io address. Shorter label keeps the row from
+              overflowing on narrow viewports even after flex-wrap kicks in. */}
+          <a href="mailto:contact@astrant.io" className="hover:text-[var(--color-fg)]">
+            Contact
           </a>
         </div>
       </div>

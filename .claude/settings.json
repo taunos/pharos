@@ -309,10 +309,30 @@
       "Bash(curl -sS https://astrant.io/)",
       "Bash(grep -oE '\\\\$\\(79|1,299|4,999|149|899\\)')",
       "Bash(curl -sS https://astrant.io/_next/static/css/02cf409196a456bc.css)",
-      "Bash(curl -sS https://astrant.io/subscriptions)"
+      "Bash(curl -sS https://astrant.io/subscriptions)",
+      "Bash(npx wrangler@latest secret list)",
+      "Bash(node F:/pharos/scripts/verify-dim6-mirror.mjs)",
+      "Bash(npx wrangler@latest deploy --dry-run)",
+      "Bash(npx opennextjs-cloudflare *)",
+      "Bash(npx wrangler@latest d1 migrations list pharos_corpus --remote)",
+      "Bash(npx wrangler@latest d1 execute pharos_corpus --remote --file=F:/pharos/corpus/migrations/0003_citation_audit_response.sql)",
+      "Bash(npx wrangler@latest deploy)",
+      "Bash(curl -s https://astrant.io/score/methodology -o /tmp/methodology.html -w \"status=%{http_code}\\\\nsize=%{size_download}\\\\n\")",
+      "Bash(curl -s -X POST https://scanner.astrant.io/api/scan -H \"Content-Type: application/json\" -d '{\"url\":\"https://astrant.io\"}')",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('composite:',d['composite']\\); print\\('scoring_version:',d['scoring_version']\\); print\\('dimensions_total:',d['dimensions_total']\\); print\\('dimensions_applicable:',d['dimensions_applicable']\\); print\\('Dim 6:',[x for x in d['dimensions'] if x['dimension_id']==6][0]['na'], '-', [x for x in d['dimensions'] if x['dimension_id']==6][0]['sub_checks'][0]['notes'][:120]\\)\")",
+      "Bash(node -e \"const d=require\\('/tmp/scan.json'\\); console.log\\('composite:',JSON.stringify\\(d.composite\\)\\); console.log\\('scoring_version:',d.scoring_version\\); console.log\\('dimensions_total:',d.dimensions_total\\); console.log\\('dimensions_applicable:',d.dimensions_applicable\\); const d6=d.dimensions.find\\(x=>x.dimension_id===6\\); console.log\\('Dim 6 na:',d6.na,'name:',d6.dimension_name\\); console.log\\('Dim 6 sub_check[0].id:',d6.sub_checks[0].id\\); console.log\\('all dims:', d.dimensions.map\\(x=>x.dimension_id+':'+x.score+\\(x.na?'\\(na\\)':''\\)\\).join\\(' '\\)\\);\")",
+      "Bash(node -e \"const d=require\\('F:/pharos/.tmp-scan.json'\\); console.log\\('composite:',JSON.stringify\\(d.composite\\)\\); console.log\\('scoring_version:',d.scoring_version\\); console.log\\('dimensions_total:',d.dimensions_total\\); console.log\\('dimensions_applicable:',d.dimensions_applicable\\); const d6=d.dimensions.find\\(x=>x.dimension_id===6\\); console.log\\('Dim 6 na:',d6.na,'score:',d6.score\\); console.log\\('all dims:', d.dimensions.map\\(x=>x.dimension_id+':'+x.score+\\(x.na?'\\(na\\)':''\\)\\).join\\(' '\\)\\);\")",
+      "Bash(curl -s https://astrant.io/score/methodology)",
+      "Bash(curl -s -o /dev/null -w \"status=%{http_code}\\\\n\" -X POST https://astrant.io/api/waitlist -H \"Content-Type: application/json\" -d '{\"url\":\"https://find-my-saas.com\",\"email\":\"normalize-canary@astrant.io\"}')",
+      "Bash(grep -oE 'name=\"url\"[^>]{0,200}')",
+      "Bash(tee /f/pharos/dim6-dogfood-tail.log)",
+      "Bash(tee /f/pharos/dim6-dogfood-tail-2.log)",
+      "Bash(curl -s https://astrant.io/privacy.md)",
+      "Bash(tee /f/pharos/dim6-dogfood-tail-v2.log)"
     ],
     "additionalDirectories": [
-      "\\tmp"
+      "\\tmp",
+      "F:\\pharos"
     ]
   }
 }
