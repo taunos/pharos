@@ -69,7 +69,19 @@ export const CHECK_SUBJECTS: Record<string, string> = {
   case_study_scannability:
     "the structure of your case study pages — headings, plain-text metrics, and skim-friendly markup",
 
-  // Dimensions 3, 6 — to be populated as those checks ship in Slice 3.
+  // Dimension 3 — OpenAPI / API Catalog (Slice 3a)
+  discovery:
+    "the OpenAPI / API catalog spec served at `/.well-known/api-catalog`, `/.well-known/openapi`, `/openapi.json`, `/openapi.yaml`, or linked from the homepage",
+  spec_validity:
+    "the OpenAPI / Swagger spec document's parseability and version field (`openapi: 3.x` or `swagger: 2.0`)",
+  info_completeness:
+    "the `info` block of the OpenAPI spec — `info.title`, `info.version`, and `info.description`",
+  security_schemes:
+    "the `components.securitySchemes` block of the OpenAPI spec (or an explicit `security: []` for open APIs)",
+  operation_coverage:
+    "the `paths` block of the OpenAPI spec — operation count, and per-operation `summary` / `description` documentation",
+
+  // Dimension 6 — Citation Visibility (ships in Slice 3b).
 };
 
 const DEFAULT_CHECK_SUBJECT = "the relevant artifact for this check";
@@ -134,6 +146,42 @@ export const CHECK_SUBJECT_KEYWORDS: Record<string, string[]> = {
     "metrics",
     "scannab",
   ],
+
+  // Dimension 3 — OpenAPI / API Catalog. Tightened, spec-anchored keywords:
+  // every Dim 3 remediation must reference at least one specific structural
+  // element of an OpenAPI document. Generic terms like "api" alone aren't on
+  // the list — those would let a homepage-rewrite suggestion pass coherence.
+  discovery: [
+    "openapi",
+    "api-catalog",
+    "swagger",
+    ".well-known",
+    "/openapi.json",
+    "/openapi.yaml",
+  ],
+  spec_validity: ["openapi", "swagger", "json", "yaml", "version field"],
+  info_completeness: [
+    "info.title",
+    "info.version",
+    "info.description",
+    "info block",
+    "openapi",
+  ],
+  security_schemes: [
+    "securityschemes",
+    "components.securityschemes",
+    "security:",
+    "apikey",
+    "bearer",
+    "oauth",
+  ],
+  operation_coverage: [
+    "paths",
+    "operation",
+    "summary",
+    "description",
+    "openapi",
+  ],
 };
 
 export type AuditEnv = {
@@ -169,6 +217,12 @@ export async function runScan(
 }
 
 function isGap(s: SubCheck): boolean {
+  // Slice 3a defense-in-depth: na sub-checks are not gaps. Even though the
+  // existing audit pipeline never set sub-check `na` to true on Dim 1/2/4
+  // (only Dim 5 did, which already filtered upstream), formalize the contract
+  // here so adding a new dimension can't accidentally regress audit gaps to
+  // "every N/A sub-check is a 0/100 gap" via remediation prompts.
+  if (s.na) return false;
   return s.score < 100;
 }
 
@@ -408,6 +462,11 @@ export async function llmEnrichGaps(
 ): Promise<GapWithRemediation[]> {
   const tasks: Promise<GapWithRemediation>[] = [];
   for (const dim of scan.dimensions) {
+    // Slice 3a: skip whole-dimension N/A. Defense-in-depth — even though
+    // every sub-check is also na:true (and isGap filters those), short-
+    // circuiting at the dimension level keeps the iteration cheap and
+    // makes future changes safer.
+    if (dim.na) continue;
     for (const sc of dim.sub_checks) {
       if (!isGap(sc)) continue;
       tasks.push(
@@ -467,12 +526,27 @@ export function renderAuditHtml(audit: AuditResult, sessionId: string): string {
   const { scan, gaps } = audit;
   const dimsHtml = scan.dimensions
     .map((d) => {
+      // Slice 3a: whole-dimension N/A renders as a single explanatory paragraph
+      // rather than a sub-check table.
+      if (d.na) {
+        const naNote = d.sub_checks[0]?.notes ?? "Dimension did not apply to this site; dropped from composite.";
+        return `
+      <section class="dim">
+        <div class="dim-head">
+          <h3>${escapeHtml(d.dimension_name)} <span style="font-size:9pt;font-family:ui-monospace,monospace;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">N/A</span></h3>
+          <div class="dim-score">
+            <span class="dim-grade" style="color:#64748b;font-style:italic;">not applicable</span>
+          </div>
+        </div>
+        <p style="font-size:10pt;color:#64748b;margin:6pt 0;">${escapeHtml(naNote)}</p>
+      </section>`;
+      }
       const subs = d.sub_checks
         .map(
           (s) => `
         <tr>
-          <td class="check-name">${escapeHtml(s.name)}</td>
-          <td class="check-score">${s.score}/100</td>
+          <td class="check-name">${escapeHtml(s.name)}${s.na ? " · N/A" : ""}</td>
+          <td class="check-score">${s.na ? "—" : `${s.score}/100`}</td>
           <td class="check-weight">${s.weight}%</td>
           <td class="check-notes">${escapeHtml(s.notes)}</td>
         </tr>`
@@ -578,7 +652,7 @@ export function renderAuditHtml(audit: AuditResult, sessionId: string): string {
     <span class="composite-num">${scan.composite.score}</span>
     <span class="composite-grade" style="color:${gradeColor(scan.composite.grade)}">${escapeHtml(scan.composite.grade)}</span>
   </div>
-  <p class="scope">Scored on ${scan.dimensions_scored} of ${scan.dimensions_total} dimensions. The remaining dimensions ship in upcoming scanner releases — re-running this audit later will pick them up automatically.</p>
+  <p class="scope">Scored on ${scan.dimensions_applicable ?? scan.dimensions_scored} of ${scan.dimensions_total} dimensions applicable to this site. The remaining dimensions ship in upcoming scanner releases — re-running this audit later will pick them up automatically.${(scan.dimensions_applicable ?? scan.dimensions_scored) < scan.dimensions_scored ? " Some dimensions did not apply to your site (e.g. no API surface for the OpenAPI dimension) and were dropped from the composite." : ""}</p>
 
   <h2>Dimension breakdown</h2>
   ${dimsHtml}

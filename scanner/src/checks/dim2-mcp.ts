@@ -1,5 +1,5 @@
 import type { DimensionResult, Env, SubCheck } from "../types";
-import { dimensionScore, gradeFor } from "../scoring";
+import { dimensionScoreOrThrow, gradeFor } from "../scoring";
 
 const FETCH_TIMEOUT_MS = 5000;
 
@@ -205,7 +205,7 @@ export async function runDim2(targetUrl: string, env: Env): Promise<DimensionRes
     notes: dns.note,
   });
 
-  const score = dimensionScore(subs);
+  const score = dimensionScoreOrThrow(subs);
   // Suppress unused-env warning (env reserved for future LLM-augmented checks).
   void env;
   return {

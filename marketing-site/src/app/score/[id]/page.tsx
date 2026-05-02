@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const CURRENT_SCORING_VERSION = "1.1.0";
+const CURRENT_SCORING_VERSION = "1.2.1";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -83,7 +83,7 @@ export default async function ScoreResultsPage({
             </h1>
             <p className="mt-4 text-[var(--color-muted)]">
               We don&apos;t have a record for that scan ID. Run a fresh scan
-              at <Link href="/score" className="text-[var(--color-accent)]">/score</Link>.
+              at <Link href="/score" className="text-[var(--color-fg)] underline">/score</Link>.
             </p>
           </section>
         </main>
@@ -119,7 +119,7 @@ export default async function ScoreResultsPage({
   let cta: React.ReactNode;
   if (!stateOk) {
     cta = (
-      <div className="rounded-md border border-red-400/40 bg-red-500/5 p-6 text-base">
+      <div className="border border-red-400/40 bg-red-500/5 p-6 text-base">
         <p className="text-red-300">
           Couldn&apos;t load capture state. Try refreshing in a moment.
         </p>
@@ -129,13 +129,15 @@ export default async function ScoreResultsPage({
     cta = <EmailGate scanId={scanId} scanUrl={scan.url} />;
   } else if (tokenIsValid && stateOk.pdf_ready) {
     cta = (
-      <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-6">
+      <div className="border border-emerald-500/40 bg-emerald-500/5 p-6">
         <p className="text-base font-semibold text-emerald-300">
           Your gap report PDF is ready.
         </p>
+        {/* Logo + Foundation slice: PDF download is the user's primary outcome
+            for this flow — keep amber CTA fill (decision 5: primary CTA). */}
         <a
           href={`/api/score/${scanId}/pdf?t=${encodeURIComponent(tokenInput)}`}
-          className="mt-4 inline-flex rounded-md bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
+          className="mt-4 inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
         >
           Download PDF gap report
         </a>
@@ -146,7 +148,9 @@ export default async function ScoreResultsPage({
     );
   } else if (tokenIsValid && stateOk.pdf_deferred_until_tomorrow) {
     cta = (
-      <div className="rounded-md border border-amber-400/40 bg-amber-400/5 p-6 text-base">
+      // Logo + Foundation slice: amber-400 retained as semantic-warning hue
+      // (queued/waiting state — functional status, distinct from --color-accent).
+      <div className="border border-amber-400/40 bg-amber-400/5 p-6 text-base">
         <p className="font-semibold text-amber-300">Your PDF is queued.</p>
         <p className="mt-2 text-[var(--color-muted)]">
           We&apos;re generating gap-report PDFs at capacity right now. Yours
@@ -164,13 +168,14 @@ export default async function ScoreResultsPage({
     );
   } else if (tokenWasProvided && !tokenIsValid) {
     cta = (
-      <div className="rounded-md border border-orange-400/40 bg-orange-400/5 p-6">
+      <div className="border border-orange-400/40 bg-orange-400/5 p-6">
         <p className="font-semibold text-orange-300">
           This link has expired or is invalid.
         </p>
         <p className="mt-2 text-[var(--color-muted)]">
           To re-access your gap report, visit{" "}
-          <Link href="/score" className="text-[var(--color-accent)] underline-offset-4 hover:underline">
+          {/* Logo + Foundation slice: link demoted accent → fg. */}
+          <Link href="/score" className="text-[var(--color-fg)] underline-offset-4 hover:underline">
             /score
           </Link>{" "}
           and re-submit your email — we&apos;ll send a fresh link.
@@ -189,15 +194,16 @@ export default async function ScoreResultsPage({
       <main>
         <section className="mx-auto max-w-3xl px-6 py-16">
           {showOldEngineBanner ? (
-            <div className="mb-8 rounded-md border border-orange-400/40 bg-orange-400/5 p-4 text-sm text-orange-200">
+            <div className="mb-8 border border-orange-400/40 bg-orange-400/5 p-4 text-sm text-orange-200">
               <strong className="text-orange-300">
                 Older scoring engine:
               </strong>{" "}
               this scan was generated with engine v{renderedScoringVersion}. The
               current engine is v{CURRENT_SCORING_VERSION}.{" "}
+              {/* Logo + Foundation slice: link demoted accent → fg. */}
               <Link
                 href="/score"
-                className="text-[var(--color-accent)] underline-offset-4 hover:underline"
+                className="text-[var(--color-fg)] underline-offset-4 hover:underline"
               >
                 Re-run the scan
               </Link>{" "}
@@ -223,9 +229,12 @@ export default async function ScoreResultsPage({
             </span>
           </div>
           <p className="mt-2 text-sm text-[var(--color-muted)] italic">
-            Scored on {scan.dimensions_scored} of {scan.dimensions_total} dimensions
-            (engine v{renderedScoringVersion}). Dim 3 (OpenAPI) and Dim 6
-            (Citation Visibility) ship in upcoming releases.
+            Scored on {scan.dimensions_applicable ?? scan.dimensions_scored} of {scan.dimensions_total} dimensions
+            applicable to this site (engine v{renderedScoringVersion}). Dim 6
+            (Citation Visibility) ships in an upcoming release.
+            {(scan.dimensions_applicable ?? scan.dimensions_scored) < scan.dimensions_scored
+              ? " Some dimensions did not apply to your site (e.g. no API surface for the OpenAPI dimension) and were dropped from the composite."
+              : ""}
           </p>
 
           <h2 className="mt-12 text-2xl font-bold tracking-tight">
@@ -235,32 +244,49 @@ export default async function ScoreResultsPage({
             {scan.dimensions.map((d) => (
               <div
                 key={d.dimension_id}
-                className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-5"
+                className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-5"
               >
                 <div className="flex items-baseline justify-between gap-4">
                   <h3 className="text-base font-semibold">
                     {d.dimension_name}
+                    {d.na ? (
+                      <span className="ml-2 border border-[var(--color-border)] bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-[var(--color-muted)]">
+                        N/A
+                      </span>
+                    ) : null}
                   </h3>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-xl font-bold">{d.score}</span>
-                    <span className={`font-mono text-sm ${gradeColorClass(d.grade)}`}>
-                      {d.grade}
-                    </span>
+                    {d.na ? (
+                      <span className="text-sm text-[var(--color-muted)] italic">not applicable</span>
+                    ) : (
+                      <>
+                        <span className="text-xl font-bold">{d.score}</span>
+                        <span className={`font-mono text-sm ${gradeColorClass(d.grade)}`}>
+                          {d.grade}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
-                {/* Gap teasers — first 80 chars of each below-threshold sub-check note */}
-                <ul className="mt-3 flex flex-col gap-1 text-sm text-[var(--color-muted)]">
-                  {d.sub_checks
-                    .filter((s) => !s.na && s.score < 80)
-                    .slice(0, 3)
-                    .map((s) => (
-                      <li key={s.id}>
-                        <span className="text-[var(--color-fg)]">{s.name}</span>:{" "}
-                        {s.notes.slice(0, 80)}
-                        {s.notes.length > 80 ? "…" : ""}
-                      </li>
-                    ))}
-                </ul>
+                {d.na ? (
+                  <p className="mt-3 text-sm text-[var(--color-muted)]">
+                    {d.sub_checks[0]?.notes ?? "Dimension did not apply to this site; dropped from composite."}
+                  </p>
+                ) : (
+                  /* Gap teasers — first 80 chars of each below-threshold sub-check note */
+                  <ul className="mt-3 flex flex-col gap-1 text-sm text-[var(--color-muted)]">
+                    {d.sub_checks
+                      .filter((s) => !s.na && s.score < 80)
+                      .slice(0, 3)
+                      .map((s) => (
+                        <li key={s.id}>
+                          <span className="text-[var(--color-fg)]">{s.name}</span>:{" "}
+                          {s.notes.slice(0, 80)}
+                          {s.notes.length > 80 ? "…" : ""}
+                        </li>
+                      ))}
+                  </ul>
+                )}
               </div>
             ))}
           </div>
@@ -272,11 +298,12 @@ export default async function ScoreResultsPage({
 
           <p className="mt-12 text-sm text-[var(--color-muted)]">
             By using this page you agree to our{" "}
-            <Link href="/privacy" className="text-[var(--color-accent)] underline-offset-4 hover:underline">
+            {/* Logo + Foundation slice: footer-text legal links demoted accent → fg. */}
+            <Link href="/privacy" className="text-[var(--color-fg)] underline-offset-4 hover:underline">
               Privacy Policy
             </Link>{" "}
             and{" "}
-            <Link href="/terms" className="text-[var(--color-accent)] underline-offset-4 hover:underline">
+            <Link href="/terms" className="text-[var(--color-fg)] underline-offset-4 hover:underline">
               Terms
             </Link>
             .

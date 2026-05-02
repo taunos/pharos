@@ -2,7 +2,7 @@
 //
 // Mirrors the audit-pipeline.ts pattern (Browser Rendering REST `/pdf`
 // endpoint → ArrayBuffer → R2 upload). Differences from the $79 Audit:
-//   - Free-tier scope (4 of 6 dimensions live, with disclosure footer).
+//   - Free-tier scope (5 of 6 dimensions live, with disclosure footer).
 //   - Per-email PDF — R2 key is `score-reports/<scan_id>/<sha256(email)[:16]>.pdf`
 //     (per locked decision 8) so Bob re-capturing on Alice's forwarded link
 //     gets his own watermarked PDF without overwriting Alice's.
@@ -113,6 +113,22 @@ export function renderScoreReportHTML(input: RenderInput): string {
 
   const dimsHtml = scan.dimensions
     .map((d) => {
+      // Slice 3a: whole-dimension N/A renders as a single explanatory paragraph
+      // rather than a sub-check table — every sub-check is N/A so the table
+      // would be a wall of em-dashes.
+      if (d.na) {
+        const naNote = d.sub_checks[0]?.notes ?? "Dimension did not apply to this site; dropped from composite.";
+        return `
+      <section class="dim">
+        <div class="dim-head">
+          <h3>${escapeHtml(d.dimension_name)} <span style="font-size:9pt;font-family:ui-monospace,monospace;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">N/A</span></h3>
+          <div class="dim-score">
+            <span class="dim-grade" style="color:#64748b;font-style:italic;">not applicable</span>
+          </div>
+        </div>
+        <p style="font-size:10pt;color:#64748b;margin:6pt 0;">${escapeHtml(naNote)}</p>
+      </section>`;
+      }
       const subs = d.sub_checks.map(renderSubCheck).join("");
       return `
       <section class="dim">
@@ -230,7 +246,7 @@ export function renderScoreReportHTML(input: RenderInput): string {
     <span class="composite-num">${scan.composite.score}</span>
     <span class="composite-grade" style="color:${gradeColor(scan.composite.grade)}">${escapeHtml(scan.composite.grade)}</span>
   </div>
-  <p class="scope">Scored on ${scan.dimensions_scored} of ${scan.dimensions_total} dimensions. Dim 3 (OpenAPI Documentation) and Dim 6 (Citation Visibility) ship in upcoming releases — re-running this scan later will pick them up automatically.</p>
+  <p class="scope">Scored on ${scan.dimensions_applicable ?? scan.dimensions_scored} of ${scan.dimensions_total} dimensions applicable to this site. Dim 6 (Citation Visibility) ships in an upcoming release — re-running this scan later will pick it up automatically.${(scan.dimensions_applicable ?? scan.dimensions_scored) < scan.dimensions_scored ? " Some dimensions did not apply to your site (e.g. no API surface for the OpenAPI dimension) and were dropped from the composite." : ""}</p>
 
   <h2>Dimension breakdown</h2>
   ${dimsHtml}

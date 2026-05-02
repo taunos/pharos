@@ -1,5 +1,5 @@
 import type { DimensionResult, Env, SubCheck } from "../types";
-import { dimensionScore, gradeFor } from "../scoring";
+import { dimensionScoreOrThrow, gradeFor } from "../scoring";
 import { evalWithCache } from "./llm-eval";
 
 const FETCH_TIMEOUT_MS = 8000;
@@ -217,7 +217,7 @@ export async function runDim4(targetUrl: string, env: Env): Promise<DimensionRes
     notes: reviewNote,
   });
 
-  const score = dimensionScore(subs);
+  const score = dimensionScoreOrThrow(subs);
   return {
     dimension_id: 4,
     dimension_name: "Structured Capability Data",

@@ -8,7 +8,7 @@ import ScanForm from "@/components/ScanForm";
 export const metadata: Metadata = {
   title: "Agent Discoverability Score — Astrant",
   description:
-    "A live URL-input scan across the dimensions of agent discoverability. Free, public score on screen, no signup. Slice 2a covers 4 of 6 dimensions; remaining ship soon.",
+    "A live URL-input scan across the dimensions of agent discoverability. Free, public score on screen, no signup. Slice 3a covers 5 of 6 dimensions (Citation Visibility ships next); content-only sites have OpenAPI auto-marked N/A.",
   alternates: {
     types: { "text/markdown": "/score.md" },
   },
@@ -39,8 +39,8 @@ const FAQS = [
     a: "The free Score gives you a public grade across the dimensions we currently cover. The $79 Audit adds live citation audit across major AI engines, competitor comparison, implementation estimates, and a JSON export for programmatic use. If you just want to know where you stand, use the Score. If you want a prioritized action plan, use the Audit.",
   },
   {
-    q: "Why does it say \"4 of 6 dimensions\"?",
-    a: "Slice 2a ships four dimensions: llms.txt Quality, MCP Server Discoverability, Structured Capability Data, and Agent-Parsable Content. The remaining two — OpenAPI Documentation (Dim 3) and Citation Visibility (Dim 6) — ship in upcoming releases. Your score is computed on what's currently scored; when more dimensions ship, your scan will rerun automatically if you opted into the monthly rescan.",
+    q: "Why does it say \"5 of 6 dimensions\" (or fewer)?",
+    a: "Slice 3a ships five dimensions: llms.txt Quality, MCP Server Discoverability, OpenAPI / API Catalog (new), Structured Capability Data, and Agent-Parsable Content. The remaining one — Citation Visibility (Dim 6) — ships in an upcoming release. If your site is content-only with no API surface, the OpenAPI dimension is automatically marked N/A and dropped from your composite (so you're not penalized for not having an API). When Dim 6 ships, your scan will rerun automatically if you opted into the monthly rescan.",
   },
   {
     q: "What's the free tier vs paid tier difference for Dim 5?",
@@ -101,10 +101,10 @@ export default function ScorePage() {
           </h1>
           <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)] sm:text-xl">
             Live URL-input scan across the technical dimensions of agent
-            discoverability. Public score on screen — no signup. Slice 2a covers
-            4 of 6 dimensions today (llms.txt, MCP, Structured Data,
-            Agent-Parsable Content); the remaining two ship in upcoming
-            releases.
+            discoverability. Public score on screen — no signup. Slice 3a covers
+            5 of 6 dimensions today (llms.txt, MCP, OpenAPI, Structured Data,
+            Agent-Parsable Content); Citation Visibility ships in an upcoming
+            release. Content-only sites have OpenAPI auto-marked N/A.
           </p>
           <div className="mt-10">
             <ScanForm />
@@ -112,9 +112,11 @@ export default function ScorePage() {
           <p className="mt-6 max-w-2xl text-sm italic text-[var(--color-muted)]">
             Want the deeper analysis now? The $79 Audit delivers a full report
             with live citation data in 60 seconds.{" "}
+            {/* Logo + Foundation slice: inline upsell link demoted accent → fg;
+                underline-on-hover preserved as the affordance. */}
             <Link
               href="/audit"
-              className="not-italic text-[var(--color-accent)] underline-offset-4 hover:underline"
+              className="not-italic text-[var(--color-fg)] underline-offset-4 hover:underline"
             >
               Run your audit →
             </Link>
@@ -153,7 +155,7 @@ export default function ScorePage() {
               {DIFFERENTIATORS.map((d) => (
                 <div
                   key={d.name}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
+                  className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6"
                 >
                   <h3 className="text-lg font-semibold">{d.name}</h3>
                   <p className="mt-3 text-[var(--color-muted)]">{d.body}</p>
@@ -178,11 +180,12 @@ export default function ScorePage() {
             </p>
             <p className="mt-6 text-base">
               See our MCP server →{" "}
+              {/* Logo + Foundation slice: link demoted accent → fg. */}
               <a
                 href="https://mcp.astrant.io/mcp"
                 target="_blank"
                 rel="noreferrer"
-                className="font-mono text-[var(--color-accent)] underline-offset-4 hover:underline"
+                className="font-mono text-[var(--color-fg)] underline-offset-4 hover:underline"
               >
                 https://mcp.astrant.io/mcp
               </a>
@@ -198,7 +201,7 @@ export default function ScorePage() {
               {FAQS.map((f) => (
                 <div
                   key={f.q}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
+                  className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6"
                 >
                   <dt className="text-lg font-semibold">{f.q}</dt>
                   <dd className="mt-2 text-[var(--color-muted)]">{f.a}</dd>
@@ -220,9 +223,12 @@ export default function ScorePage() {
               comparison — delivered as a PDF in 60 seconds.
             </p>
             <div className="mt-8">
+              {/* Logo + Foundation slice: routes to /audit (503-gated paid
+                  checkout). Per decision 5 EXCEPTION amber retained on this
+                  CTA. Radius stripped per decision 4. */}
               <Link
                 href="/audit"
-                className="inline-flex rounded-md bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
+                className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
               >
                 Run your audit →
               </Link>

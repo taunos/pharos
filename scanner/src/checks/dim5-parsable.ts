@@ -12,7 +12,7 @@
 // br-budget util.
 
 import type { DimensionResult, Env, ScanTier, SubCheck } from "../types";
-import { dimensionScore, gradeFor } from "../scoring";
+import { dimensionScoreOrThrow, gradeFor } from "../scoring";
 import {
   DAILY_BR_INVOCATION_CAP,
   getDailyBrCount,
@@ -653,7 +653,7 @@ export async function runDim5(
   subs.push(await runPricingTextVisibility(targetUrl, staticBody));
   subs.push(await runCaseStudyScannability(targetUrl, staticBody));
 
-  const score = dimensionScore(subs);
+  const score = dimensionScoreOrThrow(subs);
   return {
     dimension_id: 5,
     dimension_name: "Agent-Parsable Content",

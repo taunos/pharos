@@ -370,8 +370,11 @@ function buildMcpServer(): McpServer {
           dimensions: unknown[];
           dimensions_scored: number;
           dimensions_total: number;
+          // Slice 3a: applicable subset; older v1.1.0 scans don't carry it.
+          dimensions_applicable?: number;
         };
 
+        const applicable = data.dimensions_applicable ?? data.dimensions_scored;
         return {
           content: [
             {
@@ -382,10 +385,11 @@ function buildMcpServer(): McpServer {
                   composite_score: data.composite?.score,
                   grade: data.composite?.grade,
                   dimensions_scored: data.dimensions_scored,
+                  dimensions_applicable: applicable,
                   dimensions_total: data.dimensions_total,
                   note:
-                    data.dimensions_scored < data.dimensions_total
-                      ? `Scored on ${data.dimensions_scored} of ${data.dimensions_total} dimensions. Remaining dimensions ship in upcoming releases.`
+                    applicable < data.dimensions_total
+                      ? `Scored on ${applicable} of ${data.dimensions_total} dimensions applicable to this site${applicable < data.dimensions_scored ? " (some did not apply, e.g. no API surface for the OpenAPI dimension)" : ""}. Remaining dimensions ship in upcoming releases.`
                       : "All dimensions scored.",
                   full_results_url: `https://astrant.io/score/${data.id}`,
                   dimensions: data.dimensions,

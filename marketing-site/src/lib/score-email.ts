@@ -37,6 +37,10 @@ interface BaseSendInput {
 function topGapsText(scan: ScanResult, max = 3): string {
   const gaps: { name: string; score: number; notes: string }[] = [];
   for (const dim of scan.dimensions) {
+    // Slice 3a defense-in-depth: skip whole-dim N/A. Sub-check `na` filter
+    // below would already drop these (every sub-check on an N/A dim is na:true)
+    // but the dim-level skip makes the contract explicit and cheap.
+    if (dim.na) continue;
     for (const sub of dim.sub_checks) {
       if (sub.na || sub.score >= 80) continue;
       gaps.push({ name: sub.name, score: sub.score, notes: sub.notes });
@@ -52,6 +56,7 @@ function topGapsText(scan: ScanResult, max = 3): string {
 function topGapsHtml(scan: ScanResult, max = 3): string {
   const gaps: { name: string; score: number; notes: string }[] = [];
   for (const dim of scan.dimensions) {
+    if (dim.na) continue;
     for (const sub of dim.sub_checks) {
       if (sub.na || sub.score >= 80) continue;
       gaps.push({ name: sub.name, score: sub.score, notes: sub.notes });
@@ -107,7 +112,7 @@ export async function sendGapReportReadyEmail(
     `Your Astrant Score gap report for ${input.scan.url} is ready.`,
     ``,
     `Composite score: ${input.scan.composite.score} (${input.scan.composite.grade})`,
-    `Dimensions scored: ${input.scan.dimensions_scored} of ${input.scan.dimensions_total}`,
+    `Dimensions scored: ${input.scan.dimensions_applicable ?? input.scan.dimensions_scored} of ${input.scan.dimensions_total} applicable`,
     ``,
     `Top gaps to focus on:`,
     topGapsText(input.scan),
@@ -129,7 +134,7 @@ export async function sendGapReportReadyEmail(
   <h2 style="margin-top: 0;">Your Astrant Score gap report is ready</h2>
   <p>We just scanned <code>${escapeHtml(input.scan.url)}</code>.</p>
   <p style="font-size: 32px; font-weight: 700; margin: 24px 0 8px 0;">${input.scan.composite.score} <span style="font-size: 22px; font-weight: 600; color: #64748b;">${escapeHtml(input.scan.composite.grade)}</span></p>
-  <p style="margin: 0; color: #64748b; font-size: 14px;">Scored on ${input.scan.dimensions_scored} of ${input.scan.dimensions_total} dimensions.</p>
+  <p style="margin: 0; color: #64748b; font-size: 14px;">Scored on ${input.scan.dimensions_applicable ?? input.scan.dimensions_scored} of ${input.scan.dimensions_total} dimensions applicable to this site.</p>
   <h3 style="margin-top: 24px;">Top gaps</h3>
   <ul>${topGapsHtml(input.scan)}</ul>
   <p style="margin-top: 28px;">
@@ -189,7 +194,7 @@ export async function sendGapReportDeferredEmail(
     `and we'll email a link the moment it's available.`,
     ``,
     `Composite score: ${input.scan.composite.score} (${input.scan.composite.grade})`,
-    `Dimensions scored: ${input.scan.dimensions_scored} of ${input.scan.dimensions_total}`,
+    `Dimensions scored: ${input.scan.dimensions_applicable ?? input.scan.dimensions_scored} of ${input.scan.dimensions_total} applicable`,
     ``,
     `Top gaps (preview):`,
     topGapsText(input.scan),

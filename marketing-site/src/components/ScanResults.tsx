@@ -19,6 +19,8 @@ export type DimensionResult = {
   score: number;
   grade: string;
   sub_checks: SubCheck[];
+  // Slice 3a: whole-dimension N/A.
+  na?: boolean;
 };
 
 export type ScanResultData = {
@@ -28,6 +30,9 @@ export type ScanResultData = {
   dimensions: DimensionResult[];
   dimensions_scored: number;
   dimensions_total: number;
+  // Slice 3a: optional with fallback to dimensions_scored on the render side
+  // (older v1.1.0 scans don't carry this field).
+  dimensions_applicable?: number;
   created_at: number;
 };
 
@@ -50,6 +55,8 @@ function ScoreBar({ score }: { score: number }) {
           ? "bg-orange-500"
           : "bg-red-500";
   return (
+    // Logo + Foundation slice: rounded-full retained — caps the progress bar
+    // ends. Functional shape (radius-free allowlist).
     <div
       className="h-2 w-full overflow-hidden rounded-full bg-[var(--color-bg)]"
       role="progressbar"
@@ -64,8 +71,27 @@ function ScoreBar({ score }: { score: number }) {
 
 function DimensionCard({ dim }: { dim: DimensionResult }) {
   const [open, setOpen] = useState(false);
+  // Slice 3a: whole-dimension N/A renders distinctly from a 0/100 score.
+  if (dim.na) {
+    return (
+      <div className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
+        <div className="flex items-baseline justify-between gap-4">
+          <h3 className="text-lg font-semibold">
+            {dim.dimension_name}
+            <span className="ml-2 border border-[var(--color-border)] bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-[var(--color-muted)]">
+              N/A
+            </span>
+          </h3>
+          <span className="text-sm italic text-[var(--color-muted)]">not applicable</span>
+        </div>
+        <p className="mt-3 text-sm text-[var(--color-muted)]">
+          {dim.sub_checks[0]?.notes ?? "Dimension did not apply to this site; dropped from composite."}
+        </p>
+      </div>
+    );
+  }
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+    <div className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
       <div className="flex items-baseline justify-between gap-4">
         <h3 className="text-lg font-semibold">{dim.dimension_name}</h3>
         <div className="flex items-baseline gap-3">
@@ -76,10 +102,12 @@ function DimensionCard({ dim }: { dim: DimensionResult }) {
       <div className="mt-3">
         <ScoreBar score={dim.score} />
       </div>
+      {/* Logo + Foundation slice: link-button color demoted accent → fg;
+          underline on hover preserved as the affordance. */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="mt-4 text-sm text-[var(--color-accent)] hover:underline"
+        className="mt-4 text-sm text-[var(--color-fg)] hover:underline"
         aria-expanded={open}
       >
         {open ? "Hide details" : "Show details"}
@@ -97,7 +125,7 @@ function DimensionCard({ dim }: { dim: DimensionResult }) {
                   <span className="font-medium text-[var(--color-fg)]">
                     {s.name}
                     {naBadge ? (
-                      <span className="ml-2 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-[var(--color-muted)]">
+                      <span className="ml-2 border border-[var(--color-border)] bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-[var(--color-muted)]">
                         N/A
                       </span>
                     ) : null}
@@ -108,9 +136,12 @@ function DimensionCard({ dim }: { dim: DimensionResult }) {
                 </div>
                 <p className="mt-1 text-[var(--color-muted)]">{s.notes}</p>
                 {freeTierBadge ? (
+                  // Logo + Foundation slice: links to /audit (503-gated paid
+                  // checkout). Per decision 5 EXCEPTION amber retained on this
+                  // upsell CTA. Radius stripped per decision 4.
                   <a
                     href="/audit"
-                    className="mt-2 inline-flex items-center gap-2 rounded-md border border-[var(--color-accent)] bg-[var(--color-accent)]/10 px-3 py-1 text-xs font-semibold text-[var(--color-accent)] transition hover:bg-[var(--color-accent)] hover:text-black"
+                    className="mt-2 inline-flex items-center gap-2 border border-[var(--color-accent)] bg-[var(--color-accent)]/10 px-3 py-1 text-xs font-semibold text-[var(--color-accent)] transition hover:bg-[var(--color-accent)] hover:text-black"
                   >
                     Run the $79 Audit for the full render diff →
                   </a>
@@ -127,7 +158,7 @@ function DimensionCard({ dim }: { dim: DimensionResult }) {
 export default function ScanResults({ data }: { data: ScanResultData }) {
   return (
     <div className="flex flex-col gap-8">
-      <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
+      <div className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-8">
         <p className="text-sm text-[var(--color-muted)]">Scanned</p>
         <p className="mt-1 break-all font-mono text-base text-[var(--color-fg)]">{data.url}</p>
         <div className="mt-6 flex items-baseline gap-6">
@@ -139,8 +170,8 @@ export default function ScanResults({ data }: { data: ScanResultData }) {
           </span>
         </div>
         <p className="mt-4 text-sm italic text-[var(--color-muted)]">
-          Scored on {data.dimensions_scored} of {data.dimensions_total} dimensions — full report
-          when remaining dimensions ship.
+          Scored on {data.dimensions_applicable ?? data.dimensions_scored} of {data.dimensions_total} dimensions
+          applicable to this site — full report when remaining dimensions ship.
         </p>
       </div>
 
@@ -150,7 +181,7 @@ export default function ScanResults({ data }: { data: ScanResultData }) {
         ))}
       </div>
 
-      <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+      <div className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
         <EmailGate scanId={data.id} scanUrl={data.url} />
       </div>
     </div>

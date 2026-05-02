@@ -6,6 +6,7 @@ import { compositeOf } from "./scoring";
 import { checkRateLimit, urlHash } from "./ratelimit";
 import { runDim1 } from "./checks/dim1-llmstxt";
 import { runDim2 } from "./checks/dim2-mcp";
+import { runDim3 } from "./checks/dim3-openapi";
 import { runDim4 } from "./checks/dim4-structured";
 import { runDim5 } from "./checks/dim5-parsable";
 import { SCORING_VERSION } from "./version";
@@ -131,24 +132,34 @@ app.post("/api/scan", async (c) => {
 
   // Run dimensions in parallel.
   const startedAt = Date.now();
-  const [d1, d2, d4, d5] = await Promise.all([
+  const [d1, d2, d3, d4, d5] = await Promise.all([
     runDim1(url, c.env),
     runDim2(url, c.env),
+    runDim3(url, c.env),
     runDim4(url, c.env),
     runDim5(url, c.env, tier),
   ]);
-  const dimensions = [d1, d2, d4, d5];
+  const dimensions = [d1, d2, d3, d4, d5];
   const composite = compositeOf(dimensions);
   const id = crypto.randomUUID();
   const created_at = startedAt;
+
+  // Slice 3a:
+  //   - dimensions_scored: dimensions ATTEMPTED in this engine version (5/6 in v1.2.0).
+  //   - dimensions_applicable: attempted minus whole-dim N/A (e.g. content-only
+  //     site has Dim 3 N/A, so applicable=4). Counted from the array; never
+  //     extrapolated. Older v1.1.0 scans did not emit this — render-side falls
+  //     back to dimensions_scored when undefined.
+  const dimensionsApplicable = dimensions.filter((d) => !d.na).length;
 
   const result: ScanResult = {
     id,
     url,
     composite,
     dimensions,
-    dimensions_scored: 4,
+    dimensions_scored: dimensions.length,
     dimensions_total: 6,
+    dimensions_applicable: dimensionsApplicable,
     created_at,
     scoring_version: SCORING_VERSION,
     tier,

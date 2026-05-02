@@ -20,6 +20,8 @@ export type DimensionResult = {
   score: number;
   grade: string;
   sub_checks: SubCheck[];
+  // Slice 3a: whole-dimension N/A. See scanner/src/types.ts for semantics.
+  na?: boolean;
 };
 
 export type Composite = {
@@ -34,6 +36,10 @@ export type ScanResult = {
   dimensions: DimensionResult[];
   dimensions_scored: number;
   dimensions_total: number;
+  // Slice 3a: dimensions that applied to THIS URL (attempted minus
+  // whole-dimension N/A). Older v1.1.0 scans don't carry this; render-side
+  // code must fall back to dimensions_scored when undefined.
+  dimensions_applicable?: number;
   created_at: number;
   // Slice 2a additions; older scanner versions may not produce these.
   scoring_version?: string;

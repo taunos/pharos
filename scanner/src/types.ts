@@ -41,6 +41,13 @@ export type DimensionResult = {
   score: number;
   grade: string;
   sub_checks: SubCheck[];
+  // Slice 3a: when true, this whole dimension is N/A for the scanned site
+  // (e.g. Dim 3 OpenAPI on a content-only site with no API surface). The
+  // composite math drops it via SPEC_WEIGHTS renormalization, the consumer
+  // surfaces (results page, PDFs, email) render it distinctly from a 0/100,
+  // and dimensions_applicable counts it out so the "Scored on X of Y" copy
+  // reflects the user's actual surface, not the catalog.
+  na?: boolean;
 };
 
 export type Composite = {
@@ -53,8 +60,15 @@ export type ScanResult = {
   url: string;
   composite: Composite;
   dimensions: DimensionResult[];
+  // Slice 1/2a: dimensions ATTEMPTED in this engine version (4 of 6 in v1.1.0,
+  // 5 of 6 in v1.2.0 once Dim 3 ships). Reflects engine capability.
   dimensions_scored: number;
   dimensions_total: number;
+  // Slice 3a: dimensions THAT APPLIED to this URL — i.e. attempted minus those
+  // marked whole-dimension N/A. For a content-only site under v1.2.0 with Dim 3
+  // returning na:true, dimensions_applicable=4, dimensions_scored=5. Always
+  // <= dimensions_scored. Non-optional on the wire (scanner always emits it).
+  dimensions_applicable: number;
   created_at: number;
   scoring_version: string;
   tier: ScanTier;

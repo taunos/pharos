@@ -14,7 +14,7 @@ const DIMENSIONS = [
   {
     name: "OpenAPI / API Catalog",
     weight: "10%",
-    description: "Structured API description for service-based businesses.",
+    description: "Structured API description for service-based businesses. Auto-marked N/A on content-only sites.",
   },
   {
     name: "Structured Capability Data",
@@ -39,13 +39,16 @@ export default function SixDimensions() {
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {DIMENSIONS.map((d) => (
+        // Logo + Foundation slice: rounded-lg stripped; weight chip color
+        // demoted accent → fg (the mono pairs the weight number with the
+        // dimension name; bold text-fg is sufficient hierarchy).
         <div
           key={d.name}
-          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6"
+          className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6"
         >
           <div className="flex items-baseline justify-between gap-3">
             <h3 className="text-lg font-semibold">{d.name}</h3>
-            <span className="text-sm font-mono text-[var(--color-accent)]">
+            <span className="text-sm font-mono text-[var(--color-fg)]">
               {d.weight}
             </span>
           </div>
