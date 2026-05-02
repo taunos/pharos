@@ -111,9 +111,9 @@ export default function MethodologyPage() {
             included with a flag — the response was valid up to the cap.
           </p>
 
-          <h3 className="mt-12 text-xl font-semibold">Trust posture (TP-7)</h3>
+          <h3 className="mt-12 text-xl font-semibold">Validator-driven trust pattern</h3>
           <p className="mt-2 text-sm text-[var(--color-muted)]">
-            Every Dim 6 call uses the same six-rung TP-7 trust ladder we use
+            Every Dim 6 call uses the same six-rung validator-driven trust pattern we use
             on the audit-fulfill remediation generator: deterministic
             generation (temperature 0; seed 42 where the provider supports it
             — OpenAI and Perplexity do, Anthropic and Gemini don&apos;t),

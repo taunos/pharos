@@ -70,7 +70,7 @@ export const DIM6_DISCLOSURE = {
     "across these 4 models.)",
 
   // Engine version line — appears in PDFs + methodology page footer
-  engineLine: "Dim 6 engine: dim6:v1 (4 models, prompt-set v1)",
+  engineLine: "Dim 6 engine: dim6:v3 (4 models, prompt-set v3)",
 } as const;
 
 export type Dim6Disclosure = typeof DIM6_DISCLOSURE;

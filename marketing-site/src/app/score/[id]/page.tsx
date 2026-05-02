@@ -298,6 +298,123 @@ export default async function ScoreResultsPage({
           </h2>
           <div className="mt-6">{cta}</div>
 
+          {/* Slice A2 — transparency narrative for Dim 6. Calibration record
+              link routes to /methodology/calibration (NOT /methodology — that
+              hub stub redirects here too, but the explicit deep link avoids
+              the redirect hop). Rebrand caveat surfaces unconditionally per
+              [CALL-3] resolution; the "applies if your domain has rebranded"
+              qualifier in the text means non-rebranded customers read it as
+              a footnote rather than a personal warning. */}
+          <h2 className="mt-20 text-2xl font-bold tracking-tight">
+            How Dim 6 was measured for your domain
+          </h2>
+          <p className="mt-3 text-sm text-[var(--color-muted)]">
+            This score reflects citation behavior across major language models
+            when asked questions a buyer or researcher might ask about your
+            category. Calibrated under engine version{" "}
+            <Link
+              href="/methodology/calibration"
+              className="font-mono text-[var(--color-fg)] underline-offset-4 hover:underline"
+            >
+              dim6:v3
+            </Link>
+            .
+          </p>
+
+          <h3 className="mt-8 text-base font-semibold">What the score means</h3>
+          <p className="mt-2 text-sm text-[var(--color-muted)]">
+            A high Dim 6 score means models cite your domain substantively and
+            specifically when prompted on your category. A low score means
+            models either don&apos;t engage with your domain on category-relevant
+            prompts, or engage without grounding the citation in retrieved or
+            trained content. Sub-check decomposition (visible in the gap
+            report) tells you <em>which</em> aspect of citation surface is weak
+            — URL grounding, brand recognition, context relevance, or
+            competitive positioning.
+          </p>
+
+          <h3 className="mt-8 text-base font-semibold">How the audit was run</h3>
+          <p className="mt-2 text-sm text-[var(--color-muted)]">
+            Multiple major language models were queried with a deterministic,
+            domain-specific prompt set generated from observable signals about
+            your domain. Each response was judged for substantive engagement
+            and graded on multiple sub-checks. Scores reflect the per-cell
+            judge verdicts and sub-check passes, aggregated and version-stamped
+            under the current calibration.
+          </p>
+
+          <h3 className="mt-8 text-base font-semibold">
+            What this score doesn&apos;t measure
+          </h3>
+          <ul className="mt-2 flex flex-col gap-1 text-sm text-[var(--color-muted)]">
+            <li>
+              It doesn&apos;t measure whether your domain <em>should</em> be
+              cited by LLMs on these prompts — only whether it currently is.
+            </li>
+            <li>
+              It doesn&apos;t measure citation behavior outside the audit
+              corpus (no inference about long-tail queries not in the prompt
+              set).
+            </li>
+            <li>
+              It doesn&apos;t measure brand recognition or training-data
+              presence directly. A domain can have low citation behavior on
+              this audit and still have strong brand recognition; the audit
+              measures one specific surface.
+            </li>
+          </ul>
+
+          <h3 className="mt-8 text-base font-semibold">
+            Calibration caveats relevant to your score
+          </h3>
+          <ul className="mt-2 flex flex-col gap-2 text-sm text-[var(--color-muted)]">
+            <li>
+              One of the four major-language-model providers in the audit pool
+              is operationally absent on this run due to upstream rate-limit
+              behavior. Your Dim 6 score is computed over three-provider
+              evidence; engine version{" "}
+              <Link
+                href="/methodology/calibration"
+                className="font-mono text-[var(--color-fg)] underline-offset-4 hover:underline"
+              >
+                dim6:v3
+              </Link>{" "}
+              includes the framework adjustment that handles this transparently.
+            </li>
+            <li>
+              <strong className="text-[var(--color-fg)]">
+                Domain canonicalization caveat (applies if your domain has
+                rebranded its canonical URL).
+              </strong>{" "}
+              If your audited domain has undergone a canonical-URL migration
+              since major model training cutoffs (e.g., a{" "}
+              <code className="font-mono bg-[var(--color-surface)] px-1">
+                .so
+              </code>{" "}
+              →{" "}
+              <code className="font-mono bg-[var(--color-surface)] px-1">
+                .com
+              </code>{" "}
+              rebrand), current language models may cite your current canonical
+              URL (which Dim 6&apos;s parser may underregister) or legacy
+              canonical URLs from training-data residue (which may register as
+              false positives). For rebranded domains, per-cell sub-check
+              scores on this audit may be artifactual and aggregate Dim 6
+              should be interpreted with this caveat. A canonicalization fix
+              is queued for the next engine version. If your domain has not
+              rebranded, this caveat does not apply.
+            </li>
+          </ul>
+
+          <p className="mt-6 text-sm">
+            <Link
+              href="/methodology/calibration"
+              className="text-[var(--color-fg)] underline-offset-4 hover:underline"
+            >
+              Read the full Dim 6 calibration record →
+            </Link>
+          </p>
+
           <p className="mt-12 text-sm text-[var(--color-muted)]">
             By using this page you agree to our{" "}
             {/* Logo + Foundation slice: footer-text legal links demoted accent → fg. */}

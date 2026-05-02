@@ -27,7 +27,23 @@
 //     returns AFFIRM/DENY; only AFFIRM cells run substring breakdown.
 //     DENY cells score 0 but stay measurable (clean no-citation, real
 //     signal). Judge failures mark cell unmeasurable (excluded).
-export const DIM6_ENGINE_VERSION = "dim6:v2";
+//   - dim6:v3 (prompt-set generator fix, 2026-05-02): four-fix bundle
+//     after Stripe verification attempt 1 (2026-05-02) returned
+//     INVALID due to 100% Bank fallback contamination across 40 cells.
+//     Bug 2 root cause: generator had NO TP-7 retry-once-with-feedback
+//     (Slice 3b spec violation), and the AVOID-list bullet-list in the
+//     gen prompt primed the small llama-3.1-8b model to echo forbidden
+//     phrasings (negation-failure pattern; see
+//     feedback_avoid_list_priming.md). v3 fixes: (a) retry-once-with-
+//     feedback, (b) gen prompt restructured with positive instructions
+//     instead of AVOID bullet list, (c) AVOID regex loosened (dropped
+//     \bin detail\b + \bcompare all\b — over-matching), (d) CC-3:
+//     bank queries use domain-named only (category-substituted
+//     framings deliberately removed; re-introduce only after audit-
+//     fulfill populates real category from signals — see
+//     pharos-stripe-decision-framework.md "Pre-retry queue").
+//     Engine bump auto-invalidates v2 model-call cell cache.
+export const DIM6_ENGINE_VERSION = "dim6:v3";
 
 // Locked at 4 models per locked decision 2. No 5th model in Slice 3b.
 export type ModelId =
