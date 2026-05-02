@@ -9,6 +9,7 @@ import { runDim2 } from "./checks/dim2-mcp";
 import { runDim3 } from "./checks/dim3-openapi";
 import { runDim4 } from "./checks/dim4-structured";
 import { runDim5 } from "./checks/dim5-parsable";
+import { runDim6 } from "./checks/dim6-citation";
 import { SCORING_VERSION } from "./version";
 import { mountScoreAdmin } from "./score-admin";
 import { normalizeEmail } from "./email-normalize";
@@ -131,15 +132,21 @@ app.post("/api/scan", async (c) => {
   }
 
   // Run dimensions in parallel.
+  // Slice 3b: Dim 6 (Citation Visibility) is the free-tier demo preview only
+  // here. The PAID Dim 6 audit happens in audit-fulfill, which OVERWRITES
+  // this dimension on its scan-result before persisting (see
+  // marketing-site/src/lib/dim6/runDim6.ts). Capability separation per
+  // locked decision 1: scanner has zero of the 4 LLM-provider API keys.
   const startedAt = Date.now();
-  const [d1, d2, d3, d4, d5] = await Promise.all([
+  const [d1, d2, d3, d4, d5, d6] = await Promise.all([
     runDim1(url, c.env),
     runDim2(url, c.env),
     runDim3(url, c.env),
     runDim4(url, c.env),
     runDim5(url, c.env, tier),
+    runDim6(url, tier),
   ]);
-  const dimensions = [d1, d2, d3, d4, d5];
+  const dimensions = [d1, d2, d3, d4, d5, d6];
   const composite = compositeOf(dimensions);
   const id = crypto.randomUUID();
   const created_at = startedAt;

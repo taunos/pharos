@@ -201,6 +201,9 @@ live when X happened):
 2026-04-30 marketing     927038bb-4991-492c-8241-80eeb6b9bb2f  (re-deploy after legal-content inline fix)
 2026-05-01 scanner       07c8a973-90d9-4636-82f2-71934b8c2dfa  (Slice 3a — Dim 3 OpenAPI; SCORING_VERSION 1.1.0 → 1.2.0)
 2026-05-01 marketing     30a9beec-1c34-44aa-b701-dbe202ad9885  (Slice 3a — N/A propagation, CURRENT_SCORING_VERSION 1.2.0)
+2026-05-01 scanner       ee687f67-88e5-465b-bc7b-abba232718aa  (Slice 3b — Dim 6 free demo; SCORING_VERSION 1.2.1 → 1.3.0)
+2026-05-01 marketing     42b5ce24-48b7-4cae-9cb6-54780f17d702  (Slice 3b — paid Dim 6 wiring + /score/methodology + corpus migration 0003)
+2026-05-01 mcp           1d61d6ae-8715-4ca1-9348-82f8d5fca19b  (Slice 3b — disclosure mirror file added)
 ```
 
 ### Slice 2b pre-deploy refinements (2026-04-30)
@@ -455,4 +458,157 @@ Verified via `curl -I https://astrant.io/brand/astrant-mark-dark.png`
 
 - marketing-site: `acc3a366-0783-4d4e-84b8-3aee55d09573`
 - scanner: unchanged (Slice 3a v1.2.1 hotfix `5419d723-0f21-4070-8744-314b54584fbf`).
+
+---
+
+## Slice 3b — Dim 6 Citation Visibility (DIY) (2026-05-01)
+
+The strategic differentiator. Closes the 6-dimension composite. Asks the
+question every AEO buyer actually wants answered: "What do hosted frontier
+models actually say about my domain?" — the only AEO dimension Cloudflare's
+Agent Readiness Score cannot see.
+
+### Locked decisions executed
+
+1. **Capability separation enforced at binding + import-graph levels.**
+   Scanner Worker has zero of OPENAI_API_KEY / ANTHROPIC_API_KEY /
+   GOOGLE_AI_API_KEY / PERPLEXITY_API_KEY. Scanner's `dim6-citation.ts` is
+   STANDALONE — no imports from `marketing-site/src/lib/dim6/`. Demo content
+   statically defined inside scanner. Verified at runtime via
+   `wrangler secret list` post-deploy.
+2. **4-model set:** OpenAI gpt-4o, Anthropic claude-sonnet-4-5, Google
+   gemini-2.0-flash, Perplexity sonar.
+3. **TP-7 ladder mandatory.** Six rungs across all 4 providers. Three retry
+   paths: network → immediate fallback; 429/5xx → wait Retry-After (defensive
+   parser, capped 30s; >30s short-circuits); validator failure →
+   retry-once-with-feedback.
+4. **Templated fallback uses `unmeasurable: true`** (not 0). Orchestrator uses
+   `Promise.allSettled`. Distinct cell states: `unmeasurable` excluded from
+   formula vs `0` (clean response, no citation) vs `truncated` (max_tokens cap,
+   INCLUDED with flag).
+5. **Cache key shape:** `dim6:v1:<model_id>:<sha256(prompt)>`. 30-day TTL.
+   Independent of `SCORING_VERSION` + `REMEDIATION_ENGINE_VERSION`.
+6. **Free-tier composite excludes Dim 6** (`na: true`). Free-tier
+   content-only Pharos composite stays at 89/A- (parity with v1.2.1).
+7. **Engine version `dim6:v1`** stamped on every result + corpus row.
+8. **Daily soft cap: 100 paid audits/day**, KV-tracked under
+   `dim6:budget:<YYYY-MM-DD>`. Distinct key prefix from cache.
+9. **Sub-check signatures match spec §2.3 exactly** for Profound-swap path
+   (`citation_domain_named_rate`, `citation_url_referenced_rate`,
+   `citation_context_relevant_rate`, `citation_no_competitor_first_rate`).
+   Only `source` field changes (`diy` → `profound`).
+10. **Disclosure single source of truth** at
+    `marketing-site/src/lib/dim6/disclosure.ts`. mcp-server has a MIRROR
+    file at `mcp-server/src/dim6-disclosure.ts`. Cross-shell verification
+    diff at `scripts/verify-dim6-mirror.mjs` (Node, no TS compile needed).
+11. **SCORING_VERSION 1.2.1 → 1.3.0.** `CURRENT_SCORING_VERSION` on
+    `/score/[id]/page.tsx` lockstep bump.
+12. **API keys (OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_AI_API_KEY,
+    PERPLEXITY_API_KEY) in marketing-site Worker secrets ONLY.**
+
+### What shipped
+
+- **Corpus migration 0003** (`corpus/migrations/0003_citation_audit_response.sql`):
+  one row per `(scan_id × query × model)` trial. Includes `unmeasurable` +
+  `truncated` columns (CC-1 critical — explicit boolean→0/1 mapping in the
+  client preserves the spec invariant). `CORPUS_SCHEMA_VERSION` 1.0.0 → 1.1.0.
+- **CorpusClient.recordCitationAuditResponse** + types
+  (`CitationAuditResponseInput`, `CitationAuditResponseRow`).
+- **Four model adapters** (`marketing-site/src/lib/dim6/adapters.ts`): per-
+  provider response-shape extraction with all the per-provider quirks (Anthropic
+  required max_tokens=1024 + no seed + handle `content[0].type !== "text"`;
+  Gemini missing parts on `finishReason==="SAFETY"`; Perplexity seed only on
+  sonar; OpenAI standard chat/completions). Defensive `parseRetryAfter` handles
+  integer-seconds + HTTP-date forms.
+- **TP-7 ladder** (`marketing-site/src/lib/dim6/ladder.ts`): six rungs, three
+  retry paths, structured logging (`[dim6] cache=hit/miss model=... hash=...`),
+  KV cache writes on every terminal cell.
+- **Prompt-set generator** (`marketing-site/src/lib/dim6/promptset.ts`):
+  Workers AI llama-3.1-8b-instruct, AVOID/PREFER lists in instruction template,
+  post-generation regex validator rejects verbose-eliciting framings, bank
+  fallback for 10 queries when LLM generation fails. CC-3 polish: category
+  derived from URL signals (title tag → meta description → generic), never
+  sends literal `[organization's category]` placeholder to LLMs.
+- **Orchestrator** (`marketing-site/src/lib/dim6/orchestrator.ts`):
+  `Promise.allSettled`, defensive `synthesizeFallbackCell(reason, modelId, query)`
+  handling Error/string/null/POJO/non-serializable, real `model_id` so cells
+  are cacheable.
+- **runDim6Paid** (`marketing-site/src/lib/dim6/runDim6.ts`): daily-cap branch
+  + all-unmeasurable branch + normal path. Emits the locked sub-check
+  signatures.
+- **Free-tier scanner Dim 6** (`scanner/src/checks/dim6-citation.ts`):
+  STANDALONE. No imports from marketing-site. Static demo preview, na:true.
+- **Scanner index wired**: dimensions array goes 5→6.
+  `runDim6(url, tier)` parallelized with the other 5 runners.
+- **audit-fulfill paid Dim 6 invocation**: `splicePaidDim6` recomputes
+  composite via mirrored SPEC_WEIGHTS after replacing the scanner's
+  free-tier Dim 6 with the paid audit. Cells flow through `corpus-write`
+  to `recordCitationAuditResponse`. Distinct CorpusClient instance with
+  `engine_version = "dim6:v1"` so `citation_audit_response` rows are
+  recoverable independently of `REMEDIATION_ENGINE_VERSION_TAG`.
+- **CHECK_SUBJECTS + CHECK_SUBJECT_KEYWORDS** extended with the four new
+  Dim 6 sub-check ids — keeps audit-fulfill remediation-generation working
+  even when Dim 6 sub-checks register as gaps.
+- **`/score/methodology`** new page module (`marketing-site/src/app/score/methodology/page.tsx`).
+  Full content for Dim 6, stub anchors for Dims 1-5.
+- **MCP MIRROR** file at `mcp-server/src/dim6-disclosure.ts` (verbatim copy
+  of marketing-site SOT). SERVER_CARD descriptions stay GENERIC — no engine
+  names, no citation-audit specifics, per locked decision 17.
+- **Cross-shell verification** at `scripts/verify-dim6-mirror.mjs` — runs
+  in PowerShell + bash + zsh via Node. Exits 0 on match, 1 on divergence
+  with first-diff-line callout, 2 on script error.
+
+### How to apply secrets (REQUIRED before paid Dim 6 audits)
+
+API keys live ONLY on marketing-site. Run from `marketing-site/`:
+
+```sh
+npx wrangler secret put OPENAI_API_KEY
+npx wrangler secret put ANTHROPIC_API_KEY
+npx wrangler secret put GOOGLE_AI_API_KEY
+npx wrangler secret put PERPLEXITY_API_KEY
+```
+
+Until the four secrets are set, the paid Dim 6 path gracefully degrades:
+every cell returns `unmeasurable: true` (`OPENAI_API_KEY not set` etc),
+the dimension lands na:true, the composite renormalizes over the other 5
+dimensions cleanly. Dogfood verification of the paid path requires all
+four to be set.
+
+### Verification
+
+- `https://scanner.astrant.io/health` returns `scoring_version: "1.3.0"`.
+- Scanner `wrangler secret list` returns 3 entries: `CF_API_TOKEN`,
+  `INTERNAL_FULFILL_KEY`, `INTERNAL_SCANNER_ADMIN_KEY`. ZERO LLM keys.
+- Free-tier scan of `astrant.io`: composite **89 / A-** (parity with
+  v1.2.1), `dimensions_total: 6`, `dimensions_applicable: 4` (Dim 3 + Dim 6
+  both na:true), Dim 6 free demo preview note present.
+- `/score/methodology` returns 200, contains "Dimension 6 — Citation
+  Visibility", "citation_domain_named_rate", "dim6:v1".
+- `node scripts/verify-dim6-mirror.mjs` → exit 0, OK message.
+- Marketing-site Next.js build: 25/25 pages including the new
+  `/score/methodology` route.
+- Corpus migration 0003 applied: `num_tables` went 6 → 7 (added
+  `citation_audit_response` + 3 indexes).
+
+### Astrant.io's Dim 6 score (per spec §10 OQ-D6-03 honest-disclosure)
+
+Not yet measured under the live paid path. The four LLM provider secrets
+are not set in this slice's deploy — secrets-put is left to the operator.
+Once secrets land and a paid Dim 6 audit runs against `astrant.io`, the
+expected score is LOW (Astrant is brand-new, no inbound links from public
+content, the four hosted models have no training-data signal yet). The
+honest disclosure pattern: Dim 6 will likely come back D or F, included
+in the composite at its 20% weight, and that's working as intended —
+this is the dimension that takes inbound mindshare to move.
+
+### Deferred
+
+- **T2 secrets-put**: deferred to operator (4 `wrangler secret put`).
+- **Live dogfood paid scan**: deferred until secrets land. Expected cost
+  ~$0.85 per scan (4 models × ~10 prompts).
+- **Competitor enumeration**: `citation_no_competitor_first_rate` defaults
+  to pass-through when no competitor list is provided. Future slice will
+  derive competitors from the prompt-set generator's category signals or
+  from a future Triage-table extension.
 

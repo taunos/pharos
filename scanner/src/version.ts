@@ -22,5 +22,17 @@
  * - 1.2.1 (Slice 3a hotfix, 2026-04-30): SPEC_WEIGHTS restored to canonical
  *   OQ-04 §1 values (15/20/10/20/15/20). Dim 6's 20% strategic-differentiator
  *   weight preserved for Slice 3b. Cache invalidates cleanly via prefix bump.
+ * - 1.3.0 (Slice 3b, 2026-05-01): Adds Dim 6 (Citation Visibility) — the
+ *   strategic differentiator (what hosted models actually say about a domain;
+ *   the dimension Cloudflare's Agent Readiness Score cannot see). Dimensions
+ *   array goes 5→6. Free-tier emits a static demo preview with na:true; paid-
+ *   tier audit-fulfill replaces this with a real 4-model audit (OpenAI gpt-4o,
+ *   Anthropic Claude, Google Gemini 2.0 Flash, Perplexity Sonar — TP-7 ladder
+ *   with templated fallback, 30-day cache, daily soft cap of 100 paid audits).
+ *   Engine version `dim6:v1` stamped on every paid audit row in
+ *   citation_audit_response (corpus migration 0003, schema_version 1.1.0).
+ *   Capability separation: scanner has zero of OPENAI_API_KEY /
+ *   ANTHROPIC_API_KEY / GOOGLE_AI_API_KEY / PERPLEXITY_API_KEY (verified at
+ *   deploy time via wrangler secret list).
  */
-export const SCORING_VERSION = "1.2.1";
+export const SCORING_VERSION = "1.3.0";

@@ -14,6 +14,7 @@
 
 import { CORPUS_SCHEMA_VERSION } from "./version";
 import type {
+  CitationAuditResponseInput,
   ScanApplicationInput,
   ScanEventInput,
   ScanFindingInput,
@@ -202,6 +203,51 @@ export class CorpusClient {
     return id;
   }
 
+  /**
+   * Slice 3b Dim 6 — record a single citation_audit_response row. Caller
+   * passes booleans for unmeasurable + truncated; client serializes to 0/1
+   * INTEGER per the migration 0003 schema. INSERT OR IGNORE so a retry of the
+   * same response_id is a silent no-op.
+   *
+   * engine_version stamped is the engine_version supplied at CorpusClient
+   * construction (audit-fulfill passes 'dim6:v1' for Dim 6 writes — separate
+   * from the audit-fulfill REMEDIATION_ENGINE_VERSION_TAG, which is for
+   * scan_event + scan_recommendation rows).
+   */
+  async recordCitationAuditResponse(
+    input: CitationAuditResponseInput
+  ): Promise<string> {
+    const id = input.response_id ?? crypto.randomUUID();
+    const now = Date.now();
+    await this.db
+      .prepare(
+        `INSERT OR IGNORE INTO citation_audit_response (
+          response_id, scan_id, model_id, query_id, query_text,
+          query_rationale, response_text, citation_score,
+          unmeasurable, truncated, notes,
+          engine_version, schema_version, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(
+        id,
+        input.scan_id,
+        input.model_id,
+        input.query_id,
+        input.query_text,
+        input.query_rationale ?? null,
+        input.response_text ?? null,
+        input.citation_score,
+        input.unmeasurable ? 1 : 0,
+        input.truncated ? 1 : 0,
+        input.notes ?? null,
+        this.engineVersion,
+        CORPUS_SCHEMA_VERSION,
+        now
+      )
+      .run();
+    return id;
+  }
+
   async recordAnnotation(input: StrategistAnnotationInput): Promise<string> {
     const id = input.annotation_id ?? crypto.randomUUID();
     const now = Date.now();
@@ -229,6 +275,8 @@ export class CorpusClient {
 export { CORPUS_SCHEMA_VERSION } from "./version";
 export type {
   AnnotationVisibility,
+  CitationAuditResponseInput,
+  CitationAuditResponseRow,
   ConsentBasis,
   DeliveryMode,
   RecommendationSource,

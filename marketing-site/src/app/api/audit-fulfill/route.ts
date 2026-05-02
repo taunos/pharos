@@ -5,6 +5,7 @@ import {
   renderAuditHtml,
   generatePdf,
   runScan,
+  splicePaidDim6,
   storeJson,
   storePdf,
   REMEDIATION_ENGINE_VERSION_TAG,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/audit-pipeline";
 import type { AuditResult, SessionRecord } from "@/lib/audit-types";
 import { writeAuditToCorpus } from "@/lib/corpus-write";
+import { runDim6Paid } from "@/lib/dim6/runDim6";
 import { constantTimeEqual } from "@/lib/dodo";
 
 interface FulfillEnv extends AuditEnv {
@@ -105,7 +107,29 @@ export async function POST(req: Request) {
   }
 
   try {
-    const scan = await runScan(record.url, env.INTERNAL_FULFILL_KEY);
+    const scannerScan = await runScan(record.url, env.INTERNAL_FULFILL_KEY);
+
+    // Slice 3b: replace the scanner's free-tier Dim 6 demo preview with a
+    // real paid Dim 6 audit. runDim6Paid handles its own daily-cap branch
+    // (returns na:true with a "queued for tomorrow" note when over cap) and
+    // its own all-unmeasurable branch (returns na:true). On success it
+    // returns the real DimensionResult plus the cells for corpus persistence.
+    const dim6 = await runDim6Paid(
+      {
+        AI: env.AI,
+        OPENAI_API_KEY: env.OPENAI_API_KEY,
+        ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY,
+        GOOGLE_AI_API_KEY: env.GOOGLE_AI_API_KEY,
+        PERPLEXITY_API_KEY: env.PERPLEXITY_API_KEY,
+        // Reuse the SESSIONS KV for the dim6:v1 cache + daily-cap counter.
+        // Distinct key prefixes (`dim6:v1:` for cache, `dim6:budget:` for the
+        // counter) ensure no collision with audit-fulfill's session keys.
+        cacheKv: env.SESSIONS,
+      },
+      record.url
+    );
+    const scan = splicePaidDim6(scannerScan, dim6.dimension);
+
     const gaps = await llmEnrichGaps(env, scan, sessionId);
     const audit: AuditResult = {
       scan,
@@ -137,10 +161,14 @@ export async function POST(req: Request) {
       const corpusScanId = await writeAuditToCorpus(
         env.PHAROS_CORPUS,
         REMEDIATION_ENGINE_VERSION_TAG,
-        { sessionRecord: next, audit }
+        {
+          sessionRecord: next,
+          audit,
+          dim6Cells: dim6.cells,
+        }
       );
       console.error(
-        `[corpus] wrote scan_event session=${sessionId} scan_id=${corpusScanId} gaps=${gaps.length}`
+        `[corpus] wrote scan_event session=${sessionId} scan_id=${corpusScanId} gaps=${gaps.length} dim6_cells=${dim6.cells.length}`
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

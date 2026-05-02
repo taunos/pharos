@@ -81,7 +81,18 @@ export const CHECK_SUBJECTS: Record<string, string> = {
   operation_coverage:
     "the `paths` block of the OpenAPI spec — operation count, and per-operation `summary` / `description` documentation",
 
-  // Dimension 6 — Citation Visibility (ships in Slice 3b).
+  // Dimension 6 — Citation Visibility (Slice 3b). Sub-check ids match
+  // marketing-site/src/lib/dim6/runDim6.ts SUBCHECK_IDS exactly. The
+  // Profound-swap path emits the SAME ids — only the corpus row's `source`
+  // field changes (`diy` vs `profound`). Don't rename without coordinating.
+  citation_domain_named_rate:
+    "the rate at which OpenAI GPT-4o, Anthropic Claude, Google Gemini, and Perplexity Sonar name your domain when asked questions in your category",
+  citation_url_referenced_rate:
+    "the rate at which the four hosted models include a URL on your domain when answering relevant questions",
+  citation_context_relevant_rate:
+    "the rate at which the four hosted models position your domain as the principal answer (in the first half of their response) rather than a footer-style mention",
+  citation_no_competitor_first_rate:
+    "the rate at which competitor domains do NOT appear before yours in the four hosted models' responses",
 };
 
 const DEFAULT_CHECK_SUBJECT = "the relevant artifact for this check";
@@ -182,6 +193,50 @@ export const CHECK_SUBJECT_KEYWORDS: Record<string, string[]> = {
     "description",
     "openapi",
   ],
+
+  // Dimension 6 — Citation Visibility (Slice 3b). Subject-coherence keywords
+  // span the names + URLs of the four hosted models AND the citation/visibility
+  // domain language. Generic terms like "model" alone aren't on the list —
+  // those would let a generic content-rewrite suggestion pass coherence.
+  citation_domain_named_rate: [
+    "citation",
+    "model",
+    "gpt-4o",
+    "claude",
+    "gemini",
+    "perplexity",
+    "domain",
+    "named",
+    "cited",
+  ],
+  citation_url_referenced_rate: [
+    "citation",
+    "url",
+    "linked",
+    "model",
+    "gpt-4o",
+    "claude",
+    "gemini",
+    "perplexity",
+  ],
+  citation_context_relevant_rate: [
+    "citation",
+    "principal",
+    "model",
+    "context",
+    "first",
+    "principal answer",
+    "footer",
+    "mention",
+  ],
+  citation_no_competitor_first_rate: [
+    "competitor",
+    "rank",
+    "outrank",
+    "first",
+    "before",
+    "mention",
+  ],
 };
 
 export type AuditEnv = {
@@ -190,6 +245,14 @@ export type AuditEnv = {
   AUDITS: R2Bucket;
   CF_ACCOUNT_ID: string;
   CF_API_TOKEN: string;
+  // Slice 3b — Dim 6 Citation Visibility provider keys. Live ONLY on
+  // marketing-site Worker secrets per locked decision 12. Optional in the
+  // type so audit-fulfill keeps building when keys aren't set yet (graceful
+  // degradation: every cell unmeasurable → na:true, composite renormalizes).
+  OPENAI_API_KEY?: string;
+  ANTHROPIC_API_KEY?: string;
+  GOOGLE_AI_API_KEY?: string;
+  PERPLEXITY_API_KEY?: string;
 };
 
 export async function runScan(
@@ -214,6 +277,68 @@ export async function runScan(
     throw new Error(`Scanner returned ${res.status}: ${body.slice(0, 500)}`);
   }
   return (await res.json()) as ScanResult;
+}
+
+// Slice 3b: SPEC_WEIGHTS mirror (kept in sync with scanner/src/scoring.ts).
+// audit-fulfill recomputes the composite after splicing in the real Dim 6
+// audit. We mirror the scanner's weights here rather than calling back into
+// the scanner — the scanner's free-tier Dim 6 is na:true on the wire
+// already, and recomputing locally keeps audit-fulfill self-contained.
+const SPEC_WEIGHTS_MIRROR: Record<number, number> = {
+  1: 15,
+  2: 20,
+  3: 10,
+  4: 20,
+  5: 15,
+  6: 20,
+};
+
+function gradeForLocal(score: number): string {
+  if (score >= 90) return "A";
+  if (score >= 80) return "A-";
+  if (score >= 70) return "B";
+  if (score >= 60) return "C";
+  if (score >= 40) return "D";
+  return "F";
+}
+
+/**
+ * Splice a paid Dim 6 result into a scanner ScanResult and recompute the
+ * composite. Returns a new ScanResult — does not mutate the input.
+ *
+ * Behavior:
+ *   - Replace the existing Dim 6 entry (free-tier demo, na:true) with the
+ *     paid Dim 6 dimension.
+ *   - Recompute composite via SPEC_WEIGHTS, dropping any na:true dims.
+ *   - Recompute dimensions_applicable from the new dimension list.
+ */
+export function splicePaidDim6(
+  scan: ScanResult,
+  paidDim6: import("./audit-types").DimensionResult
+): ScanResult {
+  const newDims = scan.dimensions.map((d) =>
+    d.dimension_id === 6 ? paidDim6 : d
+  );
+  // If somehow the scanner didn't emit a Dim 6 entry (older version), append.
+  if (!newDims.some((d) => d.dimension_id === 6)) {
+    newDims.push(paidDim6);
+  }
+  let weighted = 0;
+  let totalWeight = 0;
+  for (const d of newDims) {
+    if (d.na) continue;
+    const w = SPEC_WEIGHTS_MIRROR[d.dimension_id] ?? 0;
+    weighted += d.score * w;
+    totalWeight += w;
+  }
+  const compositeScore =
+    totalWeight === 0 ? 0 : Math.round(weighted / totalWeight);
+  return {
+    ...scan,
+    dimensions: newDims,
+    composite: { score: compositeScore, grade: gradeForLocal(compositeScore) },
+    dimensions_applicable: newDims.filter((d) => !d.na).length,
+  };
 }
 
 function isGap(s: SubCheck): boolean {

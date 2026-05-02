@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const CURRENT_SCORING_VERSION = "1.2.1";
+const CURRENT_SCORING_VERSION = "1.3.0";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -231,7 +231,9 @@ export default async function ScoreResultsPage({
           <p className="mt-2 text-sm text-[var(--color-muted)] italic">
             Scored on {scan.dimensions_applicable ?? scan.dimensions_scored} of {scan.dimensions_total} dimensions
             applicable to this site (engine v{renderedScoringVersion}). Dim 6
-            (Citation Visibility) ships in an upcoming release.
+            (Citation Visibility) shows a demo preview on free Score; the live
+            4-model audit ships with the $79 Audit. See{" "}
+            <Link href="/score/methodology" className="text-[var(--color-fg)] underline-offset-4 hover:underline">methodology</Link>.
             {(scan.dimensions_applicable ?? scan.dimensions_scored) < scan.dimensions_scored
               ? " Some dimensions did not apply to your site (e.g. no API surface for the OpenAPI dimension) and were dropped from the composite."
               : ""}

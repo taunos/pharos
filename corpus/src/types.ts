@@ -116,6 +116,27 @@ export interface StrategistAnnotationRow {
   created_at: number;
 }
 
+// Slice 3b Dim 6 — DIY Citation Audit. One row per (scan × query × model)
+// trial. unmeasurable=1 cells are excluded from the score formula entirely;
+// truncated=1 cells are INCLUDED with a flag for diagnostics. See migration
+// 0003 for column-level rationale.
+export interface CitationAuditResponseRow {
+  response_id: string;
+  scan_id: string;
+  model_id: string;
+  query_id: string;
+  query_text: string;
+  query_rationale: string | null;
+  response_text: string | null;
+  citation_score: number; // 0-100 (always 0 when unmeasurable=1)
+  unmeasurable: number;   // 0 | 1
+  truncated: number;      // 0 | 1
+  notes: string | null;
+  engine_version: string;
+  schema_version: string;
+  created_at: number;
+}
+
 // ── Input types (what callers pass) ────────────────────────────────────────
 //
 // Inputs omit schema_version (stamped by the client), created_at (set to now()),
@@ -184,4 +205,20 @@ export interface StrategistAnnotationInput {
   author: string;
   body: string;
   visibility: AnnotationVisibility;
+}
+
+// Slice 3b Dim 6 input. unmeasurable + truncated default to false at the call
+// site; the client serializes booleans → 0/1 INTEGER per the schema.
+export interface CitationAuditResponseInput {
+  response_id?: string;
+  scan_id: string;
+  model_id: string;
+  query_id: string;
+  query_text: string;
+  query_rationale?: string | null;
+  response_text?: string | null;
+  citation_score: number;
+  unmeasurable?: boolean;
+  truncated?: boolean;
+  notes?: string | null;
 }

@@ -21,6 +21,8 @@ import type {
   ScanRecommendationInput,
 } from "../../../corpus/src/types";
 import type { AuditResult, SessionRecord } from "./audit-types";
+import type { CellEnvelope } from "./dim6/types";
+import { DIM6_ENGINE_VERSION } from "./dim6/types";
 
 // Forbidden-path / "under 30 minutes" extractor. The remediation prompt asks
 // the model to end with `Estimated effort: <duration>.` so we can recover the
@@ -84,6 +86,10 @@ function recommendationsFromAudit(
 export type WriteAuditToCorpusInput = {
   sessionRecord: SessionRecord;
   audit: AuditResult;
+  // Slice 3b: the per-cell Dim 6 audit results. One row per (scan × query
+  // × model) trial in citation_audit_response. Optional so older callers
+  // (and the daily-cap branch, which produces zero cells) still typecheck.
+  dim6Cells?: CellEnvelope[];
 };
 
 /**
@@ -100,7 +106,7 @@ export async function writeAuditToCorpus(
   engineVersion: string,
   input: WriteAuditToCorpusInput
 ): Promise<string> {
-  const { sessionRecord, audit } = input;
+  const { sessionRecord, audit, dim6Cells } = input;
   const corpus = new CorpusClient(db, engineVersion);
 
   const scanEventInput: ScanEventInput = {
@@ -141,6 +147,36 @@ export async function writeAuditToCorpus(
     scanId,
     recommendationsFromAudit(audit, findingIdByKey)
   );
+
+  // Slice 3b — Dim 6 cells. Distinct engine_version (DIM6_ENGINE_VERSION =
+  // "dim6:v1") so the citation_audit_response rows are recoverable
+  // independently of audit-fulfill's REMEDIATION_ENGINE_VERSION_TAG. Use a
+  // separate CorpusClient instance so the engine_version stamping stays
+  // correct.
+  if (dim6Cells && dim6Cells.length > 0) {
+    const dim6Corpus = new CorpusClient(db, DIM6_ENGINE_VERSION);
+    for (const cell of dim6Cells) {
+      // CC-1 critical: explicit boolean → 0/1 mapping. Without these
+      // explicit reads the schema columns silently default to 0 and the
+      // unmeasurable invariant (cells excluded from formula) breaks at
+      // the persistence layer.
+      // CC-2 polish: query.rationale is already nullable on the type;
+      // pass `?? null` defensively so any missing rationale lands as
+      // SQL NULL not the string "undefined".
+      await dim6Corpus.recordCitationAuditResponse({
+        scan_id: scanId,
+        model_id: cell.modelId,
+        query_id: cell.query.id,
+        query_text: cell.query.text,
+        query_rationale: cell.query.rationale ?? null,
+        response_text: cell.result.text || null,
+        citation_score: cell.result.score,
+        unmeasurable: cell.result.unmeasurable,
+        truncated: cell.result.truncated,
+        notes: cell.result.notes || null,
+      });
+    }
+  }
 
   return scanId;
 }
