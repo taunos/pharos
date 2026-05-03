@@ -1,6 +1,6 @@
 # Pharos / Astrant — Pending Follow-Ups
 
-**Last updated:** 2026-05-03 (post Slice A3 dogfood-methodology integration)
+**Last updated:** 2026-05-03 (end of session — post Slice A3 + ScanForm cleanup + public-surface naming sweep)
 
 This file tracks open work across sessions. Update when items close or new ones surface. Priority loosely ordered top-to-bottom.
 
@@ -89,6 +89,8 @@ The two cron jobs created in the prior session were session-only and died at con
 - ✓ Typography plugin fix — installed `@tailwindcss/typography` + registered via `@plugin` directive in `globals.css`. Resolves wall-of-text rendering bug pre-existing from Slice A2 (prose-* utilities were silent no-ops without the plugin). Worker `d7dd27fd-ae81-4e73-9bfb-c313cfb48fc7`.
 - ✓ Footer Methodology link — added to `SiteFooter.tsx` mono caption row between `llms.txt` and `Privacy`. First user-discoverable surface for the methodology page (previously only reachable via direct URL). Worker `acd54644-b42d-4f5b-bdc2-609734a29c35`.
 - ✓ Slice A3 — dogfood-methodology integration (homepage callout + Organization-schema `disambiguatingDescription` + footer href stable-hub-URL upgrade + stale-italic rewrite). Four edits across three files; agent-first reframe with site-wide Schema.org propagation via root layout. Completes the four-surface acquisition-narrative artifact stack (methodology page + llms.txt + MCP server + dogfood callout). Worker `1187011b-961c-42d6-992b-e198dc1f05bb`. Ship-report: `reports/slice-a3-deploy-2026-05-03.md`.
+- ✓ ScanForm disclaimer cleanup — dropped italic styling and "Slice 3a" reference under the homepage scan form. Reworded to "Free public scan, no signup. Covers 5 of 6 dimensions today; Citation Visibility ships in an upcoming release." Worker `bd1bc2e0-3168-4d12-afcb-c60da24fd1e0`.
+- ✓ Public-surface internal-naming sweep — scrubbed `Slice 3a` / `Phase 2 of Slice 2b` / `TODO comment in the scanner` from /score metadata + FAQ + hero, /terms heading + body, public/terms.md (raw-served markdown). Five user-facing strings cleaned across three files. Code comments deliberately left alone (dev-internal, not rendered). Engine-version stamps `dim6:vN` retained as legitimate public technical-version identifiers. Worker `2fd19f81-66a6-4645-bcb8-e9e1de5020b3`.
 
 ## Closed 2026-05-02
 
