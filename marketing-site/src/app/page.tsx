@@ -353,9 +353,29 @@ export default function Page() {
                 — SEP-1960 discovery metadata
               </li>
             </ul>
+            <div className="mt-12 border-l-4 border-[var(--color-accent)] pl-6 py-4">
+              <div className="text-xs font-mono uppercase tracking-wider text-[var(--color-muted)]">
+                MEASUREMENT LAYER
+              </div>
+              <blockquote
+                cite="https://www.astrant.io/methodology"
+                className="mt-2 text-lg leading-relaxed"
+              >
+                Astrant has validated its citation-confabulation methodology across structurally distinct brand profiles — producing the strongest level of agreement among independent AI judge models.
+              </blockquote>
+              <div className="mt-2 text-sm font-mono text-[var(--color-muted)]">
+                Engine version dim6:v3
+              </div>
+              <a
+                href="/methodology"
+                className="mt-3 inline-block text-[var(--color-accent)] underline-offset-4 hover:underline"
+              >
+                Inspect the methodology →
+              </a>
+            </div>
             <p className="mt-8 text-sm italic text-[var(--color-muted)]">
-              When the Score tool goes live, this page will self-report its own
-              score here.
+              The free Score tool is live — try it above. Astrant&apos;s own audit
+              score will render here once dogfood self-display ships.
             </p>
           </div>
         </section>

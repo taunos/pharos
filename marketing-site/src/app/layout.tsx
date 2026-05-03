@@ -60,6 +60,7 @@ const jsonLd = [
     },
     description:
       "Agent Discoverability as a Service. Astrant makes B2B SaaS businesses structurally findable, invokable, and trustworthy to AI agents.",
+    disambiguatingDescription: "Astrant has validated its citation-confabulation methodology across structurally distinct brand profiles — producing the strongest level of agreement among independent AI judge models.",
     // sameAs PLACEHOLDER — fill in after Phase 4.4 social handle claiming.
     // Expected entries (replace with actual claimed handles):
     //   "https://twitter.com/astrant_io",
