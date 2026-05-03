@@ -1,6 +1,6 @@
 # Pharos / Astrant — Pending Follow-Ups
 
-**Last updated:** 2026-05-03 (post Slice A2.1 + typography fix + footer link)
+**Last updated:** 2026-05-03 (post Slice A3 dogfood-methodology integration)
 
 This file tracks open work across sessions. Update when items close or new ones surface. Priority loosely ordered top-to-bottom.
 
@@ -15,14 +15,7 @@ This file tracks open work across sessions. Update when items close or new ones 
   - (b) §9 follow-up #1 ("Multi-known-positive expansion") marked complete with reference to today's ship-report
   - (c) New §9 entry — Pass 4 stub for "recognition-gradient + known-negative anchor calibration when triggered"
 
-### 2. Dogfood-section methodology integration (homepage IA pull)
-- **What:** Add a "See the methodology" link from the homepage Dogfood section to `/methodology/calibration`, anchored on the HubSpot-as-customer-tier finding from yesterday's multi-anchor calibration expansion.
-- **Why:** Footer link (shipped 2026-05-03) gives the methodology a discoverable surface, but Dogfood-section integration converts methodology depth into a claims-substantiation moment for prospects reading the dogfood narrative. The HubSpot-tier signal is the load-bearing pull-quote — "we've validated our methodology on a brand at your recognition tier."
-- **Why not now:** needs real copy work to find the natural insertion point in the existing Dogfood prose. Worth doing properly when revisiting homepage IA, not a quick drop-in.
-- **Pull-quote source:** `reports/multi-known-positive-2026-05-02.md` §13 has a draft pull-quote already; may need shortening for a homepage-section context.
-- **Awaits:** Bruno trigger to revisit homepage IA (or specific customer conversation that surfaces "does it work for my recognition tier" question).
-
-### 3. Slice A2.2 (optional polish) — rename "Known limits" heading
+### 2. Slice A2.2 (optional polish) — rename "Known limits" heading
 - **What:** Rename `## Known limits` → `## Calibration scope and known limits` in `marketing-site/src/lib/methodology-content.ts`.
 - **Why:** After Slice A2.1 widened the framing sentence + lead-in to include positive calibration scope alongside limits, the heading itself remains stale ("Known limits" promises only-what's-missing; the section now leads with positive scope and adds limits).
 - **Why optional:** mismatch is mild; heading is short and 80% accurate. Defer unless tonal coherence becomes a customer-conversation friction point.
@@ -95,6 +88,7 @@ The two cron jobs created in the prior session were session-only and died at con
 - ✓ Slice A2.1 — methodology page §8 caveat #1 update (caveat replacement + lead-in widening + sentence 1 widening). Worker `9fd33768-3380-4db1-a7d3-0c1f7e7e620b`. Ship-report: `reports/slice-a2.1-deploy-2026-05-02.md`.
 - ✓ Typography plugin fix — installed `@tailwindcss/typography` + registered via `@plugin` directive in `globals.css`. Resolves wall-of-text rendering bug pre-existing from Slice A2 (prose-* utilities were silent no-ops without the plugin). Worker `d7dd27fd-ae81-4e73-9bfb-c313cfb48fc7`.
 - ✓ Footer Methodology link — added to `SiteFooter.tsx` mono caption row between `llms.txt` and `Privacy`. First user-discoverable surface for the methodology page (previously only reachable via direct URL). Worker `acd54644-b42d-4f5b-bdc2-609734a29c35`.
+- ✓ Slice A3 — dogfood-methodology integration (homepage callout + Organization-schema `disambiguatingDescription` + footer href stable-hub-URL upgrade + stale-italic rewrite). Four edits across three files; agent-first reframe with site-wide Schema.org propagation via root layout. Completes the four-surface acquisition-narrative artifact stack (methodology page + llms.txt + MCP server + dogfood callout). Worker `1187011b-961c-42d6-992b-e198dc1f05bb`. Ship-report: `reports/slice-a3-deploy-2026-05-03.md`.
 
 ## Closed 2026-05-02
 
