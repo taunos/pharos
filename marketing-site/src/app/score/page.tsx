@@ -8,7 +8,7 @@ import ScanForm from "@/components/ScanForm";
 export const metadata: Metadata = {
   title: "Agent Discoverability Score — Astrant",
   description:
-    "A live URL-input scan across the dimensions of agent discoverability. Free, public score on screen, no signup. Slice 3a covers 5 of 6 dimensions (Citation Visibility ships next); content-only sites have OpenAPI auto-marked N/A.",
+    "A live URL-input scan across the dimensions of agent discoverability. Free, public score on screen, no signup. Currently covers 5 of 6 dimensions (Citation Visibility ships in an upcoming release); content-only sites have OpenAPI auto-marked N/A.",
   alternates: {
     types: { "text/markdown": "/score.md" },
   },
@@ -40,7 +40,7 @@ const FAQS = [
   },
   {
     q: "Why does it say \"5 of 6 dimensions\" (or fewer)?",
-    a: "Slice 3a ships five dimensions: llms.txt Quality, MCP Server Discoverability, OpenAPI / API Catalog (new), Structured Capability Data, and Agent-Parsable Content. The remaining one — Citation Visibility (Dim 6) — ships in an upcoming release. If your site is content-only with no API surface, the OpenAPI dimension is automatically marked N/A and dropped from your composite (so you're not penalized for not having an API). When Dim 6 ships, your scan will rerun automatically if you opted into the monthly rescan.",
+    a: "Five dimensions ship today: llms.txt Quality, MCP Server Discoverability, OpenAPI / API Catalog, Structured Capability Data, and Agent-Parsable Content. The remaining one — Citation Visibility (Dim 6) — ships in an upcoming release. If your site is content-only with no API surface, the OpenAPI dimension is automatically marked N/A and dropped from your composite (so you're not penalized for not having an API). When Dim 6 ships, your scan will rerun automatically if you opted into the monthly rescan.",
   },
   {
     q: "What's the free tier vs paid tier difference for Dim 5?",
@@ -101,8 +101,8 @@ export default function ScorePage() {
           </h1>
           <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)] sm:text-xl">
             Live URL-input scan across the technical dimensions of agent
-            discoverability. Public score on screen — no signup. Slice 3a covers
-            5 of 6 dimensions today (llms.txt, MCP, OpenAPI, Structured Data,
+            discoverability. Public score on screen — no signup. Currently
+            covers 5 of 6 dimensions (llms.txt, MCP, OpenAPI, Structured Data,
             Agent-Parsable Content); Citation Visibility ships in an upcoming
             release. Content-only sites have OpenAPI auto-marked N/A.
           </p>

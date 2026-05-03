@@ -132,9 +132,9 @@ Astrant is provided "as-is," without warranty of any kind. Scores are estimates,
 - Anything illegal in the jurisdiction you're operating from.
 - Spamming the service to drive up our infrastructure costs (rate limits exist for a reason).
 
-## Robots.txt respect [Phase 2 of Slice 2b]
+## Robots.txt respect
 
-We're committed to honoring robots.txt directives on the sites we scan. As of this writing, the robots.txt-respect logic ships in Phase 2 of Slice 2b (it's a TODO comment in the scanner, with the implementation queued). Until then, scans run on direct user submission. We don't scrape proactively — every scan is initiated by an explicit URL submission.
+We're committed to honoring robots.txt directives on the sites we scan. The robots.txt-respect logic is queued for an upcoming release. Until then, scans run on direct user submission only — we don't scrape proactively, and every scan is initiated by an explicit URL submission.
 
 ## Rate limits and abuse
 
