@@ -1,6 +1,6 @@
 # Pharos / Astrant — Pending Follow-Ups
 
-**Last updated:** 2026-05-03 (end of session — post Slice A3 + ScanForm cleanup + public-surface naming sweep + "wait for trigger" reframing on deferred items)
+**Last updated:** 2026-05-04 (post Gemini paid-tier upgrade + 2.5 Flash migration; closes deferred item #6 by misdiagnosis-correction)
 
 **Trigger-condition discipline (reframed 2026-05-03):** Items in "Deferred slices" and "Decisions awaiting trigger" sections are NOT open-ended defers — each has an explicit signal that pulls the trigger. Most triggers are downstream of the citation-tracking instrumentation slice (in flight, Cowork-side spec authoring); shipping that slice produces the signals that gate the rest.
 
@@ -21,6 +21,12 @@ This file tracks open work across sessions. Update when items close or new ones 
 - **What:** Rename `## Known limits` → `## Calibration scope and known limits` in `marketing-site/src/lib/methodology-content.ts`.
 - **Why:** After Slice A2.1 widened the framing sentence + lead-in to include positive calibration scope alongside limits, the heading itself remains stale ("Known limits" promises only-what's-missing; the section now leads with positive scope and adds limits).
 - **Why optional:** mismatch is mild; heading is short and 80% accurate. Defer unless tonal coherence becomes a customer-conversation friction point.
+
+### 3. Caveat removal slice — "one provider operationally absent" (post Gemini fix)
+- **What:** Remove the "One provider operationally absent" caveat from `/methodology/calibration` (Known Limits section, [methodology-content.ts:60](marketing-site/src/lib/methodology-content.ts#L60)) and `/llms.txt` (Known Limits methodology block).
+- **Why:** Gemini paid-tier + 2.5 Flash upgrade (2026-05-04, worker `e23ac215`) resolved the cause. Caveat is now stale; methodology page is currently disclosing a limit that no longer exists.
+- **Trigger:** real-audit verification of 4-provider `judged_n` coverage. Run a single calibration audit on the dogfood domain (Astrant.io), confirm `judged_n: 4` across cells, then queue the caveat removal. ~$0.95 for the verification audit + ~10-min slice.
+- **Cross-surface coordination:** if Pass 4 calibration ever ships with a different "operationally absent" disclosure, this caveat-removal slice's text changes accordingly. Currently no such coupling — straightforward two-surface text removal.
 
 ---
 
@@ -54,11 +60,10 @@ The two cron jobs created in the prior session were session-only and died at con
 - **Surfaces affected when fixed:** rebrand caveat removed from /score/[id] narrative + /methodology/calibration Known Limits + /llms.txt Known Limits.
 - **Trigger:** citation-tracking instrumentation surfaces "rebrand-domain customers blocking cite share" signal, OR audit volume from rebrand-domain customers becomes a measurable cite-share friction. Without instrumentation, currently disclosed-via-caveat is the right posture.
 
-### 6. Gemini per-provider semaphore
-- **Pattern:** isolate Gemini's request budget so its 429 cascade doesn't starve the other providers.
-- **Surfaces affected when fixed:** "one provider operationally absent" caveat removed from all three published surfaces.
-- **Recovery:** ~25% of the cell budget (10 of 40 cells per audit currently unmeasurable on Gemini).
-- **Trigger:** customer audit volume rises enough that the Gemini cascade becomes a measurable customer-experience signal (currently invisible to customers since the caveat is honest about the absent provider). Or: paying-customer scan landing where the "judged_n ≥ 3" threshold is at risk of dropping a Dim 6 result entirely.
+### 6. ~~Gemini per-provider semaphore~~ — OBSOLETE (closed by 2026-05-04 paid-tier upgrade + model migration)
+- **Memory misdiagnosis correction:** the "rate-limit cascade" framing was wrong. Actual root cause was that `gemini-2.0-flash` was retired for new API users (HTTP 404 "no longer available to new users"). The semaphore engineering work would have isolated request budgets but wouldn't have made retired-model calls succeed.
+- **Resolution:** Bruno upgraded the GCP project to paid Tier 1 + code upgraded to `gemini-2.5-flash`. Verified via 20-call parallel burst test (20/20 ok). See `reports/gemini-paid-tier-upgrade-2026-05-04.md`.
+- **Cost impact:** per-audit Gemini contribution ~$0.10 at 2.5 Flash pricing; total per-audit cost goes from ~$0.85 (3-provider) to ~$0.95 (4-provider). Marginal vs $79 audit price.
 
 ### 7. `own_domain_evidence` corpus migration
 - **Spec deviation from Slice 3b:** implementation collapsed `own_domain_evidence` and `judge_verdict` into `notes` + `response_text`.
