@@ -173,7 +173,7 @@ export function aggregateCells(cells: CellEnvelope[]): Dim6Result {
   const perModelAverage: Record<ModelId, number | null> = {
     "openai:gpt-4o": null,
     "anthropic:claude-sonnet": null,
-    "google:gemini-2.0-flash": null,
+    "google:gemini-2.5-flash": null,
     "perplexity:sonar": null,
   };
   for (const modelId of ALL_MODEL_IDS) {

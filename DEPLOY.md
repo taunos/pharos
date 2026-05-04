@@ -477,7 +477,7 @@ Agent Readiness Score cannot see.
    statically defined inside scanner. Verified at runtime via
    `wrangler secret list` post-deploy.
 2. **4-model set:** OpenAI gpt-4o, Anthropic claude-sonnet-4-5, Google
-   gemini-2.0-flash, Perplexity sonar.
+   gemini-2.5-flash, Perplexity sonar.
 3. **TP-7 ladder mandatory.** Six rungs across all 4 providers. Three retry
    paths: network → immediate fallback; 429/5xx → wait Retry-After (defensive
    parser, capped 30s; >30s short-circuits); validator failure →

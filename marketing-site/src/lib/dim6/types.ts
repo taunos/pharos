@@ -49,13 +49,13 @@ export const DIM6_ENGINE_VERSION = "dim6:v3";
 export type ModelId =
   | "openai:gpt-4o"
   | "anthropic:claude-sonnet"
-  | "google:gemini-2.0-flash"
+  | "google:gemini-2.5-flash"
   | "perplexity:sonar";
 
 export const ALL_MODEL_IDS: ModelId[] = [
   "openai:gpt-4o",
   "anthropic:claude-sonnet",
-  "google:gemini-2.0-flash",
+  "google:gemini-2.5-flash",
   "perplexity:sonar",
 ];
 

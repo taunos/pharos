@@ -23,9 +23,9 @@
 //     response: content[0].text  -- content[0].type can be "text" or "tool_use"
 //     truncation: stop_reason === "max_tokens"
 //
-//   Google (gemini-2.0-flash):
+//   Google (gemini-2.5-flash):
 //     POST https://generativelanguage.googleapis.com/v1beta/models/
-//          gemini-2.0-flash:generateContent?key=${GOOGLE_AI_API_KEY}
+//          gemini-2.5-flash:generateContent?key=${GOOGLE_AI_API_KEY}
 //     body: { contents, generationConfig: { maxOutputTokens: 800, temperature: 0 } }
 //     NO seed parameter
 //     response: candidates[0].content.parts[0].text
@@ -307,14 +307,14 @@ export async function callGemini(
   env: AdapterEnv,
   prompt: string
 ): Promise<AdapterResult> {
-  const modelId: ModelId = "google:gemini-2.0-flash";
+  const modelId: ModelId = "google:gemini-2.5-flash";
   if (!env.GOOGLE_AI_API_KEY) {
     return {
       modelId,
       outcome: { kind: "client_error", reason: "GOOGLE_AI_API_KEY not set", status: 0 },
     };
   }
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(env.GOOGLE_AI_API_KEY)}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(env.GOOGLE_AI_API_KEY)}`;
   let res: Response;
   try {
     res = await fetchWithTimeout(url, {
@@ -504,7 +504,7 @@ export async function callAdapter(
       return callOpenAI(env, prompt);
     case "anthropic:claude-sonnet":
       return callAnthropic(env, prompt);
-    case "google:gemini-2.0-flash":
+    case "google:gemini-2.5-flash":
       return callGemini(env, prompt);
     case "perplexity:sonar":
       return callPerplexity(env, prompt);
