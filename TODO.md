@@ -1,6 +1,8 @@
 # Pharos / Astrant — Pending Follow-Ups
 
-**Last updated:** 2026-05-03 (end of session — post Slice A3 + ScanForm cleanup + public-surface naming sweep)
+**Last updated:** 2026-05-03 (end of session — post Slice A3 + ScanForm cleanup + public-surface naming sweep + "wait for trigger" reframing on deferred items)
+
+**Trigger-condition discipline (reframed 2026-05-03):** Items in "Deferred slices" and "Decisions awaiting trigger" sections are NOT open-ended defers — each has an explicit signal that pulls the trigger. Most triggers are downstream of the citation-tracking instrumentation slice (in flight, Cowork-side spec authoring); shipping that slice produces the signals that gate the rest.
 
 This file tracks open work across sessions. Update when items close or new ones surface. Priority loosely ordered top-to-bottom.
 
@@ -50,23 +52,24 @@ The two cron jobs created in the prior session were session-only and died at con
 - **Memory:** `project_dim6_url_canonicalization_bug.md` documents the bidirectional contamination on rebranded domains.
 - **Two viable fix shapes:** (a) audit-create follows redirects to canonicalize stored `record.url`, (b) parser accepts brand-stem matches (e.g., notion.so/notion.com both register as "notion"). (a) preferred — normalizes input rather than matching logic; also handles pre-rebrand customer audits.
 - **Surfaces affected when fixed:** rebrand caveat removed from /score/[id] narrative + /methodology/calibration Known Limits + /llms.txt Known Limits.
-- **Customer-impact estimate:** ~5% of audited domains have rebrand history; current caveat surfaces correctly in transparency narrative.
+- **Trigger:** citation-tracking instrumentation surfaces "rebrand-domain customers blocking cite share" signal, OR audit volume from rebrand-domain customers becomes a measurable cite-share friction. Without instrumentation, currently disclosed-via-caveat is the right posture.
 
 ### 6. Gemini per-provider semaphore
 - **Pattern:** isolate Gemini's request budget so its 429 cascade doesn't starve the other providers.
 - **Surfaces affected when fixed:** "one provider operationally absent" caveat removed from all three published surfaces.
 - **Recovery:** ~25% of the cell budget (10 of 40 cells per audit currently unmeasurable on Gemini).
+- **Trigger:** customer audit volume rises enough that the Gemini cascade becomes a measurable customer-experience signal (currently invisible to customers since the caveat is honest about the absent provider). Or: paying-customer scan landing where the "judged_n ≥ 3" threshold is at risk of dropping a Dim 6 result entirely.
 
 ### 7. `own_domain_evidence` corpus migration
 - **Spec deviation from Slice 3b:** implementation collapsed `own_domain_evidence` and `judge_verdict` into `notes` + `response_text`.
 - **Migration:** `0004_add_evidence_columns.sql` re-adds the columns as nullable + one-shot backfill from `notes` parsing for historical rows.
 - **Why before corpus grows:** backfill friction compounds with row count. Currently ~360 cells (after 4-anchor expansion); manageable.
-- **Why not blocking:** training-grade-corpus quality work, not customer-impacting.
+- **Trigger:** paying-customer audits start landing (corpus volume ramps) OR upcoming slice already touches the dim6 evidence schema (folding migration into that slice is cheaper than not). Until then, training-grade-corpus quality work isn't customer-impacting.
 
 ### 8. Per-page V2 redesigns (from design handoff)
 - Home V2 · Beam V2 (`/score`) · Survey V2 (`/audit`) · Build V2 (`/implementation`) · Bespoke V2 (`/custom`) · Subs V2 (`/subscriptions`)
 - One slice per page; foundation tokens already shipped (`0df931f` + `c658fc0e`).
-- Defer until either (a) customer-conversation pull suggests V2 layouts would convert better, or (b) methodology arc fully closed and want pure execution slices.
+- **Trigger:** acquirer-profile signal sharpens via citation-tracking instrumentation — the V2 design priorities differ if the live target is infrastructure-acquirer (Cloudflare/Vercel-class, MCP+llms.txt-toolchain narrative) vs martech-acquirer (HubSpot/Salesforce-class, methodology-rigor narrative) vs SEO-incumbent (Ahrefs/Semrush-class, AEO-transition narrative). Methodology execution arc is now closed (post-A3), so the foundation-tokens-only deferral trigger is partially met; sharpening the acquirer-profile signal is the remaining gate.
 
 ---
 
@@ -91,6 +94,10 @@ The two cron jobs created in the prior session were session-only and died at con
 - ✓ Slice A3 — dogfood-methodology integration (homepage callout + Organization-schema `disambiguatingDescription` + footer href stable-hub-URL upgrade + stale-italic rewrite). Four edits across three files; agent-first reframe with site-wide Schema.org propagation via root layout. Completes the four-surface acquisition-narrative artifact stack (methodology page + llms.txt + MCP server + dogfood callout). Worker `1187011b-961c-42d6-992b-e198dc1f05bb`. Ship-report: `reports/slice-a3-deploy-2026-05-03.md`.
 - ✓ ScanForm disclaimer cleanup — dropped italic styling and "Slice 3a" reference under the homepage scan form. Reworded to "Free public scan, no signup. Covers 5 of 6 dimensions today; Citation Visibility ships in an upcoming release." Worker `bd1bc2e0-3168-4d12-afcb-c60da24fd1e0`.
 - ✓ Public-surface internal-naming sweep — scrubbed `Slice 3a` / `Phase 2 of Slice 2b` / `TODO comment in the scanner` from /score metadata + FAQ + hero, /terms heading + body, public/terms.md (raw-served markdown). Five user-facing strings cleaned across three files. Code comments deliberately left alone (dev-internal, not rendered). Engine-version stamps `dim6:vN` retained as legitimate public technical-version identifiers. Worker `2fd19f81-66a6-4645-bcb8-e9e1de5020b3`.
+
+## In flight (Cowork-side spec authoring, parallel to CLI execution)
+
+- **Citation-tracking instrumentation spec** (`pharos-citation-tracking-instrumentation-spec.md` v1, Cowork-side). The post-A3 strategic conversation's first deliverable. Direct-citation-probe corpus as primary signal + leading-indicator telemetry from already-collecting CF Workers Logs. Telemetry-surface investigation findings handed off in `reports/telemetry-surface-investigation-2026-05-03.md`. Internal-doc diffs ready for Bruno's OneDrive paste in `reports/internal-methodology-doc-diffs-2026-05-03.md`. Three downstream items (Phase 1.5 parser, V2 redesigns, llms.txt content emphasis) gate on this spec's signal outputs.
 
 ## Closed 2026-05-02
 
