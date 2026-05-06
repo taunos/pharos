@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pharos-citation-tracking",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-04",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pharos-citation-tracking",
+      "database_id": "2fff74f3-857b-47c9-917f-d03cfb93f063"
+    }
+  ],
+  "triggers": {
+    "crons": ["0 2 * * *"]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "pharos-citation-tracking",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "migrate": "wrangler d1 migrations apply pharos-citation-tracking --remote"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240620.0",
+    "typescript": "^5.5.0",
+    "wrangler": "^3.65.0"
+  }
+}
