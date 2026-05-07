@@ -12,6 +12,10 @@ import {
 } from "@/lib/triage";
 import { hashEmailForLog } from "@/lib/score-tokens";
 import { normalizeEmail } from "@/lib/email-normalize";
+import {
+  checkTriageIpRateLimit,
+  checkTriageCanonicalRateLimit,
+} from "@/lib/rate-limit-kv";
 
 const MODEL = "@cf/meta/llama-3.1-8b-instruct";
 const CACHE_TTL_SECONDS = 30 * 24 * 60 * 60;
@@ -24,15 +28,13 @@ interface TriageEnv {
 
 function buildResponse(
   recommendation: Recommendation,
-  explanation: string,
-  cached: boolean
+  explanation: string
 ): TriageResponse {
   return {
     ok: true,
     recommendation,
     explanation,
     cta: TRIAGE_CTAS[recommendation],
-    cached,
   };
 }
 
@@ -55,9 +57,21 @@ export async function POST(req: Request) {
     return NextResponse.json(
       buildResponse(
         "standard",
-        "Standard Implementation looks like a good fit based on your submission.",
-        false
+        "Standard Implementation looks like a good fit based on your submission."
       )
+    );
+  }
+
+  const env = getCloudflareContext().env as unknown as TriageEnv;
+
+  // F-12 per-IP rate limit (10/hour fixed UTC bucket). MUST run AFTER honeypot
+  // check above so honeypot-filled submissions don't reveal rate-limit state.
+  const ip = req.headers.get("CF-Connecting-IP") ?? "unknown";
+  const ipRl = await checkTriageIpRateLimit(env.TRIAGE_CACHE, ip);
+  if (!ipRl.allowed) {
+    return NextResponse.json(
+      { ok: false, error: "Too many requests. Try again in an hour." },
+      { status: 429, headers: { "Retry-After": "3600" } }
     );
   }
 
@@ -72,7 +86,6 @@ export async function POST(req: Request) {
   if (submission.email) {
     submission.email = normalizeEmail(submission.email);
   }
-  const env = getCloudflareContext().env as unknown as TriageEnv;
   const key = await triageCacheKey(submission);
 
   // Cache lookup
@@ -84,11 +97,22 @@ export async function POST(req: Request) {
         explanation: string;
       };
       return NextResponse.json(
-        buildResponse(parsed.recommendation, parsed.explanation, true)
+        buildResponse(parsed.recommendation, parsed.explanation)
       );
     } catch {
       // fall through to fresh evaluation if cached payload is corrupt
     }
+  }
+
+  // F-12 per-canonical rate limit (1/hour cooldown on identical canonical
+  // hash). AFTER cache miss but BEFORE LLM call so duplicate submissions
+  // can't repeatedly burn LLM cycles.
+  const canonRl = await checkTriageCanonicalRateLimit(env.TRIAGE_CACHE, key);
+  if (!canonRl.allowed) {
+    return NextResponse.json(
+      { ok: false, error: "This submission was already analyzed recently. Try again in an hour or vary the inputs." },
+      { status: 429, headers: { "Retry-After": "3600" } }
+    );
   }
 
   // Cache miss — call Workers AI
@@ -106,7 +130,7 @@ export async function POST(req: Request) {
     console.error("[triage] AI call failed:", err instanceof Error ? err.message : String(err));
     const fallback = fallbackResponse();
     return NextResponse.json(
-      buildResponse(fallback.recommendation, fallback.explanation, false)
+      buildResponse(fallback.recommendation, fallback.explanation)
     );
   }
 
@@ -140,6 +164,6 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json(
-    buildResponse(result.recommendation, result.explanation, false)
+    buildResponse(result.recommendation, result.explanation)
   );
 }

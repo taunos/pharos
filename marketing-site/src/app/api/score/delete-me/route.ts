@@ -15,6 +15,7 @@ import {
 import { normalizeEmail } from "@/lib/email-normalize";
 import { sendDeletionConfirmEmail } from "@/lib/score-email";
 import { checkDeleteMeRateLimit } from "@/lib/rate-limit-kv";
+import { requestOrigin } from "@/lib/origin";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -24,19 +25,9 @@ interface DeleteMeEnv {
   UNSUBSCRIBE_SECRET: string;
 }
 
-function originFromRequest(req: Request): string {
-  const forwardedHost = req.headers.get("x-forwarded-host");
-  const host = forwardedHost ?? req.headers.get("host");
-  const proto =
-    req.headers.get("x-forwarded-proto") ??
-    (host && host.includes("localhost") ? "http" : "https");
-  if (host) return `${proto}://${host}`;
-  return new URL(req.url).origin;
-}
-
 export async function POST(req: Request) {
   const env = getCloudflareContext().env as unknown as DeleteMeEnv;
-  const origin = originFromRequest(req);
+  const origin = requestOrigin(req);
   const ip = req.headers.get("CF-Connecting-IP") ?? "unknown";
 
   let body: unknown;

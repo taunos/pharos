@@ -62,7 +62,9 @@ async function checkEmailReadbackRateLimit(
     // best-effort write; ignore errors
     await env.CACHE.put(perScanKey, String(now), { expirationTtl: 60 });
   } catch {
-    // KV hiccup — skip per-scan check rather than fail open
+    // KV failure → request allowed; this is acceptable v1 trade-off because KV outage is rare
+    // and rate limit is defense-in-depth, not the primary auth gate. If KV outages become
+    // frequent or the rate limit becomes the primary anti-DoS gate, switch to fail-closed.
   }
 
   // Total 60/min — per-worker-ip key

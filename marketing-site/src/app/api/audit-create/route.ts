@@ -5,6 +5,7 @@ import {
   type DodoEnvBindings,
 } from "@/lib/dodo";
 import { normalizeEmail } from "@/lib/email-normalize";
+import { requestOrigin } from "@/lib/origin";
 import type { SessionRecord } from "@/lib/audit-types";
 
 const AUDIT_PRODUCT_ID = "pdt_0NdQDsS4Shhe1BrDzQDaa";
@@ -13,16 +14,6 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface AuditCreateEnv extends DodoEnvBindings {
   SESSIONS: KVNamespace;
-}
-
-function originFromRequest(req: Request): string {
-  const forwardedHost = req.headers.get("x-forwarded-host");
-  const host = forwardedHost ?? req.headers.get("host");
-  const proto =
-    req.headers.get("x-forwarded-proto") ??
-    (host && host.includes("localhost") ? "http" : "https");
-  if (host) return `${proto}://${host}`;
-  return new URL(req.url).origin;
 }
 
 export async function POST(req: Request) {
@@ -108,7 +99,7 @@ export async function POST(req: Request) {
   }
 
   const session_id = crypto.randomUUID();
-  const origin = originFromRequest(req);
+  const origin = requestOrigin(req);
 
   let checkout: { checkout_url: string; checkout_session_id: string };
   try {

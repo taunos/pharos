@@ -612,3 +612,16 @@ this is the dimension that takes inbound mindshare to move.
   derive competitors from the prompt-set generator's category signals or
   from a future Triage-table extension.
 
+## Slice: Phase 1.5 Hardening (2026-05-07)
+
+### Dodo Webhook Secret
+
+The `DODO_WEBHOOK_SECRET` MUST include the `whsec_` prefix when set. The prefix is what triggers base64 decoding in `marketing-site/src/lib/dodo.ts:decodeSecret`. Without the prefix, the secret is treated as raw UTF-8 bytes and ALL signature verifications fail with HTTP 400.
+
+Symptom of missing prefix: every Dodo webhook delivery fails with `invalid signature` in tail logs.
+
+Set via (from `F:/pharos/marketing-site/`):
+```bash
+echo "whsec_<the_secret>" | ./node_modules/.bin/wrangler secret put DODO_WEBHOOK_SECRET
+```
+

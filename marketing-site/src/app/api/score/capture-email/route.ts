@@ -23,6 +23,7 @@ import {
   hashEmailForLog,
 } from "@/lib/score-tokens";
 import { normalizeEmail } from "@/lib/email-normalize";
+import { requestOrigin } from "@/lib/origin";
 import {
   generateScoreReportPDF,
   PDF_TEMPLATE_VERSION,
@@ -53,16 +54,6 @@ interface CaptureEnv {
   INTERNAL_SCANNER_ADMIN_KEY: string;
 }
 
-function originFromRequest(req: Request): string {
-  const forwardedHost = req.headers.get("x-forwarded-host");
-  const host = forwardedHost ?? req.headers.get("host");
-  const proto =
-    req.headers.get("x-forwarded-proto") ??
-    (host && host.includes("localhost") ? "http" : "https");
-  if (host) return `${proto}://${host}`;
-  return new URL(req.url).origin;
-}
-
 // Honeypot success — same JSON shape as a real success, plausible
 // token-shaped values that 404 when followed. Bots keep a 200 response
 // in their "success" bucket; humans never see this branch.
@@ -79,7 +70,7 @@ export const maxDuration = 120;
 
 export async function POST(req: Request) {
   const env = getCloudflareContext().env as unknown as CaptureEnv;
-  const origin = originFromRequest(req);
+  const origin = requestOrigin(req);
 
   let body: unknown;
   try {

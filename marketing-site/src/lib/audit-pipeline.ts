@@ -516,7 +516,8 @@ async function callModel(
       seed: 42,
     })) as { response?: string };
     return (r.response ?? "").trim();
-  } catch {
+  } catch (err) {
+    console.warn("[callModel] AI call threw:", err);
     return "";
   }
 }
@@ -822,6 +823,7 @@ export async function generatePdf(
         },
       },
     }),
+    signal: AbortSignal.timeout(20000),
   });
   if (!res.ok) {
     const body = await res.text();

@@ -32,6 +32,10 @@
 		{
 			"binding": "CORPUS_DEAD_LETTER",
 			"id": "89bdae7af4584f6fb4dd3a2286ae1b28"
+		},
+		{
+			"binding": "WAITLIST",
+			"id": "0f979c1af12a4456acbb998b239c854f"
 		}
 	],
 	"d1_databases": [

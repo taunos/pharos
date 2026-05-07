@@ -6,7 +6,6 @@ export type TriageResultData = {
   recommendation: Recommendation;
   explanation: string;
   cta: TriageCta;
-  cached: boolean;
 };
 
 export default function TriageResults({

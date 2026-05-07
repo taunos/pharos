@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { verifyWebhook, type DodoEnvBindings } from "@/lib/dodo";
+import { requestOrigin } from "@/lib/origin";
 import type { SessionRecord } from "@/lib/audit-types";
 
 interface WebhookEnv extends DodoEnvBindings {
@@ -9,16 +10,6 @@ interface WebhookEnv extends DodoEnvBindings {
 }
 
 const WEBHOOK_DEDUPE_TTL = 7 * 24 * 60 * 60;
-
-function originFromRequest(req: Request): string {
-  const forwardedHost = req.headers.get("x-forwarded-host");
-  const host = forwardedHost ?? req.headers.get("host");
-  const proto =
-    req.headers.get("x-forwarded-proto") ??
-    (host && host.includes("localhost") ? "http" : "https");
-  if (host) return `${proto}://${host}`;
-  return new URL(req.url).origin;
-}
 
 type DodoWebhookPayload = {
   type?: string;
@@ -123,7 +114,7 @@ export async function POST(req: Request) {
         // Fire-and-forget the fulfillment call. Do NOT await — Dodo expects a
         // fast 200 or it retries.
         if (env.INTERNAL_FULFILL_KEY) {
-          const origin = originFromRequest(req);
+          const origin = requestOrigin(req);
           const fulfillUrl = `${origin}/api/audit-fulfill`;
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
           fetch(fulfillUrl, {

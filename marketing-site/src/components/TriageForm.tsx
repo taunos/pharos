@@ -68,7 +68,7 @@ export default function TriageForm() {
         body: JSON.stringify(payload),
       });
       const data = (await res.json()) as
-        | { ok: true; recommendation: TriageResultData["recommendation"]; explanation: string; cta: TriageResultData["cta"]; cached: boolean }
+        | { ok: true; recommendation: TriageResultData["recommendation"]; explanation: string; cta: TriageResultData["cta"] }
         | { ok: false; error: string };
       if (!res.ok || !data.ok) {
         setStatus("error");
@@ -79,7 +79,6 @@ export default function TriageForm() {
         recommendation: data.recommendation,
         explanation: data.explanation,
         cta: data.cta,
-        cached: !!data.cached,
       });
       setStatus("done");
     } catch {

@@ -33,7 +33,6 @@ export type TriageResponse = {
   recommendation: Recommendation;
   explanation: string;
   cta: TriageCta;
-  cached: boolean;
 };
 
 // PRE-LAUNCH MODE — paid checkouts disabled site-wide. The standard + custom
@@ -181,6 +180,9 @@ Decide which option fits best. Return ONLY a JSON object with this exact shape, 
 export function parseLlmJson(raw: string):
   | { recommendation: Recommendation; explanation: string }
   | null {
+  // F-06 trust posture: explanation field is rendered as text (React JSX
+  // auto-escapes in TriageResults.tsx:53); explicit URL-strip validator
+  // deferred until rendering path changes. Verified 2026-05-07 by V-prompt v2.
   // Locate the first {...} JSON object in the response — models sometimes wrap.
   const match = raw.match(/\{[\s\S]*\}/);
   if (!match) return null;
@@ -233,10 +235,14 @@ export function validateSubmission(body: unknown): ValidationResult {
   if (typeof b.site_url !== "string" || b.site_url.trim().length === 0) {
     return { ok: false, error: "site_url is required." };
   }
+  let u: URL;
   try {
-    new URL(b.site_url);
+    u = new URL(b.site_url);
   } catch {
     return { ok: false, error: "site_url must be a valid URL." };
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") {
+    return { ok: false, error: "site_url must use http or https." };
   }
 
   if (typeof b.site_type !== "string" || b.site_type.trim().length === 0) {

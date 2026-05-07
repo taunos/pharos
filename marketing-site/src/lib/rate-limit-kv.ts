@@ -62,6 +62,39 @@ async function checkAndIncrement(
   return { allowed: true };
 }
 
+// Phase 1.5 hardening (F-12) — triage-route rate limiting.
+//   - Per-IP: 10 requests / fixed hourly bucket (YYYY-MM-DD-HH UTC).
+//     Worst-case 20 requests in 2 minutes at hour boundary; acceptable v1.
+//   - Per-canonical-submission: 1-hour cooldown (limit 1/hour on the
+//     canonical hash from triageCacheKey).
+// Both wrap the existing `checkAndIncrement` primitive and piggyback on
+// the marketing-site `TRIAGE_CACHE` KV namespace with `rl:triage:` prefixes.
+
+function utcHourBucket(): string {
+  const now = new Date();
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(now.getUTCDate()).padStart(2, "0");
+  const h = String(now.getUTCHours()).padStart(2, "0");
+  return `${y}-${m}-${d}-${h}`;
+}
+
+export async function checkTriageIpRateLimit(
+  kv: KVNamespace,
+  ip: string
+): Promise<RateLimitResult> {
+  const key = `rl:triage:ip:${ip}:${utcHourBucket()}`;
+  return checkAndIncrement(kv, key, 10, 3600);
+}
+
+export async function checkTriageCanonicalRateLimit(
+  kv: KVNamespace,
+  canonicalHash: string
+): Promise<RateLimitResult> {
+  const key = `rl:triage:canon:${canonicalHash}`;
+  return checkAndIncrement(kv, key, 1, 3600);
+}
+
 export async function checkDeleteMeRateLimit(
   kv: KVNamespace,
   ip: string,
