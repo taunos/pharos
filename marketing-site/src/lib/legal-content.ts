@@ -12,7 +12,7 @@
 
 export const PRIVACY_MD = `# Privacy Policy
 
-**Last updated:** 2026-04-30
+**Last updated:** 2026-05-10
 **Status:** v1 in good faith. [Subject to legal review pre-launch.]
 
 This is the plain-English privacy policy for Astrant — Agent Discoverability for B2B SaaS. We try to write privacy policies the way we'd want one written for us: short, specific, and honest about what we collect and why.
@@ -24,7 +24,7 @@ When you use Astrant's free Score tool or any paid tier:
 - **The URL you scan.** That's the whole point — we can't compute a discoverability score without it.
 - **Your IP address.** Used for rate-limiting (preventing abuse) and aggregate traffic analytics. Stored in tail logs for ~7 days.
 - **Your User-Agent string.** Same uses as IP — rate-limiting and aggregate analytics. Stored in tail logs for ~7 days.
-- **Your email address, if you submit one.** You'll only submit an email if you choose to: either to receive your gap-report PDF, opt into monthly auto-rescan emails, or contact support. We don't email you for any reason you didn't explicitly ask for.
+- **Your email address, if you submit one.** You'll only submit an email if you choose to: receive your gap-report PDF, opt into monthly auto-rescan emails, contact support, or join the pre-launch waitlist (we'll notify you when paid tiers — Audit, Implementation, Custom, AutoPilot, Concierge — open for purchase). We don't email you for any reason you didn't explicitly ask for.
 - **Sub-check results from the scan.** The structured data Astrant computes about your site — llms.txt presence, MCP server discoverability, JSON-LD schema completeness, etc. This is not your content; it's our analysis of your public technical surface.
 
 ## What we don't collect
@@ -38,6 +38,7 @@ When you use Astrant's free Score tool or any paid tier:
 - **Compute your Astrant Score.** That's the primary use.
 - **Send you the gap-report PDF you requested,** if you submitted an email.
 - **Send monthly auto-rescan emails,** if you opted in (default: off, never auto-checked).
+- **Send a launch notification,** if you joined the pre-launch waitlist. One-shot transactional email when paid tiers open for purchase.
 - **Improve our scoring engine** in aggregate. We may use anonymized scan data (no email, no IP, no User-Agent — just URL+score+sub-check results) to calibrate our methodology over time. Disclosed here so it's not a surprise.
 
 ## What we don't do with what we collect
