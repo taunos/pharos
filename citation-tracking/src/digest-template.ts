@@ -7,7 +7,7 @@ export const D2_NO_HITS = '*No coined-term mentions detected this period. D2 axi
 export const AXIS_NO_CITES = '*No cites detected in this axis this period.*';
 
 export function ASTRANT_BASELINE_ZERO_TEMPLATE(_periodStart: number): string {
-  return `*Astrant cite-share this month: 0% (baseline phase; no model-side awareness of Astrant-the-brand yet, expected for a brand-new entity that hasn't been ingested into model training corpora yet). Per OQ-H methodology, success/failure determination doesn't begin until month 2-3 threshold lock — and if cite-share remains 0% through that window, the methodology has no Astrant-side distribution to anchor against and locks instead against competitor-cite distribution as the comparison baseline against which Astrant's eventual cite-share emergence is measured.*`;
+  return `*Astrant cite-share this month: 0%. Baseline phase — model-side cite-share signal not yet detected. Per the methodology, the baseline window precedes threshold-lock; once baseline cite-share patterns are established, subsequent cite-share emergence is measured against them.*`;
 }
 
 function renderHeadlineCiteShare(headlineShare: number, periodStart: number): string {
@@ -108,7 +108,7 @@ export function renderDigest(d: DigestData): string {
 
   lines.push(`# Citation-Tracking Digest — ${fmtPeriodLabel(d.period_start, d.period_end)}`);
   lines.push('');
-  lines.push(`*Internal instrumentation report. Baseline measurement phase — no success/failure determination per OQ-H methodology until month 2-3 threshold lock.*`);
+  lines.push(`*Internal instrumentation report. Baseline measurement phase — no success/failure determination per OQ-H methodology until threshold-lock derives from baseline cite-share distribution.*`);
   lines.push('');
 
   lines.push('## 1. Top-of-document warnings');

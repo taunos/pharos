@@ -20,11 +20,12 @@ interface ProviderSpec {
 }
 
 export async function runProbeCycle(env: Env): Promise<void> {
+  const DEBUG = env.DEBUG_PROBE_LOGS === '1';
   try {
-    console.log('[runProbeCycle] ENTER');
+    if (DEBUG) console.log('[runProbeCycle] ENTER');
     const probeRunId = crypto.randomUUID();
     const now = Math.floor(Date.now() / 1000);
-    console.log(`[runProbeCycle] probeRunId=${probeRunId} now=${now}`);
+    if (DEBUG) console.log(`[runProbeCycle] probeRunId=${probeRunId} now=${now}`);
 
     const providers: ProviderSpec[] = [
       { name: 'openai',     apiKey: env.OPENAI_API_KEY,     fn: probeOpenAI },
@@ -32,14 +33,14 @@ export async function runProbeCycle(env: Env): Promise<void> {
       { name: 'perplexity', apiKey: env.PERPLEXITY_API_KEY, fn: probePerplexity },
       { name: 'gemini',     apiKey: env.GEMINI_API_KEY,     fn: probeGemini },
     ];
-    console.log(`[runProbeCycle] providers configured: ${providers.map(p => p.name).join(',')}`);
-    console.log(`[runProbeCycle] api key lengths: openai=${env.OPENAI_API_KEY?.length ?? 'undef'} anthropic=${env.ANTHROPIC_API_KEY?.length ?? 'undef'} perplexity=${env.PERPLEXITY_API_KEY?.length ?? 'undef'} gemini=${env.GEMINI_API_KEY?.length ?? 'undef'}`);
+    if (DEBUG) console.log(`[runProbeCycle] providers configured: ${providers.map(p => p.name).join(',')}`);
+    if (DEBUG) console.log(`[runProbeCycle] api key lengths: openai=${env.OPENAI_API_KEY?.length ?? 'undef'} anthropic=${env.ANTHROPIC_API_KEY?.length ?? 'undef'} perplexity=${env.PERPLEXITY_API_KEY?.length ?? 'undef'} gemini=${env.GEMINI_API_KEY?.length ?? 'undef'}`);
 
     let batchCount = 0;
     for (const prompt of LOCKED_PROMPTS) {
       for (let replicate = 0; replicate < N_REPLICATES; replicate++) {
         batchCount++;
-        console.log(`[runProbeCycle] batch ${batchCount}/45 prompt=${prompt.id} replicate=${replicate}`);
+        if (DEBUG) console.log(`[runProbeCycle] batch ${batchCount}/45 prompt=${prompt.id} replicate=${replicate}`);
         const settled = await Promise.allSettled(
           providers.map(p => p.fn(prompt.text, p.apiKey))
         );
@@ -89,7 +90,7 @@ export async function runProbeCycle(env: Env): Promise<void> {
         }
       }
     }
-    console.log(`[runProbeCycle] DONE batches=${batchCount}`);
+    if (DEBUG) console.log(`[runProbeCycle] DONE batches=${batchCount}`);
   } catch (e: any) {
     console.error(`[runProbeCycle] FATAL: ${e?.message ?? e}\n${e?.stack ?? ''}`);
     throw e;

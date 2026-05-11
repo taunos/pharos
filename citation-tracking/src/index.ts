@@ -8,6 +8,7 @@ export interface Env {
   PERPLEXITY_API_KEY: string;
   GEMINI_API_KEY: string;
   PROBE_AUTH_TOKEN: string;
+  DEBUG_PROBE_LOGS?: string;
 }
 
 function constantTimeEqual(a: string, b: string): boolean {
@@ -75,7 +76,10 @@ export default {
 
       if (url.pathname === '/api/internal/probe-trigger' && request.method === 'POST') {
         ctx.waitUntil(runProbeCycle(env));
-        return new Response('Probe cycle triggered. Check D1 for results.', { status: 202 });
+        return new Response(
+          'Probe smoke-test initiated. Note: fetch-handler wall-time cap ~30s means only the first few batches will complete; full cycles run via scheduled cron only (daily 0 2 * * * UTC). Check D1 probe_runs for partial results.',
+          { status: 202 },
+        );
       }
 
       if (url.pathname === '/api/internal/digest-preview' && request.method === 'GET') {
