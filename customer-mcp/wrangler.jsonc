@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pharos-customer-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    {
+      "pattern": "*.mcp.astrant.io/*",
+      "zone_name": "astrant.io"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "CUSTOMER_DB",
+      "database_name": "pharos-customers",
+      "database_id": "555c22de-1938-41b5-b9e3-b3c04c0c760e"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "CONFIG_CACHE",
+      "id": "9fbd61965e0c4e188429b6a8fee97873"
+    }
+  ],
+  "triggers": {
+    "crons": ["0 3 * * *"]
+  }
+}
