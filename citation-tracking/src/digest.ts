@@ -26,14 +26,27 @@ interface ProbeRow {
   http_status: number | null;
 }
 
-export async function aggregateAndRender(env: Env, periodStart: number, periodEnd: number): Promise<string> {
-  const result = await env.DB.prepare(`
-    SELECT timestamp, provider, prompt_id, prompt_axis,
-           d1a_url_cite, d1b_brand_mention, d2_term_of_art, d3_competitors_cited,
-           status, http_status
-    FROM probe_runs
-    WHERE timestamp >= ? AND timestamp < ?
-  `).bind(periodStart, periodEnd).all<ProbeRow>();
+export async function aggregateAndRender(
+  env: Env,
+  periodStart: number,
+  periodEnd: number,
+  customerId: string | null = null,
+): Promise<string> {
+  const result = customerId === null
+    ? await env.DB.prepare(`
+        SELECT timestamp, provider, prompt_id, prompt_axis,
+               d1a_url_cite, d1b_brand_mention, d2_term_of_art, d3_competitors_cited,
+               status, http_status
+        FROM probe_runs
+        WHERE timestamp >= ? AND timestamp < ? AND customer_id IS NULL
+      `).bind(periodStart, periodEnd).all<ProbeRow>()
+    : await env.DB.prepare(`
+        SELECT timestamp, provider, prompt_id, prompt_axis,
+               d1a_url_cite, d1b_brand_mention, d2_term_of_art, d3_competitors_cited,
+               status, http_status
+        FROM probe_runs
+        WHERE timestamp >= ? AND timestamp < ? AND customer_id = ?
+      `).bind(periodStart, periodEnd, customerId).all<ProbeRow>();
 
   const data = computeDigestData(result.results ?? [], periodStart, periodEnd);
   return renderDigest(data);
@@ -43,14 +56,15 @@ export async function runMonthlyDigest(
   env: Env,
   periodStart: number,
   periodEnd: number,
+  customerId: string | null = null,
 ): Promise<{ row_id: number; period_start: number; period_end: number; generated_at: number; markdown: string }> {
-  const markdown = await aggregateAndRender(env, periodStart, periodEnd);
+  const markdown = await aggregateAndRender(env, periodStart, periodEnd, customerId);
   const generated_at = Math.floor(Date.now() / 1000);
 
   const writeResult = await env.DB.prepare(`
-    INSERT OR REPLACE INTO digests (period_start, period_end, generated_at, markdown, digest_version)
-    VALUES (?, ?, ?, ?, ?)
-  `).bind(periodStart, periodEnd, generated_at, markdown, CITATION_TRACKING_VERSION).run();
+    INSERT OR REPLACE INTO digests (period_start, period_end, generated_at, markdown, digest_version, customer_id)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(periodStart, periodEnd, generated_at, markdown, CITATION_TRACKING_VERSION, customerId).run();
 
   const row_id = (writeResult.meta?.last_row_id ?? 0) as number;
   return { row_id, period_start: periodStart, period_end: periodEnd, generated_at, markdown };

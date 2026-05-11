@@ -43,6 +43,13 @@ async function resolvePeriod(
   return computeDefaultPeriod(env);
 }
 
+function jsonError(status: number, code: string, message: string): Response {
+  return new Response(JSON.stringify({ error: code, message }), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
 export default {
   async scheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
     if (event.cron === '0 2 * * *') {
@@ -58,7 +65,16 @@ export default {
       const minTsTruncated = minTsRow?.min_ts ? Math.floor(minTsRow.min_ts / 86400) * 86400 : nominalPeriodStart;
       const periodStart = Math.max(nominalPeriodStart, minTsTruncated);
 
-      await runMonthlyDigest(env, periodStart, periodEnd);
+      // Astrant digest (customer_id=NULL)
+      await runMonthlyDigest(env, periodStart, periodEnd, null);
+
+      // Per-customer digests (active targets only)
+      const activeTargets = await env.DB.prepare(
+        `SELECT customer_id FROM customer_probe_targets WHERE status='active'`
+      ).all<{ customer_id: string }>();
+      for (const target of activeTargets.results ?? []) {
+        await runMonthlyDigest(env, periodStart, periodEnd, target.customer_id);
+      }
     } else {
       console.warn(`Unrecognized cron expression: ${event.cron}`);
     }
@@ -83,8 +99,20 @@ export default {
       }
 
       if (url.pathname === '/api/internal/digest-preview' && request.method === 'GET') {
+        // Inline NUL-byte validation (per B1.3 D3 — transport-safe via String.fromCharCode(0))
+        const customerIdRaw = url.searchParams.get('customer_id');
+        let customerId: string | null;
+        if (customerIdRaw === null || customerIdRaw === '') {
+          customerId = null;
+        } else {
+          if (customerIdRaw.includes(String.fromCharCode(0))) {
+            return jsonError(400, 'CUSTOMER_ID_NUL_BYTE', 'customer_id must not contain NUL bytes');
+          }
+          customerId = customerIdRaw;
+        }
+
         const { periodStart, periodEnd } = await resolvePeriod(env, url);
-        const markdown = await aggregateAndRender(env, periodStart, periodEnd);
+        const markdown = await aggregateAndRender(env, periodStart, periodEnd, customerId);
         return new Response(markdown, {
           status: 200,
           headers: { 'Content-Type': 'text/markdown; charset=utf-8' },
@@ -92,14 +120,121 @@ export default {
       }
 
       if (url.pathname === '/api/internal/digest-trigger' && request.method === 'POST') {
+        // Inline NUL-byte validation (per B1.3 D3 — transport-safe via String.fromCharCode(0))
+        const customerIdRaw = url.searchParams.get('customer_id');
+        let customerId: string | null;
+        if (customerIdRaw === null || customerIdRaw === '') {
+          customerId = null;
+        } else {
+          if (customerIdRaw.includes(String.fromCharCode(0))) {
+            return jsonError(400, 'CUSTOMER_ID_NUL_BYTE', 'customer_id must not contain NUL bytes');
+          }
+          customerId = customerIdRaw;
+        }
+
         const { periodStart, periodEnd } = await resolvePeriod(env, url);
-        const result = await runMonthlyDigest(env, periodStart, periodEnd);
+        const result = await runMonthlyDigest(env, periodStart, periodEnd, customerId);
         return new Response(JSON.stringify({
           row_id: result.row_id,
           period_start: result.period_start,
           period_end: result.period_end,
           generated_at: result.generated_at,
         }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (url.pathname === '/api/internal/probe-target-add' && request.method === 'POST') {
+        let body: any;
+        try {
+          body = await request.json();
+        } catch {
+          return jsonError(400, 'INVALID_JSON', 'request body must be valid JSON');
+        }
+
+        // CUSTOMER_ID_REQUIRED
+        if (typeof body.customer_id !== 'string' || body.customer_id === '') {
+          return jsonError(400, 'CUSTOMER_ID_REQUIRED', 'customer_id must be a non-empty string');
+        }
+
+        // CUSTOMER_ID_NUL_BYTE (transport-safe NUL detection)
+        if (body.customer_id.includes(String.fromCharCode(0))) {
+          return jsonError(400, 'CUSTOMER_ID_NUL_BYTE', 'customer_id must not contain NUL bytes');
+        }
+
+        if (typeof body.domain !== 'string' || body.domain === '') {
+          return jsonError(400, 'DOMAIN_REQUIRED', 'domain must be a non-empty string');
+        }
+        if (typeof body.category !== 'string' || body.category === '') {
+          return jsonError(400, 'CATEGORY_REQUIRED', 'category must be a non-empty string');
+        }
+
+        // CUSTOMER_CEILING_REACHED check (v1.0 single-cron ceiling per spec D8)
+        const countRow = await env.DB.prepare(
+          `SELECT COUNT(*) AS c FROM customer_probe_targets WHERE status='active'`
+        ).first<{ c: number }>();
+        if ((countRow?.c ?? 0) >= 3) {
+          return jsonError(503, 'CUSTOMER_CEILING_REACHED',
+            'Customer ceiling reached (3 active customers under v1.0 single-cron). Provision blocked until cron-split or cadence-reduction ships in v1.1+. Contact ops to bypass via direct D1 INSERT if business case is urgent.');
+        }
+
+        // INSERT (CUSTOMER_ID_COLLISION on UNIQUE constraint failure)
+        try {
+          const now = Math.floor(Date.now() / 1000);
+          await env.DB.prepare(`
+            INSERT INTO customer_probe_targets (customer_id, domain, category, competitors, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 'active', ?, ?)
+          `).bind(
+            body.customer_id,
+            body.domain,
+            body.category,
+            body.competitors ? JSON.stringify(body.competitors) : null,
+            now,
+            now,
+          ).run();
+          return new Response(JSON.stringify({ added_at: now, customer_id: body.customer_id }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        } catch (e: any) {
+          if (typeof e?.message === 'string' && e.message.includes('UNIQUE constraint failed')) {
+            return jsonError(409, 'CUSTOMER_ID_COLLISION', `customer_id ${body.customer_id} already exists`);
+          }
+          throw e;
+        }
+      }
+
+      if (url.pathname === '/api/internal/probe-target-remove' && request.method === 'POST') {
+        let body: any;
+        try {
+          body = await request.json();
+        } catch {
+          return jsonError(400, 'INVALID_JSON', 'request body must be valid JSON');
+        }
+        if (typeof body.customer_id !== 'string' || body.customer_id === '') {
+          return jsonError(400, 'CUSTOMER_ID_REQUIRED', 'customer_id must be a non-empty string');
+        }
+
+        const now = Math.floor(Date.now() / 1000);
+        const updateResult = await env.DB.prepare(
+          `UPDATE customer_probe_targets SET status='paused', updated_at=? WHERE customer_id=?`
+        ).bind(now, body.customer_id).run();
+        const changed = updateResult.meta?.changes ?? 0;
+        if (changed === 0) {
+          return jsonError(404, 'CUSTOMER_NOT_FOUND', `customer_id ${body.customer_id} not found`);
+        }
+        return new Response(JSON.stringify({ removed_at: now, status: 'paused' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (url.pathname === '/api/internal/probe-target-list' && request.method === 'POST') {
+        const result = await env.DB.prepare(
+          `SELECT customer_id, domain, category, status, created_at FROM customer_probe_targets ORDER BY created_at`
+        ).all();
+        return new Response(JSON.stringify({ targets: result.results ?? [] }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
