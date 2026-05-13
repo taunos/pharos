@@ -30,7 +30,8 @@ export async function aggregateAndRender(
   env: Env,
   periodStart: number,
   periodEnd: number,
-  customerId: string | null = null,
+  customerId: string | null,
+  brand: string,
 ): Promise<string> {
   const result = customerId === null
     ? await env.DB.prepare(`
@@ -49,16 +50,17 @@ export async function aggregateAndRender(
       `).bind(periodStart, periodEnd, customerId).all<ProbeRow>();
 
   const data = computeDigestData(result.results ?? [], periodStart, periodEnd);
-  return renderDigest(data);
+  return renderDigest(data, brand);
 }
 
 export async function runMonthlyDigest(
   env: Env,
   periodStart: number,
   periodEnd: number,
-  customerId: string | null = null,
+  customerId: string | null,
+  brand: string,
 ): Promise<{ row_id: number; period_start: number; period_end: number; generated_at: number; markdown: string }> {
-  const markdown = await aggregateAndRender(env, periodStart, periodEnd, customerId);
+  const markdown = await aggregateAndRender(env, periodStart, periodEnd, customerId, brand);
   const generated_at = Math.floor(Date.now() / 1000);
 
   const writeResult = await env.DB.prepare(`
@@ -291,4 +293,28 @@ function computeDigestData(rows: ProbeRow[], periodStart: number, periodEnd: num
     model_deprecation_flags,
     single_provider_only_flags,
   };
+}
+
+export async function deriveBrandForDigest(
+  env: Env,
+  customerId: string | null,
+): Promise<
+  | { ok: true; brand: string }
+  | { ok: false; status: number; code: string; message: string }
+> {
+  if (customerId === null) {
+    return { ok: true, brand: 'Astrant' };
+  }
+  const row = await env.DB.prepare(
+    `SELECT brand_name FROM customer_probe_targets WHERE customer_id = ?`
+  ).bind(customerId).first<{ brand_name: string }>();
+  if (!row) {
+    return {
+      ok: false,
+      status: 404,
+      code: 'CUSTOMER_NOT_FOUND',
+      message: `customer_id ${customerId} not found in customer_probe_targets`,
+    };
+  }
+  return { ok: true, brand: row.brand_name };
 }

@@ -2,19 +2,23 @@ import { CITATION_TRACKING_VERSION, OQ_H_BASELINE_END } from './version';
 
 export const TREND_FIRST_DIGEST = '*Insufficient data for trend analysis; this is the first digest. Comparisons against prior months will appear from the second digest onward.*';
 
-export const D2_NO_HITS = '*No coined-term mentions detected this period. D2 axis fires only when an agent surfaces "citation-confabulation methodology" without explicit Astrant cite — a deeper-ingestion-but-incomplete-attribution signal that builds slowly.*';
+const D2_NO_HITS_ASTRANT_TEXT = '*No coined-term mentions detected this period. D2 axis fires only when an agent surfaces "citation-confabulation methodology" without explicit Astrant cite — a deeper-ingestion-but-incomplete-attribution signal that builds slowly.*';
+
+const D2_EXPLAINER_ASTRANT_TEXT = '*D2 axis fires when an agent surfaces "citation-confabulation methodology" without explicit Astrant cite — a deeper-ingestion-but-incomplete-attribution signal that builds slowly. Non-zero D2 with 0% D1 cite-share indicates terminology penetration ahead of brand attribution.*';
+
+const D2_CUSTOMER_PLACEHOLDER_TEXT = '*D2 vocabulary-association axis: pending per-customer methodology configuration (v1.1+).*';
 
 export const AXIS_NO_CITES = '*No cites detected in this axis this period.*';
 
-export function ASTRANT_BASELINE_ZERO_TEMPLATE(_periodStart: number): string {
-  return `*Astrant cite-share this month: 0%. Baseline phase — model-side cite-share signal not yet detected. Per the methodology, the baseline window precedes threshold-lock; once baseline cite-share patterns are established, subsequent cite-share emergence is measured against them.*`;
+export function BRAND_BASELINE_ZERO_TEMPLATE(brand: string, _periodStart: number): string {
+  return `*${brand} cite-share this month: 0%. Baseline phase — model-side cite-share signal not yet detected. Per the methodology, the baseline window precedes threshold-lock; once baseline cite-share patterns are established, subsequent cite-share emergence is measured against them.*`;
 }
 
-function renderHeadlineCiteShare(headlineShare: number, periodStart: number): string {
+function renderHeadlineCiteShare(headlineShare: number, periodStart: number, brand: string): string {
   if (headlineShare === 0 && periodStart < OQ_H_BASELINE_END) {
-    return ASTRANT_BASELINE_ZERO_TEMPLATE(periodStart);
+    return BRAND_BASELINE_ZERO_TEMPLATE(brand, periodStart);
   }
-  return `Astrant cite-share this month: ${(headlineShare * 100).toFixed(1)}%`;
+  return `${brand} cite-share this month: ${(headlineShare * 100).toFixed(1)}%`;
 }
 
 function fmtUtcDate(unixSec: number): string {
@@ -103,7 +107,7 @@ export interface DigestData {
   single_provider_only_flags: SingleProviderOnlyFlag[];
 }
 
-export function renderDigest(d: DigestData): string {
+export function renderDigest(d: DigestData, brand: string): string {
   const lines: string[] = [];
 
   lines.push(`# Citation-Tracking Digest — ${fmtPeriodLabel(d.period_start, d.period_end)}`);
@@ -134,7 +138,7 @@ export function renderDigest(d: DigestData): string {
 
   lines.push('## 2. Headline KPI');
   lines.push('');
-  lines.push(renderHeadlineCiteShare(d.headline_cite_share, d.period_start));
+  lines.push(renderHeadlineCiteShare(d.headline_cite_share, d.period_start, brand));
   lines.push('');
   lines.push('### By axis');
   lines.push('');
@@ -176,12 +180,14 @@ export function renderDigest(d: DigestData): string {
 
   lines.push('## 5. Vocabulary association (D2)');
   lines.push('');
-  if (d.d2_hits === 0) {
-    lines.push(D2_NO_HITS);
+  if (brand !== 'Astrant') {
+    lines.push(D2_CUSTOMER_PLACEHOLDER_TEXT);
+  } else if (d.d2_hits === 0) {
+    lines.push(D2_NO_HITS_ASTRANT_TEXT);
   } else {
     lines.push(`Coined-term mentions without explicit Astrant cite this period: **${d.d2_hits}**.`);
     lines.push('');
-    lines.push('*D2 axis fires when an agent surfaces "citation-confabulation methodology" without explicit Astrant cite — a deeper-ingestion-but-incomplete-attribution signal that builds slowly. Non-zero D2 with 0% D1 cite-share indicates terminology penetration ahead of brand attribution.*');
+    lines.push(D2_EXPLAINER_ASTRANT_TEXT);
   }
   lines.push('');
 
@@ -193,7 +199,7 @@ export function renderDigest(d: DigestData): string {
     lines.push('*No competitor cites detected this period.*');
   } else {
     if (directRows.length > 0) {
-      lines.push('### Direct competitors (Astrant absent in same response)');
+      lines.push(`### Direct competitors (${brand} absent in same response)`);
       lines.push('');
       lines.push('| Competitor | Cite-firing observations |');
       lines.push('|---|---:|');

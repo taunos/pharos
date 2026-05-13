@@ -41,8 +41,8 @@ export async function runProbeCycle(env: Env): Promise<void> {
 
     // Iterate active customer probe targets
     const activeTargets = await env.DB.prepare(
-      `SELECT customer_id, domain, category FROM customer_probe_targets WHERE status='active'`
-    ).all<{ customer_id: string; domain: string; category: string }>();
+      `SELECT customer_id, domain, category, brand_name FROM customer_probe_targets WHERE status='active'`
+    ).all<{ customer_id: string; domain: string; category: string; brand_name: string }>();
 
     for (const target of activeTargets.results ?? []) {
       await probeOneTarget(env, providers, probeRunId, now, target.customer_id, target.domain, target.category, DEBUG);

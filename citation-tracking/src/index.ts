@@ -1,5 +1,6 @@
 import { runProbeCycle } from './storage';
-import { runMonthlyDigest, aggregateAndRender, computeDefaultPeriod } from './digest';
+import { runMonthlyDigest, aggregateAndRender, computeDefaultPeriod, deriveBrandForDigest } from './digest';
+import { validateBrandName } from './validation';
 
 export interface Env {
   DB: D1Database;
@@ -66,14 +67,14 @@ export default {
       const periodStart = Math.max(nominalPeriodStart, minTsTruncated);
 
       // Astrant digest (customer_id=NULL)
-      await runMonthlyDigest(env, periodStart, periodEnd, null);
+      await runMonthlyDigest(env, periodStart, periodEnd, null, 'Astrant');
 
       // Per-customer digests (active targets only)
       const activeTargets = await env.DB.prepare(
-        `SELECT customer_id FROM customer_probe_targets WHERE status='active'`
-      ).all<{ customer_id: string }>();
+        `SELECT customer_id, brand_name FROM customer_probe_targets WHERE status='active'`
+      ).all<{ customer_id: string; brand_name: string }>();
       for (const target of activeTargets.results ?? []) {
-        await runMonthlyDigest(env, periodStart, periodEnd, target.customer_id);
+        await runMonthlyDigest(env, periodStart, periodEnd, target.customer_id, target.brand_name);
       }
     } else {
       console.warn(`Unrecognized cron expression: ${event.cron}`);
@@ -112,7 +113,11 @@ export default {
         }
 
         const { periodStart, periodEnd } = await resolvePeriod(env, url);
-        const markdown = await aggregateAndRender(env, periodStart, periodEnd, customerId);
+        const brandResult = await deriveBrandForDigest(env, customerId);
+        if (!brandResult.ok) {
+          return jsonError(brandResult.status, brandResult.code, brandResult.message);
+        }
+        const markdown = await aggregateAndRender(env, periodStart, periodEnd, customerId, brandResult.brand);
         return new Response(markdown, {
           status: 200,
           headers: { 'Content-Type': 'text/markdown; charset=utf-8' },
@@ -133,7 +138,11 @@ export default {
         }
 
         const { periodStart, periodEnd } = await resolvePeriod(env, url);
-        const result = await runMonthlyDigest(env, periodStart, periodEnd, customerId);
+        const brandResult = await deriveBrandForDigest(env, customerId);
+        if (!brandResult.ok) {
+          return jsonError(brandResult.status, brandResult.code, brandResult.message);
+        }
+        const result = await runMonthlyDigest(env, periodStart, periodEnd, customerId, brandResult.brand);
         return new Response(JSON.stringify({
           row_id: result.row_id,
           period_start: result.period_start,
@@ -163,6 +172,13 @@ export default {
           return jsonError(400, 'CUSTOMER_ID_NUL_BYTE', 'customer_id must not contain NUL bytes');
         }
 
+        // BRAND_NAME validation (per spec §2.1; rejects empty, too long, control/zero-width/bidi, disallowed chars)
+        const brandResult = validateBrandName(body.brand_name);
+        if (!brandResult.ok) {
+          return jsonError(400, brandResult.code, brandResult.message);
+        }
+        const brandTrimmed = brandResult.value;
+
         if (typeof body.domain !== 'string' || body.domain === '') {
           return jsonError(400, 'DOMAIN_REQUIRED', 'domain must be a non-empty string');
         }
@@ -183,12 +199,13 @@ export default {
         try {
           const now = Math.floor(Date.now() / 1000);
           await env.DB.prepare(`
-            INSERT INTO customer_probe_targets (customer_id, domain, category, competitors, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, 'active', ?, ?)
+            INSERT INTO customer_probe_targets (customer_id, domain, category, brand_name, competitors, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
           `).bind(
             body.customer_id,
             body.domain,
             body.category,
+            brandTrimmed,
             body.competitors ? JSON.stringify(body.competitors) : null,
             now,
             now,
@@ -232,7 +249,7 @@ export default {
 
       if (url.pathname === '/api/internal/probe-target-list' && request.method === 'POST') {
         const result = await env.DB.prepare(
-          `SELECT customer_id, domain, category, status, created_at FROM customer_probe_targets ORDER BY created_at`
+          `SELECT customer_id, domain, category, brand_name, status, created_at FROM customer_probe_targets ORDER BY created_at`
         ).all();
         return new Response(JSON.stringify({ targets: result.results ?? [] }), {
           status: 200,
