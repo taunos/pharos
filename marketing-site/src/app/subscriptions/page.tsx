@@ -1,6 +1,31 @@
 import type { Metadata } from "next";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+
+// Force dynamic rendering: capacity-gate read at §3.10 requires runtime D1 access
+// (not available during static prerender).
+export const dynamic = "force-dynamic";
+
+// F3 OQ-16.D: render-time capacity gate. Reads customer_probe_targets count via
+// the cross-bound CITATION_DB. When at capacity (>= 3 active customers), forces
+// the AutoPilot CTA to waitlist regardless of the manual-flip CHECKOUT_AUTOPILOT_URL.
+// Fail-closed: D1 errors route to waitlist (better than accepting payment when over capacity).
+interface CapacityCheckEnv {
+  CITATION_DB: D1Database;
+}
+async function getActiveCustomerCount(): Promise<number> {
+  try {
+    const env = getCloudflareContext().env as unknown as CapacityCheckEnv;
+    const row = await env.CITATION_DB.prepare(
+      `SELECT COUNT(*) AS c FROM customer_probe_targets WHERE status='active'`
+    ).first<{ c: number }>();
+    return row?.c ?? 0;
+  } catch (err) {
+    console.error("F3_CAPACITY_CHECK_FAILED", err);
+    return 99; // fail closed
+  }
+}
 
 export const metadata: Metadata = {
   title: "Subscriptions — $149 AutoPilot / $899 Concierge — Astrant",
@@ -115,10 +140,10 @@ const EXCLUDED = [
 // Logo + Foundation slice — both CTAs are 503-gated waitlist mode (per the
 // CHECKOUT_*_URL constants pointing at /audit#waitlist). Decision 5 EXCEPTION:
 // 503-gated CTAs keep amber. Only the radius is stripped per decision 4.
-function AutoPilotCta({ label }: { label: string }) {
+function AutoPilotCta({ label, href }: { label: string; href: string }) {
   return (
     <a
-      href={CHECKOUT_AUTOPILOT_URL}
+      href={href}
       className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
     >
       {label}
@@ -137,7 +162,11 @@ function ConciergeCta({ label }: { label: string }) {
   );
 }
 
-export default function SubscriptionsPage() {
+export default async function SubscriptionsPage() {
+  // F3 OQ-16.D capacity gate — layered on top of the manual-flip CHECKOUT_AUTOPILOT_URL.
+  const customerCount = await getActiveCustomerCount();
+  const atCapacity = customerCount >= 3;
+  const effectiveAutopilotUrl = atCapacity ? "/audit#waitlist" : CHECKOUT_AUTOPILOT_URL;
   return (
     <div className="min-h-screen">
       <script
@@ -196,7 +225,7 @@ export default function SubscriptionsPage() {
                   ))}
                 </ul>
                 <div className="mt-8">
-                  <AutoPilotCta label="Notify me when AutoPilot launches" />
+                  <AutoPilotCta label="Notify me when AutoPilot launches" href={effectiveAutopilotUrl} />
                 </div>
               </div>
 
@@ -295,7 +324,7 @@ export default function SubscriptionsPage() {
               Ready?
             </h2>
             <div className="mt-10 flex flex-wrap gap-4">
-              <AutoPilotCta label="Notify me when AutoPilot launches" />
+              <AutoPilotCta label="Notify me when AutoPilot launches" href={effectiveAutopilotUrl} />
               <ConciergeCta label="Notify me when Concierge launches" />
             </div>
             <p className="mt-4 text-sm italic text-[var(--color-muted)]">

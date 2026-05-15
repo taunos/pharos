@@ -43,6 +43,11 @@
 			"binding": "PHAROS_CORPUS",
 			"database_name": "pharos_corpus",
 			"database_id": "c95451fd-5cb6-4f51-b4e2-bf4f7dd49272"
+		},
+		{
+			"binding": "CITATION_DB",
+			"database_name": "pharos-citation-tracking",
+			"database_id": "2fff74f3-857b-47c9-917f-d03cfb93f063"
 		}
 	],
 	"ai": {
