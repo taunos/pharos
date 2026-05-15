@@ -32,6 +32,7 @@ export async function aggregateAndRender(
   periodEnd: number,
   customerId: string | null,
   brand: string,
+  subscribedAt: number | null,
 ): Promise<string> {
   const result = customerId === null
     ? await env.DB.prepare(`
@@ -50,7 +51,7 @@ export async function aggregateAndRender(
       `).bind(periodStart, periodEnd, customerId).all<ProbeRow>();
 
   const data = computeDigestData(result.results ?? [], periodStart, periodEnd);
-  return renderDigest(data, brand);
+  return renderDigest(data, brand, subscribedAt);
 }
 
 export async function runMonthlyDigest(
@@ -59,8 +60,9 @@ export async function runMonthlyDigest(
   periodEnd: number,
   customerId: string | null,
   brand: string,
+  subscribedAt: number | null,
 ): Promise<{ row_id: number; period_start: number; period_end: number; generated_at: number; markdown: string }> {
-  const markdown = await aggregateAndRender(env, periodStart, periodEnd, customerId, brand);
+  const markdown = await aggregateAndRender(env, periodStart, periodEnd, customerId, brand, subscribedAt);
   const generated_at = Math.floor(Date.now() / 1000);
 
   const writeResult = await env.DB.prepare(`

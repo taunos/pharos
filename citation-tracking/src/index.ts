@@ -10,6 +10,7 @@ export interface Env {
   GEMINI_API_KEY: string;
   PROBE_AUTH_TOKEN: string;
   DEBUG_PROBE_LOGS?: string;
+  RESEND_API_KEY: string;
 }
 
 function constantTimeEqual(a: string, b: string): boolean {
@@ -66,15 +67,42 @@ export default {
       const minTsTruncated = minTsRow?.min_ts ? Math.floor(minTsRow.min_ts / 86400) * 86400 : nominalPeriodStart;
       const periodStart = Math.max(nominalPeriodStart, minTsTruncated);
 
-      // Astrant digest (customer_id=NULL)
-      await runMonthlyDigest(env, periodStart, periodEnd, null, 'Astrant');
+      // Astrant digest (customer_id=NULL; subscribedAt=null — no subscriptions row by design,
+      // per B1.3 D5 artifact split. First-month-note short-circuits on null.)
+      await runMonthlyDigest(env, periodStart, periodEnd, null, 'Astrant', null);
 
-      // Per-customer digests (active targets only)
+      // Per-customer digests (active targets only).
+      // F3 §3.11: LEFT JOIN subscriptions for customer_email + current_period_start.
+      // LEFT (not INNER) handles the rare case where customer_probe_targets has a row
+      // but subscriptions doesn't (manual DB seed, race) — null email skips delivery + logs.
       const activeTargets = await env.DB.prepare(
-        `SELECT customer_id, brand_name FROM customer_probe_targets WHERE status='active'`
-      ).all<{ customer_id: string; brand_name: string }>();
+        `SELECT cpt.customer_id, cpt.brand_name, s.customer_email, s.current_period_start
+         FROM customer_probe_targets cpt
+         LEFT JOIN subscriptions s ON s.customer_id = cpt.customer_id
+         WHERE cpt.status='active'`
+      ).all<{ customer_id: string; brand_name: string; customer_email: string | null; current_period_start: number | null }>();
       for (const target of activeTargets.results ?? []) {
-        await runMonthlyDigest(env, periodStart, periodEnd, target.customer_id, target.brand_name);
+        const result = await runMonthlyDigest(
+          env,
+          periodStart,
+          periodEnd,
+          target.customer_id,
+          target.brand_name,
+          target.current_period_start,
+        );
+        // F3: render PDF + send email if subscriptions row exists.
+        if (target.customer_email) {
+          try {
+            const { renderDigestPdf } = await import('./pdf-renderer');
+            const { sendDigestEmail } = await import('./digest-email');
+            const pdfBytes = await renderDigestPdf(result.markdown, target.brand_name);
+            await sendDigestEmail(env, target.customer_id, target.customer_email, result.markdown, pdfBytes, periodStart);
+          } catch (err) {
+            console.error(`F3_DIGEST_DELIVERY_FAILED customer_id=${target.customer_id}`, err);
+          }
+        } else {
+          console.warn(`F3_DIGEST_NO_EMAIL customer_id=${target.customer_id} — probe target exists but no subscriptions row`);
+        }
       }
     } else {
       console.warn(`Unrecognized cron expression: ${event.cron}`);
@@ -117,7 +145,8 @@ export default {
         if (!brandResult.ok) {
           return jsonError(brandResult.status, brandResult.code, brandResult.message);
         }
-        const markdown = await aggregateAndRender(env, periodStart, periodEnd, customerId, brandResult.brand);
+        // Preview endpoint passes subscribedAt=null — first-month-note is delivery-path-only.
+        const markdown = await aggregateAndRender(env, periodStart, periodEnd, customerId, brandResult.brand, null);
         return new Response(markdown, {
           status: 200,
           headers: { 'Content-Type': 'text/markdown; charset=utf-8' },
@@ -142,7 +171,8 @@ export default {
         if (!brandResult.ok) {
           return jsonError(brandResult.status, brandResult.code, brandResult.message);
         }
-        const result = await runMonthlyDigest(env, periodStart, periodEnd, customerId, brandResult.brand);
+        // Trigger endpoint passes subscribedAt=null — first-month-note is delivery-path-only.
+        const result = await runMonthlyDigest(env, periodStart, periodEnd, customerId, brandResult.brand, null);
         return new Response(JSON.stringify({
           row_id: result.row_id,
           period_start: result.period_start,

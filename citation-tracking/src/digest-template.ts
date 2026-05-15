@@ -14,6 +14,14 @@ export function BRAND_BASELINE_ZERO_TEMPLATE(brand: string, _periodStart: number
   return `*${brand} cite-share this month: 0%. Baseline phase — model-side cite-share signal not yet detected. Per the methodology, the baseline window precedes threshold-lock; once baseline cite-share patterns are established, subsequent cite-share emergence is measured against them.*`;
 }
 
+// F3 D10: first-month digest prose note. Activated when subscribedAt falls within the
+// current digest period (customer onboarded mid-period). Astrant skips (subscribedAt=null).
+export function FIRST_MONTH_NOTE_TEMPLATE(periodStart: number, periodEnd: number, _brand: string): string {
+  const daysCovered = Math.floor((periodEnd - periodStart) / (24 * 60 * 60));
+  const monthName = new Date(periodStart * 1000).toLocaleString('en-US', { month: 'long', timeZone: 'UTC' });
+  return `*First-month digest. Data covers ${daysCovered} days of ${monthName}. Your next monthly digest will cover a full month.*`;
+}
+
 function renderHeadlineCiteShare(headlineShare: number, periodStart: number, brand: string): string {
   if (headlineShare === 0 && periodStart < OQ_H_BASELINE_END) {
     return BRAND_BASELINE_ZERO_TEMPLATE(brand, periodStart);
@@ -107,13 +115,20 @@ export interface DigestData {
   single_provider_only_flags: SingleProviderOnlyFlag[];
 }
 
-export function renderDigest(d: DigestData, brand: string): string {
+export function renderDigest(d: DigestData, brand: string, subscribedAt: number | null): string {
   const lines: string[] = [];
 
   lines.push(`# Citation-Tracking Digest — ${fmtPeriodLabel(d.period_start, d.period_end)}`);
   lines.push('');
   lines.push(`*Internal instrumentation report. Baseline measurement phase — no success/failure determination per OQ-H methodology until threshold-lock derives from baseline cite-share distribution.*`);
   lines.push('');
+
+  // F3 D10: first-month-note. Fires only when subscribedAt falls within this digest period
+  // (i.e., customer subscribed mid-period). Astrant case passes subscribedAt=null; skipped.
+  if (subscribedAt !== null && subscribedAt >= d.period_start && subscribedAt < d.period_end) {
+    lines.push(FIRST_MONTH_NOTE_TEMPLATE(subscribedAt, d.period_end, brand));
+    lines.push('');
+  }
 
   lines.push('## 1. Top-of-document warnings');
   lines.push('');
