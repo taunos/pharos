@@ -1,6 +1,7 @@
 import { runProbeCycle } from './storage';
 import { runMonthlyDigest, aggregateAndRender, computeDefaultPeriod, deriveBrandForDigest } from './digest';
 import { validateBrandName } from './validation';
+import { issueAccountLink } from './lib/account-link';
 
 export interface Env {
   DB: D1Database;
@@ -11,6 +12,8 @@ export interface Env {
   PROBE_AUTH_TOKEN: string;
   DEBUG_PROBE_LOGS?: string;
   RESEND_API_KEY: string;
+  // F3.2 D9.2 + D10: mint account-link in digest footer (mirrored helper).
+  ACCOUNT_LINK_SECRET: string;
 }
 
 function constantTimeEqual(a: string, b: string): boolean {
@@ -76,11 +79,11 @@ export default {
       // LEFT (not INNER) handles the rare case where customer_probe_targets has a row
       // but subscriptions doesn't (manual DB seed, race) — null email skips delivery + logs.
       const activeTargets = await env.DB.prepare(
-        `SELECT cpt.customer_id, cpt.brand_name, s.customer_email, s.current_period_start
+        `SELECT cpt.customer_id, cpt.brand_name, s.customer_email, s.current_period_start, s.subscription_id
          FROM customer_probe_targets cpt
          LEFT JOIN subscriptions s ON s.customer_id = cpt.customer_id
          WHERE cpt.status='active'`
-      ).all<{ customer_id: string; brand_name: string; customer_email: string | null; current_period_start: number | null }>();
+      ).all<{ customer_id: string; brand_name: string; customer_email: string | null; current_period_start: number | null; subscription_id: string | null }>();
       for (const target of activeTargets.results ?? []) {
         const result = await runMonthlyDigest(
           env,
@@ -91,12 +94,20 @@ export default {
           target.current_period_start,
         );
         // F3: render PDF + send email if subscriptions row exists.
+        // F3.2: include account-link footer when subscription_id is available (preserves
+        //   unconditional send for the edge case of customer_email-without-subscription_id
+        //   that the LEFT JOIN explicitly anticipates per line 77 comment).
         if (target.customer_email) {
           try {
+            let markdownToSend = result.markdown;
+            if (target.subscription_id) {
+              const accountUrl = await issueAccountLink(env, target.subscription_id, 'https://astrant.io');
+              markdownToSend = `${result.markdown}\n\n---\n\nManage your subscription anytime: ${accountUrl}\n\n—Astrant`;
+            }
             const { renderDigestPdf } = await import('./pdf-renderer');
             const { sendDigestEmail } = await import('./digest-email');
-            const pdfBytes = await renderDigestPdf(result.markdown, target.brand_name);
-            await sendDigestEmail(env, target.customer_id, target.customer_email, result.markdown, pdfBytes, periodStart);
+            const pdfBytes = await renderDigestPdf(markdownToSend, target.brand_name);
+            await sendDigestEmail(env, target.customer_id, target.customer_email, markdownToSend, pdfBytes, periodStart);
           } catch (err) {
             console.error(`F3_DIGEST_DELIVERY_FAILED customer_id=${target.customer_id}`, err);
           }
