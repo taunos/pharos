@@ -195,6 +195,40 @@ export default {
         });
       }
 
+      if (url.pathname === '/api/internal/preview-digest' && request.method === 'POST') {
+        // F3.2 operator tool: render full digest pipeline + send to specified email.
+        // Useful for preview before customer sees a digest + ad-hoc support resend.
+        // Requires subscription_id (mints account-link footer); customer_id + brand_name + email overridable.
+        let body: { subscription_id?: string; email?: string; customer_id?: string; brand_name?: string };
+        try {
+          body = await request.json();
+        } catch {
+          return jsonError(400, 'INVALID_JSON', 'request body must be valid JSON');
+        }
+        const subscriptionId = body.subscription_id ?? '';
+        const email = body.email ?? '';
+        const customerId = body.customer_id ?? '';
+        const brandName = body.brand_name ?? '';
+        if (!subscriptionId || !email || !customerId || !brandName) {
+          return jsonError(400, 'MISSING_FIELDS', 'subscription_id + email + customer_id + brand_name required');
+        }
+
+        const { periodStart, periodEnd } = await resolvePeriod(env, url);
+        const result = await runMonthlyDigest(env, periodStart, periodEnd, customerId, brandName, null);
+        const accountUrl = await issueAccountLink(env, subscriptionId, 'https://astrant.io');
+        const markdownWithFooter = `${result.markdown}\n\n---\n\nManage your subscription anytime: ${accountUrl}\n\n—Astrant`;
+
+        const { renderDigestPdf } = await import('./pdf-renderer');
+        const { sendDigestEmail } = await import('./digest-email');
+        const pdfBytes = await renderDigestPdf(markdownWithFooter, brandName);
+        await sendDigestEmail(env, customerId, email, markdownWithFooter, pdfBytes, periodStart);
+        console.log(`F3_PREVIEW_DIGEST_SENT subscription_id=${subscriptionId.substring(0, 12)} email=${email}`);
+        return new Response(JSON.stringify({ ok: true, period_start: periodStart, period_end: periodEnd }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
       if (url.pathname === '/api/internal/probe-target-add' && request.method === 'POST') {
         let body: any;
         try {

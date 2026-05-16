@@ -4,6 +4,24 @@
 
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
+// pdf-lib StandardFonts use WinAnsi encoding (8-bit subset of Latin-1).
+// Replace common Unicode chars that appear in digest markdown but break encoding.
+// First customer-path digest fired 2026-05-16 via /api/internal/preview-digest crashed on ≥ (0x2265).
+function toWinAnsiSafe(s: string): string {
+  return s
+    .replace(/≥/g, ">=")
+    .replace(/≤/g, "<=")
+    .replace(/→/g, "->")
+    .replace(/←/g, "<-")
+    .replace(/—/g, "--")
+    .replace(/–/g, "-")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/…/g, "...")
+    .replace(/×/g, "x")
+    .replace(/•/g, "*");
+}
+
 export async function renderDigestPdf(markdown: string, brand: string): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -20,7 +38,8 @@ export async function renderDigestPdf(markdown: string, brand: string): Promise<
   y -= 28;
 
   // Body: render markdown line-by-line. v1.0 truncates long lines; v1.1+ wraps.
-  for (const line of markdown.split("\n")) {
+  for (const rawLine of markdown.split("\n")) {
+    const line = toWinAnsiSafe(rawLine);
     if (y < margin + 20) {
       page = pdfDoc.addPage([612, 792]);
       y = page.getHeight() - margin;
