@@ -15,11 +15,20 @@ import type { AuditResult, SessionRecord } from "@/lib/audit-types";
 import { writeAuditToCorpus } from "@/lib/corpus-write";
 import { runDim6Paid } from "@/lib/dim6/runDim6";
 import { constantTimeEqual } from "@/lib/dodo";
+import { sendAutoPilotAuditReadyEmail } from "@/lib/score-email";
 
 interface FulfillEnv extends AuditEnv {
   INTERNAL_FULFILL_KEY: string;
   PHAROS_CORPUS: D1Database;
   CORPUS_DEAD_LETTER: KVNamespace;
+  CITATION_DB: D1Database;
+  RESEND_API_KEY: string;
+  UNSUBSCRIBE_SECRET: string;
+}
+
+function parseAutoPilotSessionId(sessionId: string): string | null {
+  const match = sessionId.match(/^ap-(sub_[A-Za-z0-9_-]+)-\d+$/);
+  return match ? match[1] : null;
 }
 
 const SESSION_TTL_SEC = 30 * 24 * 60 * 60;
@@ -194,6 +203,32 @@ export async function POST(req: Request) {
         console.error(
           `[corpus] dead-letter write ALSO failed (session=${sessionId}): ${dlqErr instanceof Error ? dlqErr.message : String(dlqErr)}`
         );
+      }
+    }
+
+    const apSubscriptionId = parseAutoPilotSessionId(sessionId);
+    if (apSubscriptionId !== null) {
+      try {
+        const sub = await env.CITATION_DB.prepare(
+          `SELECT customer_email FROM subscriptions WHERE subscription_id = ?`
+        ).bind(apSubscriptionId).first<{ customer_email: string }>();
+        if (!sub) {
+          console.error(`F3_AUDIT_WELCOME_NO_SUBSCRIPTION session_id=${sessionId}`);
+        } else {
+          const sendResult = await sendAutoPilotAuditReadyEmail(env, {
+            toEmail: sub.customer_email,
+            sessionId,
+            pdfR2Key: `audits/${sessionId}.pdf`,
+            origin: new URL(req.url).origin,
+          });
+          if (sendResult.ok) {
+            console.log(`F3_AUDIT_WELCOME_SENT session_id=${sessionId}`);
+          } else {
+            console.error(`F3_AUDIT_WELCOME_FAILED session_id=${sessionId} reason=${sendResult.error}`);
+          }
+        }
+      } catch (err) {
+        console.error(`F3_AUDIT_WELCOME_FAILED session_id=${sessionId} reason=exception`, err);
       }
     }
 

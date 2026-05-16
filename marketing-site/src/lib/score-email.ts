@@ -24,6 +24,7 @@ const COMPANY_FOOTER =
 export type SendEnv = {
   RESEND_API_KEY: string;
   UNSUBSCRIBE_SECRET: string;
+  AUDITS: R2Bucket;
 };
 
 interface BaseSendInput {
@@ -280,4 +281,63 @@ export async function logRedactedEmail(
   secret: string
 ): Promise<string> {
   return hashEmailForLog(email, secret);
+}
+
+// ─── F3.1 AutoPilot welcome audit-ready email ────────────────────────────
+
+export type AutoPilotAuditReadyInput = {
+  toEmail: string;
+  sessionId: string;
+  pdfR2Key: string;
+  origin: string;
+};
+
+export async function sendAutoPilotAuditReadyEmail(
+  env: SendEnv,
+  input: AutoPilotAuditReadyInput,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const pdfObj = await env.AUDITS.get(input.pdfR2Key);
+  if (!pdfObj) {
+    return { ok: false, error: `pdf_not_found:${input.pdfR2Key}` };
+  }
+  const pdfBytes = new Uint8Array(await pdfObj.arrayBuffer());
+  const pdfBase64 = uint8ArrayToBase64Local(pdfBytes);
+
+  const auditUrl = `${input.origin}/audit-results/${input.sessionId}/pdf`;
+
+  const resend = new Resend(env.RESEND_API_KEY);
+  try {
+    await resend.emails.send({
+      from: "Astrant AutoPilot <reports@astrant.io>",
+      to: input.toEmail,
+      subject: "Your Astrant AutoPilot audit is ready",
+      text: `Your 6-dimension AEO audit is ready.
+
+View your audit (PDF attached; permanent link below):
+${auditUrl}
+
+What you'll see:
+- Dim 1-5: deterministic content + structure signals (Page, Brand Page, Schema, llms.txt, Robots)
+- Dim 6: how often AI agents cite your brand accurately (baseline across 3 major-model APIs)
+
+Your first monthly tracking digest delivers 2026-06-01 with citation-tracking data from your subscription start onward.
+
+—Astrant`,
+      attachments: [
+        {
+          filename: `astrant-autopilot-audit-${input.sessionId}.pdf`,
+          content: pdfBase64,
+        },
+      ],
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+function uint8ArrayToBase64Local(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
 }

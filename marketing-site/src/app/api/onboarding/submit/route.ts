@@ -5,9 +5,12 @@
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { verifyOnboardingToken, type OnboardingTokenEnv } from "@/lib/onboarding-token";
+import type { SessionRecord } from "@/lib/audit-types";
 
 interface SubmitEnv extends OnboardingTokenEnv {
   CITATION_DB: D1Database;
+  SESSIONS: KVNamespace;
+  INTERNAL_FULFILL_KEY: string;
 }
 
 // Validation logic mirrored from citation-tracking/src/validation.ts (B1.3-followup).
@@ -55,7 +58,8 @@ const CATEGORY_ENUM = ["saas", "ecommerce", "fintech", "developer-tools", "other
 const CUSTOMER_CEILING = 3;
 
 export async function POST(request: Request): Promise<Response> {
-  const env = getCloudflareContext().env as unknown as SubmitEnv;
+  const { env: rawEnv, ctx } = getCloudflareContext();
+  const env = rawEnv as unknown as SubmitEnv;
   const form = await request.formData();
   const token = String(form.get("t") ?? "");
   const tokenResult = await verifyOnboardingToken(env, token);
@@ -154,5 +158,66 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
-  return NextResponse.json({ ok: true });
+  const subscriptionId = tokenResult.subscriptionId;
+
+  const casResult = await env.CITATION_DB.prepare(
+    `UPDATE subscriptions SET audit_fired_at = ? WHERE subscription_id = ? AND audit_fired_at IS NULL`,
+  )
+    .bind(now, subscriptionId)
+    .run();
+
+  if (casResult.meta.changes === 1) {
+    const sub = await env.CITATION_DB.prepare(
+      `SELECT customer_email FROM subscriptions WHERE subscription_id = ?`,
+    )
+      .bind(subscriptionId)
+      .first<{ customer_email: string }>();
+
+    if (!sub) {
+      console.error(`F3_AUDIT_FIRE_NO_SUBSCRIPTION subscription_id=${subscriptionId}`);
+    } else {
+      const apSessionId = `ap-${subscriptionId}-${now}`;
+      const sessionRecord: SessionRecord = {
+        session_id: apSessionId,
+        url: domain,
+        email: sub.customer_email,
+        status: "fulfilling",
+        created_at: now,
+      };
+      await env.SESSIONS.put(
+        `audit:${apSessionId}`,
+        JSON.stringify(sessionRecord),
+        { expirationTtl: 30 * 24 * 60 * 60 },
+      );
+
+      const auditFulfillUrl = new URL("/api/audit-fulfill", request.url).toString();
+      ctx.waitUntil(
+        fetch(auditFulfillUrl, {
+          method: "POST",
+          headers: {
+            "x-internal-fulfill-key": env.INTERNAL_FULFILL_KEY,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ session_id: apSessionId }),
+        }).catch((err) =>
+          console.error(`F3_AUDIT_FULFILL_FIRE_FAILED session_id=${apSessionId}`, err),
+        ),
+      );
+    }
+  } else {
+    const existing = await env.CITATION_DB.prepare(
+      `SELECT subscription_id, audit_fired_at FROM subscriptions WHERE subscription_id = ?`,
+    )
+      .bind(subscriptionId)
+      .first<{ subscription_id: string; audit_fired_at: number | null }>();
+    if (!existing) {
+      console.warn(
+        `F3_AUDIT_FIRE_NO_SUB subscription_id=${subscriptionId} cas_changes=0 reason=subscription_row_absent`,
+      );
+    }
+  }
+
+  // 303 See Other: standard pattern for POST → GET redirect after form submit.
+  // Browser navigates to /onboarding/done; back-button won't re-trigger the POST.
+  return NextResponse.redirect(new URL("/onboarding/done", request.url), 303);
 }

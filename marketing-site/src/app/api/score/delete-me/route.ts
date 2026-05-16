@@ -23,6 +23,7 @@ interface DeleteMeEnv {
   TRIAGE_CACHE: KVNamespace;
   RESEND_API_KEY: string;
   UNSUBSCRIBE_SECRET: string;
+  AUDITS: R2Bucket;
 }
 
 export async function POST(req: Request) {

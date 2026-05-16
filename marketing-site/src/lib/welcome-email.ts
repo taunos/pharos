@@ -18,7 +18,7 @@ export async function sendWelcomeEmail(
   const resend = new Resend(env.RESEND_API_KEY);
   const body = `Welcome to Astrant AutoPilot.
 
-Your monthly citation-monitoring subscription is active. Your first monthly digest will arrive after the next monthly cycle completes, with data collected from your subscription start onward.
+Your monthly citation-monitoring subscription is active. Once you complete onboarding, your first artifact — a 6-dimension AEO audit of your domain — arrives within 24 hours (usually within 10 minutes). Monthly citation-tracking digests then deliver on the 1st of each month.
 
 **Next step**: tell us what to monitor. The setup form takes about 2 minutes:
 
