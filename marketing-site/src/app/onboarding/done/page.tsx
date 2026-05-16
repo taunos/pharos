@@ -1,14 +1,27 @@
 // F3: post-submit confirmation page. Reached via 303 redirect from /api/onboarding/submit.
+// F3.2 D9.3: when ?s=&sig= continuation token present, renders the "Manage your subscription anytime" link.
 
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Astrant AutoPilot monitoring — set up",
   description: "Your monitoring configuration is saved.",
 };
 
-export default function OnboardingDonePage() {
+export default async function OnboardingDonePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ s?: string; sig?: string }>;
+}) {
+  const params = await searchParams;
+  const accountUrl =
+    params.s && params.sig
+      ? `/account?s=${encodeURIComponent(params.s)}&sig=${encodeURIComponent(params.sig)}`
+      : null;
+
   return (
     <div className="min-h-screen">
       <SiteHeader />
@@ -55,6 +68,18 @@ export default function OnboardingDonePage() {
             You can close this tab. We&rsquo;ll reach out by email when your first digest
             ships.
           </p>
+
+          {accountUrl && (
+            <p className="mt-6 text-sm text-[var(--color-muted)]">
+              <a
+                href={accountUrl}
+                className="text-[var(--color-accent)] underline-offset-2 hover:underline"
+              >
+                Manage your subscription anytime
+              </a>{" "}
+              — cancel, reactivate, or view your subscription status.
+            </p>
+          )}
         </section>
       </main>
       <SiteFooter />

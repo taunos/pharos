@@ -7,11 +7,13 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { verifyOnboardingToken, type OnboardingTokenEnv } from "@/lib/onboarding-token";
 import type { SessionRecord } from "@/lib/audit-types";
 import { normalizeUrl } from "@/lib/normalize-url";
+import { signSubscriptionId } from "@/lib/account-link";
 
 interface SubmitEnv extends OnboardingTokenEnv {
   CITATION_DB: D1Database;
   SESSIONS: KVNamespace;
   INTERNAL_FULFILL_KEY: string;
+  ACCOUNT_LINK_SECRET: string;
 }
 
 // Validation logic mirrored from citation-tracking/src/validation.ts (B1.3-followup).
@@ -221,6 +223,10 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // 303 See Other: standard pattern for POST → GET redirect after form submit.
-  // Browser navigates to /onboarding/done; back-button won't re-trigger the POST.
-  return NextResponse.redirect(new URL("/onboarding/done", request.url), 303);
+  // F3.2 D9.3: append signed continuation token so /onboarding/done can render the manage-subscription link.
+  const sig = await signSubscriptionId(env, tokenResult.subscriptionId);
+  const doneUrl = new URL("/onboarding/done", request.url);
+  doneUrl.searchParams.set("s", tokenResult.subscriptionId);
+  doneUrl.searchParams.set("sig", sig);
+  return NextResponse.redirect(doneUrl.toString(), 303);
 }

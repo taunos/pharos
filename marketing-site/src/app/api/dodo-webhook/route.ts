@@ -11,6 +11,8 @@ interface WebhookEnv extends DodoEnvBindings {
   CITATION_DB: D1Database;
   ONBOARDING_TOKEN_SECRET: string;
   RESEND_API_KEY: string;
+  // F3.2 addition (sibling-cascade per WelcomeEmailEnv extension):
+  ACCOUNT_LINK_SECRET: string;
 }
 
 const WEBHOOK_DEDUPE_TTL = 7 * 24 * 60 * 60;
@@ -289,6 +291,24 @@ export async function POST(req: Request) {
     )
       .bind(cancelledAt, cancelledAt, subscriptionId)
       .run();
+  } else if (eventType === "subscription.reactivated") {
+    // F3.2 D11: customer un-cancelled via /api/account/reactivate (or Dodo customer portal).
+    // V-B at deploy time confirms exact event name; may be "subscription.resumed" or surfaced
+    // via "subscription.updated" with cancel_at_next_billing_date=false (see pivot-path doc).
+    const subscriptionId = parsed.data?.subscription_id ?? parsed.data?.id;
+    if (!subscriptionId) {
+      console.error("F3_REACTIVATE_WEBHOOK_MISSING_SUBSCRIPTION_ID");
+      return NextResponse.json({ ok: false, code: "MISSING_FIELDS" }, { status: 400 });
+    }
+    const reactivatedAt = Math.floor(Date.now() / 1000);
+    await env.CITATION_DB.prepare(
+      `UPDATE subscriptions SET status = 'active', cancelled_at = NULL, updated_at = ? WHERE subscription_id = ?`,
+    )
+      .bind(reactivatedAt, subscriptionId)
+      .run();
+    console.log(
+      `F3_SUBSCRIPTION_REACTIVATED subscription_id=${subscriptionId.substring(0, 12)}`,
+    );
   } else if (
     eventType === "subscription.failed" ||
     eventType === "subscription.on_hold" ||

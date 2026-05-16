@@ -3,9 +3,11 @@
 
 import { Resend } from "resend";
 import { issueOnboardingToken, type OnboardingTokenEnv } from "./onboarding-token";
+import { issueAccountLink } from "./account-link";
 
 export interface WelcomeEmailEnv extends OnboardingTokenEnv {
   RESEND_API_KEY: string;
+  ACCOUNT_LINK_SECRET: string;
 }
 
 export async function sendWelcomeEmail(
@@ -15,6 +17,7 @@ export async function sendWelcomeEmail(
 ): Promise<void> {
   const token = await issueOnboardingToken(env, subscriptionId);
   const onboardingUrl = `https://astrant.io/onboarding?t=${token}`;
+  const accountUrl = await issueAccountLink(env, subscriptionId, "https://astrant.io");
   const resend = new Resend(env.RESEND_API_KEY);
   const body = `Welcome to Astrant AutoPilot.
 
@@ -31,6 +34,8 @@ You'll choose:
 - Up to 5 competitors to compare against (optional)
 
 This link is good for 7 days. If you need a fresh link, reply to this email.
+
+Manage your subscription anytime: ${accountUrl}
 
 —Astrant`;
   await resend.emails.send({
