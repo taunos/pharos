@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { verifyOnboardingToken, type OnboardingTokenEnv } from "@/lib/onboarding-token";
 import type { SessionRecord } from "@/lib/audit-types";
+import { normalizeUrl } from "@/lib/normalize-url";
 
 interface SubmitEnv extends OnboardingTokenEnv {
   CITATION_DB: D1Database;
@@ -179,7 +180,9 @@ export async function POST(request: Request): Promise<Response> {
       const apSessionId = `ap-${subscriptionId}-${now}`;
       const sessionRecord: SessionRecord = {
         session_id: apSessionId,
-        url: domain,
+        // F3.1 hotfix: scanner requires scheme; form validation accepts
+        // schemeless domains. normalizeUrl prepends https:// if missing.
+        url: normalizeUrl(domain) ?? domain,
         email: sub.customer_email,
         status: "fulfilling",
         created_at: now,
