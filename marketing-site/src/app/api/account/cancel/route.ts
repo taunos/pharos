@@ -86,6 +86,26 @@ export async function POST(request: Request) {
 
   console.log(`F3_ACCOUNT_CANCEL_REQUESTED subscription_id=${subscriptionId.substring(0, 12)}`);
 
+  // F3.2.1 D2: persist cancel-pending state AFTER Dodo confirms cancel. Critical ordering — only
+  // set after Dodo PATCH success; if Dodo returns 5xx, state stays canonical. Failure-tolerant
+  // try/catch per CLI v1 MED-2: Dodo is authoritative here; surfacing a 500 to the customer for a
+  // D1 transient error would create an error UI for a successfully-applied cancellation. Worst
+  // case post-catch: customer refreshes during the cancel-pending window and sees F3.2 baseline
+  // behavior (Cancel button still visible) — which is the UX this column improves on, not a regression.
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    await env.CITATION_DB.prepare(
+      `UPDATE subscriptions SET cancel_pending_at = ? WHERE subscription_id = ?`,
+    )
+      .bind(now, subscriptionId)
+      .run();
+  } catch (err) {
+    console.error(
+      `F3_2_1_CANCEL_PENDING_PERSIST_FAILED subscription_id=${subscriptionId.substring(0, 12)}`,
+      err,
+    );
+  }
+
   return NextResponse.json({
     ok: true,
     status: "cancelled_pending_period_end",

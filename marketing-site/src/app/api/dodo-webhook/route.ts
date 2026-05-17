@@ -286,8 +286,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, code: "MISSING_FIELDS" }, { status: 400 });
     }
     const cancelledAt = Math.floor(Date.now() / 1000);
+    // F3.2.1 D4: clear cancel_pending_at alongside canonical-state cancellation. Belt-and-suspenders
+    // path per F3.2 V-B observation — Dodo fires this event at actual period_end (NOT on flag flip),
+    // so the primary clear path during active subscription lifetime is D3 (reactivate route).
     await env.CITATION_DB.prepare(
-      `UPDATE subscriptions SET status = 'cancelled', cancelled_at = ?, updated_at = ? WHERE subscription_id = ?`
+      `UPDATE subscriptions SET status = 'cancelled', cancelled_at = ?, cancel_pending_at = NULL, updated_at = ? WHERE subscription_id = ?`
     )
       .bind(cancelledAt, cancelledAt, subscriptionId)
       .run();
@@ -301,8 +304,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, code: "MISSING_FIELDS" }, { status: 400 });
     }
     const reactivatedAt = Math.floor(Date.now() / 1000);
+    // F3.2.1 D5: clear cancel_pending_at alongside status restore.
     await env.CITATION_DB.prepare(
-      `UPDATE subscriptions SET status = 'active', cancelled_at = NULL, updated_at = ? WHERE subscription_id = ?`,
+      `UPDATE subscriptions SET status = 'active', cancelled_at = NULL, cancel_pending_at = NULL, updated_at = ? WHERE subscription_id = ?`,
     )
       .bind(reactivatedAt, subscriptionId)
       .run();

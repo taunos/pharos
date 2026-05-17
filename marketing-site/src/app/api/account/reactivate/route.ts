@@ -24,15 +24,21 @@ export async function POST(request: Request) {
   const valid = await verifyAccountLink(env, subscriptionId, sig);
   if (!valid) return NextResponse.json({ ok: false, code: "INVALID_SIG" }, { status: 400 });
 
+  // F3.2.1 D3 Edit A: SELECT extended with cancel_pending_at. CLI v2 MED-NEW-2 inline absorption —
+  // existing SELECT is narrow (status + current_period_end only); minimally append the new column.
   const sub = await env.CITATION_DB.prepare(
-    `SELECT status, current_period_end FROM subscriptions WHERE subscription_id = ?`,
+    `SELECT status, current_period_end, cancel_pending_at FROM subscriptions WHERE subscription_id = ?`,
   )
     .bind(subscriptionId)
-    .first<{ status: string; current_period_end: number }>();
+    .first<{ status: string; current_period_end: number; cancel_pending_at: number | null }>();
 
   if (!sub) return NextResponse.json({ ok: false, code: "SUBSCRIPTION_NOT_FOUND" }, { status: 404 });
 
-  if (sub.status === "active") {
+  // F3.2.1 D3 Edit B (CLI v1 HIGH-1 close): tighten short-circuit on cancel_pending_at === null.
+  // Without this gate, the existing F3.2 short-circuit returns 200 for status='active' regardless of
+  // pending state — closing the symmetric trust gap where Reactivate would silently no-op while
+  // Dodo's cancel_at_next_billing_date stayed true. CLI v2 MED-NEW-1: preserve next_billing_date field.
+  if (sub.status === "active" && sub.cancel_pending_at === null) {
     return NextResponse.json({
       ok: true,
       status: "active",
@@ -90,6 +96,22 @@ export async function POST(request: Request) {
   }
 
   console.log(`F3_ACCOUNT_REACTIVATE_REQUESTED subscription_id=${subscriptionId.substring(0, 12)}`);
+
+  // F3.2.1 D3 Edit C: clear cancel-pending state AFTER Dodo confirms reactivate. Same critical
+  // ordering + failure-tolerant pattern as the cancel route (CLI v1 MED-2). Idempotent on
+  // already-NULL (NULL → NULL no-op).
+  try {
+    await env.CITATION_DB.prepare(
+      `UPDATE subscriptions SET cancel_pending_at = NULL WHERE subscription_id = ?`,
+    )
+      .bind(subscriptionId)
+      .run();
+  } catch (err) {
+    console.error(
+      `F3_2_1_REACTIVATE_PENDING_CLEAR_FAILED subscription_id=${subscriptionId.substring(0, 12)}`,
+      err,
+    );
+  }
 
   return NextResponse.json({
     ok: true,

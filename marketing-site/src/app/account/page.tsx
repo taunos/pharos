@@ -30,6 +30,7 @@ interface SubscriptionRow {
   current_period_start: number;
   current_period_end: number;
   cancelled_at: number | null;
+  cancel_pending_at: number | null; // F3.2.1 D6
 }
 
 export default async function AccountPage({
@@ -48,7 +49,7 @@ export default async function AccountPage({
 
   const sub = await env.CITATION_DB.prepare(
     `SELECT subscription_id, customer_id, customer_email, product_id, status,
-            current_period_start, current_period_end, cancelled_at
+            current_period_start, current_period_end, cancelled_at, cancel_pending_at
      FROM subscriptions WHERE subscription_id = ?`,
   )
     .bind(subscriptionId)
@@ -134,7 +135,15 @@ function AccountView({
   let stateLabel: string;
   let actionMode: "cancel" | "reactivate" | "expired" | "fallback";
 
-  if (sub.status === "active") {
+  // F3.2.1 D6 early-precedence: cancel_pending_at takes precedence over status='active'. Handles the
+  // Dodo-PATCH-acknowledged-but-period-end-webhook-not-yet-fired window (operationally the remainder
+  // of the billing period — 1-30 days — per F3.2 V-B observation that Dodo doesn't webhook on
+  // cancel_flag flips). Pre-webhook and post-webhook cancellation-pending paths converge to the
+  // same UI per D6 spec table.
+  if (sub.cancel_pending_at !== null && sub.status === "active") {
+    stateLabel = `Cancellation pending — access through ${periodEndStr}`;
+    actionMode = "reactivate";
+  } else if (sub.status === "active") {
     stateLabel = `Active — renews ${periodEndStr}`;
     actionMode = "cancel";
   } else if (sub.status === "cancelled" && sub.current_period_end > nowSec) {
