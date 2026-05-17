@@ -49,6 +49,8 @@ function htmlEmailFromMarkdown(markdown: string): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
   <title>Astrant Citation Digest</title>
 </head>
 <body style="margin: 0; padding: 0; background: ${p.bg}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: ${p.fg};">
@@ -68,23 +70,17 @@ function htmlEmailFromMarkdown(markdown: string): string {
 </html>`;
 }
 
-// Header card: logo + "Astrant" wordmark as TITLE (largest), "Citation Digest" as subtitle, brand · period as text.
-// Operator visual iteration round 2 ask: establish font hierarchy title > subtitle > text.
+// Header card: opaque wordmark PNG (logo + "Astrant" baked in on paper bg) atop, "Citation Digest" as
+// subtitle, brand · period as text. Wordmark is a single opaque PNG so Gmail mobile dark mode can't
+// invert it — the visible icon and text stay readable on both light and dark email backgrounds. The
+// dynamic text (subtitle + brand·period) remains live HTML — Gmail dark mode auto-inverts those colors
+// to keep them readable.
 function renderHeaderCard(digest: ParsedDigest, p: typeof lightPalette): string {
   return `
     <tr>
       <td style="padding: 28px; background: ${p.card}; border: 1px solid ${p.border}; border-radius: 6px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
-          <tr>
-            <td valign="middle" width="44" height="44" style="line-height: 0; font-size: 0;">
-              <img src="https://astrant.io/brand/astrant-mark-light-tight.png" alt="" width="44" height="44" border="0" style="display: block;" />
-            </td>
-            <td valign="middle" height="44" style="padding-left: 8px; line-height: 44px;">
-              <span style="font-size: 32px; font-weight: 700; color: ${p.fg}; letter-spacing: -0.02em; line-height: 44px;">Astrant</span>
-            </td>
-          </tr>
-        </table>
-        <h1 style="font-size: 18px; color: ${p.fg}; margin: 4px 0 4px 0; letter-spacing: -0.01em; font-weight: 600;">Citation Digest</h1>
+        <img src="https://astrant.io/brand/astrant-wordmark.png" alt="Astrant" width="150" height="44" border="0" style="display: block;" />
+        <h1 style="font-size: 18px; color: ${p.fg}; margin: 12px 0 4px 0; letter-spacing: -0.01em; font-weight: 600;">Citation Digest</h1>
         <p style="font-size: 13px; color: ${p.muted}; margin: 0;">${escapeHtml(digest.headerMeta.brandName)} · ${escapeHtml(digest.headerMeta.period)}</p>
       </td>
     </tr>
