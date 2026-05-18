@@ -16,5 +16,10 @@
       "0 2 * * *",
       "0 14 1 * *"
     ]
+  },
+  // F2 v6.1 — cross-Worker dispatch target for Day-N audit fire (D19).
+  // INTERNAL_FULFILL_KEY is set as a SECRET via `wrangler secret put` (shared value with marketing-site).
+  "vars": {
+    "MARKETING_SITE_URL": "https://astrant.io"
   }
 }

@@ -1,0 +1,34 @@
+{
+  "business_id": "bus_P3SXLcppjXgagmHS",
+  "timestamp": "2025-08-04T05:30:45.182629Z",
+  "type": "payment.succeeded",
+  "data": {
+    "payload_type": "Payment",
+    "payment_id": "pay_F2TestImpl1234567",
+    "customer": {
+      "customer_id": "cus_F2TestImpl9876",
+      "email": "test-f2@acme-test.example",
+      "metadata": {},
+      "name": "F2 Test User",
+      "phone_number": "+15555550199"
+    },
+    "checkout_session_id": "cks_f2_test_12345",
+    "currency": "USD",
+    "custom_field_responses": [
+      { "key": "site_url", "value": "https://acme-test.example" },
+      { "key": "brand_name", "value": "Acme Test" },
+      { "key": "category", "value": "developer-tools" },
+      { "key": "competitors", "value": "Acme Rival, Acme Alt" },
+      { "key": "delivery_email", "value": "patches@acme-test.example" }
+    ],
+    "metadata": { "tier": "implementation" },
+    "product_cart": [
+      { "product_id": "pdt_0NdQE5vccUUgOHMsF6Pzz", "quantity": 1 }
+    ],
+    "settlement_amount": 129900,
+    "settlement_currency": "USD",
+    "status": "succeeded",
+    "subscription_id": null,
+    "total_amount": 129900
+  }
+}

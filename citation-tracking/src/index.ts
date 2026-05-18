@@ -14,6 +14,9 @@ export interface Env {
   RESEND_API_KEY: string;
   // F3.2 D9.2 + D10: mint account-link in digest footer (mirrored helper).
   ACCOUNT_LINK_SECRET: string;
+  // F2 v6.1 D19 cross-Worker dispatch (Day-N audit → marketing-site /api/audit-fulfill):
+  MARKETING_SITE_URL: string;       // e.g., "https://astrant.io"
+  INTERNAL_FULFILL_KEY: string;     // Shared with marketing-site (per F3.2's ACCOUNT_LINK_SECRET mirror precedent)
 }
 
 function constantTimeEqual(a: string, b: string): boolean {
@@ -58,6 +61,12 @@ function jsonError(status: number, code: string, message: string): Response {
 export default {
   async scheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
     if (event.cron === '0 2 * * *') {
+      // F2 v6.1 §3.11 — F2 sweep steps run BEFORE the per-customer probe loop.
+      //   A. stale-claim cleanup (D19 MED-1 retriability)
+      //   B. Day-N audit dispatch (D19; HTTP to marketing-site /api/audit-fulfill)
+      //   C. Day-91 expiration sweep (D7; conditional probe-target pause)
+      await runF2SweepSteps(env);
+
       await runProbeCycle(env);
     } else if (event.cron === '0 14 1 * *') {
       const fireTime = new Date(event.scheduledTime);
@@ -338,3 +347,136 @@ export default {
     return new Response('pharos-citation-tracking — internal instrumentation Worker. No public endpoints.', { status: 200 });
   },
 };
+
+// ─── F2 v6.1 §3.11 — Day-N audit dispatch + Day-91 expiration sweep ───────
+
+async function runF2SweepSteps(env: Env): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+
+  // STEP A — Stale-claim cleanup (v5 MED-1; per `feedback_spec_drafting_pattern_analogy_trap.md`).
+  // If a Day-N audit was claimed (fired_at set) but didn't complete (no succeeded_at / no
+  // failed_at) and fired_at is older than 30 min, the handler hard-killed mid-pipeline.
+  // Reset fired_at to NULL so the due-audit query below picks it up for re-fire.
+  const STALE_THRESHOLD_SEC = 1800;
+  for (const dayN of [30, 60, 90]) {
+    await env.DB.prepare(
+      `UPDATE implementation_sessions
+       SET day${dayN}_audit_fired_at = NULL
+       WHERE day${dayN}_audit_fired_at IS NOT NULL
+         AND day${dayN}_audit_fired_at < ?
+         AND day${dayN}_audit_succeeded_at IS NULL
+         AND day${dayN}_audit_failed_at IS NULL`,
+    )
+      .bind(now - STALE_THRESHOLD_SEC)
+      .run();
+  }
+
+  // STEP B — Day-N audit dispatch. Find F2 sessions with due audits + fire HTTP to
+  // marketing-site /api/audit-fulfill with `impl-day{N}-{f2_session_id}` discriminator.
+  const dueAudits = await env.DB.prepare(
+    `SELECT session_id,
+            day30_audit_due_at, day30_audit_fired_at,
+            day60_audit_due_at, day60_audit_fired_at,
+            day90_audit_due_at, day90_audit_fired_at
+     FROM implementation_sessions
+     WHERE status='active' AND (
+       (day30_audit_due_at < ? AND day30_audit_fired_at IS NULL) OR
+       (day60_audit_due_at < ? AND day60_audit_fired_at IS NULL) OR
+       (day90_audit_due_at < ? AND day90_audit_fired_at IS NULL)
+     )`,
+  )
+    .bind(now, now, now)
+    .all<{
+      session_id: string;
+      day30_audit_due_at: number | null;
+      day30_audit_fired_at: number | null;
+      day60_audit_due_at: number | null;
+      day60_audit_fired_at: number | null;
+      day90_audit_due_at: number | null;
+      day90_audit_fired_at: number | null;
+    }>();
+
+  for (const row of dueAudits.results ?? []) {
+    let dayN: 30 | 60 | 90 | null = null;
+    if ((row.day30_audit_due_at ?? Infinity) < now && row.day30_audit_fired_at === null) {
+      dayN = 30;
+    } else if ((row.day60_audit_due_at ?? Infinity) < now && row.day60_audit_fired_at === null) {
+      dayN = 60;
+    } else if ((row.day90_audit_due_at ?? Infinity) < now && row.day90_audit_fired_at === null) {
+      dayN = 90;
+    }
+    if (dayN === null) continue;
+
+    const auditSessionId = `impl-day${dayN}-${row.session_id}`;
+    try {
+      const resp = await fetch(`${env.MARKETING_SITE_URL}/api/audit-fulfill`, {
+        method: 'POST',
+        headers: {
+          'x-internal-fulfill-key': env.INTERNAL_FULFILL_KEY,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ session_id: auditSessionId }),
+      });
+      if (!resp.ok) {
+        console.error(
+          `F2_AUDIT_DISPATCH_HTTP_FAIL session_id=${row.session_id} day_n=${dayN} status=${resp.status}`,
+        );
+      }
+    } catch (err) {
+      console.error(
+        `F2_AUDIT_DISPATCH_FAILED session_id=${row.session_id} day_n=${dayN} err=${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  // STEP C — Day-91 expiration sweep (D7 + Codex MED v3 + LOW-1 simplification).
+  // Pre-query candidates to emit per-category logs (NIT-2 illustrative pattern).
+  const candidates = await env.DB.prepare(
+    `SELECT i.customer_id,
+            EXISTS(SELECT 1 FROM subscriptions s
+                   WHERE s.customer_id = i.customer_id AND s.status='active') AS has_active_f3,
+            EXISTS(SELECT 1 FROM implementation_sessions i2
+                   WHERE i2.customer_id = i.customer_id
+                     AND i2.status='active'
+                     AND i2.bundle_expires_at >= ?
+                     AND i2.bundle_expired_at IS NULL) AS has_unexpired_f2
+     FROM implementation_sessions i
+     WHERE i.bundle_expires_at < ? AND i.bundle_expired_at IS NULL`,
+  )
+    .bind(now, now)
+    .all<{ customer_id: string; has_active_f3: number; has_unexpired_f2: number }>();
+
+  // Atomic Step 1 — always mark F2 bundle_expired_at for newly-expired sessions.
+  await env.DB.prepare(
+    `UPDATE implementation_sessions
+     SET bundle_expired_at = ?
+     WHERE bundle_expires_at < ? AND bundle_expired_at IS NULL`,
+  )
+    .bind(now, now)
+    .run();
+
+  // Step 2 — partition candidates by exclusion reason + log + targeted UPDATE on probe-targets.
+  const toPause: string[] = [];
+  for (const row of candidates.results ?? []) {
+    console.log(`F2_BUNDLE_EXPIRED customer_id=${row.customer_id}`);
+    if (row.has_active_f3) {
+      console.log(`F2_PROBE_RETAINED_VIA_F3 customer_id=${row.customer_id}`);
+    } else if (row.has_unexpired_f2) {
+      console.log(`F2_PROBE_RETAINED_VIA_OVERLAP customer_id=${row.customer_id}`);
+    } else {
+      console.log(`F2_PROBE_PAUSED customer_id=${row.customer_id}`);
+      toPause.push(row.customer_id);
+    }
+  }
+
+  if (toPause.length > 0) {
+    const placeholders = toPause.map(() => '?').join(',');
+    await env.DB.prepare(
+      `UPDATE customer_probe_targets
+       SET status = 'paused', updated_at = ?
+       WHERE customer_id IN (${placeholders})`,
+    )
+      .bind(now, ...toPause)
+      .run();
+  }
+}
