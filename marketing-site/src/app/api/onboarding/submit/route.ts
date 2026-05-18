@@ -8,6 +8,7 @@ import { verifyOnboardingToken, type OnboardingTokenEnv } from "@/lib/onboarding
 import type { SessionRecord } from "@/lib/audit-types";
 import { normalizeUrl } from "@/lib/normalize-url";
 import { signSubscriptionId } from "@/lib/account-link";
+import { isValidCustomerCategory } from "@/lib/customer-categories";
 
 interface SubmitEnv extends OnboardingTokenEnv {
   CITATION_DB: D1Database;
@@ -57,7 +58,8 @@ function validateBrandName(value: unknown):
   return { ok: true, value: trimmed };
 }
 
-const CATEGORY_ENUM = ["saas", "ecommerce", "fintech", "developer-tools", "other"];
+// CATEGORY_ENUM was inlined here pre-F2 v6.1. F2 surfaces share the same source-of-truth
+// via @/lib/customer-categories; this file now uses isValidCustomerCategory for validation.
 const CUSTOMER_CEILING = 3;
 
 export async function POST(request: Request): Promise<Response> {
@@ -87,7 +89,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const category = String(form.get("category") ?? "");
-  if (!CATEGORY_ENUM.includes(category)) {
+  if (!isValidCustomerCategory(category)) {
     return NextResponse.json({ code: "CATEGORY_INVALID", message: "category required" }, { status: 400 });
   }
 

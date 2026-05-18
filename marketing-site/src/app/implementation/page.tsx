@@ -1,7 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import { ImplementationCheckoutForm } from "@/components/ImplementationCheckoutForm";
+
+// F2 v6.1 — page renders D1 ceiling state per request (D18 Stage 1 page-CTA gate).
+// Force-dynamic ensures the SELECT COUNT(*) check runs on every load, not at build time.
+export const dynamic = "force-dynamic";
+
+interface ImplementationPageEnv {
+  CITATION_DB: D1Database;
+}
 
 export const metadata: Metadata = {
   title: "AEO Implementation — $1,299, delivered in <24h — Astrant",
@@ -12,30 +22,34 @@ export const metadata: Metadata = {
   },
 };
 
-// PRE-LAUNCH MODE — paid checkouts disabled site-wide. CTAs now point at the
-// /audit waitlist (which captures URL + email via /api/waitlist). To restore
-// real Dodo checkouts, swap this back to the original Dodo URL:
-//   "https://checkout.dodopayments.com/buy/pdt_0NdQE5vccUUgOHMsF6Pzz?quantity=1"
-const CHECKOUT_IMPL_URL = "/audit#waitlist";
+// F2 v6.1 D21 — both <Cta> hero + FINAL_CTA buttons now scroll to the
+// <ImplementationCheckoutForm> below (id="implementation-checkout"). Page-CTA gate
+// is server-side via the form's atCapacity prop derived from D1 ceiling read.
+const CHECKOUT_IMPL_ANCHOR = "#implementation-checkout";
 
-const serviceLd = {
-  "@context": "https://schema.org",
-  "@type": "Service",
-  name: "AEO Implementation",
-  provider: { "@type": "Organization", name: "Astrant" },
-  serviceType: "Agent Engine Optimization",
-  areaServed: "Worldwide",
-  url: "https://astrant.io/implementation",
-  offers: {
-    "@type": "Offer",
+function buildServiceLd(atCapacity: boolean) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Service",
     name: "AEO Implementation",
-    price: "1299",
-    priceCurrency: "USD",
+    provider: { "@type": "Organization", name: "Astrant" },
+    serviceType: "Agent Engine Optimization",
+    areaServed: "Worldwide",
     url: "https://astrant.io/implementation",
-    description:
-      "Automated technical build delivered in under 24 hours. llms.txt, MCP server, OpenAPI, JSON-LD schema, baseline monitoring.",
-  },
-};
+    offers: {
+      "@type": "Offer",
+      name: "AEO Implementation",
+      price: "1299",
+      priceCurrency: "USD",
+      url: "https://astrant.io/implementation#implementation-checkout",
+      availability: atCapacity
+        ? "https://schema.org/SoldOut"
+        : "https://schema.org/InStock",
+      description:
+        "Automated technical build delivered in under 24 hours. llms.txt, MCP server, OpenAPI, JSON-LD schema, baseline monitoring.",
+    },
+  };
+}
 
 const FAQS = [
   {
@@ -118,13 +132,12 @@ const FLOW = [
   },
 ];
 
-// Logo + Foundation slice: 503-gated waitlist CTA (CHECKOUT_IMPL_URL points
-// at /audit#waitlist) — amber retained per decision 5 EXCEPTION; radius
-// stripped per decision 4.
+// Anchor-link CTA (F2 v6.1) — scrolls to the in-page ImplementationCheckoutForm.
+// Replaces the pre-launch waitlist CTA after F2 ships.
 function Cta({ label }: { label: string }) {
   return (
     <a
-      href={CHECKOUT_IMPL_URL}
+      href={CHECKOUT_IMPL_ANCHOR}
       className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
     >
       {label}
@@ -132,7 +145,32 @@ function Cta({ label }: { label: string }) {
   );
 }
 
-export default function ImplementationPage() {
+function BundleDisclosure() {
+  return (
+    <div className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
+      <h3 className="text-lg font-semibold">Your $1,299 Implementation includes</h3>
+      <ul className="mt-4 flex flex-col gap-2 text-[var(--color-muted)]">
+        <li>• A <code>git am</code>-applicable patch with deployable MCP server code, llms.txt, OpenAPI, JSON-LD, and monitoring scripts</li>
+        <li>• One-command deploy via <code>npx @astrant/deploy-mcp</code> (shipping shortly)</li>
+        <li>• 90 days of citation-tracking probes across 4 major-model providers</li>
+        <li>• 3 follow-up audits at Day 30, Day 60, Day 90</li>
+        <li>• AutoPilot continuation option at Day 90 ($149/mo) for ongoing measurement</li>
+      </ul>
+    </div>
+  );
+}
+
+export default async function ImplementationPage() {
+  const env = getCloudflareContext().env as unknown as ImplementationPageEnv;
+
+  // D18 Stage 1 — server-side ceiling check at render-time.
+  const ceilingResult = await env.CITATION_DB.prepare(
+    `SELECT COUNT(*) AS count FROM customer_probe_targets WHERE status='active'`,
+  ).first<{ count: number }>();
+  const atCapacity = (ceilingResult?.count ?? 0) >= 3;
+
+  const serviceLd = buildServiceLd(atCapacity);
+
   return (
     <div className="min-h-screen">
       <script
@@ -165,7 +203,7 @@ export default function ImplementationPage() {
             local environment.
           </p>
           <div className="mt-10 flex flex-col items-start gap-4">
-            <Cta label="Notify me when Implementation launches" />
+            <Cta label="Buy Implementation — $1,299" />
             <Link
               href="/custom"
               className="text-sm text-[var(--color-muted)] underline-offset-4 hover:text-[var(--color-fg)] hover:underline"
@@ -191,6 +229,22 @@ export default function ImplementationPage() {
                   <p className="mt-3 text-[var(--color-muted)]">{s.body}</p>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* F2 v6.1 D21 + D22 — bundle disclosure + checkout form (anchor target for hero + FINAL_CTA buttons) */}
+        <section
+          id="implementation-checkout"
+          className="border-t border-[var(--color-border)]"
+        >
+          <div className="mx-auto max-w-6xl px-6 py-20">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              What you&apos;re buying
+            </h2>
+            <div className="mt-10 grid gap-6 lg:grid-cols-2">
+              <BundleDisclosure />
+              <ImplementationCheckoutForm atCapacity={atCapacity} />
             </div>
           </div>
         </section>
@@ -293,7 +347,7 @@ export default function ImplementationPage() {
               Ready?
             </h2>
             <div className="mt-10">
-              <Cta label="Notify me when Implementation launches" />
+              <Cta label="Buy Implementation — $1,299" />
             </div>
           </div>
         </section>

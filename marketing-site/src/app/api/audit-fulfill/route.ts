@@ -16,6 +16,8 @@ import { writeAuditToCorpus } from "@/lib/corpus-write";
 import { runDim6Paid } from "@/lib/dim6/runDim6";
 import { constantTimeEqual } from "@/lib/dodo";
 import { sendAutoPilotAuditReadyEmail } from "@/lib/score-email";
+import { sendF2DayNAuditEmail } from "@/lib/f2-email";
+import { generateAuditRecs } from "@/lib/f2-generators/audit-recs";
 
 interface FulfillEnv extends AuditEnv {
   INTERNAL_FULFILL_KEY: string;
@@ -29,6 +31,20 @@ interface FulfillEnv extends AuditEnv {
 function parseAutoPilotSessionId(sessionId: string): string | null {
   const match = sessionId.match(/^ap-(sub_[A-Za-z0-9_-]+)-\d+$/);
   return match ? match[1] : null;
+}
+
+// F2 v6.1 D19 — parse `impl-day{30|60|90}-impl-{dodo_payment_id}` shape.
+// Returns {day_n, f2_session_id} where f2_session_id is the underlying
+// implementation_sessions row's PRIMARY KEY (also `impl-{dodo_payment_id}` shape).
+function parseImplementationAuditSessionId(
+  sessionId: string,
+): { day_n: 30 | 60 | 90; f2_session_id: string } | null {
+  const match = sessionId.match(/^impl-day(30|60|90)-(impl-[A-Za-z0-9_-]+)$/);
+  if (!match) return null;
+  return {
+    day_n: parseInt(match[1], 10) as 30 | 60 | 90,
+    f2_session_id: match[2],
+  };
 }
 
 const SESSION_TTL_SEC = 30 * 24 * 60 * 60;
@@ -95,6 +111,14 @@ export async function POST(req: Request) {
       { ok: false, error: "session_id required" },
       { status: 400 }
     );
+  }
+
+  // F2 v6.1 D19 — discriminator BEFORE SESSIONS.get (per Codex HIGH v3 fold).
+  // F2 day-N audit session_ids have shape `impl-day{30|60|90}-impl-{dodo_payment_id}`;
+  // they don't exist in SESSIONS KV (records live in implementation_sessions D1 table).
+  const implAudit = parseImplementationAuditSessionId(sessionId);
+  if (implAudit !== null) {
+    return await handleF2DayNAudit(env, implAudit);
   }
 
   const record = await readSession(env, sessionId);
@@ -256,3 +280,137 @@ export async function POST(req: Request) {
     );
   }
 }
+
+// ─── F2 v6.1 D19 — Day-N audit handler ─────────────────────────────────
+
+interface F2ImplementationRow {
+  session_id: string;
+  customer_email: string;
+  customer_domain: string;
+  brand_name: string;
+  customer_id: string;
+  baseline_scan_id: string | null;
+  payment_succeeded_at: number;
+  status: string;
+}
+
+async function handleF2DayNAudit(
+  env: FulfillEnv,
+  implAudit: { day_n: 30 | 60 | 90; f2_session_id: string },
+): Promise<Response> {
+  const { day_n, f2_session_id } = implAudit;
+  const firedAtCol = `day${day_n}_audit_fired_at`;
+  const succeededAtCol = `day${day_n}_audit_succeeded_at`;
+  const failedAtCol = `day${day_n}_audit_failed_at`;
+  const now = Math.floor(Date.now() / 1000);
+
+  // CAS UPDATE to claim race-free. Column name is built from validated day_n
+  // (30/60/90 only per regex) — no injection risk.
+  const casResult = await env.CITATION_DB.prepare(
+    `UPDATE implementation_sessions
+     SET ${firedAtCol} = ?, updated_at = ?
+     WHERE session_id = ? AND ${firedAtCol} IS NULL AND status = 'active'`,
+  )
+    .bind(now, now, f2_session_id)
+    .run();
+
+  if (casResult.meta.changes !== 1) {
+    // Already fired, or session not in active state — idempotent no-op
+    return NextResponse.json({ ok: true, deduped: true, day_n });
+  }
+
+  let f2: F2ImplementationRow | null = null;
+  try {
+    f2 = await env.CITATION_DB.prepare(
+      `SELECT session_id, customer_email, customer_domain, brand_name,
+              customer_id, baseline_scan_id, payment_succeeded_at, status
+       FROM implementation_sessions WHERE session_id = ?`,
+    )
+      .bind(f2_session_id)
+      .first<F2ImplementationRow>();
+
+    if (!f2) {
+      throw new Error(`F2_SESSION_NOT_FOUND f2_session_id=${f2_session_id}`);
+    }
+
+    // Read baseline scan
+    let baselineScore = 0;
+    if (f2.baseline_scan_id) {
+      const baselineObj = await env.AUDITS.get(`f2-baseline-scans/${f2.baseline_scan_id}.json`);
+      if (baselineObj) {
+        const baseline = JSON.parse(await baselineObj.text()) as { composite?: { score?: number } };
+        baselineScore = baseline.composite?.score ?? 0;
+      }
+    }
+
+    // Re-scan customer domain at Day-N
+    const currentScan = await runScan(f2.customer_domain, env.INTERNAL_FULFILL_KEY);
+    const currentScore = currentScan.composite.score;
+
+    // v1.0: cite-share delta values come from citation-tracking probe data; for
+    // now pass 0% placeholders. v1.1+ wires the actual cite-share aggregator.
+    const citeShareBaselinePct = 0;
+    const citeShareCurrentPct = 0;
+
+    // Generate audit-recs prose (deterministic-fallback path at v1.0)
+    const recs = await generateAuditRecs(env, {
+      brand_name: f2.brand_name,
+      domain: f2.customer_domain,
+      day_n,
+      baseline_scan_summary: `composite=${baselineScore}`,
+      current_scan_summary: `composite=${currentScore}`,
+      cite_share_baseline_pct: citeShareBaselinePct,
+      cite_share_current_pct: citeShareCurrentPct,
+    });
+
+    // Day-90 includes AutoPilot CTA (D8 spec)
+    const autoPilotCheckoutUrl =
+      day_n === 90 ? "https://astrant.io/subscriptions" : undefined;
+
+    // Send Day-N audit email (text-only at v1.0; PDF rendering deferred to v1.1+)
+    const emailResult = await sendF2DayNAuditEmail(env, {
+      toEmail: f2.customer_email,
+      brandName: f2.brand_name,
+      dayN: day_n,
+      sessionId: f2_session_id,
+      recs,
+      baselineScore,
+      currentScore,
+      citeShareBaselinePct,
+      citeShareCurrentPct,
+      autoPilotCheckoutUrl,
+    });
+
+    if (!emailResult.ok) {
+      throw new Error(`F2_AUDIT_EMAIL_SEND_FAILED day_n=${day_n} err=${emailResult.error}`);
+    }
+
+    // Mark succeeded
+    const succeedTime = Math.floor(Date.now() / 1000);
+    await env.CITATION_DB.prepare(
+      `UPDATE implementation_sessions
+       SET ${succeededAtCol} = ?, updated_at = ?
+       WHERE session_id = ?`,
+    )
+      .bind(succeedTime, succeedTime, f2_session_id)
+      .run();
+
+    console.log(`F2_AUDIT_DAYN_COMPLETED session_id=${f2_session_id} day_n=${day_n}`);
+    return NextResponse.json({ ok: true, session_id: f2_session_id, day_n });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`F2_AUDIT_DAYN_FAILED session_id=${f2_session_id} day_n=${day_n} err=${msg}`);
+    // Mark failed + clear fired_at so next sweep can retry
+    const failTime = Math.floor(Date.now() / 1000);
+    await env.CITATION_DB.prepare(
+      `UPDATE implementation_sessions
+       SET ${firedAtCol} = NULL, ${failedAtCol} = ?, failed_reason = ?, updated_at = ?
+       WHERE session_id = ?`,
+    )
+      .bind(failTime, msg.slice(0, 500), failTime, f2_session_id)
+      .run()
+      .catch(() => {});
+    return NextResponse.json({ error: "F2_AUDIT_FAILED" }, { status: 500 });
+  }
+}
+

@@ -3,6 +3,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { verifyWebhook, type DodoEnvBindings } from "@/lib/dodo";
 import { requestOrigin } from "@/lib/origin";
 import type { SessionRecord } from "@/lib/audit-types";
+import { sendOperatorAlert } from "@/lib/operator-alerts";
 
 interface WebhookEnv extends DodoEnvBindings {
   SESSIONS: KVNamespace;
@@ -13,22 +14,32 @@ interface WebhookEnv extends DodoEnvBindings {
   RESEND_API_KEY: string;
   // F3.2 addition (sibling-cascade per WelcomeEmailEnv extension):
   ACCOUNT_LINK_SECRET: string;
+  // F2 v6.1 addition (operator-alerts):
+  OPERATOR_ALERT_EMAIL: string;
 }
+
+const F2_IMPLEMENTATION_PRODUCT_ID = "pdt_0NdQE5vccUUgOHMsF6Pzz";
 
 const WEBHOOK_DEDUPE_TTL = 7 * 24 * 60 * 60;
 
 type DodoWebhookPayload = {
   type?: string;
+  // F2 v6.1: Standard Webhooks envelope timestamp (ISO 8601); used as payment_succeeded_at source.
+  timestamp?: string;
   data?: {
     metadata?: Record<string, string>;
     payload_type?: string;
     // F3 additions per V3.A — Dodo's actual subscription webhook payload shape.
     // V3.A ambiguity (customer.email vs flat email, ISO vs UNIX dates) resolves
     // at first live webhook fire; the `??` chains + toUnixSeconds() handle it.
-    subscription_id?: string;
+    subscription_id?: string | null;
     id?: string;
     customer_id?: string;
-    customer?: { id?: string; email?: string };
+    customer?: {
+      id?: string;
+      customer_id?: string;  // F2 v6.1: V-E confirms Dodo nests customer_id under customer object
+      email?: string;
+    };
     email?: string;
     product_id?: string;
     items?: Array<{ product_id?: string }>;
@@ -38,6 +49,10 @@ type DodoWebhookPayload = {
     // Forward-compat optionals (if Dodo ever adds these named fields):
     current_period_start?: number;
     current_period_end?: number;
+    // F2 v6.1 (V-E payload paths confirmed empirically 2026-05-17):
+    payment_id?: string;                                              // F2 one-shot identifier
+    product_cart?: Array<{ product_id?: string; quantity?: number }>;  // Newer Dodo shape (replaces items[])
+    custom_field_responses?: Array<{ key: string; value: string }> | null;  // F2 5 fields per D17; null per V-E sample
   };
 };
 
@@ -170,9 +185,15 @@ export async function POST(req: Request) {
         }
       }
     } else if (tier === "implementation") {
-      console.error(
-        `[dodo-webhook] implementation tier purchased; fulfillment not yet built. metadata=${JSON.stringify(metadata)}`
-      );
+      // F2 v6.1 D9 — webhook-side dispatch into impl-fulfill pipeline.
+      // Within-file pattern: unawaited fetch + .catch (matches audit-tier above at lines 148-165).
+      const f2Result = await handleF2ImplementationPayment(req, env, parsed, webhookId);
+      if (f2Result.status !== 200) {
+        // Mark webhook processed before returning (so Dodo retries hit the dedupe).
+        // For 503 AT_CAPACITY: Dodo retries; operator manually refunds; alert already fired.
+        await env.SESSIONS.put(dedupeKey, "1", { expirationTtl: WEBHOOK_DEDUPE_TTL });
+        return f2Result;
+      }
     } else if (tier === "custom") {
       console.error(
         `[dodo-webhook] custom scoping deposit received; manual followup needed. metadata=${JSON.stringify(metadata)}`
@@ -334,4 +355,168 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.json({ ok: true });
+}
+
+// ─── F2 v6.1 D9 — Implementation tier branch handler ───────────────────
+//
+// Called from the payment.succeeded dispatch above when metadata.tier === "implementation".
+// Returns a NextResponse OR { status: 200 } on success so caller can fall through to the
+// shared mark-processed footer.
+
+async function handleF2ImplementationPayment(
+  req: Request,
+  env: WebhookEnv,
+  parsed: DodoWebhookPayload,
+  webhookId: string,
+): Promise<NextResponse | { status: 200 }> {
+  // V-E defensive belt-and-suspenders: F2 is one-shot; subscription_id MUST be null.
+  if (parsed.data?.subscription_id != null) {
+    console.warn(
+      `F2_UNEXPECTED_SUBSCRIPTION_ID payment_id=${parsed.data?.payment_id ?? parsed.data?.id ?? "null"}`,
+    );
+    return NextResponse.json({ ok: true, skipped: "has-subscription-id" });
+  }
+
+  // V-A.2 defensive ??-fallback (matches shipped F3 pattern at lines 206-211)
+  const productId =
+    parsed.data?.product_cart?.[0]?.product_id ??
+    parsed.data?.items?.[0]?.product_id ??
+    parsed.data?.product_id ??
+    "";
+  if (productId !== F2_IMPLEMENTATION_PRODUCT_ID) {
+    console.warn(
+      `F2_WRONG_PRODUCT_ID payment_id=${parsed.data?.payment_id ?? parsed.data?.id} product_id=${productId}`,
+    );
+    return NextResponse.json({ ok: true, skipped: "wrong-product" });
+  }
+
+  const dodoCustomerId =
+    parsed.data?.customer?.customer_id ??
+    parsed.data?.customer?.id ??
+    parsed.data?.customer_id;
+  const dodoPaymentId = parsed.data?.payment_id ?? parsed.data?.id;
+  const customerEmail = parsed.data?.customer?.email ?? parsed.data?.email;
+
+  if (!dodoCustomerId || !dodoPaymentId || !customerEmail) {
+    console.error(
+      `F2_MISSING_REQUIRED_FIELDS payment_id=${dodoPaymentId ?? "null"} customer_id=${dodoCustomerId ?? "null"}`,
+    );
+    return NextResponse.json({ ok: true, error: "MISSING_REQUIRED" });
+  }
+
+  // Parse the 5 custom_field_responses per spec v6.1 D17
+  const responses = parsed.data?.custom_field_responses ?? [];
+  const responseMap = Object.fromEntries(responses.map((r) => [r.key, r.value]));
+  const siteUrl = responseMap.site_url;
+  const brandName = responseMap.brand_name;
+  const category = responseMap.category;
+  const competitorsRaw = responseMap.competitors ?? "";
+  const competitors = competitorsRaw
+    .split(",")
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+  const deliveryEmail = responseMap.delivery_email || customerEmail;
+
+  if (!siteUrl || !brandName || !category) {
+    console.error(
+      `F2_MISSING_CUSTOM_FIELDS payment_id=${dodoPaymentId} responses=${JSON.stringify(responses)}`,
+    );
+    // Alert dedupe (Codex MED v2): one alert per webhook-id
+    const alertDedupeKey = `webhook-alert:${webhookId}`;
+    const alreadyAlerted = await env.SESSIONS.get(alertDedupeKey);
+    if (!alreadyAlerted) {
+      await sendOperatorAlert(env, {
+        alert_code: "F2_MISSING_CUSTOM_FIELDS",
+        customer_email: customerEmail,
+        dodo_payment_id: dodoPaymentId,
+        notes: "Missing required custom fields; manual fulfillment needed.",
+      });
+      await env.SESSIONS.put(alertDedupeKey, "1", { expirationTtl: WEBHOOK_DEDUPE_TTL });
+    }
+    return NextResponse.json({ ok: true, error: "MISSING_FIELDS_REPORTED" });
+  }
+
+  // D18 Stage 2 — belt-and-suspenders ceiling check (self-exclusion form per HIGH-1 lock).
+  const ceilingCheck = await env.CITATION_DB.prepare(
+    `SELECT COUNT(*) AS count FROM customer_probe_targets
+     WHERE status='active' AND customer_id != ?`,
+  )
+    .bind(dodoCustomerId)
+    .first<{ count: number }>();
+
+  if (ceilingCheck && ceilingCheck.count >= 3) {
+    console.error(`F2_OVER_CAPACITY_DIRECT_PURCHASE payment_id=${dodoPaymentId}`);
+    const alertDedupeKey = `webhook-alert:${webhookId}`;
+    const alreadyAlerted = await env.SESSIONS.get(alertDedupeKey);
+    if (!alreadyAlerted) {
+      await sendOperatorAlert(env, {
+        alert_code: "F2_OVER_CAPACITY_DIRECT_PURCHASE",
+        customer_email: customerEmail,
+        dodo_payment_id: dodoPaymentId,
+        notes: "Direct-URL bypass of /implementation page-CTA gate. Customer paid; needs manual refund.",
+      });
+      await env.SESSIONS.put(alertDedupeKey, "1", { expirationTtl: WEBHOOK_DEDUPE_TTL });
+    }
+    return NextResponse.json({ ok: false, code: "AT_CAPACITY" }, { status: 503 });
+  }
+
+  // INSERT OR IGNORE on dodo_payment_id UNIQUE (idempotent against webhook retry)
+  const sessionId = `impl-${dodoPaymentId}`;
+  const now = Math.floor(Date.now() / 1000);
+  const paymentTime = parsed.timestamp
+    ? Math.floor(new Date(parsed.timestamp).getTime() / 1000)
+    : now;
+  const competitorsJson = JSON.stringify(competitors);
+
+  const insertResult = await env.CITATION_DB.prepare(
+    `INSERT OR IGNORE INTO implementation_sessions
+       (session_id, dodo_payment_id, customer_email, customer_domain, brand_name, category, competitors,
+        customer_id, status, payment_succeeded_at, bundle_expires_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?)`,
+  )
+    .bind(
+      sessionId,
+      dodoPaymentId,
+      deliveryEmail,
+      siteUrl,
+      brandName,
+      category,
+      competitorsJson,
+      dodoCustomerId,
+      paymentTime,
+      paymentTime + 91 * 86400,
+      now,
+      now,
+    )
+    .run();
+
+  if (insertResult.meta.changes !== 1) {
+    // Duplicate webhook delivery; idempotent no-op
+    return NextResponse.json({ ok: true, deduped: true });
+  }
+
+  // Fire-and-forget dispatch to /api/impl-fulfill (within-file unawaited fetch + .catch pattern;
+  // matches audit-tier dispatch at lines 148-165).
+  if (env.INTERNAL_FULFILL_KEY) {
+    const origin = requestOrigin(req);
+    const implFulfillUrl = `${origin}/api/impl-fulfill`;
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fetch(implFulfillUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-fulfill-key": env.INTERNAL_FULFILL_KEY,
+      },
+      body: JSON.stringify({ session_id: sessionId }),
+    }).catch((err) => {
+      console.error(
+        `F2_IMPL_FULFILL_FIRE_FAILED session_id=${sessionId} err=${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
+  } else {
+    console.error(`F2_INTERNAL_FULFILL_KEY_MISSING session_id=${sessionId} — fulfillment dispatch skipped`);
+  }
+
+  // Caller falls through to shared mark-processed footer + 200 response.
+  return { status: 200 };
 }

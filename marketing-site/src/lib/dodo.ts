@@ -17,14 +17,18 @@ export type DodoEnvBindings = {
   DODO_API_KEY: string;
   DODO_WEBHOOK_SECRET: string;
   DODO_API_BASE?: string;
+  DODO_API_BASE_URL?: string;  // F2 v6.1 Option C: accept both names; F3.2 shipped callers (cancel/reactivate/portal-session) use this name
 };
 
 export const DEFAULT_DODO_API_BASE = "https://live.dodopayments.com";
 
-export function dodoApiBase(env: DodoEnvBindings): string {
-  if (env.DODO_API_BASE && env.DODO_API_BASE.length > 0) {
-    return env.DODO_API_BASE.replace(/\/$/, "");
-  }
+// F2 v6.1 Option C widening: input type narrowed to just base URL fields (drops unrelated
+// DODO_WEBHOOK_SECRET/DODO_API_KEY requirements). Accepts either DODO_API_BASE_URL (canonical,
+// per F3.2 callers) or DODO_API_BASE (legacy). URL-first ordering — production-canonical name
+// wins if both set. See F2-followup-1 in TODO.md for full F3.2-callers-adopt-helper cleanup.
+export function dodoApiBase(env: { DODO_API_BASE_URL?: string; DODO_API_BASE?: string }): string {
+  const base = env.DODO_API_BASE_URL ?? env.DODO_API_BASE;
+  if (base && base.length > 0) return base.replace(/\/$/, "");
   return DEFAULT_DODO_API_BASE;
 }
 

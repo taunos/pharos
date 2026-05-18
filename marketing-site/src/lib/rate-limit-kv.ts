@@ -95,6 +95,22 @@ export async function checkTriageCanonicalRateLimit(
   return checkAndIncrement(kv, key, 1, 3600);
 }
 
+// F2 v6.1 — /api/f2-checkout-create per-IP rate limit (anti-abuse).
+//   - Default: 5 requests / 60s rolling window (env-var override per LOW-1 fold).
+//   - Env override: F2_CHECKOUT_RATE_LIMIT (defaults to 5; dev override to 1 via .dev.vars).
+// Wraps the existing checkAndIncrement primitive. Uses SESSIONS KV with
+// `rl:f2-checkout:` prefix.
+export async function checkF2CheckoutCreateRateLimit(
+  kv: KVNamespace,
+  ip: string,
+  envLimit?: string
+): Promise<RateLimitResult> {
+  const parsedLimit = envLimit ? parseInt(envLimit, 10) : 5;
+  const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 5;
+  const key = `rl:f2-checkout:${ip}`;
+  return checkAndIncrement(kv, key, limit, 60);
+}
+
 export async function checkDeleteMeRateLimit(
   kv: KVNamespace,
   ip: string,
