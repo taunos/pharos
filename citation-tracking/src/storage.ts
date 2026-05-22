@@ -19,6 +19,34 @@ interface ProviderSpec {
   }>;
 }
 
+// D24-G1 (spec V10): extracted provider-list builder so the drain handler can reuse the same
+// configuration without duplicating the runProbeCycle literal.
+function buildProvidersFromEnv(env: Env): ProviderSpec[] {
+  return [
+    { name: 'openai',     apiKey: env.OPENAI_API_KEY,     fn: probeOpenAI },
+    { name: 'anthropic',  apiKey: env.ANTHROPIC_API_KEY,  fn: probeAnthropic },
+    { name: 'perplexity', apiKey: env.PERPLEXITY_API_KEY, fn: probePerplexity },
+    { name: 'gemini',     apiKey: env.GEMINI_API_KEY,     fn: probeGemini },
+  ];
+}
+
+// D24 (spec): exported wrapper isolating drain handler from probeOneTarget's signature surface.
+// `probeSubject` corresponds to probeOneTarget's slot 6 (shipped name 'brand'; shipped-misnomer
+// per H1-v4 spec). Value: literal 'Astrant' for baseline; customer's domain for customer probes
+// (NEVER brand_name; see deploy-prompt C8).
+export async function probeSingleTarget(
+  env: Env,
+  customerId: string | null,
+  probeSubject: string,
+  category: string,
+  probeRunId: string,
+): Promise<void> {
+  const providers = buildProvidersFromEnv(env);
+  const now = Math.floor(Date.now() / 1000);
+  const debug = env.DEBUG_PROBE_LOGS === '1';
+  await probeOneTarget(env, providers, probeRunId, now, customerId, probeSubject, category, debug);
+}
+
 export async function runProbeCycle(env: Env): Promise<void> {
   const DEBUG = env.DEBUG_PROBE_LOGS === '1';
   try {
@@ -27,12 +55,7 @@ export async function runProbeCycle(env: Env): Promise<void> {
     const now = Math.floor(Date.now() / 1000);
     if (DEBUG) console.log(`[runProbeCycle] probeRunId=${probeRunId} now=${now}`);
 
-    const providers: ProviderSpec[] = [
-      { name: 'openai',     apiKey: env.OPENAI_API_KEY,     fn: probeOpenAI },
-      { name: 'anthropic',  apiKey: env.ANTHROPIC_API_KEY,  fn: probeAnthropic },
-      { name: 'perplexity', apiKey: env.PERPLEXITY_API_KEY, fn: probePerplexity },
-      { name: 'gemini',     apiKey: env.GEMINI_API_KEY,     fn: probeGemini },
-    ];
+    const providers: ProviderSpec[] = buildProvidersFromEnv(env);
     if (DEBUG) console.log(`[runProbeCycle] providers configured: ${providers.map(p => p.name).join(',')}`);
     if (DEBUG) console.log(`[runProbeCycle] api key lengths: openai=${env.OPENAI_API_KEY?.length ?? 'undef'} anthropic=${env.ANTHROPIC_API_KEY?.length ?? 'undef'} perplexity=${env.PERPLEXITY_API_KEY?.length ?? 'undef'} gemini=${env.GEMINI_API_KEY?.length ?? 'undef'}`);
 

@@ -63,6 +63,9 @@
 		}
 	],
 	"vars": {
-		"CF_ACCOUNT_ID": "e265950ef2b3e0e186ffe1c4d2bee4be"
+		"CF_ACCOUNT_ID": "e265950ef2b3e0e186ffe1c4d2bee4be",
+		// SYNC WITH citation-tracking/wrangler.jsonc :MAX_PROBE_TARGETS
+		// SYNC WITH marketing-site/wrangler.jsonc :MAX_PROBE_TARGETS
+		"MAX_PROBE_TARGETS": "30"
 	}
 }

@@ -11,6 +11,8 @@ export const dynamic = "force-dynamic";
 
 interface ImplementationPageEnv {
   CITATION_DB: D1Database;
+  // B1.3 v1.1 — replaces hardcoded ceiling=3 (default "30").
+  MAX_PROBE_TARGETS?: string;
 }
 
 export const metadata: Metadata = {
@@ -164,10 +166,12 @@ export default async function ImplementationPage() {
   const env = getCloudflareContext().env as unknown as ImplementationPageEnv;
 
   // D18 Stage 1 — server-side ceiling check at render-time.
+  // B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded 3.
+  const maxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
   const ceilingResult = await env.CITATION_DB.prepare(
     `SELECT COUNT(*) AS count FROM customer_probe_targets WHERE status='active'`,
   ).first<{ count: number }>();
-  const atCapacity = (ceilingResult?.count ?? 0) >= 3;
+  const atCapacity = (ceilingResult?.count ?? 0) >= maxProbeTargets;
 
   const serviceLd = buildServiceLd(atCapacity);
 

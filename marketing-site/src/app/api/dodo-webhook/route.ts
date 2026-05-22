@@ -16,6 +16,8 @@ interface WebhookEnv extends DodoEnvBindings {
   ACCOUNT_LINK_SECRET: string;
   // F2 v6.1 addition (operator-alerts):
   OPERATOR_ALERT_EMAIL: string;
+  // B1.3 v1.1 — replaces hardcoded ceiling=3 (default "30").
+  MAX_PROBE_TARGETS?: string;
 }
 
 const F2_IMPLEMENTATION_PRODUCT_ID = "pdt_0NdQE5vccUUgOHMsF6Pzz";
@@ -238,11 +240,12 @@ export async function POST(req: Request) {
 
     const now = Math.floor(Date.now() / 1000);
 
-    // 2. Belt-and-suspenders ceiling check.
+    // 2. Belt-and-suspenders ceiling check. B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded 3.
+    const maxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
     const countRow = await env.CITATION_DB.prepare(
       `SELECT COUNT(*) AS c FROM customer_probe_targets WHERE status='active'`
     ).first<{ c: number }>();
-    if ((countRow?.c ?? 0) >= 3) {
+    if ((countRow?.c ?? 0) >= maxProbeTargets) {
       console.error(
         `F3_OVER_CAPACITY_DIRECT_PURCHASE subscription_id=${subscriptionId.substring(0, 8)}... — operator must refund via Dodo dashboard`
       );
@@ -437,6 +440,8 @@ async function handleF2ImplementationPayment(
   }
 
   // D18 Stage 2 — belt-and-suspenders ceiling check (self-exclusion form per HIGH-1 lock).
+  // B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded 3.
+  const f2MaxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
   const ceilingCheck = await env.CITATION_DB.prepare(
     `SELECT COUNT(*) AS count FROM customer_probe_targets
      WHERE status='active' AND customer_id != ?`,
@@ -444,7 +449,7 @@ async function handleF2ImplementationPayment(
     .bind(dodoCustomerId)
     .first<{ count: number }>();
 
-  if (ceilingCheck && ceilingCheck.count >= 3) {
+  if (ceilingCheck && ceilingCheck.count >= f2MaxProbeTargets) {
     console.error(`F2_OVER_CAPACITY_DIRECT_PURCHASE payment_id=${dodoPaymentId}`);
     const alertDedupeKey = `webhook-alert:${webhookId}`;
     const alreadyAlerted = await env.SESSIONS.get(alertDedupeKey);

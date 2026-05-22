@@ -1,7 +1,9 @@
-import { runProbeCycle } from './storage';
+import { runProbeCycle, probeSingleTarget } from './storage';
 import { runMonthlyDigest, aggregateAndRender, computeDefaultPeriod, deriveBrandForDigest } from './digest';
 import { validateBrandName } from './validation';
 import { issueAccountLink } from './lib/account-link';
+import { ASTRANT_BASELINE, customerIdToProbeArg } from './probe-constants';
+import { sendOperatorAlert } from './alerts';
 
 export interface Env {
   DB: D1Database;
@@ -17,6 +19,9 @@ export interface Env {
   // F2 v6.1 D19 cross-Worker dispatch (Day-N audit → marketing-site /api/audit-fulfill):
   MARKETING_SITE_URL: string;       // e.g., "https://astrant.io"
   INTERNAL_FULFILL_KEY: string;     // Shared with marketing-site (per F3.2's ACCOUNT_LINK_SECRET mirror precedent)
+  // B1.3 v1.1 cron-fix:
+  MAX_PROBE_TARGETS: string;        // v1.1 ceiling primitive; replaces hardcoded CUSTOMER_CEILING=3 (default "30")
+  OPERATOR_ALERT_TO: string;        // operator alert recipient (taunos@gmail.com); used by alerts.ts
 }
 
 function constantTimeEqual(a: string, b: string): boolean {
@@ -61,13 +66,22 @@ function jsonError(status: number, code: string, message: string): Response {
 export default {
   async scheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
     if (event.cron === '0 2 * * *') {
-      // F2 v6.1 §3.11 — F2 sweep steps run BEFORE the per-customer probe loop.
+      // F2 v6.1 §3.11 — F2 sweep steps run BEFORE the per-customer probe enqueue.
       //   A. stale-claim cleanup (D19 MED-1 retriability)
       //   B. Day-N audit dispatch (D19; HTTP to marketing-site /api/audit-fulfill)
       //   C. Day-91 expiration sweep (D7; conditional probe-target pause)
       await runF2SweepSteps(env);
 
-      await runProbeCycle(env);
+      // B1.3 v1.1 cron-fix (was: await runProbeCycle(env)) — enqueue today's probe targets
+      // to D1; drain handler (10,30,50 * * * *) processes one target per tick to avoid
+      // scheduled-handler wall-time exhaustion (silent-truncation incident root cause).
+      const jobDate = new Date(event.scheduledTime).toISOString().slice(0, 10);
+      await enqueueDailyProbeJobs(env, jobDate);
+    } else if (event.cron === '10,30,50 * * * *') {
+      // B1.3 v1.1 cron-fix — drain dispatcher: claims one pending probe_jobs row + runs the
+      // full probe (45 batches × 4 providers = 180 rows). Stale-claim recovery + alert
+      // dispatch + enqueue-lag check live inside drainProbeJobsTick.
+      await drainProbeJobsTick(env);
     } else if (event.cron === '0 14 1 * *') {
       const fireTime = new Date(event.scheduledTime);
       const periodMonthIndex = fireTime.getUTCMonth() - 1;
@@ -246,12 +260,13 @@ export default {
           return jsonError(400, 'INVALID_JSON', 'request body must be valid JSON');
         }
 
-        // CUSTOMER_ID_REQUIRED
-        if (typeof body.customer_id !== 'string' || body.customer_id === '') {
-          return jsonError(400, 'CUSTOMER_ID_REQUIRED', 'customer_id must be a non-empty string');
+        // B1.3 v1.1 — endpoint validator (Locked Artifact H; rejects 'astrant' sentinel + non-sub_ shapes)
+        const customerIdValidation = validateCustomerIdForProbeTarget(body.customer_id);
+        if (!customerIdValidation.ok) {
+          return jsonError(400, 'CUSTOMER_ID_INVALID', `customer_id ${customerIdValidation.reason}`);
         }
 
-        // CUSTOMER_ID_NUL_BYTE (transport-safe NUL detection)
+        // CUSTOMER_ID_NUL_BYTE (transport-safe NUL detection; pre-existing defensive check preserved)
         if (body.customer_id.includes(String.fromCharCode(0))) {
           return jsonError(400, 'CUSTOMER_ID_NUL_BYTE', 'customer_id must not contain NUL bytes');
         }
@@ -270,13 +285,14 @@ export default {
           return jsonError(400, 'CATEGORY_REQUIRED', 'category must be a non-empty string');
         }
 
-        // CUSTOMER_CEILING_REACHED check (v1.0 single-cron ceiling per spec D8)
+        // CUSTOMER_CEILING_REACHED check (B1.3 v1.1: MAX_PROBE_TARGETS env binding replaces hardcoded 3)
+        const maxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? '30', 10);
         const countRow = await env.DB.prepare(
           `SELECT COUNT(*) AS c FROM customer_probe_targets WHERE status='active'`
         ).first<{ c: number }>();
-        if ((countRow?.c ?? 0) >= 3) {
+        if ((countRow?.c ?? 0) >= maxProbeTargets) {
           return jsonError(503, 'CUSTOMER_CEILING_REACHED',
-            'Customer ceiling reached (3 active customers under v1.0 single-cron). Provision blocked until cron-split or cadence-reduction ships in v1.1+. Contact ops to bypass via direct D1 INSERT if business case is urgent.');
+            `Customer ceiling reached (${maxProbeTargets} active customers). Contact ops to bypass via direct D1 INSERT if business case is urgent.`);
         }
 
         // INSERT (CUSTOMER_ID_COLLISION on UNIQUE constraint failure)
@@ -478,5 +494,162 @@ async function runF2SweepSteps(env: Env): Promise<void> {
     )
       .bind(now, ...toPause)
       .run();
+  }
+}
+
+// ─── B1.3 v1.1 cron-fix — endpoint validator + enqueue + drain ─────────────
+
+// Locked Artifact H — endpoint validator for customer_id-accepting probe-target endpoints.
+// Rejects the 'astrant' sentinel + case variants + non-sub_ shapes. Duplicated at the marketing-site
+// (i)-sites (Step 5.7). NOT applied at dodo-webhook (read-only ceiling check per V3).
+function validateCustomerIdForProbeTarget(s: unknown): { ok: true; value: string } | { ok: false; reason: string } {
+  if (typeof s !== 'string') return { ok: false, reason: 'not a string' };
+  if (s === 'astrant') return { ok: false, reason: 'reserved sentinel' };
+  if (s.toLowerCase() === 'astrant') return { ok: false, reason: 'case-mismatched reserved sentinel' };
+  if (!/^sub_.+$/.test(s)) return { ok: false, reason: 'not a sub_<token> shape' };
+  return { ok: true, value: s };
+}
+
+// enqueueDailyProbeJobs — runs once daily at 0 2 UTC. Inserts one probe_jobs row per active probe
+// target (plus Astrant baseline). Drain handler picks these up at 10/30/50 every hour.
+// V11.C: SELECT does NOT pull brand_name — preserves B1.3 v1.0 probe-input semantics (domain in slot 6
+// for customers, literal 'Astrant' for baseline; per deploy-prompt C8).
+async function enqueueDailyProbeJobs(env: Env, jobDate: string): Promise<void> {
+  const activeTargets = await env.DB.prepare(
+    "SELECT customer_id, domain, category FROM customer_probe_targets WHERE status='active'"
+  ).all<{ customer_id: string; domain: string; category: string }>();
+
+  // ?? [] defensive guard matches shipped storage.ts:47 pattern (per spec N1-v5).
+  const customerRows = (activeTargets.results ?? []).map((t) => ({
+    customer_id: t.customer_id,
+    probe_subject: t.domain,
+    target_category: t.category,
+  }));
+  const allTargets = [ASTRANT_BASELINE, ...customerRows];
+
+  let inserted = 0, ignored = 0, skipped = 0;
+  const enqueuedAt = Math.floor(Date.now() / 1000);
+  for (const t of allTargets) {
+    if (!t.probe_subject || !t.target_category) {
+      console.error(`B1_3_ENQUEUE_INCOMPLETE_TARGET customer_id=${t.customer_id}`);
+      skipped++;
+      continue;
+    }
+    const result = await env.DB.prepare(
+      "INSERT OR IGNORE INTO probe_jobs (job_date, customer_id, status, enqueued_at, retry_count, probe_subject, target_category) VALUES (?, ?, 'pending', ?, 0, ?, ?)"
+    ).bind(jobDate, t.customer_id, enqueuedAt, t.probe_subject, t.target_category).run();
+    if (result.meta.changes === 1) inserted++; else ignored++;
+  }
+
+  console.log(`B1_3_ENQUEUE_TICK job_date=${jobDate} target_count=${allTargets.length} inserted=${inserted} ignored=${ignored} skipped=${skipped}`);
+  if (inserted + ignored + skipped < allTargets.length) {
+    console.error(`B1_3_ENQUEUE_MISMATCH job_date=${jobDate} expected=${allTargets.length} processed=${inserted + ignored + skipped}`);
+  }
+}
+
+// drainProbeJobsTick — runs every 20 min (10,30,50 * * * *). Four-step pipeline:
+//   A. stale-claim recovery (D7) — three-statement: bound failed-bound for DELETE, then UPDATE+1.
+//   B. alert dispatch (D8) — UUID-claim pattern (M3-v3); per-row try-catch reset-on-throw.
+//   C. drain one pending row + run probe + verify rows_written === 180.
+//   D. enqueue-lag check (D6) — MAX(now - enqueued_at) > 14400s ⇒ log alert threshold.
+async function drainProbeJobsTick(env: Env): Promise<void> {
+  // ─── Step A: pre-drain stale-claim recovery ─────────────────────────────
+  const staleThreshold = Math.floor(Date.now() / 1000) - 1800;
+
+  const failedBound = await env.DB.prepare(
+    "SELECT id, probe_run_id FROM probe_jobs WHERE status='processing' AND claimed_at < ? AND retry_count + 1 >= 3"
+  ).bind(staleThreshold).all<{ id: number; probe_run_id: string | null }>();
+
+  for (const row of (failedBound.results ?? [])) {
+    if (row.probe_run_id) {
+      await env.DB.prepare("DELETE FROM probe_runs WHERE probe_run_id = ?").bind(row.probe_run_id).run();
+    }
+  }
+
+  await env.DB.prepare(
+    "UPDATE probe_jobs SET status = CASE WHEN retry_count + 1 >= 3 THEN 'failed' ELSE 'pending' END, claimed_at = NULL, retry_count = retry_count + 1 WHERE status='processing' AND claimed_at < ?"
+  ).bind(staleThreshold).run();
+
+  // ─── Step B: alert-fire on 'failed' rows (UUID-claim per M3-v3) ─────────
+  const alertClaimId = crypto.randomUUID();
+  const alertFiredAt = Math.floor(Date.now() / 1000);
+
+  await env.DB.prepare(
+    "UPDATE probe_jobs SET alert_claim_id = ?, alert_fired_at = ? WHERE status='failed' AND alert_claim_id IS NULL"
+  ).bind(alertClaimId, alertFiredAt).run();
+
+  const claimedJobs = await env.DB.prepare(
+    "SELECT id, customer_id FROM probe_jobs WHERE status='failed' AND alert_claim_id = ?"
+  ).bind(alertClaimId).all<{ id: number; customer_id: string }>();
+
+  for (const job of (claimedJobs.results ?? [])) {
+    try {
+      await sendOperatorAlert(env, `B1_3_PROBE_JOB_FAILED job_id=${job.id} customer_id=${job.customer_id}`);
+    } catch (err) {
+      await env.DB.prepare(
+        "UPDATE probe_jobs SET alert_claim_id = NULL, alert_fired_at = NULL WHERE id = ? AND alert_claim_id = ?"
+      ).bind(job.id, alertClaimId).run();
+      console.error(`B1_3_PROBE_JOB_ALERT_THROW job_id=${job.id} error=${String(err)}`);
+    }
+  }
+
+  // ─── Step C: drain ONE pending row (D11 + D12; one-target-per-tick) ─────
+  const pending = await env.DB.prepare(
+    "SELECT id, customer_id, probe_run_id AS prior_probe_run_id, probe_subject, target_category FROM probe_jobs WHERE status='pending' ORDER BY job_date, customer_id LIMIT 1"
+  ).first<{ id: number; customer_id: string; prior_probe_run_id: string | null; probe_subject: string; target_category: string }>();
+  if (!pending) {
+    console.log("B1_3_DRAIN_TICK_NO_PENDING");
+    return;
+  }
+
+  if (pending.prior_probe_run_id) {
+    await env.DB.prepare("DELETE FROM probe_runs WHERE probe_run_id = ?").bind(pending.prior_probe_run_id).run();
+  }
+
+  const newProbeRunId = crypto.randomUUID();
+  const claimTs = Math.floor(Date.now() / 1000);
+  const casResult = await env.DB.prepare(
+    "UPDATE probe_jobs SET status='processing', claimed_at=?, probe_run_id=? WHERE id=? AND status='pending'"
+  ).bind(claimTs, newProbeRunId, pending.id).run();
+  if (casResult.meta.changes === 0) {
+    console.log(`B1_3_DRAIN_CAS_LOST job_id=${pending.id}`);
+    return;
+  }
+
+  const customerIdArg = customerIdToProbeArg(pending.customer_id);
+  let probeError: string | null = null;
+  try {
+    await probeSingleTarget(env, customerIdArg, pending.probe_subject, pending.target_category, newProbeRunId);
+  } catch (err) {
+    probeError = String(err);
+    console.error(`B1_3_PROBE_THROW job_id=${pending.id} error=${probeError}`);
+  }
+
+  const countRow = await env.DB.prepare(
+    "SELECT COUNT(*) as c FROM probe_runs WHERE probe_run_id = ?"
+  ).bind(newProbeRunId).first<{ c: number }>();
+  const rowsWritten = countRow?.c ?? 0;
+
+  if (rowsWritten === 180 && !probeError) {
+    await env.DB.prepare(
+      "UPDATE probe_jobs SET status='done', completed_at=?, rows_written=? WHERE id=? AND status='processing'"
+    ).bind(Math.floor(Date.now() / 1000), rowsWritten, pending.id).run();
+    console.log(`B1_3_DRAIN_PROBE_DONE job_id=${pending.id} customer_id=${pending.customer_id} probe_run_id=${newProbeRunId} rows_written=${rowsWritten}`);
+  } else {
+    await env.DB.prepare("DELETE FROM probe_runs WHERE probe_run_id = ?").bind(newProbeRunId).run();
+    await env.DB.prepare(
+      "UPDATE probe_jobs SET status = CASE WHEN retry_count + 1 >= 3 THEN 'failed' ELSE 'pending' END, claimed_at = NULL, completed_at = NULL, retry_count = retry_count + 1, rows_written = ?, last_error = ? WHERE id = ? AND status='processing'"
+    ).bind(rowsWritten, probeError, pending.id).run();
+    console.log(`B1_3_DRAIN_PROBE_RETRY job_id=${pending.id} customer_id=${pending.customer_id} probe_run_id=${newProbeRunId} rows_written=${rowsWritten} probe_error=${probeError ?? 'none'}`);
+  }
+
+  // ─── Step D: enqueue-lag check (lightweight; logs threshold breach only) ─
+  const nowTs = Math.floor(Date.now() / 1000);
+  const lagRow = await env.DB.prepare(
+    "SELECT MAX(? - enqueued_at) AS max_lag FROM probe_jobs WHERE status='pending'"
+  ).bind(nowTs).first<{ max_lag: number | null }>();
+  const maxLag = lagRow?.max_lag ?? 0;
+  if (maxLag > 14400) {
+    console.error(`B1_3_PROBE_ENQUEUE_LAG_THRESHOLD max_lag=${maxLag}`);
   }
 }

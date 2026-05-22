@@ -8,22 +8,27 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 export const dynamic = "force-dynamic";
 
 // F3 OQ-16.D: render-time capacity gate. Reads customer_probe_targets count via
-// the cross-bound CITATION_DB. When at capacity (>= 3 active customers), forces
-// the AutoPilot CTA to waitlist regardless of the manual-flip CHECKOUT_AUTOPILOT_URL.
+// the cross-bound CITATION_DB. When at capacity (count >= env.MAX_PROBE_TARGETS),
+// forces the AutoPilot CTA to waitlist regardless of the manual-flip CHECKOUT_AUTOPILOT_URL.
 // Fail-closed: D1 errors route to waitlist (better than accepting payment when over capacity).
+// B1.3 v1.1: ceiling raised from hardcoded 3 to env.MAX_PROBE_TARGETS (default "30").
 interface CapacityCheckEnv {
   CITATION_DB: D1Database;
+  // B1.3 v1.1 — replaces hardcoded ceiling=3 (default "30").
+  MAX_PROBE_TARGETS?: string;
 }
-async function getActiveCustomerCount(): Promise<number> {
+async function getActiveCustomerCountAndCeiling(): Promise<{ count: number; ceiling: number }> {
+  let ceiling = 30;
   try {
     const env = getCloudflareContext().env as unknown as CapacityCheckEnv;
+    ceiling = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
     const row = await env.CITATION_DB.prepare(
       `SELECT COUNT(*) AS c FROM customer_probe_targets WHERE status='active'`
     ).first<{ c: number }>();
-    return row?.c ?? 0;
+    return { count: row?.c ?? 0, ceiling };
   } catch (err) {
     console.error("F3_CAPACITY_CHECK_FAILED", err);
-    return 99; // fail closed
+    return { count: 99, ceiling };  // fail closed
   }
 }
 
@@ -164,8 +169,9 @@ function ConciergeCta({ label }: { label: string }) {
 
 export default async function SubscriptionsPage() {
   // F3 OQ-16.D capacity gate — layered on top of the manual-flip CHECKOUT_AUTOPILOT_URL.
-  const customerCount = await getActiveCustomerCount();
-  const atCapacity = customerCount >= 3;
+  // B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded 3.
+  const { count: customerCount, ceiling: maxProbeTargets } = await getActiveCustomerCountAndCeiling();
+  const atCapacity = customerCount >= maxProbeTargets;
   const effectiveAutopilotUrl = atCapacity ? "/audit#waitlist" : CHECKOUT_AUTOPILOT_URL;
   return (
     <div className="min-h-screen">

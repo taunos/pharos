@@ -14,12 +14,18 @@
   "triggers": {
     "crons": [
       "0 2 * * *",
+      "10,30,50 * * * *",
       "0 14 1 * *"
     ]
   },
   // F2 v6.1 — cross-Worker dispatch target for Day-N audit fire (D19).
   // INTERNAL_FULFILL_KEY is set as a SECRET via `wrangler secret put` (shared value with marketing-site).
   "vars": {
-    "MARKETING_SITE_URL": "https://astrant.io"
+    "MARKETING_SITE_URL": "https://astrant.io",
+    // SYNC WITH marketing-site/wrangler.jsonc :MAX_PROBE_TARGETS
+    // SYNC WITH citation-tracking/wrangler.jsonc :MAX_PROBE_TARGETS
+    "MAX_PROBE_TARGETS": "30",
+    // B1.3 v1.1 — operator alert recipient (vars per N2-v3; email is not a credential).
+    "OPERATOR_ALERT_TO": "taunos@gmail.com"
   }
 }

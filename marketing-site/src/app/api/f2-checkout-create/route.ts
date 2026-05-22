@@ -22,10 +22,12 @@ interface F2CheckoutCreateEnv {
   CITATION_DB: D1Database;
   SESSIONS: KVNamespace;
   F2_CHECKOUT_RATE_LIMIT?: string;  // dev-override only; default 5
+  // B1.3 v1.1 — replaces hardcoded CUSTOMER_CEILING=3 (default "30").
+  MAX_PROBE_TARGETS?: string;
 }
 
 const IMPLEMENTATION_PRODUCT_ID = "pdt_0NdQE5vccUUgOHMsF6Pzz";
-const CUSTOMER_CEILING = 3;
+// B1.3 v1.1 — CUSTOMER_CEILING removed; ceiling now reads env.MAX_PROBE_TARGETS at request time.
 
 export async function POST(req: Request) {
   const env = getCloudflareContext().env as unknown as F2CheckoutCreateEnv;
@@ -62,10 +64,12 @@ export async function POST(req: Request) {
   }
 
   // 3. D18 Stage 1 — server-side authoritative ceiling check
+  // B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded CUSTOMER_CEILING=3.
+  const maxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
   const ceilingCheck = await env.CITATION_DB.prepare(
     `SELECT COUNT(*) AS count FROM customer_probe_targets WHERE status='active'`,
   ).first<{ count: number }>();
-  if ((ceilingCheck?.count ?? 0) >= CUSTOMER_CEILING) {
+  if ((ceilingCheck?.count ?? 0) >= maxProbeTargets) {
     return NextResponse.json({ error: "AT_CAPACITY" }, { status: 503 });
   }
 

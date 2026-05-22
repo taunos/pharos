@@ -33,6 +33,18 @@ interface ImplFulfillEnv extends AuditEnv {
   CITATION_DB: D1Database;
   RESEND_API_KEY: string;
   OPERATOR_ALERT_EMAIL: string;
+  // B1.3 v1.1 — replaces hardcoded ceiling=3 (default "30").
+  MAX_PROBE_TARGETS?: string;
+}
+
+// B1.3 v1.1 Locked Artifact H — endpoint validator for customer_id-accepting probe-target writes.
+// Mirrored at onboarding/submit + citation-tracking/src/index.ts (`/api/internal/probe-target-add`).
+function validateCustomerIdForProbeTarget(s: unknown): { ok: true; value: string } | { ok: false; reason: string } {
+  if (typeof s !== "string") return { ok: false, reason: "not a string" };
+  if (s === "astrant") return { ok: false, reason: "reserved sentinel" };
+  if (s.toLowerCase() === "astrant") return { ok: false, reason: "case-mismatched reserved sentinel" };
+  if (!/^sub_.+$/.test(s)) return { ok: false, reason: "not a sub_<token> shape" };
+  return { ok: true, value: s };
 }
 
 interface ImplementationSessionRow {
@@ -168,8 +180,18 @@ export async function POST(req: Request) {
       .bind(patchR2Key, Math.floor(Date.now() / 1000), sessionId)
       .run();
 
+    // B1.3 v1.1 — endpoint validator (Locked Artifact H): defend against an upstream
+    // implementation_sessions row landing with a customer_id that collides with the 'astrant'
+    // sentinel or fails the sub_ shape.
+    const customerIdValidation = validateCustomerIdForProbeTarget(f2.customer_id);
+    if (!customerIdValidation.ok) {
+      throw new Error(`F2_CUSTOMER_ID_INVALID session_id=${sessionId} reason=${customerIdValidation.reason}`);
+    }
+
     // Step 8 — customer_probe_targets INSERT-with-CHECK + ON CONFLICT
     // (D18 Stage 3 Fix A: self-exclusion in count subquery; 6 cases verified V-H)
+    // B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded ceiling=3.
+    const maxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
     const probeInsertTime = Math.floor(Date.now() / 1000);
     const competitorsJson = JSON.stringify(competitors);
     const insertResult = await env.CITATION_DB.prepare(
@@ -178,7 +200,7 @@ export async function POST(req: Request) {
           status, created_at, updated_at)
        SELECT ?1, ?2, ?3, ?4, ?5, 'active', ?6, ?7
        WHERE (SELECT COUNT(*) FROM customer_probe_targets
-              WHERE status='active' AND customer_id != ?1) < 3
+              WHERE status='active' AND customer_id != ?1) < ?8
        ON CONFLICT(customer_id) DO UPDATE SET
          status = 'active', updated_at = ?7`,
     )
@@ -190,6 +212,7 @@ export async function POST(req: Request) {
         competitorsJson,
         probeInsertTime,
         probeInsertTime,
+        maxProbeTargets,
       )
       .run();
 

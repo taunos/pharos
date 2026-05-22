@@ -15,6 +15,18 @@ interface SubmitEnv extends OnboardingTokenEnv {
   SESSIONS: KVNamespace;
   INTERNAL_FULFILL_KEY: string;
   ACCOUNT_LINK_SECRET: string;
+  // B1.3 v1.1 — replaces hardcoded CUSTOMER_CEILING=3 (default "30").
+  MAX_PROBE_TARGETS?: string;
+}
+
+// B1.3 v1.1 Locked Artifact H — endpoint validator for customer_id-accepting probe-target writes.
+// Mirrored at impl-fulfill + citation-tracking/src/index.ts (`/api/internal/probe-target-add`).
+function validateCustomerIdForProbeTarget(s: unknown): { ok: true; value: string } | { ok: false; reason: string } {
+  if (typeof s !== "string") return { ok: false, reason: "not a string" };
+  if (s === "astrant") return { ok: false, reason: "reserved sentinel" };
+  if (s.toLowerCase() === "astrant") return { ok: false, reason: "case-mismatched reserved sentinel" };
+  if (!/^sub_.+$/.test(s)) return { ok: false, reason: "not a sub_<token> shape" };
+  return { ok: true, value: s };
 }
 
 // Validation logic mirrored from citation-tracking/src/validation.ts (B1.3-followup).
@@ -60,7 +72,7 @@ function validateBrandName(value: unknown):
 
 // CATEGORY_ENUM was inlined here pre-F2 v6.1. F2 surfaces share the same source-of-truth
 // via @/lib/customer-categories; this file now uses isValidCustomerCategory for validation.
-const CUSTOMER_CEILING = 3;
+// B1.3 v1.1 — CUSTOMER_CEILING removed; ceiling now reads env.MAX_PROBE_TARGETS at request time.
 
 export async function POST(request: Request): Promise<Response> {
   const { env: rawEnv, ctx } = getCloudflareContext();
@@ -123,6 +135,16 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  // B1.3 v1.1 — endpoint validator (Locked Artifact H): defend against an upstream subscription row
+  // landing with a customer_id that collides with the 'astrant' sentinel or fails the sub_ shape.
+  const customerIdValidation = validateCustomerIdForProbeTarget(subRow.customer_id);
+  if (!customerIdValidation.ok) {
+    return NextResponse.json(
+      { code: "CUSTOMER_ID_INVALID", message: `customer_id ${customerIdValidation.reason}` },
+      { status: 400 },
+    );
+  }
+
   const existing = await env.CITATION_DB.prepare(
     `SELECT 1 FROM customer_probe_targets WHERE customer_id = ?`,
   )
@@ -141,13 +163,15 @@ export async function POST(request: Request): Promise<Response> {
       .run();
   } else {
     // Atomic INSERT-with-ceiling-check (per feedback_d1_vs_sqlite_semantics.md).
+    // B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded CUSTOMER_CEILING=3.
+    const maxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
     const result = await env.CITATION_DB.prepare(
       `INSERT INTO customer_probe_targets
        (customer_id, domain, category, competitors, status, created_at, updated_at, brand_name)
        SELECT ?, ?, ?, ?, 'active', ?, ?, ?
        WHERE (SELECT COUNT(*) FROM customer_probe_targets WHERE status='active') < ?`,
     )
-      .bind(subRow.customer_id, domain, category, competitorsJson, now, now, brandResult.value, CUSTOMER_CEILING)
+      .bind(subRow.customer_id, domain, category, competitorsJson, now, now, brandResult.value, maxProbeTargets)
       .run();
     if (result.meta.changes !== 1) {
       console.error(
