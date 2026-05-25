@@ -9,6 +9,8 @@ import type { SessionRecord } from "@/lib/audit-types";
 import { normalizeUrl } from "@/lib/normalize-url";
 import { signSubscriptionId } from "@/lib/account-link";
 import { isValidCustomerCategory } from "@/lib/customer-categories";
+import { resolveTierFromProductId } from "@/lib/founding-pricing";
+import type { ProbeCadence } from "@/lib/cadence";
 
 interface SubmitEnv extends OnboardingTokenEnv {
   CITATION_DB: D1Database;
@@ -17,6 +19,9 @@ interface SubmitEnv extends OnboardingTokenEnv {
   ACCOUNT_LINK_SECRET: string;
   // B1.3 v1.1 — replaces hardcoded CUSTOMER_CEILING=3 (default "30").
   MAX_PROBE_TARGETS?: string;
+  // F4.1: required by resolveTierFromProductId for cadence derivation.
+  STANDARD_PRODUCT_ID: string;
+  PRO_PRODUCT_ID: string;
 }
 
 // B1.3 v1.1 Locked Artifact H — endpoint validator for customer_id-accepting probe-target writes.
@@ -123,11 +128,12 @@ export async function POST(request: Request): Promise<Response> {
   const competitorsJson = JSON.stringify(competitorsValidated);
 
   // Resolve subscription_id → customer_id via CITATION_DB.
+  // F4.1: widen SELECT to include product_id for cadence derivation.
   const subRow = await env.CITATION_DB.prepare(
-    `SELECT customer_id, customer_email FROM subscriptions WHERE subscription_id = ?`,
+    `SELECT customer_id, customer_email, product_id FROM subscriptions WHERE subscription_id = ?`,
   )
     .bind(tokenResult.subscriptionId)
-    .first<{ customer_id: string; customer_email: string }>();
+    .first<{ customer_id: string; customer_email: string; product_id: string }>();
   if (!subRow) {
     return NextResponse.json(
       { code: "SUBSCRIPTION_NOT_FOUND", message: "subscription not found" },
@@ -145,6 +151,11 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  // F4.1: derive cadence from tier (used in INSERT branch only; UPDATE branch preserves
+  // existing cadence per MED-NEW-O to avoid clobbering option-iii downgrade defer state).
+  const tier = resolveTierFromProductId(env, subRow.product_id);
+  const cadence: ProbeCadence = tier?.tierKey === 'pro' ? 'daily' : 'twice_weekly';
+
   const existing = await env.CITATION_DB.prepare(
     `SELECT 1 FROM customer_probe_targets WHERE customer_id = ?`,
   )
@@ -153,7 +164,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const now = Math.floor(Date.now() / 1000);
   if (existing) {
-    // UPSERT-update path.
+    // UPSERT-update path. Per MED-NEW-O: do NOT touch probe_cadence / next_probe_at on update.
     await env.CITATION_DB.prepare(
       `UPDATE customer_probe_targets
        SET brand_name = ?, domain = ?, category = ?, competitors = ?, updated_at = ?
@@ -164,14 +175,15 @@ export async function POST(request: Request): Promise<Response> {
   } else {
     // Atomic INSERT-with-ceiling-check (per feedback_d1_vs_sqlite_semantics.md).
     // B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded CUSTOMER_CEILING=3.
+    // F4.1: append probe_cadence + next_probe_at (immediate per Codex #6).
     const maxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
     const result = await env.CITATION_DB.prepare(
       `INSERT INTO customer_probe_targets
-       (customer_id, domain, category, competitors, status, created_at, updated_at, brand_name)
-       SELECT ?, ?, ?, ?, 'active', ?, ?, ?
+       (customer_id, domain, category, competitors, status, created_at, updated_at, brand_name, probe_cadence, next_probe_at)
+       SELECT ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?
        WHERE (SELECT COUNT(*) FROM customer_probe_targets WHERE status='active') < ?`,
     )
-      .bind(subRow.customer_id, domain, category, competitorsJson, now, now, brandResult.value, maxProbeTargets)
+      .bind(subRow.customer_id, domain, category, competitorsJson, now, now, brandResult.value, cadence, now, maxProbeTargets)
       .run();
     if (result.meta.changes !== 1) {
       console.error(

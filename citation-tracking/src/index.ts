@@ -2,7 +2,8 @@ import { runProbeCycle, probeSingleTarget } from './storage';
 import { runMonthlyDigest, aggregateAndRender, computeDefaultPeriod, deriveBrandForDigest } from './digest';
 import { validateBrandName } from './validation';
 import { issueAccountLink } from './lib/account-link';
-import { ASTRANT_BASELINE, customerIdToProbeArg } from './probe-constants';
+import { ASTRANT_BASELINE, ASTRANT_PROBE_SENTINEL, customerIdToProbeArg } from './probe-constants';
+import { computeNextProbeAt, type ProbeCadence } from './cadence';
 import { sendOperatorAlert } from './alerts';
 import { handleTestFoundingInsert } from './__test_founding_insert';
 
@@ -75,6 +76,11 @@ export default {
       //   B. Day-N audit dispatch (D19; HTTP to marketing-site /api/audit-fulfill)
       //   C. Day-91 expiration sweep (D7; conditional probe-target pause)
       await runF2SweepSteps(env);
+
+      // F4.1 D7.2 (Variant B): period-end cadence-change sweep — flips pending downgrades
+      // whose cadence_change_effective_at has elapsed. Reads pending_probe_cadence directly
+      // per Bruno lock #16; no cross-Worker resolveTierFromProductId dependency.
+      await processPendingCadenceChanges(env);
 
       // B1.3 v1.1 cron-fix (was: await runProbeCycle(env)) — enqueue today's probe targets
       // to D1; drain handler (10,30,50 * * * *) processes one target per tick to avoid
@@ -530,31 +536,65 @@ function validateCustomerIdForProbeTarget(s: unknown): { ok: true; value: string
 // target (plus Astrant baseline). Drain handler picks these up at 10/30/50 every hour.
 // V11.C: SELECT does NOT pull brand_name — preserves B1.3 v1.0 probe-input semantics (domain in slot 6
 // for customers, literal 'Astrant' for baseline; per deploy-prompt C8).
+// F4.1 D7: cadence-keyed filter (next_probe_at IS NULL OR <= now); atomic D1 batch wrapping
+// INSERT OR IGNORE + UPDATE next_probe_at for customer rows (crash safety). Astrant baseline
+// keeps plain INSERT OR IGNORE (no customer_probe_targets row for it).
 async function enqueueDailyProbeJobs(env: Env, jobDate: string): Promise<void> {
+  const nowSec = Math.floor(Date.now() / 1000);
+
+  // F4.1: cadence-filtered SELECT. Treats next_probe_at NULL as "due now".
   const activeTargets = await env.DB.prepare(
-    "SELECT customer_id, domain, category FROM customer_probe_targets WHERE status='active'"
-  ).all<{ customer_id: string; domain: string; category: string }>();
+    "SELECT customer_id, domain, category, probe_cadence FROM customer_probe_targets WHERE status='active' AND (next_probe_at IS NULL OR next_probe_at <= ?)"
+  ).bind(nowSec).all<{ customer_id: string; domain: string; category: string; probe_cadence: ProbeCadence }>();
 
   // ?? [] defensive guard matches shipped storage.ts:47 pattern (per spec N1-v5).
   const customerRows = (activeTargets.results ?? []).map((t) => ({
     customer_id: t.customer_id,
     probe_subject: t.domain,
     target_category: t.category,
+    probe_cadence: t.probe_cadence,
   }));
   const allTargets = [ASTRANT_BASELINE, ...customerRows];
 
   let inserted = 0, ignored = 0, skipped = 0;
-  const enqueuedAt = Math.floor(Date.now() / 1000);
+  const enqueuedAt = nowSec;
   for (const t of allTargets) {
     if (!t.probe_subject || !t.target_category) {
       console.error(`B1_3_ENQUEUE_INCOMPLETE_TARGET customer_id=${t.customer_id}`);
       skipped++;
       continue;
     }
-    const result = await env.DB.prepare(
-      "INSERT OR IGNORE INTO probe_jobs (job_date, customer_id, status, enqueued_at, retry_count, probe_subject, target_category) VALUES (?, ?, 'pending', ?, 0, ?, ?)"
-    ).bind(jobDate, t.customer_id, enqueuedAt, t.probe_subject, t.target_category).run();
-    if (result.meta.changes === 1) inserted++; else ignored++;
+
+    if (t.customer_id === ASTRANT_PROBE_SENTINEL) {
+      // Astrant baseline: plain INSERT OR IGNORE (no customer_probe_targets row to advance).
+      const result = await env.DB.prepare(
+        "INSERT OR IGNORE INTO probe_jobs (job_date, customer_id, status, enqueued_at, retry_count, probe_subject, target_category) VALUES (?, ?, 'pending', ?, 0, ?, ?)"
+      ).bind(jobDate, t.customer_id, enqueuedAt, t.probe_subject, t.target_category).run();
+      if (result.meta.changes === 1) inserted++; else ignored++;
+    } else {
+      // F4.1 D7: customer row -- atomic D1 batch wrapping INSERT OR IGNORE + UPDATE next_probe_at.
+      // Defensive UPDATE WHERE clause re-asserts the cadence filter so concurrent runs no-op.
+      const cadence = ('probe_cadence' in t ? t.probe_cadence : 'twice_weekly') as ProbeCadence;
+      const nextAt = computeNextProbeAt(cadence, new Date(nowSec * 1000));
+      try {
+        const [insertResult] = await env.DB.batch([
+          env.DB.prepare(
+            "INSERT OR IGNORE INTO probe_jobs (job_date, customer_id, status, enqueued_at, retry_count, probe_subject, target_category) VALUES (?, ?, 'pending', ?, 0, ?, ?)"
+          ).bind(jobDate, t.customer_id, enqueuedAt, t.probe_subject, t.target_category),
+          env.DB.prepare(
+            "UPDATE customer_probe_targets SET next_probe_at = ? WHERE customer_id = ? AND (next_probe_at IS NULL OR next_probe_at <= ?)"
+          ).bind(nextAt, t.customer_id, nowSec),
+        ]);
+        if (insertResult.meta.changes === 1) inserted++; else ignored++;
+      } catch (err) {
+        console.error(JSON.stringify({
+          kind: 'enqueue_batch_error',
+          customer_id: t.customer_id,
+          err: String(err),
+        }));
+        skipped++;
+      }
+    }
   }
 
   console.log(`B1_3_ENQUEUE_TICK job_date=${jobDate} target_count=${allTargets.length} inserted=${inserted} ignored=${ignored} skipped=${skipped}`);
@@ -647,9 +687,15 @@ async function drainProbeJobsTick(env: Env): Promise<void> {
   const rowsWritten = countRow?.c ?? 0;
 
   if (rowsWritten === 180 && !probeError) {
+    const completedAt = Math.floor(Date.now() / 1000);
     await env.DB.prepare(
       "UPDATE probe_jobs SET status='done', completed_at=?, rows_written=? WHERE id=? AND status='processing'"
-    ).bind(Math.floor(Date.now() / 1000), rowsWritten, pending.id).run();
+    ).bind(completedAt, rowsWritten, pending.id).run();
+    // F4.1 D7.1: write last_probed_at on customer_probe_targets after probe completion success.
+    // For ASTRANT_BASELINE drains (pending.customer_id = 'astrant'), UPDATE no-ops (no row exists).
+    await env.DB.prepare(
+      "UPDATE customer_probe_targets SET last_probed_at = ? WHERE customer_id = ?"
+    ).bind(completedAt, pending.customer_id).run();
     console.log(`B1_3_DRAIN_PROBE_DONE job_id=${pending.id} customer_id=${pending.customer_id} probe_run_id=${newProbeRunId} rows_written=${rowsWritten}`);
   } else {
     await env.DB.prepare("DELETE FROM probe_runs WHERE probe_run_id = ?").bind(newProbeRunId).run();
@@ -667,5 +713,35 @@ async function drainProbeJobsTick(env: Env): Promise<void> {
   const maxLag = lagRow?.max_lag ?? 0;
   if (maxLag > 14400) {
     console.error(`B1_3_PROBE_ENQUEUE_LAG_THRESHOLD max_lag=${maxLag}`);
+  }
+}
+
+// F4.1 D7.2 (Variant B): period-end cadence-change sweep.
+// Reads pending_probe_cadence directly per Bruno lock #16 — no resolveTierFromProductId call
+// (avoids cross-Worker STANDARD_PRODUCT_ID/PRO_PRODUCT_ID dependency per sweep #32).
+async function processPendingCadenceChanges(env: Env): Promise<void> {
+  const nowSec = Math.floor(Date.now() / 1000);
+
+  const pendingRows = await env.DB.prepare(
+    "SELECT customer_id, pending_product_id, pending_probe_cadence FROM subscriptions WHERE cadence_change_effective_at IS NOT NULL AND cadence_change_effective_at <= ? AND pending_probe_cadence IS NOT NULL"
+  ).bind(nowSec).all<{
+    customer_id: string;
+    pending_product_id: string;
+    pending_probe_cadence: ProbeCadence;
+  }>();
+
+  for (const row of (pendingRows.results ?? [])) {
+    const cadence = row.pending_probe_cadence;
+    const newNextProbeAt = computeNextProbeAt(cadence, new Date(nowSec * 1000));
+
+    // Atomic batch: cadence flip on probe target + product_id canonicalization + clear pending columns.
+    await env.DB.batch([
+      env.DB.prepare(
+        "UPDATE customer_probe_targets SET probe_cadence = ?, next_probe_at = ? WHERE customer_id = ?"
+      ).bind(cadence, newNextProbeAt, row.customer_id),
+      env.DB.prepare(
+        "UPDATE subscriptions SET product_id = pending_product_id, pending_product_id = NULL, pending_probe_cadence = NULL, cadence_change_effective_at = NULL WHERE customer_id = ?"
+      ).bind(row.customer_id),
+    ]);
   }
 }

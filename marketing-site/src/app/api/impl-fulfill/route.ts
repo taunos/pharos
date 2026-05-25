@@ -25,6 +25,7 @@ import { renderMcpServerWorker } from "@/lib/f2-mcp-server-template";
 import { assembleGitAmPatch } from "@/lib/f2-patch-assembler";
 import { sendF2PatchDeliveryEmail } from "@/lib/f2-email";
 import { sendOperatorAlert } from "@/lib/operator-alerts";
+import type { ProbeCadence } from "@/lib/cadence";
 
 export const maxDuration = 300;
 
@@ -191,16 +192,19 @@ export async function POST(req: Request) {
     // Step 8 — customer_probe_targets INSERT-with-CHECK + ON CONFLICT
     // (D18 Stage 3 Fix A: self-exclusion in count subquery; 6 cases verified V-H)
     // B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded ceiling=3.
+    // F4.1 D9 Site 2: append probe_cadence + next_probe_at. F2 customers default
+    // 'twice_weekly' per Bruno lock #14. ON CONFLICT does NOT touch cadence per MED-NEW-O.
     const maxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
     const probeInsertTime = Math.floor(Date.now() / 1000);
     const competitorsJson = JSON.stringify(competitors);
+    const cadence: ProbeCadence = 'twice_weekly';
     const insertResult = await env.CITATION_DB.prepare(
       `INSERT INTO customer_probe_targets
          (customer_id, domain, brand_name, category, competitors,
-          status, created_at, updated_at)
-       SELECT ?1, ?2, ?3, ?4, ?5, 'active', ?6, ?7
+          status, created_at, updated_at, probe_cadence, next_probe_at)
+       SELECT ?1, ?2, ?3, ?4, ?5, 'active', ?6, ?7, ?8, ?9
        WHERE (SELECT COUNT(*) FROM customer_probe_targets
-              WHERE status='active' AND customer_id != ?1) < ?8
+              WHERE status='active' AND customer_id != ?1) < ?10
        ON CONFLICT(customer_id) DO UPDATE SET
          status = 'active', updated_at = ?7`,
     )
@@ -211,6 +215,8 @@ export async function POST(req: Request) {
         f2.category,
         competitorsJson,
         probeInsertTime,
+        probeInsertTime,
+        cadence,
         probeInsertTime,
         maxProbeTargets,
       )

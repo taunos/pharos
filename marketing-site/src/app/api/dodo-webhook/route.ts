@@ -9,6 +9,7 @@ import {
   resolveTierFromProductId,
   type AssignmentResult,
 } from "@/lib/founding-pricing";
+import { computeNextProbeAt, type ProbeCadence } from "@/lib/cadence";
 
 interface WebhookEnv extends DodoEnvBindings {
   SESSIONS: KVNamespace;
@@ -404,6 +405,79 @@ export async function POST(req: Request) {
          WHERE customer_id = (SELECT customer_id FROM subscriptions WHERE subscription_id = ?)
            AND founding_status = 'active'`
       ).bind(tier.tierKey, tier.tierPriceCents, nowSec, subscriptionId).run();
+
+      // F4.1 D10 Variant B: cadence flip on upgrade/downgrade.
+      // Defense-in-depth wrap per sweep #40 (subscriptionId + tier already narrowed by outer guards).
+      if (subscriptionId && tier) {
+        const payloadPreviousProductId = (parsed.data as { previous_product_id?: string } | undefined)?.previous_product_id ?? null;
+        const effectiveAtRaw = (parsed.data as { effective_at?: unknown } | undefined)?.effective_at ?? null;
+        const effectiveAt = effectiveAtRaw ? toUnixSeconds(effectiveAtRaw) : null;
+
+        const subRow = await env.CITATION_DB.prepare(
+          `SELECT customer_id, current_period_end, product_id FROM subscriptions WHERE subscription_id = ?`
+        ).bind(subscriptionId).first<{
+          customer_id: string;
+          current_period_end: number | null;
+          product_id: string;
+        }>();
+
+        if (subRow) {
+          const customerId = subRow.customer_id;
+
+          // Codex #2 fallback: payload field OR DB canonical product_id.
+          const previousProductId = payloadPreviousProductId ?? subRow.product_id;
+          const previousTier = resolveTierFromProductId(env, previousProductId);
+
+          const isUpgradeToPro = previousTier?.tierKey === 'standard' && tier.tierKey === 'pro';
+          const isDowngradeToStandard = previousTier?.tierKey === 'pro' && tier.tierKey === 'standard';
+
+          if (isUpgradeToPro) {
+            // Bruno lock #3 Reading A: today's enqueued probe still fires; daily kicks in tomorrow.
+            await env.CITATION_DB.prepare(
+              `UPDATE subscriptions SET product_id = ? WHERE subscription_id = ?`
+            ).bind(newProductId, subscriptionId).run();
+
+            const newNextProbeAt = computeNextProbeAt('daily', new Date(nowSec * 1000));
+            await env.CITATION_DB.prepare(
+              `UPDATE customer_probe_targets SET probe_cadence = 'daily', next_probe_at = ? WHERE customer_id = ?`
+            ).bind(newNextProbeAt, customerId).run();
+          } else if (isDowngradeToStandard) {
+            // Variant B: defer per Bruno lock #4 + #16.
+            // Defensive deferUntil: prefer effective_at; fall back to current_period_end proxy.
+            const deferUntil = (effectiveAt && effectiveAt > nowSec)
+              ? effectiveAt
+              : (subRow.current_period_end && subRow.current_period_end > nowSec ? subRow.current_period_end : null);
+
+            if (deferUntil) {
+              await env.CITATION_DB.prepare(
+                `UPDATE subscriptions
+                 SET pending_product_id = ?, pending_probe_cadence = ?, cadence_change_effective_at = ?
+                 WHERE subscription_id = ?`
+              ).bind(newProductId, 'twice_weekly', deferUntil, subscriptionId).run();
+            } else {
+              // No temporal hint + no period_end proxy -> immediate flip fallback.
+              await env.CITATION_DB.prepare(
+                `UPDATE subscriptions SET product_id = ? WHERE subscription_id = ?`
+              ).bind(newProductId, subscriptionId).run();
+              const newNextProbeAt = computeNextProbeAt('twice_weekly', new Date(nowSec * 1000));
+              await env.CITATION_DB.prepare(
+                `UPDATE customer_probe_targets SET probe_cadence = 'twice_weekly', next_probe_at = ? WHERE customer_id = ?`
+              ).bind(newNextProbeAt, customerId).run();
+            }
+          } else {
+            // Other plan_changed cases (e.g., legacy product_id, Founder shifts not crossing Standard<->Pro):
+            await env.CITATION_DB.prepare(
+              `UPDATE subscriptions SET product_id = ? WHERE subscription_id = ?`
+            ).bind(newProductId, subscriptionId).run();
+          }
+        } else {
+          // subRow missing -- log and fall through (NO early-return per Codex HIGH #1).
+          console.error(JSON.stringify({
+            kind: 'f41_plan_changed_subscription_not_found',
+            subscription_id: subscriptionId.substring(0, 12),
+          }));
+        }
+      }
     }
     // Falls through to outer handler's dedupe-mark + 200 response.
   } else if (

@@ -81,12 +81,13 @@ export async function sendWelcomeEmail(
       accountLink,
       unsubscribeLink,
     });
-    // Preserve existing standard-welcome subject from V3 V-read.
-    subject = "Astrant AutoPilot is active — set up your monitoring";
+    // F4.1 D14: tier-agnostic subject. buildStandardWelcomeBody fires for ALL non-Founders
+    // (both Standard + Pro tiers); tier-specific welcome is F4.2 territory per Bruno lock #12.
+    subject = "Astrant is active — set up your monitoring";
   }
 
   await resend.emails.send({
-    from: "Astrant AutoPilot <reports@astrant.io>",
+    from: "Astrant <reports@astrant.io>",
     to: customerEmail,
     subject,
     text: body,
@@ -155,7 +156,7 @@ function buildStandardWelcomeBody(args: {
   accountLink: string;
   unsubscribeLink: string;
 }): string {
-  return `Welcome to Astrant AutoPilot.
+  return `Welcome to Astrant.
 
 Your monthly citation-monitoring subscription is active. Once you complete onboarding, your first artifact — a 6-dimension AEO audit of your domain — arrives within 24 hours (usually within 10 minutes). Monthly citation-tracking digests then deliver on the 1st of each month.
 

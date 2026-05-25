@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 // F3 OQ-16.D: render-time capacity gate. Reads customer_probe_targets count via
 // the cross-bound CITATION_DB. When at capacity (count >= env.MAX_PROBE_TARGETS),
-// forces the AutoPilot CTA to waitlist regardless of the manual-flip CHECKOUT_AUTOPILOT_URL.
+// forces the Standard CTA to waitlist regardless of the manual-flip CHECKOUT_STANDARD_URL.
 // Fail-closed: D1 errors route to waitlist (better than accepting payment when over capacity).
 // B1.3 v1.1: ceiling raised from hardcoded 3 to env.MAX_PROBE_TARGETS (default "30").
 interface CapacityCheckEnv {
@@ -35,34 +35,36 @@ async function getActiveCustomerCountAndCeiling(): Promise<{ count: number; ceil
 }
 
 export const metadata: Metadata = {
-  title: "Subscriptions — $149 AutoPilot / $899 Concierge — Astrant",
+  title: "Subscriptions -- $149 Standard / $899 Pro -- Astrant",
   description:
-    "Keep your agent-discoverability stack healthy and measure its impact. Two tiers: AutoPilot ($149/month, fully automated) and Concierge ($899/month, human updates + strategy). Month-to-month, cancel anytime.",
+    "Keep your agent-discoverability stack healthy and measure its impact. Two tiers: Standard ($149/month, fully automated) and Pro ($899/month, daily probe cadence). Month-to-month, cancel anytime.",
   alternates: {
     types: { "text/markdown": "/subscriptions.md" },
   },
 };
 
-// PRE-LAUNCH MODE — paid checkouts disabled site-wide. Subscription CTAs
-// now point at the /audit waitlist (which captures URL + email via
-// /api/waitlist). To restore real Dodo checkouts, swap these back to:
-//   AUTOPILOT: https://checkout.dodopayments.com/buy/pdt_0NdQEw8wrcH0nd5OlZ3IJ?quantity=1
-//   CONCIERGE: https://checkout.dodopayments.com/buy/pdt_0NdQEbaRcrAC3qQuCAlnh?quantity=1
-const CHECKOUT_AUTOPILOT_URL = "/audit#waitlist";
-const CHECKOUT_CONCIERGE_URL = "/audit#waitlist";
+// PRE-LAUNCH MODE -- paid checkouts disabled site-wide. Subscription CTAs now point at
+// the /audit waitlist (which captures URL + email via /api/waitlist).
+// To restore real Dodo checkouts at gate-revert, swap the const values to:
+//   CHECKOUT_STANDARD_URL = `https://checkout.dodopayments.com/buy/${env.STANDARD_PRODUCT_ID}?quantity=1`
+//     = https://checkout.dodopayments.com/buy/pdt_0NdQEbaRcrAC3qQuCAlnh?quantity=1  -> Standard $149
+//   CHECKOUT_PRO_URL = `https://checkout.dodopayments.com/buy/${env.PRO_PRODUCT_ID}?quantity=1`
+//     = https://checkout.dodopayments.com/buy/pdt_0NdQEw8wrcH0nd5OlZ3IJ?quantity=1     -> Pro $899
+const CHECKOUT_STANDARD_URL = "/audit#waitlist";
+const CHECKOUT_PRO_URL = "/audit#waitlist";
 
 const serviceLd = [
   {
     "@context": "https://schema.org",
     "@type": "Service",
-    name: "AutoPilot Subscription",
+    name: "Standard Subscription",
     provider: { "@type": "Organization", name: "Astrant" },
     serviceType: "Agent Engine Optimization",
     areaServed: "Worldwide",
     url: "https://astrant.io/subscriptions",
     offers: {
       "@type": "Offer",
-      name: "AutoPilot Subscription",
+      name: "Standard Subscription",
       url: "https://astrant.io/subscriptions",
       priceSpecification: {
         "@type": "UnitPriceSpecification",
@@ -71,20 +73,20 @@ const serviceLd = [
         billingDuration: "P1M",
       },
       description:
-        "Automated ongoing optimization and the monthly 6-section agent-traffic report.",
+        "Automated ongoing optimization with twice-weekly citation probes and the monthly 6-section agent-traffic report.",
     },
   },
   {
     "@context": "https://schema.org",
     "@type": "Service",
-    name: "Concierge Subscription",
+    name: "Pro Subscription",
     provider: { "@type": "Organization", name: "Astrant" },
     serviceType: "Agent Engine Optimization",
     areaServed: "Worldwide",
     url: "https://astrant.io/subscriptions",
     offers: {
       "@type": "Offer",
-      name: "Concierge Subscription",
+      name: "Pro Subscription",
       url: "https://astrant.io/subscriptions",
       priceSpecification: {
         "@type": "UnitPriceSpecification",
@@ -93,7 +95,7 @@ const serviceLd = [
         billingDuration: "P1M",
       },
       description:
-        "Everything in AutoPilot plus content updates, quarterly strategy calls, and competitor tracking.",
+        "Everything in Standard plus daily citation probes across ChatGPT, Claude, Perplexity, and Gemini.",
     },
   },
 ];
@@ -101,10 +103,10 @@ const serviceLd = [
 const FAQS = [
   {
     q: "Do I need to complete Implementation first?",
-    a: "No — you can start AutoPilot anytime to get the monthly scan and report. Concierge is strongest if you've done Implementation; otherwise there's less to \"manage.\"",
+    a: "No — you can start Standard anytime to get the monthly scan and report. Pro is strongest if you've done Implementation; otherwise there's less to \"manage.\"",
   },
   {
-    q: "Can I upgrade AutoPilot to Concierge mid-month?",
+    q: "Can I upgrade Standard to Pro mid-month?",
     a: "Yes. Prorated via Dodo Payments; takes effect immediately.",
   },
   {
@@ -123,31 +125,23 @@ const faqLd = {
   })),
 };
 
-const AUTOPILOT_INCLUDES = [
+const STANDARD_INCLUDES = [
   "Hosted MCP server (uptime, security updates, MCP spec evolution)",
   "Monthly auto-generated 6-section agent-traffic report (PDF)",
   "Monthly auto-rescan of your site against the 6-dimension rubric",
-  "Citation monitoring across ChatGPT, Claude, Perplexity, Gemini (read-only dashboard)",
-];
-
-const CONCIERGE_EXTRAS = [
-  "Content updates as your site evolves (new pricing, new products, new case studies — reflected in the AEO stack)",
-  "Quarterly strategy call",
-  "Competitor tracking with narrative analysis, not just data",
-  "JSON-LD maintenance as schema.org evolves",
-  "Priority support (email response within 1 business day)",
+  "Twice-weekly citation monitoring across ChatGPT, Claude, Perplexity, Gemini (read-only dashboard)",
 ];
 
 const EXCLUDED = [
   "New MCP tools or new feature builds (separate Implementation or Custom work)",
-  "Major content rewrites (small updates are in scope for Concierge; full rewrites aren't)",
+  "Major content rewrites (small updates are in scope for Pro; full rewrites aren't)",
   "Non-AEO SEO work (that's a different business, not ours)",
 ];
 
 // Logo + Foundation slice — both CTAs are 503-gated waitlist mode (per the
 // CHECKOUT_*_URL constants pointing at /audit#waitlist). Decision 5 EXCEPTION:
 // 503-gated CTAs keep amber. Only the radius is stripped per decision 4.
-function AutoPilotCta({ label, href }: { label: string; href: string }) {
+function StandardCta({ label, href }: { label: string; href: string }) {
   return (
     <a
       href={href}
@@ -158,10 +152,10 @@ function AutoPilotCta({ label, href }: { label: string; href: string }) {
   );
 }
 
-function ConciergeCta({ label }: { label: string }) {
+function ProCta({ label }: { label: string }) {
   return (
     <a
-      href={CHECKOUT_CONCIERGE_URL}
+      href={CHECKOUT_PRO_URL}
       className="inline-flex border border-[var(--color-accent)] px-6 py-3 text-base font-semibold text-[var(--color-accent)] transition hover:bg-[var(--color-accent)] hover:text-black"
     >
       {label}
@@ -170,11 +164,11 @@ function ConciergeCta({ label }: { label: string }) {
 }
 
 export default async function SubscriptionsPage() {
-  // F3 OQ-16.D capacity gate — layered on top of the manual-flip CHECKOUT_AUTOPILOT_URL.
+  // F3 OQ-16.D capacity gate — layered on top of the manual-flip CHECKOUT_STANDARD_URL.
   // B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded 3.
   const { count: customerCount, ceiling: maxProbeTargets } = await getActiveCustomerCountAndCeiling();
   const atCapacity = customerCount >= maxProbeTargets;
-  const effectiveAutopilotUrl = atCapacity ? "/audit#waitlist" : CHECKOUT_AUTOPILOT_URL;
+  const effectiveStandardUrl = atCapacity ? "/audit#waitlist" : CHECKOUT_STANDARD_URL;
 
   // F-Fnd: cohort lookup gated by F_FND_COPY_LIVE flag. Renders Founding section only
   // when flag is "true" AND cohort still has slots (reserved_count < cap).
@@ -211,9 +205,9 @@ export default async function SubscriptionsPage() {
           </h1>
           <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)] sm:text-xl">
             Keep your agent-discoverability stack healthy and measure its impact.
-            Two tiers: AutoPilot ($149/month, fully automated) and Concierge
-            ($899/month, includes human content updates and strategy calls).
-            Month-to-month on both. Cancel anytime.
+            Two tiers: Standard ($149/month, twice-weekly citation probes) and Pro
+            ($899/month, daily citation probes). Month-to-month on both. Cancel
+            anytime.
           </p>
         </section>
 
@@ -245,12 +239,12 @@ export default async function SubscriptionsPage() {
               Compare tiers
             </h2>
             <div className="mt-10 grid gap-6 lg:grid-cols-2">
-              {/* AUTOPILOT CARD */}
+              {/* STANDARD CARD */}
               {/* Logo + Foundation slice: rounded-lg stripped; price color
                   demoted accent → fg; checkmarks demoted accent → muted. */}
               <div className="flex flex-col border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
                 <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="text-2xl font-semibold">AutoPilot</h3>
+                  <h3 className="text-2xl font-semibold">Standard</h3>
                   <span className="text-xl font-bold text-[var(--color-fg)]">
                     $149 / month
                   </span>
@@ -260,7 +254,7 @@ export default async function SubscriptionsPage() {
                   numbers, without human overhead.
                 </p>
                 <ul className="mt-6 flex flex-col gap-3 text-base">
-                  {AUTOPILOT_INCLUDES.map((i) => (
+                  {STANDARD_INCLUDES.map((i) => (
                     <li key={i} className="flex gap-3">
                       <span className="mt-1 shrink-0 text-[var(--color-muted)]">
                         ✓
@@ -270,37 +264,31 @@ export default async function SubscriptionsPage() {
                   ))}
                 </ul>
                 <div className="mt-8">
-                  <AutoPilotCta label="Notify me when AutoPilot launches" href={effectiveAutopilotUrl} />
+                  <StandardCta label="Notify me when Standard launches" href={effectiveStandardUrl} />
                 </div>
               </div>
 
-              {/* CONCIERGE CARD */}
-              {/* Logo + Foundation slice: pricing-card highlight (amber border)
-                  dropped entirely per decision 5 — differentiate via copy + ordering.
-                  rounded-lg stripped; price + checkmarks demoted as in AutoPilot card. */}
+              {/* PRO CARD */}
+              {/* F4.1 D13: structural Edit -- removed CONCIERGE_EXTRAS &lt;ul&gt; block per Bruno lock #17;
+                  replaced with cadence-only &lt;p&gt; per Bruno lock #6. */}
               <div className="flex flex-col border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
                 <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="text-2xl font-semibold">Concierge</h3>
+                  <h3 className="text-2xl font-semibold">Astrant Pro</h3>
                   <span className="text-xl font-bold text-[var(--color-fg)]">
                     $899 / month
                   </span>
                 </div>
                 <p className="mt-4 text-[var(--color-muted)]">
-                  For teams post-Implementation who want ongoing hands-on
-                  optimization. Includes everything in AutoPilot, plus:
+                  Daily probing across ChatGPT, Claude, Perplexity, and Gemini &mdash; faster
+                  competitive change detection than Standard&apos;s twice-weekly cadence. See
+                  exposure shifts within 24 hours, not 3-4 days.
                 </p>
-                <ul className="mt-6 flex flex-col gap-3 text-base">
-                  {CONCIERGE_EXTRAS.map((i) => (
-                    <li key={i} className="flex gap-3">
-                      <span className="mt-1 shrink-0 text-[var(--color-muted)]">
-                        ✓
-                      </span>
-                      <span className="text-[var(--color-muted)]">{i}</span>
-                    </li>
-                  ))}
-                </ul>
+                <p className="mt-6 text-[var(--color-muted)]">
+                  Pro includes everything in Standard plus daily probe cadence. More Pro-only
+                  features coming soon.
+                </p>
                 <div className="mt-8">
-                  <ConciergeCta label="Notify me when Concierge launches" />
+                  <ProCta label="Notify me when Pro launches" />
                 </div>
               </div>
             </div>
@@ -369,11 +357,11 @@ export default async function SubscriptionsPage() {
               Ready?
             </h2>
             <div className="mt-10 flex flex-wrap gap-4">
-              <AutoPilotCta label="Notify me when AutoPilot launches" href={effectiveAutopilotUrl} />
-              <ConciergeCta label="Notify me when Concierge launches" />
+              <StandardCta label="Notify me when Standard launches" href={effectiveStandardUrl} />
+              <ProCta label="Notify me when Pro launches" />
             </div>
             <p className="mt-4 text-sm italic text-[var(--color-muted)]">
-              Not sure? Start with AutoPilot and upgrade later — all settings carry
+              Not sure? Start with Standard and upgrade later — all settings carry
               over.
             </p>
           </div>
