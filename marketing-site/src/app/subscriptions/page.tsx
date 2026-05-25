@@ -16,6 +16,8 @@ interface CapacityCheckEnv {
   CITATION_DB: D1Database;
   // B1.3 v1.1 — replaces hardcoded ceiling=3 (default "30").
   MAX_PROBE_TARGETS?: string;
+  // F-Fnd Phase 3.0 widening: gates the Founding-pricing section render.
+  F_FND_COPY_LIVE: string;
 }
 async function getActiveCustomerCountAndCeiling(): Promise<{ count: number; ceiling: number }> {
   let ceiling = 30;
@@ -173,6 +175,22 @@ export default async function SubscriptionsPage() {
   const { count: customerCount, ceiling: maxProbeTargets } = await getActiveCustomerCountAndCeiling();
   const atCapacity = customerCount >= maxProbeTargets;
   const effectiveAutopilotUrl = atCapacity ? "/audit#waitlist" : CHECKOUT_AUTOPILOT_URL;
+
+  // F-Fnd: cohort lookup gated by F_FND_COPY_LIVE flag. Renders Founding section only
+  // when flag is "true" AND cohort still has slots (reserved_count < cap).
+  // Counter freshness: per-request (no ISR; force-dynamic above).
+  const env = getCloudflareContext().env as unknown as CapacityCheckEnv;
+  const isFoundingCopyLive = env.F_FND_COPY_LIVE === "true";
+  let foundingCohort: { reserved: number; cap: number } | null = null;
+  if (isFoundingCopyLive) {
+    const row = await env.CITATION_DB.prepare(
+      "SELECT reserved_count, cap FROM founding_cohort_meta WHERE id = 1"
+    ).first<{ reserved_count: number; cap: number }>();
+    if (row && row.reserved_count < row.cap) {
+      foundingCohort = { reserved: row.reserved_count, cap: row.cap };
+    }
+  }
+
   return (
     <div className="min-h-screen">
       <script
@@ -198,6 +216,27 @@ export default async function SubscriptionsPage() {
             Month-to-month on both. Cancel anytime.
           </p>
         </section>
+
+        {/* F-FND FOUNDING SECTION — rendered only when F_FND_COPY_LIVE="true" AND cohort has slots */}
+        {foundingCohort && (
+          <section className="border-t border-[var(--color-border)]">
+            <div className="mx-auto max-w-6xl px-6 py-20">
+              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                Founding Customer pricing
+              </h2>
+              <p className="mt-4 text-lg text-[var(--color-muted)]">
+                {foundingCohort.reserved} of {foundingCohort.cap} founding subscriptions claimed
+              </p>
+              <p className="mt-6 max-w-3xl text-base text-[var(--color-muted)]">
+                Founding Customer pricing locks at your subscription&apos;s launch price for as long as
+                your subscription remains active. <strong>Cancelling your subscription permanently forfeits
+                your Founding pricing</strong> &mdash; you&apos;ll be welcome back at our current rates, but your
+                original Founding price won&apos;t apply on re-subscribe. Cumulative cohort: once 30 Founders
+                sign up, the cohort closes permanently regardless of subsequent cancellations.
+              </p>
+            </div>
+          </section>
+        )}
 
         {/* COMPARE TIERS */}
         <section className="border-t border-[var(--color-border)]">

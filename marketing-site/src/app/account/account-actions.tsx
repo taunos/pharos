@@ -25,9 +25,18 @@ function readSigFromUrl(): string {
 export function AccountActions({
   subscriptionId,
   actionMode,
+  founderForfeit,
 }: {
   subscriptionId: string;
   actionMode: "cancel" | "reactivate" | "expired" | "fallback";
+  // F-Fnd: pre-computed Founder-forfeit warning props (server-side from /account/page.tsx);
+  // null when subscription is not Founding-eligible OR F_FND_COPY_LIVE !== 'true' OR
+  // cancel_pending_at !== null OR status !== 'active'.
+  founderForfeit?: {
+    seq: number;
+    formattedPrice: string;
+    periodEndStr: string;
+  } | null;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingState, setPendingState] = useState<
@@ -106,6 +115,15 @@ export function AccountActions({
 
       {actionMode === "cancel" && (
         <>
+          {/* F-Fnd: Founder-forfeit warning rendered above the cancel button when applicable */}
+          {founderForfeit && (
+            <p className="mb-4 text-amber-600 text-sm">
+              Note: cancelling forfeits your Founding Member #{founderForfeit.seq} price-lock at
+              {' '}{founderForfeit.formattedPrice}.
+              Re-subscribing later will be at our then-current pricing. Your subscription remains active
+              through {founderForfeit.periodEndStr} and you&apos;ll keep Founding pricing until then.
+            </p>
+          )}
           <button
             type="button"
             className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"

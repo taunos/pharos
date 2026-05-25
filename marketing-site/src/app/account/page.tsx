@@ -1,11 +1,13 @@
 // F3.2 /account page — HMAC-signed self-service surface for cancel/reactivate.
 // Per pharos-f3-2-subscription-management-self-service-spec.md v4 §7 D7 + §3.b D3.b.
+// F-Fnd: Founder identity display + M1 tier-heuristic fix + founderForfeit warning prop.
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { verifyAccountLink } from "@/lib/account-link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { AccountActions } from "./account-actions";
+import { resolveTierFromProductId } from "@/lib/founding-pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +21,10 @@ interface AccountPageEnv {
   CITATION_DB: D1Database;
   DODO_API_KEY: string;
   DODO_API_BASE_URL: string;
+  // F-Fnd Phase 3.0 widenings:
+  STANDARD_PRODUCT_ID: string;
+  PRO_PRODUCT_ID: string;
+  F_FND_COPY_LIVE: string;
 }
 
 interface SubscriptionRow {
@@ -31,6 +37,39 @@ interface SubscriptionRow {
   current_period_end: number;
   cancelled_at: number | null;
   cancel_pending_at: number | null; // F3.2.1 D6
+  // F-Fnd: LEFT JOIN'd from founding_customers ON customer_id; null when not a Founder.
+  // V-DATA-NULL=0 confirmed Phase 0.1; current_period_* declared as non-null in the V-DATA=0 branch.
+  founding_order_seq: number | null;
+  founding_status: 'active' | 'cancelled' | null;
+  founding_tier_locks: string | null;
+  founding_cancelled_at: number | null;
+}
+
+// F-Fnd helpers (module scope; pure formatters).
+function formatDate(unixSec: number): string {
+  return new Date(unixSec * 1000).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function formatTierPrice(
+  tierLocksJson: string | null,
+  currentProductId: string | null,
+  env: { STANDARD_PRODUCT_ID: string; PRO_PRODUCT_ID: string },
+): string {
+  if (!tierLocksJson) return '';
+  const tierLocks: Record<string, number> = JSON.parse(tierLocksJson);
+  let tierKey: string;
+  if (currentProductId === env.STANDARD_PRODUCT_ID) tierKey = 'standard';
+  else if (currentProductId === env.PRO_PRODUCT_ID) tierKey = 'pro';
+  else tierKey = Object.keys(tierLocks)[0] ?? 'standard';
+  const cents = tierLocks[tierKey] ?? 0;
+  const dollars = Math.floor(cents / 100);
+  const tierLabel = tierKey.charAt(0).toUpperCase() + tierKey.slice(1);
+  return `$${dollars}/mo (${tierLabel})`;
 }
 
 export default async function AccountPage({
@@ -47,10 +86,15 @@ export default async function AccountPage({
   const valid = await verifyAccountLink(env, subscriptionId, sig);
   if (!valid) return <InvalidLink />;
 
+  // F-Fnd: single LEFT JOIN'd query — subscriptions + founding_customers ON customer_id.
+  // V-DATA-NULL=0 confirmed Phase 0.1; current_period_* declared as non-null.
   const sub = await env.CITATION_DB.prepare(
-    `SELECT subscription_id, customer_id, customer_email, product_id, status,
-            current_period_start, current_period_end, cancelled_at, cancel_pending_at
-     FROM subscriptions WHERE subscription_id = ?`,
+    `SELECT s.subscription_id, s.customer_id, s.customer_email, s.product_id, s.status,
+            s.current_period_start, s.current_period_end, s.cancelled_at, s.cancel_pending_at,
+            fc.founding_order_seq, fc.founding_status, fc.founding_tier_locks, fc.founding_cancelled_at
+     FROM subscriptions s
+     LEFT JOIN founding_customers fc ON fc.customer_id = s.customer_id
+     WHERE s.subscription_id = ?`,
   )
     .bind(subscriptionId)
     .first<SubscriptionRow>();
@@ -85,7 +129,54 @@ export default async function AccountPage({
     );
   }
 
-  return <AccountView sub={sub} portalUrl={portalUrl} />;
+  // F-Fnd M1 fix: resolve tier from product_id via env-bound SKUs (NOT substring heuristic).
+  // 'Subscription' fallback for legacy/grandfathered product_ids (v6 L1).
+  const resolvedTier = resolveTierFromProductId(env, sub.product_id);
+  const tier: string = resolvedTier
+    ? (resolvedTier.tierKey === 'standard' ? 'Standard' : 'Pro')
+    : 'Subscription';
+
+  // F-Fnd: pre-compute Founder display + forfeit props server-side. AccountView is module-scope
+  // and doesn't have env; pre-compute here and pass through.
+  const isFoundingCopyLive = env.F_FND_COPY_LIVE === 'true';
+
+  const founderForfeit =
+    isFoundingCopyLive
+      && sub.founding_order_seq != null
+      && sub.founding_status === 'active'
+      && sub.status === 'active'
+      && sub.cancel_pending_at == null
+      && sub.current_period_end != null
+      ? {
+          seq: sub.founding_order_seq,
+          formattedPrice: formatTierPrice(sub.founding_tier_locks, sub.product_id, env),
+          periodEndStr: formatDate(sub.current_period_end),
+        }
+      : null;
+
+  const founderDisplay =
+    sub.founding_order_seq != null && sub.founding_status != null
+      ? {
+          seq: sub.founding_order_seq,
+          status: sub.founding_status,
+          formattedPrice: sub.founding_status === 'active'
+            ? formatTierPrice(sub.founding_tier_locks, sub.product_id, env)
+            : '',
+          cancelledDateStr: sub.founding_cancelled_at != null
+            ? formatDate(sub.founding_cancelled_at)
+            : null,
+        }
+      : null;
+
+  return (
+    <AccountView
+      sub={sub}
+      portalUrl={portalUrl}
+      tier={tier}
+      founderForfeit={founderForfeit}
+      founderDisplay={founderDisplay}
+    />
+  );
 }
 
 function InvalidLink() {
@@ -117,14 +208,26 @@ function InvalidLink() {
 function AccountView({
   sub,
   portalUrl,
+  tier,
+  founderForfeit,
+  founderDisplay,
 }: {
   sub: SubscriptionRow;
   portalUrl: string | null;
+  tier: string;  // F-Fnd: M1 fix; resolved server-side via resolveTierFromProductId
+  founderForfeit: {
+    seq: number;
+    formattedPrice: string;
+    periodEndStr: string;
+  } | null;
+  founderDisplay: {
+    seq: number;
+    status: 'active' | 'cancelled';
+    formattedPrice: string;
+    cancelledDateStr: string | null;
+  } | null;
 }) {
   const nowSec = Math.floor(Date.now() / 1000);
-  const tier = sub.product_id.toLowerCase().includes("concierge")
-    ? "Concierge"
-    : "AutoPilot";
   const periodEndStr = new Date(sub.current_period_end * 1000).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
@@ -165,12 +268,31 @@ function AccountView({
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Astrant {tier}
           </h1>
+
+          {/* F-Fnd: Founder identity card — rendered between h1 and state label */}
+          {founderDisplay && founderDisplay.status === 'active' && (
+            <div className="mt-2 text-sm text-[var(--color-muted)]">
+              You are Founding Member #{founderDisplay.seq}. Your Founding pricing of
+              {' '}{founderDisplay.formattedPrice} is locked while your subscription remains
+              active, subject to your subscription agreement.
+            </div>
+          )}
+          {founderDisplay && founderDisplay.status === 'cancelled' && (
+            <div className="mt-2 text-sm text-[var(--color-muted)]">
+              You were Founding Member #{founderDisplay.seq}; pricing lock{' '}
+              {founderDisplay.cancelledDateStr
+                ? `expired on ${founderDisplay.cancelledDateStr}`
+                : 'has expired'}.
+            </div>
+          )}
+
           <p className="mt-6 text-lg text-[var(--color-muted)]">{stateLabel}</p>
 
           <div className="mt-10 border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
             <AccountActions
               subscriptionId={sub.subscription_id}
               actionMode={actionMode}
+              founderForfeit={founderForfeit}
             />
           </div>
 

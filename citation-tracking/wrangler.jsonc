@@ -27,5 +27,23 @@
     "MAX_PROBE_TARGETS": "30",
     // B1.3 v1.1 — operator alert recipient (vars per N2-v3; email is not a credential).
     "OPERATOR_ALERT_TO": "taunos@gmail.com"
+  },
+  // F-Fnd: [env.dev] is for Case 7 smoke test ONLY. Production wrangler deploy uses
+  // top-level config (no ENV; no [env.dev]); test endpoint returns 404. If other handlers
+  // exercised under "wrangler dev --env dev" need top-level bindings (KV, R2, secrets,
+  // etc.), re-declare them here — top-level bindings don't inherit into env blocks.
+  "env": {
+    "dev": {
+      "vars": {
+        "ENV": "local"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "pharos-citation-tracking",
+          "database_id": "2fff74f3-857b-47c9-917f-d03cfb93f063"
+        }
+      ]
+    }
   }
 }

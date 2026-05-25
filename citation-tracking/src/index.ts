@@ -4,6 +4,7 @@ import { validateBrandName } from './validation';
 import { issueAccountLink } from './lib/account-link';
 import { ASTRANT_BASELINE, customerIdToProbeArg } from './probe-constants';
 import { sendOperatorAlert } from './alerts';
+import { handleTestFoundingInsert } from './__test_founding_insert';
 
 export interface Env {
   DB: D1Database;
@@ -22,6 +23,9 @@ export interface Env {
   // B1.3 v1.1 cron-fix:
   MAX_PROBE_TARGETS: string;        // v1.1 ceiling primitive; replaces hardcoded CUSTOMER_CEILING=3 (default "30")
   OPERATOR_ALERT_TO: string;        // operator alert recipient (taunos@gmail.com); used by alerts.ts
+  // F-Fnd D3 case 7: gated test-endpoint guard. Set only in [env.dev] block of wrangler.jsonc;
+  // undefined in production (top-level config) so /__test/founding-insert returns 404.
+  ENV?: string;
 }
 
 function constantTimeEqual(a: string, b: string): boolean {
@@ -145,6 +149,18 @@ export default {
 
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    // F-Fnd D3 case 7 test endpoint. Gated by env.ENV === 'local' (set only via [env.dev]
+    // block in wrangler.jsonc). Production wrangler deploy uses top-level config without
+    // ENV; this branch doesn't fire; route falls through to 404. Belt-and-suspenders with
+    // endpoint-side guard in __test_founding_insert.ts.
+    if (
+      url.pathname === '/__test/founding-insert'
+      && request.method === 'POST'
+      && env.ENV === 'local'
+    ) {
+      return handleTestFoundingInsert(request, env);
+    }
 
     if (url.pathname.startsWith('/api/internal/')) {
       const auth = request.headers.get('Authorization') ?? '';

@@ -66,6 +66,11 @@
 		"CF_ACCOUNT_ID": "e265950ef2b3e0e186ffe1c4d2bee4be",
 		// SYNC WITH citation-tracking/wrangler.jsonc :MAX_PROBE_TARGETS
 		// SYNC WITH marketing-site/wrangler.jsonc :MAX_PROBE_TARGETS
-		"MAX_PROBE_TARGETS": "30"
+		"MAX_PROBE_TARGETS": "30",
+		// F-Fnd: tier-eligibility binding (V-FP-PROD-A bytes-pinned) + copy gate + base URL.
+		"STANDARD_PRODUCT_ID": "pdt_0NdQEbaRcrAC3qQuCAlnh",
+		"PRO_PRODUCT_ID":      "pdt_0NdQEw8wrcH0nd5OlZ3IJ",
+		"F_FND_COPY_LIVE":     "false",
+		"ASTRANT_BASE_URL":    "https://astrant.io"
 	}
 }

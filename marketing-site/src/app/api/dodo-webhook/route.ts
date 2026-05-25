@@ -4,6 +4,11 @@ import { verifyWebhook, type DodoEnvBindings } from "@/lib/dodo";
 import { requestOrigin } from "@/lib/origin";
 import type { SessionRecord } from "@/lib/audit-types";
 import { sendOperatorAlert } from "@/lib/operator-alerts";
+import {
+  tryAssignFoundingStatus,
+  resolveTierFromProductId,
+  type AssignmentResult,
+} from "@/lib/founding-pricing";
 
 interface WebhookEnv extends DodoEnvBindings {
   SESSIONS: KVNamespace;
@@ -18,6 +23,14 @@ interface WebhookEnv extends DodoEnvBindings {
   OPERATOR_ALERT_EMAIL: string;
   // B1.3 v1.1 — replaces hardcoded ceiling=3 (default "30").
   MAX_PROBE_TARGETS?: string;
+  // F-Fnd Phase 3.0 widenings (V-FP-PROD-A bytes-pinned at Phase 0.3):
+  STANDARD_PRODUCT_ID: string;
+  PRO_PRODUCT_ID: string;
+  // F-Fnd Phase 3.0 sendWelcomeEmail-cascade (C12): WebhookEnv is passed into sendWelcomeEmail
+  // whose WelcomeEmailEnv requires these. Without these here, tsc rejects the call at the
+  // dynamic-import + invocation site (see Phase 3 verification gate output).
+  EMAIL_UNSUB_SIGNING_KEY: string;
+  ASTRANT_BASE_URL: string;
 }
 
 const F2_IMPLEMENTATION_PRODUCT_ID = "pdt_0NdQE5vccUUgOHMsF6Pzz";
@@ -262,6 +275,20 @@ export async function POST(req: Request) {
       .bind(subscriptionId, customerId, customerEmail, productId, periodStart, periodEnd, now, now)
       .run();
 
+    // F-Fnd: resolve tier + tryAssignFoundingStatus BEFORE CAS (per spec D9 ordering;
+    // retry re-attempts CAS+email if assignment throws). MAX_PROBE_TARGETS ceiling check
+    // at line ~244 stays where it is — Founding cohort × capacity coupling is intentional.
+    // TS narrow: customerId per line 231 is `string | undefined` because each `??` operand
+    // can be undefined; but the !subscriptionId early-return above guarantees subscriptionId
+    // is defined-string at this point, and customerId's fallback chain ends with it — so
+    // customerId IS defined at runtime. Explicit narrow for tryAssignFoundingStatus's strict signature.
+    const fndCustomerId: string = customerId ?? subscriptionId;
+    const fndTier = resolveTierFromProductId(env, productId);
+    let foundingResult: AssignmentResult | null = null;
+    if (fndTier) {
+      foundingResult = await tryAssignFoundingStatus(env, fndCustomerId, fndTier.tierKey, fndTier.tierPriceCents);
+    }
+
     // 4. CAS UPDATE welcome_email_sent_at (atomic; single-statement; race-free).
     const casResult = await env.CITATION_DB.prepare(
       `UPDATE subscriptions
@@ -275,7 +302,7 @@ export async function POST(req: Request) {
     if (casResult.meta.changes === 1) {
       try {
         const { sendWelcomeEmail } = await import("@/lib/welcome-email");
-        await sendWelcomeEmail(env, subscriptionId, customerEmail);
+        await sendWelcomeEmail(env, subscriptionId, customerEmail, foundingResult);
       } catch (err) {
         // Resend bounce/error logging surfaces delivery failures operationally.
         console.error(
@@ -313,11 +340,21 @@ export async function POST(req: Request) {
     // F3.2.1 D4: clear cancel_pending_at alongside canonical-state cancellation. Belt-and-suspenders
     // path per F3.2 V-B observation — Dodo fires this event at actual period_end (NOT on flag flip),
     // so the primary clear path during active subscription lifetime is D3 (reactivate route).
-    await env.CITATION_DB.prepare(
-      `UPDATE subscriptions SET status = 'cancelled', cancelled_at = ?, cancel_pending_at = NULL, updated_at = ? WHERE subscription_id = ?`
-    )
-      .bind(cancelledAt, cancelledAt, subscriptionId)
-      .run();
+    // F-Fnd: atomic batch — flip subscription status + flip founding_status at period-end.
+    // V-DATA-NULL=0 confirmed Phase 0.1; current_period_end safe to read without COALESCE.
+    await env.CITATION_DB.batch([
+      env.CITATION_DB.prepare(
+        `UPDATE subscriptions SET status = 'cancelled', cancelled_at = ?, cancel_pending_at = NULL, updated_at = ? WHERE subscription_id = ?`
+      ).bind(cancelledAt, cancelledAt, subscriptionId),
+      env.CITATION_DB.prepare(
+        `UPDATE founding_customers
+         SET founding_status = 'cancelled',
+             founding_cancelled_at = (SELECT current_period_end FROM subscriptions WHERE subscription_id = ?),
+             updated_at = ?
+         WHERE customer_id = (SELECT customer_id FROM subscriptions WHERE subscription_id = ?)
+           AND founding_status = 'active'`
+      ).bind(subscriptionId, cancelledAt, subscriptionId),
+    ]);
   } else if (eventType === "subscription.reactivated") {
     // F3.2 D11: customer un-cancelled via /api/account/reactivate (or Dodo customer portal).
     // V-B at deploy time confirms exact event name; may be "subscription.resumed" or surfaced
@@ -337,12 +374,46 @@ export async function POST(req: Request) {
     console.log(
       `F3_SUBSCRIPTION_REACTIVATED subscription_id=${subscriptionId.substring(0, 12)}`,
     );
+  } else if (eventType === "subscription.plan_changed") {
+    // F-Fnd: tier-change handler. Sticky-locks JSON upsert — new tier's price added to
+    // founding_tier_locks for Founder customers (founding_status='active' only).
+    // Per V-FP-UPG Phase 0.2 (Path B): event=subscription.plan_changed, field=parsed.data?.product_id (bare).
+    const subscriptionId = (parsed.data?.subscription_id ?? parsed.data?.id ?? "") as string;
+    const newProductId = (parsed.data?.product_id ?? "") as string;
+    const tier = resolveTierFromProductId(env, newProductId);
+
+    if (!subscriptionId) {
+      console.warn(JSON.stringify({
+        kind: "fnd_tier_change_no_subscription_id",
+        event_type: eventType,
+        timestamp: Date.now(),
+      }));
+    } else if (!tier) {
+      console.warn(JSON.stringify({
+        kind: "fnd_tier_change_unknown_product",
+        product_id_hex: Buffer.from(newProductId, "utf8").toString("hex"),
+        subscription_id: subscriptionId,
+        timestamp: Date.now(),
+      }));
+    } else {
+      const nowSec = Math.floor(Date.now() / 1000);
+      await env.CITATION_DB.prepare(
+        `UPDATE founding_customers
+         SET founding_tier_locks = json_set(founding_tier_locks, '$.' || ?, ?),
+             updated_at = ?
+         WHERE customer_id = (SELECT customer_id FROM subscriptions WHERE subscription_id = ?)
+           AND founding_status = 'active'`
+      ).bind(tier.tierKey, tier.tierPriceCents, nowSec, subscriptionId).run();
+    }
+    // Falls through to outer handler's dedupe-mark + 200 response.
   } else if (
     eventType === "subscription.failed" ||
     eventType === "subscription.on_hold" ||
     eventType === "subscription.plan_changed"
   ) {
     // F3 v1.0: dunning deferred to Dodo per spec §1.4. Log only.
+    // NOTE: subscription.plan_changed is now caught by the F-Fnd branch above; this OR-condition
+    // mention is unreachable post-F-Fnd but kept for explicit completeness. Cleanup deferred.
     console.log(
       `F3_SUBSCRIPTION_EVENT_LOGGED type=${eventType} subscription_id=${parsed.data?.subscription_id ?? "unknown"}`
     );
