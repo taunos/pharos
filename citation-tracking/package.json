@@ -5,7 +5,8 @@
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
-    "migrate": "wrangler d1 migrations apply pharos-citation-tracking --remote"
+    "migrate": "wrangler d1 migrations apply pharos-citation-tracking --remote",
+    "test": "tsx test/cadence.test.ts && tsx test/detect.test.ts && tsx test/digest.test.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240620.0",

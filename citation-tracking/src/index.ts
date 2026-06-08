@@ -3,6 +3,7 @@ import { runMonthlyDigest, aggregateAndRender, computeDefaultPeriod, deriveBrand
 import { validateBrandName } from './validation';
 import { issueAccountLink } from './lib/account-link';
 import { ASTRANT_BASELINE, ASTRANT_PROBE_SENTINEL, customerIdToProbeArg } from './probe-constants';
+import { generateCustomerPatterns } from './customer-patterns';
 import { computeNextProbeAt, type ProbeCadence } from './cadence';
 import { sendOperatorAlert } from './alerts';
 import { handleTestFoundingInsert } from './__test_founding_insert';
@@ -673,9 +674,25 @@ async function drainProbeJobsTick(env: Env): Promise<void> {
   }
 
   const customerIdArg = customerIdToProbeArg(pending.customer_id);
+
+  // F4.1.2c D1 Path A: re-query customer_probe_targets for per-customer detection patterns.
+  // For Astrant baseline (customerIdArg === null), skip re-query; pass null patterns.
+  let customerPatterns = null;
+  if (customerIdArg !== null) {
+    const customerData = await env.DB.prepare(
+      "SELECT customer_id, domain, brand_name, competitors FROM customer_probe_targets WHERE customer_id = ?"
+    ).bind(customerIdArg).first<{
+      customer_id: string;
+      domain: string | null;
+      brand_name: string | null;
+      competitors: string | null;
+    }>();
+    customerPatterns = customerData ? generateCustomerPatterns(customerData) : null;
+  }
+
   let probeError: string | null = null;
   try {
-    await probeSingleTarget(env, customerIdArg, pending.probe_subject, pending.target_category, newProbeRunId);
+    await probeSingleTarget(env, customerIdArg, pending.probe_subject, pending.target_category, newProbeRunId, customerPatterns);
   } catch (err) {
     probeError = String(err);
     console.error(`B1_3_PROBE_THROW job_id=${pending.id} error=${probeError}`);

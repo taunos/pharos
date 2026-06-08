@@ -24,6 +24,8 @@ interface ProbeRow {
   d3_competitors_cited: string | null;
   status: string;
   http_status: number | null;
+  d1c_customer_url_cite?: number | null;
+  d1d_customer_brand_mention?: number | null;
 }
 
 export async function aggregateAndRender(
@@ -38,6 +40,7 @@ export async function aggregateAndRender(
     ? await env.DB.prepare(`
         SELECT timestamp, provider, prompt_id, prompt_axis,
                d1a_url_cite, d1b_brand_mention, d2_term_of_art, d3_competitors_cited,
+               d1c_customer_url_cite, d1d_customer_brand_mention,
                status, http_status
         FROM probe_runs
         WHERE timestamp >= ? AND timestamp < ? AND customer_id IS NULL
@@ -45,12 +48,15 @@ export async function aggregateAndRender(
     : await env.DB.prepare(`
         SELECT timestamp, provider, prompt_id, prompt_axis,
                d1a_url_cite, d1b_brand_mention, d2_term_of_art, d3_competitors_cited,
+               d1c_customer_url_cite, d1d_customer_brand_mention,
                status, http_status
         FROM probe_runs
         WHERE timestamp >= ? AND timestamp < ? AND customer_id = ?
       `).bind(periodStart, periodEnd, customerId).all<ProbeRow>();
 
-  const data = computeDigestData(result.results ?? [], periodStart, periodEnd);
+  // F4.1.2c D13: isAstrantBaseline determined from customerId (canonical at digest layer).
+  const isAstrantBaseline = customerId === null;
+  const data = computeDigestData(result.results ?? [], periodStart, periodEnd, isAstrantBaseline);
   return renderDigest(data, brand, subscribedAt);
 }
 
@@ -102,7 +108,12 @@ interface DayLevelObservation {
   complementary_present: Set<string>;
 }
 
-function computeDigestData(rows: ProbeRow[], periodStart: number, periodEnd: number): DigestData {
+export function computeDigestData(
+  rows: ProbeRow[],
+  periodStart: number,
+  periodEnd: number,
+  isAstrantBaseline: boolean,
+): DigestData {
   const generated_at = Math.floor(Date.now() / 1000);
   const total_probes = rows.length;
   const validated_probes = rows.filter((r) => r.status === 'success').length;
@@ -126,19 +137,37 @@ function computeDigestData(rows: ProbeRow[], periodStart: number, periodEnd: num
     const day = parseInt(parts[2], 10);
     const promptAxis = groupRows[0].prompt_axis;
 
-    const citeReplicates = groupRows.filter((r) => r.d1a_url_cite === 1 || r.d1b_brand_mention === 1).length;
+    // F4.1.2c D13/D14: cite-share signal swap per audience.
+    // Astrant baseline uses d1a||d1b (Astrant URL/brand); customer rows use d1c||d1d (per-customer URL/brand).
+    const citeReplicates = isAstrantBaseline
+      ? groupRows.filter((r) => r.d1a_url_cite === 1 || r.d1b_brand_mention === 1).length
+      : groupRows.filter((r) => r.d1c_customer_url_cite === 1 || r.d1d_customer_brand_mention === 1).length;
     const d2Replicates = groupRows.filter((r) => r.d2_term_of_art === 1).length;
     const d1aReplicates = groupRows.filter((r) => r.d1a_url_cite === 1).length;
     const d1bReplicates = groupRows.filter((r) => r.d1b_brand_mention === 1).length;
 
+    // F4.1.2c D13: competitor rollup sub-bucket swap per audience.
+    // Astrant baseline reads direct + complementary (curated AEO landscape).
+    // Customer rows read customer_specific.brand_absent_competitors (matches detect.ts:93 brand-absent-only semantic).
     const competitors = new Set<string>();
     const complementary = new Set<string>();
     for (const r of groupRows) {
       if (!r.d3_competitors_cited) continue;
       try {
-        const d3 = JSON.parse(r.d3_competitors_cited) as { direct?: string[]; complementary?: string[] };
-        if (d3.direct) for (const c of d3.direct) competitors.add(c);
-        if (d3.complementary) for (const c of d3.complementary) complementary.add(c);
+        const d3 = JSON.parse(r.d3_competitors_cited) as {
+          direct?: string[];
+          complementary?: string[];
+          customer_specific?: { competitors?: string[]; brand_absent_competitors?: string[] };
+        };
+        if (isAstrantBaseline) {
+          if (d3.direct) for (const c of d3.direct) competitors.add(c);
+          if (d3.complementary) for (const c of d3.complementary) complementary.add(c);
+        } else {
+          if (d3.customer_specific?.brand_absent_competitors) {
+            for (const c of d3.customer_specific.brand_absent_competitors) competitors.add(c);
+          }
+          // complementary stays empty for customer rows.
+        }
       } catch (_e) {
         // malformed JSON — skip
       }
