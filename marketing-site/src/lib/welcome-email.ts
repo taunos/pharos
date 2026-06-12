@@ -1,4 +1,4 @@
-// F3 D6.1: AutoPilot welcome email. Sent by the dodo-webhook handler after
+// F3 D6.1 / F4.1.2: tier-agnostic welcome email. Sent by the dodo-webhook handler after
 // CAS-claim of subscriptions.welcome_email_sent_at. See spec v3.2 §6.1 + §11.3.
 // F-Fnd: optional foundingResult 4th-arg + 3 body variants (newly_assigned /
 // already_founder+active / standard) + RFC 8058 List-Unsubscribe headers + pre-send

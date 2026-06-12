@@ -24,7 +24,7 @@ When you use Astrant's free Score tool or any paid tier:
 - **The URL you scan.** That's the whole point — we can't compute a discoverability score without it.
 - **Your IP address.** Used for rate-limiting (preventing abuse) and aggregate traffic analytics. Stored in tail logs for ~7 days.
 - **Your User-Agent string.** Same uses as IP — rate-limiting and aggregate analytics. Stored in tail logs for ~7 days.
-- **Your email address, if you submit one.** You'll only submit an email if you choose to: receive your gap-report PDF, opt into monthly auto-rescan emails, contact support, or join the pre-launch waitlist (we'll notify you when paid tiers — Audit, Implementation, Custom, AutoPilot, Concierge — open for purchase). We don't email you for any reason you didn't explicitly ask for.
+- **Your email address, if you submit one.** You'll only submit an email if you choose to: receive your gap-report PDF, opt into monthly auto-rescan emails, contact support, or join the pre-launch waitlist (we'll notify you when paid tiers — Audit, Implementation, Custom, Standard, Pro — open for purchase). We don't email you for any reason you didn't explicitly ask for.
 - **Sub-check results from the scan.** The structured data Astrant computes about your site — llms.txt presence, MCP server discoverability, JSON-LD schema completeness, etc. This is not your content; it's our analysis of your public technical surface.
 
 ## What we don't collect
@@ -113,7 +113,7 @@ Astrant provides agent-discoverability tooling for B2B SaaS websites:
 - **Audit** ($79, instant): a deeper automated audit with per-gap remediation guidance.
 - **Implementation** ($1,299, <24h delivery): an automated build of llms.txt, MCP server, OpenAPI spec, JSON-LD schema, and baseline monitoring, delivered as a Git-applicable patch.
 - **Custom** (from $4,999): bespoke human-led builds for complex APIs, multi-region content, or unusual MCP tool needs.
-- **Subscriptions** (AutoPilot $149/mo, Concierge $899/mo): ongoing rescan + reporting.
+- **Subscriptions** (Standard $149/mo, Pro $899/mo): ongoing rescan + reporting.
 
 Some of these tiers are still in pre-launch verification at the time you're reading this. Active checkout availability is shown on each tier's page.
 

@@ -12,7 +12,7 @@ import SiteFooter from "@/components/SiteFooter";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Set up your Astrant AutoPilot monitoring",
+  title: "Set up your Astrant Standard monitoring",
   description: "Tell us what to monitor. Two minutes.",
 };
 
@@ -66,7 +66,7 @@ export default async function OnboardingPage({
       <main>
         <section className="mx-auto max-w-2xl px-6 py-20 sm:py-24">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Set up your Astrant AutoPilot monitoring
+            Set up your Astrant Standard monitoring
           </h1>
           <p className="mt-6 text-lg text-[var(--color-muted)]">
             Tell us what to monitor. Setup takes about two minutes. You can update any of

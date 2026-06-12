@@ -1,7 +1,7 @@
 // Architectural privacy guarantee (pharos-corpus-layer-spec.md §2.4):
 // The scanner Worker MUST NOT have a D1 binding to pharos_corpus.
 // Corpus writes happen exclusively from paid-tier writer services
-// (audit-fulfill, future Implementation pipeline, future AutoPilot rescan
+// (audit-fulfill, future Implementation pipeline, future Standard rescan
 // job). The DB binding below is the scanner's OWN scan-history database
 // (pharos-scanner / 56dd16f8-...), distinct from pharos_corpus
 // (c95451fd-5cb6-4f51-b4e2-bf4f7dd49272). This comment is a reminder

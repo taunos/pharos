@@ -308,9 +308,9 @@ export async function sendAutoPilotAuditReadyEmail(
   const resend = new Resend(env.RESEND_API_KEY);
   try {
     await resend.emails.send({
-      from: "Astrant AutoPilot <reports@astrant.io>",
+      from: "Astrant <reports@astrant.io>",
       to: input.toEmail,
-      subject: "Your Astrant AutoPilot audit is ready",
+      subject: "Your Astrant audit is ready",
       text: `Your 6-dimension AEO audit is ready.
 
 View your audit (PDF attached; permanent link below):

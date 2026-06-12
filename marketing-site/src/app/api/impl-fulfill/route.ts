@@ -388,7 +388,7 @@ The one-command \`npx @astrant/deploy-mcp\` wrapper (F2-pre-1) automates the
 You'll receive:
 - **Day 30**: trajectory check-in audit + scanner re-scan
 - **Day 60**: trajectory check
-- **Day 90**: outcome audit + AutoPilot continuation option
+- **Day 90**: outcome audit + Standard continuation option
 
 Citation-tracking probes run continuously over the 90-day window — they
 measure how often AI agents cite your brand accurately across 4 major-model

@@ -66,10 +66,6 @@ const FAQS = [
     q: "Do you need write access to my repo?",
     a: "No. The patch-file delivery model means we never touch your code directly. Many B2B security teams prefer this — fewer external service accounts with repo access is a security improvement, not a limitation. (If you're on the Custom tier and want us to open the PR for you, that can be arranged during the scoping call with a temporary deploy key.)",
   },
-  {
-    q: "What if my team isn't comfortable applying patches?",
-    a: "Add the Concierge subscription and we handle the patch-application + merge workflow each month, plus ongoing optimization.",
-  },
 ];
 
 const faqLd = {
@@ -156,7 +152,7 @@ function BundleDisclosure() {
         <li>• One-command deploy via <code>npx @astrant/deploy-mcp</code> (shipping shortly)</li>
         <li>• 90 days of citation-tracking probes across 4 major-model providers</li>
         <li>• 3 follow-up audits at Day 30, Day 60, Day 90</li>
-        <li>• AutoPilot continuation option at Day 90 ($149/mo) for ongoing measurement</li>
+        <li>• Standard continuation option at Day 90 ($149/mo) for ongoing measurement</li>
       </ul>
     </div>
   );

@@ -51,9 +51,6 @@ All of them. We deliver a Git-applicable patch file that works for GitHub, GitLa
 **Do you need write access to my repo?**
 No. The patch-file delivery model means we never touch your code directly. Many B2B security teams prefer this — fewer external service accounts with repo access is a security improvement, not a limitation. (If you're on the Custom tier and want us to open the PR for you, that can be arranged during the scoping call with a temporary deploy key.)
 
-**What if my team isn't comfortable applying patches?**
-Add the Concierge subscription and we handle the patch-application + merge workflow each month, plus ongoing optimization.
-
 ## Related
 
 - Score (free): https://astrant.io/score

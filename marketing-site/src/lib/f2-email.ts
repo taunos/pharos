@@ -53,7 +53,7 @@ export async function sendF2PatchDeliveryEmail(
     `Over the next 90 days:`,
     `  - Day 30: trajectory check-in audit + scanner re-scan`,
     `  - Day 60: trajectory check`,
-    `  - Day 90: outcome audit + AutoPilot continuation option`,
+    `  - Day 90: outcome audit + Standard continuation option`,
     ``,
     `Citation-tracking probes run continuously over the 90-day window.`,
     ``,
@@ -140,7 +140,7 @@ export async function sendF2DayNAuditEmail(
 
   if (input.dayN === 90 && input.autoPilotCheckoutUrl) {
     lines.push(
-      `Continue the measurement rhythm — start AutoPilot ($149/mo):`,
+      `Continue the measurement rhythm — start Standard ($149/mo):`,
       input.autoPilotCheckoutUrl,
       `Monthly citation-tracking digests + ongoing scanner re-runs. Same methodology, monthly cadence.`,
       ``,

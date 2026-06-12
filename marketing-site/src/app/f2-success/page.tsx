@@ -35,7 +35,7 @@ export default async function F2SuccessPage() {
             <ul className="mt-4 flex flex-col gap-2 text-[var(--color-muted)]">
               <li>• <strong>Day 30</strong> — trajectory check-in audit</li>
               <li>• <strong>Day 60</strong> — trajectory check</li>
-              <li>• <strong>Day 90</strong> — outcome audit + AutoPilot continuation option</li>
+              <li>• <strong>Day 90</strong> — outcome audit + Standard continuation option</li>
             </ul>
             <p className="mt-4 text-sm text-[var(--color-muted)]">
               Citation-tracking probes run continuously across 4 major-model

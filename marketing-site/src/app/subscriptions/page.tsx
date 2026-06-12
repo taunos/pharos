@@ -73,7 +73,7 @@ const serviceLd = [
         billingDuration: "P1M",
       },
       description:
-        "Automated ongoing optimization with twice-weekly citation probes and the monthly 6-section agent-traffic report.",
+        "Stay legible to ChatGPT, Claude, Perplexity, and Gemini — twice-weekly citation probes detecting mentions of your brand and competitors, monthly agent-citation report, monthly Astrant Score recalibration, hosted MCP endpoint.",
     },
   },
   {
@@ -95,7 +95,7 @@ const serviceLd = [
         billingDuration: "P1M",
       },
       description:
-        "Everything in Standard plus daily citation probes across ChatGPT, Claude, Perplexity, and Gemini.",
+        "Everything in Standard plus daily citation probes detecting mentions of your brand and competitors across all four engines — sub-24-hour competitive change detection.",
     },
   },
 ];
@@ -126,10 +126,19 @@ const faqLd = {
 };
 
 const STANDARD_INCLUDES = [
-  "Hosted MCP server (uptime, security updates, MCP spec evolution)",
-  "Monthly auto-generated 6-section agent-traffic report (PDF)",
-  "Monthly auto-rescan of your site against the 6-dimension rubric",
-  "Twice-weekly citation monitoring across ChatGPT, Claude, Perplexity, Gemini (read-only dashboard)",
+  "Always-on MCP endpoint on your domain — Astrant owns uptime, security, and MCP spec evolution",
+  "Monthly PDF intelligence report on your agent-citation share — what's working, what changed, where competitors stand",
+  "Monthly Astrant Score recalibration against the latest 6-dimension AEO rubric — track your posture dimension by dimension",
+  "Twice-weekly citation probes across ChatGPT, Claude, Perplexity, and Gemini — see when you're cited, and when you're not",
+  "Detect mentions of your brand and competitors across the four major AI engines — twice-weekly refresh",
+];
+
+const PRO_EXTRAS = [
+  "Daily citation probes across ChatGPT, Claude, Perplexity, and Gemini — citation shifts surface in 24 hours, not days",
+  "3.5× Standard's probe frequency per engine — sharper signal on what's working, sooner",
+  "Everything Standard includes — always-on MCP endpoint, monthly report, monthly Astrant Score recalibration",
+  "Early-access tier — Pro-only features ship to your subscription at no additional cost as they're built",
+  "Detect mentions of your brand and competitors across the four major AI engines — daily refresh",
 ];
 
 const EXCLUDED = [
@@ -250,8 +259,9 @@ export default async function SubscriptionsPage() {
                   </span>
                 </div>
                 <p className="mt-4 text-[var(--color-muted)]">
-                  For teams that want the infrastructure running and the monthly
-                  numbers, without human overhead.
+                  Stay legible to ChatGPT, Claude, Perplexity, and Gemini. We host
+                  the infrastructure, run the measurements, and ship a fresh report
+                  each month showing what changed.
                 </p>
                 <ul className="mt-6 flex flex-col gap-3 text-base">
                   {STANDARD_INCLUDES.map((i) => (
@@ -263,31 +273,36 @@ export default async function SubscriptionsPage() {
                     </li>
                   ))}
                 </ul>
-                <div className="mt-8">
+                <div className="mt-auto pt-8">
                   <StandardCta label="Notify me when Standard launches" href={effectiveStandardUrl} />
                 </div>
               </div>
 
               {/* PRO CARD */}
-              {/* F4.1 D13: structural Edit -- removed CONCIERGE_EXTRAS &lt;ul&gt; block per Bruno lock #17;
-                  replaced with cadence-only &lt;p&gt; per Bruno lock #6. */}
               <div className="flex flex-col border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
                 <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="text-2xl font-semibold">Astrant Pro</h3>
+                  <h3 className="text-2xl font-semibold">Pro</h3>
                   <span className="text-xl font-bold text-[var(--color-fg)]">
                     $899 / month
                   </span>
                 </div>
                 <p className="mt-4 text-[var(--color-muted)]">
-                  Daily probing across ChatGPT, Claude, Perplexity, and Gemini &mdash; faster
-                  competitive change detection than Standard&apos;s twice-weekly cadence. See
-                  exposure shifts within 24 hours, not 3-4 days.
+                  Everything in Standard, but faster: daily citation probes across all
+                  four engines. See competitive shifts within 24 hours, not 3-4 days. New
+                  Pro-only features ship to your subscription as they&apos;re built, at no
+                  additional cost.
                 </p>
-                <p className="mt-6 text-[var(--color-muted)]">
-                  Pro includes everything in Standard plus daily probe cadence. More Pro-only
-                  features coming soon.
-                </p>
-                <div className="mt-8">
+                <ul className="mt-6 flex flex-col gap-3 text-base">
+                  {PRO_EXTRAS.map((i) => (
+                    <li key={i} className="flex gap-3">
+                      <span className="mt-1 shrink-0 text-[var(--color-muted)]">
+                        ✓
+                      </span>
+                      <span className="text-[var(--color-muted)]">{i}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-auto pt-8">
                   <ProCta label="Notify me when Pro launches" />
                 </div>
               </div>

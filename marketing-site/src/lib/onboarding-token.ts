@@ -1,5 +1,6 @@
 // F3 D5: HS256-signed JWT for the post-purchase onboarding form. 7-day TTL,
-// bound to subscription_id. See pharos-f3-autopilot-fulfillment-spec.md v3.2 §5.
+// bound to subscription_id. See pharos-f3-standard-fulfillment-spec for design.
+// (Originally named with pre-F4.1 tier terminology; renamed per F4.1.2a 2026-05-26.)
 
 export interface OnboardingTokenEnv {
   ONBOARDING_TOKEN_SECRET: string;

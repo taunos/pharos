@@ -1,7 +1,7 @@
 // Shared category enum for customer-profile capture across tier-fulfillment surfaces.
 //
 // Source-of-truth shared across:
-//   - /api/onboarding/submit  (F3 AutoPilot onboarding form)
+//   - /api/onboarding/submit  (F3 Standard onboarding form)
 //   - /api/f2-checkout-create (F2 Dodo Create Checkout Session custom_fields[2] dropdown)
 //
 // V-J.2 V-read confirmed at deploy time: existing CATEGORY_ENUM at

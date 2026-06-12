@@ -48,7 +48,7 @@ const FAQS = [
   },
   {
     q: "Will you charge for the Score later?",
-    a: "No. The Score stays free. The paid tiers (Audit, Implementation, Custom, AutoPilot, Concierge) go deeper.",
+    a: "No. The Score stays free. The paid tiers (Audit, Implementation, Custom, Standard, Pro) go deeper.",
   },
 ];
 

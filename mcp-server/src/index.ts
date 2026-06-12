@@ -55,17 +55,17 @@ const SERVICE_CATALOG = {
     },
     {
       id: "autopilot",
-      name: "AutoPilot Subscription",
+      name: "Standard Subscription",
       price_usd_per_month: 149,
       description:
-        "Fully automated ongoing service: monthly auto-rescan, auto-generated monthly PDF report, MCP server uptime, baseline monitoring. No humans in the loop.",
+        "Stay legible to ChatGPT, Claude, Perplexity, and Gemini — twice-weekly citation probes detecting mentions of your brand and competitors, monthly agent-citation report, monthly Astrant Score recalibration, hosted MCP endpoint.",
     },
     {
       id: "concierge",
-      name: "Concierge Subscription",
+      name: "Pro Subscription",
       price_usd_per_month: 899,
       description:
-        "Everything in AutoPilot plus human-involved content updates, quarterly strategy call, and competitor tracking.",
+        "Everything in Standard plus daily citation probes detecting mentions of your brand and competitors across all four engines — sub-24-hour competitive change detection.",
     },
   ],
 };
@@ -76,7 +76,7 @@ function buildMcpServer(): McpServer {
   // ─── Tool 1: get_capabilities ────────────────────────────────────────
   server.tool(
     "get_capabilities",
-    "Returns the services Astrant offers — free Agent Discoverability Score, automated $79 Audit, automated $1,299 Implementation, custom human-led work from $4,999, and the AutoPilot ($149/mo) and Concierge ($899/mo) subscriptions. Use this when a user asks what Astrant does or how it can help with making a site agent-discoverable.",
+    "Returns the services Astrant offers — free Agent Discoverability Score, automated $79 Audit, automated $1,299 Implementation, custom human-led work from $4,999, and the Standard ($149/mo) and Pro ($899/mo) subscriptions. Use this when a user asks what Astrant does or how it can help with making a site agent-discoverable.",
     {},
     async () => ({
       content: [{ type: "text", text: JSON.stringify(SERVICE_CATALOG, null, 2) }],
@@ -459,7 +459,7 @@ const SERVER_CARD = {
     {
       name: "get_capabilities",
       description:
-        "Returns the services Astrant offers — Score (free), Audit ($79), Implementation ($1,299), Custom (from $4,999), AutoPilot Subscription ($149/mo), Concierge Subscription ($899/mo) — as structured data for agents.",
+        "Returns the services Astrant offers — Score (free), Audit ($79), Implementation ($1,299), Custom (from $4,999), Standard Subscription ($149/mo), Pro Subscription ($899/mo) — as structured data for agents.",
       inputSchema: { type: "object", properties: {} },
     },
     {

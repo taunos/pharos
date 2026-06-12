@@ -363,7 +363,7 @@ async function handleF2DayNAudit(
       cite_share_current_pct: citeShareCurrentPct,
     });
 
-    // Day-90 includes AutoPilot CTA (D8 spec)
+    // Day-90 includes Standard CTA (D8 spec)
     const autoPilotCheckoutUrl =
       day_n === 90 ? "https://astrant.io/subscriptions" : undefined;
 

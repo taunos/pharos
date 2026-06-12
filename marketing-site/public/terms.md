@@ -13,7 +13,7 @@ Astrant provides agent-discoverability tooling for B2B SaaS websites:
 - **Audit** ($79, instant): a deeper automated audit with per-gap remediation guidance.
 - **Implementation** ($1,299, <24h delivery): an automated build of llms.txt, MCP server, OpenAPI spec, JSON-LD schema, and baseline monitoring, delivered as a Git-applicable patch.
 - **Custom** (from $4,999): bespoke human-led builds for complex APIs, multi-region content, or unusual MCP tool needs.
-- **Subscriptions** (AutoPilot $149/mo, Concierge $899/mo): ongoing rescan + reporting.
+- **Subscriptions** (Standard $149/mo, Pro $899/mo): ongoing rescan + reporting.
 
 Some of these tiers are still in pre-launch verification at the time you're reading this. Active checkout availability is shown on each tier's page.
 

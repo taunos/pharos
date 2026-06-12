@@ -61,7 +61,7 @@ function buildDeterministicRecs(input: AuditRecsInput): AuditRecsOutput {
   } else if (input.day_n === 60) {
     trajectoryInterpretation = `${dayLabel} is mid-arc. Cite-share movement is starting to be discriminable from baseline noise; trend direction over the next 30 days is the strongest signal for ongoing-measurement value.`;
   } else {
-    trajectoryInterpretation = `${dayLabel} is the outcome reading. Your full quarterly arc is visible — whether cite-share moved meaningfully, whether your implementation surface needs iteration, whether ongoing measurement via AutoPilot is worth continuing.`;
+    trajectoryInterpretation = `${dayLabel} is the outcome reading. Your full quarterly arc is visible — whether cite-share moved meaningfully, whether your implementation surface needs iteration, whether ongoing measurement via Standard is worth continuing.`;
   }
 
   const recommendations: string[] = [];
@@ -69,8 +69,8 @@ function buildDeterministicRecs(input: AuditRecsInput): AuditRecsOutput {
     recommendations.push("Stay the course — the implementation surface is correctly in place; the measurement loop captures the trajectory.");
     recommendations.push("If your llms.txt or MCP server content has changed since deploy, the next audit will catch the updates.");
   } else {
-    recommendations.push("Decide whether to continue the measurement rhythm via AutoPilot ($149/mo) — monthly cite-share tracking + scanner re-runs, same methodology, monthly cadence.");
-    recommendations.push("Your patch + audit PDFs are yours unconditionally. If you deployed your MCP server, it keeps running on your Cloudflare account regardless of AutoPilot continuation.");
+    recommendations.push("Decide whether to continue the measurement rhythm via Standard ($149/mo) — monthly cite-share tracking + scanner re-runs, same methodology, monthly cadence.");
+    recommendations.push("Your patch + audit PDFs are yours unconditionally. If you deployed your MCP server, it keeps running on your Cloudflare account regardless of Standard continuation.");
   }
 
   return { whatChanged, trajectoryInterpretation, recommendations };

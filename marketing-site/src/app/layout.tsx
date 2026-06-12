@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   },
   other: {
     "ai-summary":
-      "Astrant is an Agent Discoverability service for B2B SaaS. Automated tiers: Score (free), Audit ($79, instant PDF), Implementation ($1,299, <24h build), Custom (from $4,999, bespoke). Subscriptions at $149/mo (AutoPilot) and $899/mo (Concierge). Agent-callable MCP at mcp.astrant.io.",
+      "Astrant: Make B2B SaaS discoverable to ChatGPT, Claude, Perplexity, Gemini. Free Score, $79 audit, $1,299 implementation, $149-$899/mo subscriptions.",
     "service-category":
       "Agent Engine Optimization, AEO, agent discoverability, LLM SEO",
   },
@@ -123,7 +123,7 @@ const jsonLd = [
       },
       {
         "@type": "Offer",
-        name: "AutoPilot Subscription",
+        name: "Standard Subscription",
         url: "https://astrant.io/subscriptions",
         priceSpecification: {
           "@type": "UnitPriceSpecification",
@@ -132,11 +132,11 @@ const jsonLd = [
           billingDuration: "P1M",
         },
         description:
-          "Automated ongoing optimization and the monthly 6-section agent-traffic report.",
+          "Stay legible to ChatGPT, Claude, Perplexity, and Gemini — twice-weekly citation probes detecting mentions of your brand and competitors, monthly agent-citation report, monthly Astrant Score recalibration, hosted MCP endpoint.",
       },
       {
         "@type": "Offer",
-        name: "Concierge Subscription",
+        name: "Pro Subscription",
         url: "https://astrant.io/subscriptions",
         priceSpecification: {
           "@type": "UnitPriceSpecification",
@@ -145,7 +145,7 @@ const jsonLd = [
           billingDuration: "P1M",
         },
         description:
-          "Everything in AutoPilot plus content updates, quarterly strategy calls, and competitor tracking.",
+          "Everything in Standard plus daily citation probes detecting mentions of your brand and competitors across all four engines — sub-24-hour competitive change detection.",
       },
     ],
   },

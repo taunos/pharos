@@ -19,7 +19,7 @@ export const SERVER_CARD = {
     {
       name: "get_capabilities",
       description:
-        "Returns the services Astrant offers — Score (free), Audit ($79), Implementation ($1,299), Custom (from $4,999), AutoPilot Subscription ($149/mo), Concierge Subscription ($899/mo) — as structured data for agents.",
+        "Returns the services Astrant offers — Score (free), Audit ($79), Implementation ($1,299), Custom (from $4,999), Standard Subscription ($149/mo), Pro Subscription ($899/mo) — as structured data for agents.",
       inputSchema: { type: "object", properties: {} },
     },
     {

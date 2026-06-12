@@ -7,7 +7,7 @@ import SiteFooter from "@/components/SiteFooter";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Astrant AutoPilot monitoring — set up",
+  title: "Astrant Standard monitoring — set up",
   description: "Your monitoring configuration is saved.",
 };
 
@@ -31,7 +31,7 @@ export default async function OnboardingDonePage({
             You&rsquo;re set up
           </h1>
           <p className="mt-6 text-lg text-[var(--color-muted)]">
-            Astrant AutoPilot is monitoring your citation share starting now. Your first
+            Astrant Standard is monitoring your citation share starting now. Your first
             monthly digest will arrive after the next monthly cycle completes — partial
             month for the first delivery, full months from then on.
           </p>

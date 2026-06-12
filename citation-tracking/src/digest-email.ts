@@ -23,7 +23,7 @@ export async function sendDigestEmail(
   const pdfBase64 = uint8ArrayToBase64(pdfBytes);
   const resend = new Resend(env.RESEND_API_KEY);
   await resend.emails.send({
-    from: "Astrant AutoPilot <reports@astrant.io>",
+    from: "Astrant <reports@astrant.io>",
     to: customerEmail,
     subject: `Your Astrant citation digest — ${formatMonth(periodStart)}`,
     html: htmlBody,

@@ -64,15 +64,15 @@ const SUBSCRIPTION_TIERS: Array<{
   href: string;
 }> = [
   {
-    name: "AutoPilot",
+    name: "Standard",
     price: "$149/mo",
-    body: "Monthly scan, auto report, MCP uptime.",
+    body: "Stay visible to ChatGPT, Claude, Perplexity, and Gemini — measured monthly, no infrastructure on your side.",
     href: "/subscriptions",
   },
   {
-    name: "Concierge",
+    name: "Astrant Pro",
     price: "$899/mo",
-    body: "AutoPilot + content updates + strategy calls.",
+    body: "Standard, faster. Daily citation probes across all four engines for sub-24-hour competitive signal.",
     href: "/subscriptions",
   },
 ];
