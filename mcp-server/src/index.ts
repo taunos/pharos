@@ -17,6 +17,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
+import { HUMAN_PAGE_HTML } from "./human-page";
 
 interface Env {}
 
@@ -521,6 +522,19 @@ export default {
           "Access-Control-Allow-Origin": "*",
         },
       });
+    }
+
+    // F-MCP-HF: human-friendly fallback for browser GETs on /mcp.
+    // Conformant MCP StreamableHTTP clients always send Accept: text/event-stream
+    // (spec-required) and never text/html; browsers do the opposite.
+    // /sse deliberately NOT covered: legacy alias, falls through to transport unchanged.
+    if (url.pathname === "/mcp" && request.method === "GET") {
+      const accept = (request.headers.get("accept") ?? "").toLowerCase();
+      if (accept.includes("text/html") && !accept.includes("text/event-stream")) {
+        return new Response(HUMAN_PAGE_HTML, {
+          headers: { "content-type": "text/html; charset=utf-8" },
+        });
+      }
     }
 
     // MCP transport. /sse is routed to the same Streamable HTTP handler as
