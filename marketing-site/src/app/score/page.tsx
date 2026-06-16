@@ -120,10 +120,12 @@ export default function ScorePage() {
       <SiteHeader />
 
       <main>
-        {/* HERO — two-column (copy + ScanForm | self-scan code block).
-            Typography / eyebrow / slotting are hot-class (operator-tunable). */}
+        {/* HERO — two-column intro (copy | self-scan example) ABOVE a
+            full-width scan form. ScanForm renders ScanResults inline, so it
+            MUST stay full-width — keeping it inside a half-width grid column
+            crushes the results grid. Typography / slotting are hot-class. */}
         <section className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
-          <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-start lg:gap-16">
             <div>
               <div className="inline-flex border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm font-mono uppercase tracking-wider text-emerald-400">
                 Free · No signup
@@ -140,35 +142,38 @@ export default function ScorePage() {
                 on the free Score, and runs live across 4 AI models with the $79
                 Audit. Content-only sites have OpenAPI auto-marked N/A.
               </p>
-              <div className="mt-10">
-                <ScanForm />
-              </div>
-              <p className="mt-6 max-w-2xl text-sm italic text-[var(--color-muted)]">
-                Want the deeper analysis now? The $79 Audit delivers a full
-                report with live citation data in 60 seconds.{" "}
-                {/* Logo + Foundation slice: inline upsell link demoted accent → fg;
-                    underline-on-hover preserved as the affordance. */}
-                <Link
-                  href="/audit"
-                  className="not-italic text-[var(--color-fg)] underline-offset-4 hover:underline"
-                >
-                  Run your audit →
-                </Link>
-              </p>
             </div>
 
-            {/* Self-scan code block (A5). */}
-            <div className="lg:pt-2">
+            {/* Self-scan code block (A5). min-w-0 lets the <pre> scroll inside
+                the column instead of overflowing and clipping the card. */}
+            <div className="min-w-0 lg:pt-2">
               <div className="border border-[var(--color-border)] bg-[var(--color-surface-2)]">
                 <div className="border-b border-[var(--color-border)] px-4 py-2 text-xs font-mono uppercase tracking-wider text-[var(--color-muted)]">
                   example · astrant.io self-scan
                 </div>
-                <pre className="overflow-x-auto p-4 text-xs leading-relaxed font-mono text-[var(--color-fg)] sm:text-sm">
+                <pre className="overflow-x-auto p-4 text-xs leading-relaxed font-mono text-[var(--color-fg)]">
                   <code>{SELF_SCAN_EXAMPLE}</code>
                 </pre>
               </div>
             </div>
           </div>
+
+          {/* Scan form — full width so ScanResults renders full-width. */}
+          <div className="mt-12">
+            <ScanForm />
+          </div>
+          <p className="mt-6 max-w-2xl text-sm italic text-[var(--color-muted)]">
+            Want the deeper analysis now? The $79 Audit delivers a full report
+            with live citation data in 60 seconds.{" "}
+            {/* Logo + Foundation slice: inline upsell link demoted accent → fg;
+                underline-on-hover preserved as the affordance. */}
+            <Link
+              href="/audit"
+              className="not-italic text-[var(--color-fg)] underline-offset-4 hover:underline"
+            >
+              Run your audit →
+            </Link>
+          </p>
         </section>
 
         {/* WHAT WE SCORE — six-column dimension strip */}
