@@ -81,7 +81,7 @@ export default function ScanForm() {
           </button>
         </div>
         <p className="mt-3 text-sm text-[var(--color-muted)]">
-          Free public scan, no signup. Covers 5 of 6 dimensions today; Citation Visibility ships in an upcoming release.
+          Six dimensions. Citation Visibility appears as a demo preview on the free Score — live with the $79 Audit.
         </p>
         {status === "scanning" ? (
           <p className="mt-4 flex items-center gap-2 text-sm text-[var(--color-muted)]">

@@ -2,7 +2,8 @@
 //
 // Mirrors the audit-pipeline.ts pattern (Browser Rendering REST `/pdf`
 // endpoint → ArrayBuffer → R2 upload). Differences from the $79 Audit:
-//   - Free-tier scope (5 of 6 dimensions live, with disclosure footer).
+//   - Free-tier scope (5 dimensions scored live + Dim 6 Citation Visibility
+//     demo preview, with disclosure footer).
 //   - Per-email PDF — R2 key is `score-reports/<scan_id>/<sha256(email)[:16]>.pdf`
 //     (per locked decision 8) so Bob re-capturing on Alice's forwarded link
 //     gets his own watermarked PDF without overwriting Alice's.
@@ -15,6 +16,7 @@
 
 import type { ScanResult, SubCheck } from "./audit-types";
 import { hashEmailForR2Key } from "./score-tokens";
+import { dimensionCountPhrase, applicableDimensionCount } from "./score-display";
 
 export const PDF_TEMPLATE_VERSION = "1.0.0";
 
@@ -246,7 +248,7 @@ export function renderScoreReportHTML(input: RenderInput): string {
     <span class="composite-num">${scan.composite.score}</span>
     <span class="composite-grade" style="color:${gradeColor(scan.composite.grade)}">${escapeHtml(scan.composite.grade)}</span>
   </div>
-  <p class="scope">Scored on ${scan.dimensions_applicable ?? scan.dimensions_scored} of ${scan.dimensions_total} dimensions applicable to this site. Dim 6 (Citation Visibility) ships in an upcoming release — re-running this scan later will pick it up automatically.${(scan.dimensions_applicable ?? scan.dimensions_scored) < scan.dimensions_scored ? " Some dimensions did not apply to your site (e.g. no API surface for the OpenAPI dimension) and were dropped from the composite." : ""}</p>
+  <p class="scope">Scored on ${dimensionCountPhrase(scan.dimensions_applicable, scan.dimensions_scored, scan.dimensions_total)} dimensions applicable to this site. Citation Visibility ships as a static demo preview on the free Score and runs live with the $79 Audit.${applicableDimensionCount(scan.dimensions_applicable, scan.dimensions_scored) < scan.dimensions_scored ? " Some dimensions did not apply to your site (e.g. no API surface for the OpenAPI dimension) and were dropped from the composite." : ""}</p>
 
   <h2>Dimension breakdown</h2>
   ${dimsHtml}

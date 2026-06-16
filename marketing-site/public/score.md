@@ -1,9 +1,9 @@
 # Agent Discoverability Score
 
 **Price:** Free
-**Status:** Launching soon — join waitlist at https://astrant.io/score
+**Status:** Live — run it free at https://astrant.io/score
 
-A URL-input scan across 6 dimensions of agent discoverability. Public score on screen, detailed gap report to your inbox, monthly auto-rescan so you can watch your score improve.
+A URL-input scan across 6 dimensions — dimensions 1–5 scored live; dimension 6 (Citation Visibility) is a static demo preview on the free tier, live across 4 AI models with the $79 Audit. Public score on screen, detailed gap report to your inbox, monthly auto-rescan so you can watch your score improve.
 
 ## The six dimensions
 
@@ -14,7 +14,7 @@ Each dimension maps to a specific piece of technical infrastructure. The score t
 - **OpenAPI / API Catalog** (10%) — Structured API description for service-based businesses.
 - **Structured Capability Data** (20%) — JSON-LD schema: Organization, Service, Offer, FAQPage.
 - **Agent-Parsable Content** (15%) — Pages that render cleanly without JavaScript; pricing in text, not images.
-- **Citation Visibility & Monitoring** (20%) — Live audit of where you're cited across ChatGPT, Claude, Perplexity, Gemini.
+- **Citation Visibility** (20%) — Static demo preview on the free Score; the live audit of where you're cited across ChatGPT, Claude, Perplexity, and Gemini runs with the $79 Audit.
 
 ## Why this, not the free Cloudflare tool?
 
@@ -33,8 +33,8 @@ The $79 Audit delivers the full 6-dimension report with live citation data in 60
 **What's the difference between Score and Audit?**
 The free Score gives you a public grade across six dimensions. The $79 Audit adds live citation audit across major AI engines, competitor comparison, implementation estimates, and a JSON export for programmatic use. If you just want to know where you stand, use the Score. If you want a prioritized action plan, use the Audit.
 
-**When does the Score launch?**
-Soon. Drop your URL and email at https://astrant.io/score and you'll be among the first to run it the day it ships.
+**Is the Score live?**
+Yes — it's live now. Run it free at https://astrant.io/score, no signup required.
 
 **Will you charge for the Score later?**
 No. The Score stays free. The paid tiers (Audit, Implementation, Custom, Subscriptions) go deeper.

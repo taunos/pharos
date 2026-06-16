@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 import EmailGate from "./score/EmailGate";
+import {
+  gradeColorClass,
+  dimensionCountPhrase,
+  isDim6DemoPreview,
+} from "@/lib/score-display";
+import { DIM6_DISCLOSURE } from "@/lib/dim6/disclosure";
 
 export type SubCheck = {
   id: string;
@@ -36,14 +42,6 @@ export type ScanResultData = {
   created_at: number;
 };
 
-function gradeColor(grade: string): string {
-  if (grade.startsWith("A")) return "text-emerald-400";
-  if (grade.startsWith("B")) return "text-emerald-300";
-  if (grade === "C") return "text-yellow-400";
-  if (grade === "D") return "text-orange-400";
-  return "text-red-400";
-}
-
 function ScoreBar({ score }: { score: number }) {
   const w = Math.max(0, Math.min(100, score));
   const color =
@@ -71,6 +69,31 @@ function ScoreBar({ score }: { score: number }) {
 
 function DimensionCard({ dim }: { dim: DimensionResult }) {
   const [open, setOpen] = useState(false);
+  // Score V2 — D6 row mapping. The free /api/scan injects no tier
+  // (api/scan/route.ts:25), so Dim 6 always arrives na:true here; the
+  // demo-preview sub-check is sniffed BEFORE the generic N/A branch
+  // (early-precedence) so the preview renders distinctly from a grey N/A
+  // (daily-cap + true-N/A fall through to the generic branch below).
+  if (isDim6DemoPreview(dim)) {
+    return (
+      <div className="border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5 p-6">
+        <div className="flex items-baseline justify-between gap-4">
+          <h3 className="text-lg font-semibold">
+            {dim.dimension_name}
+            <span className="ml-2 border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/10 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-[var(--color-accent)]">
+              Demo preview
+            </span>
+          </h3>
+          <span className="text-sm italic text-[var(--color-muted)]">
+            Demo preview — live with $79 Audit
+          </span>
+        </div>
+        <p className="mt-3 text-sm text-[var(--color-muted)]">
+          {DIM6_DISCLOSURE.freeTierPreview}
+        </p>
+      </div>
+    );
+  }
   // Slice 3a: whole-dimension N/A renders distinctly from a 0/100 score.
   if (dim.na) {
     return (
@@ -96,7 +119,7 @@ function DimensionCard({ dim }: { dim: DimensionResult }) {
         <h3 className="text-lg font-semibold">{dim.dimension_name}</h3>
         <div className="flex items-baseline gap-3">
           <span className="text-2xl font-bold text-[var(--color-fg)]">{dim.score}</span>
-          <span className={`text-sm font-mono ${gradeColor(dim.grade)}`}>{dim.grade}</span>
+          <span className={`text-sm font-mono ${gradeColorClass(dim.grade)}`}>{dim.grade}</span>
         </div>
       </div>
       <div className="mt-3">
@@ -165,12 +188,18 @@ export default function ScanResults({ data }: { data: ScanResultData }) {
           <span className="text-7xl font-bold text-[var(--color-fg)]">
             {data.composite.score}
           </span>
-          <span className={`text-3xl font-mono ${gradeColor(data.composite.grade)}`}>
+          <span className={`text-3xl font-mono ${gradeColorClass(data.composite.grade)}`}>
             {data.composite.grade}
           </span>
         </div>
         <p className="mt-4 text-sm italic text-[var(--color-muted)]">
-          Scored on {data.dimensions_applicable ?? data.dimensions_scored} of {data.dimensions_total} dimensions
+          Scored on{" "}
+          {dimensionCountPhrase(
+            data.dimensions_applicable,
+            data.dimensions_scored,
+            data.dimensions_total
+          )}{" "}
+          dimensions
           applicable to this site — full report when remaining dimensions ship.
         </p>
       </div>
@@ -182,7 +211,15 @@ export default function ScanResults({ data }: { data: ScanResultData }) {
       </div>
 
       <div className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
-        <EmailGate scanId={data.id} scanUrl={data.url} />
+        <EmailGate
+          scanId={data.id}
+          scanUrl={data.url}
+          dimensionsLine={dimensionCountPhrase(
+            data.dimensions_applicable,
+            data.dimensions_scored,
+            data.dimensions_total
+          )}
+        />
       </div>
     </div>
   );

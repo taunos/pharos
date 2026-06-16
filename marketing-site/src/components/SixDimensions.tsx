@@ -28,10 +28,10 @@ const DIMENSIONS = [
       "Pages that render cleanly without JavaScript; pricing in text, not images.",
   },
   {
-    name: "Citation Visibility & Monitoring",
+    name: "Citation Visibility",
     weight: "20%",
     description:
-      "Live audit of where you're cited across ChatGPT, Claude, Perplexity, Gemini.",
+      "A static demo preview on the free Score; the live audit of where AI models cite you runs with the $79 Audit.",
   },
 ];
 

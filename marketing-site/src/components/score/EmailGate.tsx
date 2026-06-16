@@ -27,9 +27,11 @@ interface CaptureResponse {
 export default function EmailGate({
   scanId,
   scanUrl,
+  dimensionsLine,
 }: {
   scanId: string;
   scanUrl: string;
+  dimensionsLine: string;
 }) {
   const [email, setEmail] = useState("");
   const [optIn, setOptIn] = useState(false);
@@ -112,7 +114,8 @@ export default function EmailGate({
         Get the full PDF gap report
       </h3>
       <p className="mt-2 text-base text-[var(--color-muted)]">
-        5 of 6 dimensions analyzed. Predicted lift per gap. Remediation paths.
+        Your full report: predicted lift per gap, remediation paths, and your
+        score across {dimensionsLine} dimensions.
       </p>
 
       {/* Honeypot — visually hidden, attractive to bots. JSON key is

@@ -16,6 +16,7 @@
 import { Resend } from "resend";
 import type { ScanResult } from "./audit-types";
 import { hashEmailForLog } from "./score-tokens";
+import { dimensionCountPhrase } from "./score-display";
 
 const FROM_ADDRESS = "Astrant Score <reports@astrant.io>";
 const COMPANY_FOOTER =
@@ -113,7 +114,7 @@ export async function sendGapReportReadyEmail(
     `Your Astrant Score gap report for ${input.scan.url} is ready.`,
     ``,
     `Composite score: ${input.scan.composite.score} (${input.scan.composite.grade})`,
-    `Dimensions scored: ${input.scan.dimensions_applicable ?? input.scan.dimensions_scored} of ${input.scan.dimensions_total} applicable`,
+    `Dimensions scored: ${dimensionCountPhrase(input.scan.dimensions_applicable, input.scan.dimensions_scored, input.scan.dimensions_total)} applicable`,
     ``,
     `Top gaps to focus on:`,
     topGapsText(input.scan),
@@ -135,7 +136,7 @@ export async function sendGapReportReadyEmail(
   <h2 style="margin-top: 0;">Your Astrant Score gap report is ready</h2>
   <p>We just scanned <code>${escapeHtml(input.scan.url)}</code>.</p>
   <p style="font-size: 32px; font-weight: 700; margin: 24px 0 8px 0;">${input.scan.composite.score} <span style="font-size: 22px; font-weight: 600; color: #64748b;">${escapeHtml(input.scan.composite.grade)}</span></p>
-  <p style="margin: 0; color: #64748b; font-size: 14px;">Scored on ${input.scan.dimensions_applicable ?? input.scan.dimensions_scored} of ${input.scan.dimensions_total} dimensions applicable to this site.</p>
+  <p style="margin: 0; color: #64748b; font-size: 14px;">Scored on ${dimensionCountPhrase(input.scan.dimensions_applicable, input.scan.dimensions_scored, input.scan.dimensions_total)} dimensions applicable to this site.</p>
   <h3 style="margin-top: 24px;">Top gaps</h3>
   <ul>${topGapsHtml(input.scan)}</ul>
   <p style="margin-top: 28px;">
@@ -195,7 +196,7 @@ export async function sendGapReportDeferredEmail(
     `and we'll email a link the moment it's available.`,
     ``,
     `Composite score: ${input.scan.composite.score} (${input.scan.composite.grade})`,
-    `Dimensions scored: ${input.scan.dimensions_applicable ?? input.scan.dimensions_scored} of ${input.scan.dimensions_total} applicable`,
+    `Dimensions scored: ${dimensionCountPhrase(input.scan.dimensions_applicable, input.scan.dimensions_scored, input.scan.dimensions_total)} applicable`,
     ``,
     `Top gaps (preview):`,
     topGapsText(input.scan),
@@ -318,7 +319,7 @@ ${auditUrl}
 
 What you'll see:
 - Dim 1-5: deterministic content + structure signals (Page, Brand Page, Schema, llms.txt, Robots)
-- Dim 6: how often AI agents cite your brand accurately (baseline across 3 major-model APIs)
+- Dim 6: how often AI agents cite your brand accurately (baseline across 4 major-model APIs)
 
 Your first monthly tracking digest delivers 2026-06-01 with citation-tracking data from your subscription start onward.
 

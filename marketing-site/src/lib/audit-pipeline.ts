@@ -17,6 +17,7 @@ import type {
   ScanResult,
   SubCheck,
 } from "./audit-types";
+import { dimensionCountPhrase, applicableDimensionCount } from "./score-display";
 
 const SCANNER_URL =
   "https://pharos-scanner.pharos-dev.workers.dev/api/scan";
@@ -778,7 +779,7 @@ export function renderAuditHtml(audit: AuditResult, sessionId: string): string {
     <span class="composite-num">${scan.composite.score}</span>
     <span class="composite-grade" style="color:${gradeColor(scan.composite.grade)}">${escapeHtml(scan.composite.grade)}</span>
   </div>
-  <p class="scope">Scored on ${scan.dimensions_applicable ?? scan.dimensions_scored} of ${scan.dimensions_total} dimensions applicable to this site. The remaining dimensions ship in upcoming scanner releases — re-running this audit later will pick them up automatically.${(scan.dimensions_applicable ?? scan.dimensions_scored) < scan.dimensions_scored ? " Some dimensions did not apply to your site (e.g. no API surface for the OpenAPI dimension) and were dropped from the composite." : ""}</p>
+  <p class="scope">Scored on ${dimensionCountPhrase(scan.dimensions_applicable, scan.dimensions_scored, scan.dimensions_total)} dimensions applicable to this site. The remaining dimensions ship in upcoming scanner releases — re-running this audit later will pick them up automatically.${applicableDimensionCount(scan.dimensions_applicable, scan.dimensions_scored) < scan.dimensions_scored ? " Some dimensions did not apply to your site (e.g. no API surface for the OpenAPI dimension) and were dropped from the composite." : ""}</p>
 
   <h2>Dimension breakdown</h2>
   ${dimsHtml}

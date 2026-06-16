@@ -2,13 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import SixDimensions from "@/components/SixDimensions";
 import ScanForm from "@/components/ScanForm";
 
 export const metadata: Metadata = {
-  title: "Agent Discoverability Score — Astrant",
+  title: "Astrant Score — Free AI Discoverability Check",
   description:
-    "A live URL-input scan across the dimensions of agent discoverability. Free, public score on screen, no signup. Currently covers 5 of 6 dimensions (Citation Visibility ships in an upcoming release); content-only sites have OpenAPI auto-marked N/A.",
+    "Free Astrant Score: six dimensions of AI-agent discoverability — five scored live, plus a Citation Visibility demo preview. Citation Visibility runs live across 4 AI models with the $79 Audit.",
   alternates: {
     types: { "text/markdown": "/score.md" },
   },
@@ -17,14 +16,14 @@ export const metadata: Metadata = {
 const serviceLd = {
   "@context": "https://schema.org",
   "@type": "Service",
-  name: "Agent Discoverability Score",
+  name: "Astrant Score",
   provider: { "@type": "Organization", name: "Astrant" },
   serviceType: "Agent Engine Optimization",
   areaServed: "Worldwide",
   url: "https://astrant.io/score",
   offers: {
     "@type": "Offer",
-    name: "Agent Discoverability Score",
+    name: "Astrant Score",
     price: "0",
     priceCurrency: "USD",
     url: "https://astrant.io/score",
@@ -36,11 +35,11 @@ const serviceLd = {
 const FAQS = [
   {
     q: "What's the difference between Score and Audit?",
-    a: "The free Score gives you a public grade across the dimensions we currently cover. The $79 Audit adds live citation audit across major AI engines, competitor comparison, implementation estimates, and a JSON export for programmatic use. If you just want to know where you stand, use the Score. If you want a prioritized action plan, use the Audit.",
+    a: "The free Score gives you a public grade across six dimensions. The $79 Audit adds live citation audit across major AI engines, competitor comparison, implementation estimates, and a JSON export for programmatic use. If you just want to know where you stand, use the Score. If you want a prioritized action plan, use the Audit.",
   },
   {
-    q: "Why does it say \"5 of 6 dimensions\" (or fewer)?",
-    a: "Five dimensions ship today: llms.txt Quality, MCP Server Discoverability, OpenAPI / API Catalog, Structured Capability Data, and Agent-Parsable Content. The remaining one — Citation Visibility (Dim 6) — ships in an upcoming release. If your site is content-only with no API surface, the OpenAPI dimension is automatically marked N/A and dropped from your composite (so you're not penalized for not having an API). When Dim 6 ships, your scan will rerun automatically if you opted into the monthly rescan.",
+    q: "Does the free Score check Citation Visibility?",
+    a: "The free Score includes a static demo preview of Citation Visibility (dimension 6). The live check — your brand probed across 4 AI models — runs with the $79 Audit.",
   },
   {
     q: "What's the free tier vs paid tier difference for Dim 5?",
@@ -77,6 +76,36 @@ const DIFFERENTIATORS = [
   },
 ];
 
+// Six-column dimension strip — codes/weights mirror scanner scoring
+// (D1–D6 / 15·20·10·20·15·20).
+const DIMENSION_STRIP = [
+  { code: "D1", name: "llms.txt Quality", weight: 15 },
+  { code: "D2", name: "MCP Server Discoverability", weight: 20 },
+  { code: "D3", name: "OpenAPI / API Catalog", weight: 10 },
+  { code: "D4", name: "Structured Capability Data", weight: 20 },
+  { code: "D5", name: "Agent-Parsable Content", weight: 15 },
+  { code: "D6", name: "Citation Visibility", weight: 20 },
+];
+
+// A5 — labeled self-scan example. Real V12 astrant.io values (2026-06-16),
+// abridged display projection; Dim 6 surfaced as a demo-preview marker. Not
+// byte-pinned — refresh from a live astrant.io scan at deploy/hot rounds.
+const SELF_SCAN_EXAMPLE = `{
+  "url": "astrant.io",
+  "score": 89,
+  "grade": "A-",
+  "view": "abridged",
+  "dimensions": {
+    "llms_txt":   { "score": 93, "weight": 15 },
+    "mcp_server": { "score": 100, "weight": 20 },
+    "openapi":    { "score": 0, "weight": 10 },
+    "jsonld":     { "score": 73, "weight": 20 },
+    "parsable":   { "score": 93, "weight": 15 },
+    "citation":   { "demo_preview": true, "note": "live with $79 Audit" }
+  },
+  "next": "Run the $79 Audit for prioritized gaps"
+}`;
+
 export default function ScorePage() {
   return (
     <div className="min-h-screen">
@@ -91,39 +120,58 @@ export default function ScorePage() {
       <SiteHeader />
 
       <main>
-        {/* HERO */}
+        {/* HERO — two-column (copy + ScanForm | self-scan code block).
+            Typography / eyebrow / slotting are hot-class (operator-tunable). */}
         <section className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
-          <div className="inline-flex rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm font-mono text-emerald-400">
-            Free
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
+            <div>
+              <div className="inline-flex border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm font-mono uppercase tracking-wider text-emerald-400">
+                Free · No signup
+              </div>
+              <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-6xl">
+                Your Astrant Score
+              </h1>
+              <p className="mt-4 text-lg text-[var(--color-muted)] sm:text-xl">
+                An agent-discoverability rating across six dimensions.
+              </p>
+              <p className="mt-6 max-w-xl text-base text-[var(--color-muted)]">
+                A live, public score — no signup. Five dimensions are scored
+                live; Citation Visibility (dimension 6) is a static demo preview
+                on the free Score, and runs live across 4 AI models with the $79
+                Audit. Content-only sites have OpenAPI auto-marked N/A.
+              </p>
+              <div className="mt-10">
+                <ScanForm />
+              </div>
+              <p className="mt-6 max-w-2xl text-sm italic text-[var(--color-muted)]">
+                Want the deeper analysis now? The $79 Audit delivers a full
+                report with live citation data in 60 seconds.{" "}
+                {/* Logo + Foundation slice: inline upsell link demoted accent → fg;
+                    underline-on-hover preserved as the affordance. */}
+                <Link
+                  href="/audit"
+                  className="not-italic text-[var(--color-fg)] underline-offset-4 hover:underline"
+                >
+                  Run your audit →
+                </Link>
+              </p>
+            </div>
+
+            {/* Self-scan code block (A5). */}
+            <div className="lg:pt-2">
+              <div className="border border-[var(--color-border)] bg-[var(--color-surface-2)]">
+                <div className="border-b border-[var(--color-border)] px-4 py-2 text-xs font-mono uppercase tracking-wider text-[var(--color-muted)]">
+                  example · astrant.io self-scan
+                </div>
+                <pre className="overflow-x-auto p-4 text-xs leading-relaxed font-mono text-[var(--color-fg)] sm:text-sm">
+                  <code>{SELF_SCAN_EXAMPLE}</code>
+                </pre>
+              </div>
+            </div>
           </div>
-          <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-6xl">
-            Agent Discoverability Score
-          </h1>
-          <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)] sm:text-xl">
-            Live URL-input scan across the technical dimensions of agent
-            discoverability. Public score on screen — no signup. Currently
-            covers 5 of 6 dimensions (llms.txt, MCP, OpenAPI, Structured Data,
-            Agent-Parsable Content); Citation Visibility ships in an upcoming
-            release. Content-only sites have OpenAPI auto-marked N/A.
-          </p>
-          <div className="mt-10">
-            <ScanForm />
-          </div>
-          <p className="mt-6 max-w-2xl text-sm italic text-[var(--color-muted)]">
-            Want the deeper analysis now? The $79 Audit delivers a full report
-            with live citation data in 60 seconds.{" "}
-            {/* Logo + Foundation slice: inline upsell link demoted accent → fg;
-                underline-on-hover preserved as the affordance. */}
-            <Link
-              href="/audit"
-              className="not-italic text-[var(--color-fg)] underline-offset-4 hover:underline"
-            >
-              Run your audit →
-            </Link>
-          </p>
         </section>
 
-        {/* WHAT WE SCORE */}
+        {/* WHAT WE SCORE — six-column dimension strip */}
         <section className="border-t border-[var(--color-border)]">
           <div className="mx-auto max-w-6xl px-6 py-20">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -134,8 +182,17 @@ export default function ScorePage() {
               The score tells you where you stand; the gap report tells you exactly
               what to fix.
             </p>
-            <div className="mt-10">
-              <SixDimensions />
+            <div className="mt-10 grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-6">
+              {DIMENSION_STRIP.map((d) => (
+                <div key={d.code}>
+                  <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-muted)]">
+                    {d.code} · {d.weight}%
+                  </p>
+                  <p className="mt-2 text-sm font-semibold leading-tight">
+                    {d.name}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         </section>

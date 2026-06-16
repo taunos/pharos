@@ -73,7 +73,8 @@ export default function AuditCheckoutForm() {
         >
           astrant.io/score
         </a>{" "}
-        gives you 5 of 6 dimensions immediately.
+        gives you all six dimensions — five scored live, with a Citation
+        Visibility demo preview.
       </div>
       <div className="mt-4 flex flex-col gap-3">
         <input

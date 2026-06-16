@@ -4,7 +4,7 @@
 
 ## Services
 
-- [Agent Discoverability Score](/score.md): Free. URL-input scan across 6 dimensions. Public score + emailed gap report + monthly rescan. Launching soon.
+- [Agent Discoverability Score](/score.md): Free. URL-input scan across 6 dimensions — dimensions 1–5 scored live; dimension 6 (Citation Visibility) is a static demo preview on the free tier and runs live across 4 AI models with the $79 Audit. Live now at astrant.io/score.
 - [AEO Audit](/audit.md): $79 one-time, instant delivery. Rich PDF — 6-dimension deep analysis, live citation audit across ChatGPT/Claude/Perplexity/Gemini, competitor comparison, prioritized lift estimates, machine-readable JSON export.
 - [AEO Implementation](/implementation.md): $1,299 one-time, <24h delivery. Automated build: llms.txt, MCP server, OpenAPI spec, JSON-LD schema, baseline monitoring. Delivered as a PR against your repo. For standard B2B SaaS sites.
 - [Custom Implementation](/custom.md): From $4,999. Bespoke builds for complex APIs, multi-region content, custom MCP tools, deep content rewrites, or multi-stakeholder engagements. Scoping call + fixed quote + 2–4 week build.
