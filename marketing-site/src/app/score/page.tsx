@@ -3,6 +3,7 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import ScanForm from "@/components/ScanForm";
+import ScorePanel from "@/components/ScorePanel";
 
 export const metadata: Metadata = {
   title: "Astrant Score — Free AI Discoverability Check",
@@ -87,24 +88,39 @@ const DIMENSION_STRIP = [
   { code: "D6", name: "Citation Visibility", weight: 20 },
 ];
 
-// A5 — labeled self-scan example. Real V12 astrant.io values (2026-06-16),
-// abridged display projection; Dim 6 surfaced as a demo-preview marker. Not
-// byte-pinned — refresh from a live astrant.io scan at deploy/hot rounds.
-const SELF_SCAN_EXAMPLE = `{
-  "url": "astrant.io",
-  "score": 89,
-  "grade": "A-",
-  "view": "abridged",
-  "dimensions": {
-    "llms_txt":   { "score": 93, "weight": 15 },
-    "mcp_server": { "score": 100, "weight": 20 },
-    "openapi":    { "score": 0, "weight": 10 },
-    "jsonld":     { "score": 73, "weight": 20 },
-    "parsable":   { "score": 93, "weight": 15 },
-    "citation":   { "demo_preview": true, "note": "live with $79 Audit" }
-  },
-  "next": "Run the $79 Audit for prioritized gaps"
-}`;
+// Sample · astrant.io self-scan, rendered as a SCORE via ScorePanel (not raw
+// JSON). Real V12 astrant.io values (2026-06-16); Dim 6 carries the
+// free_tier_dim6_preview sub-check so it renders as a demo-preview row (not a
+// 0-bar). SNAPSHOT — refresh these from a live astrant.io scan on redeploy so
+// the sample doesn't drift from a visitor's own live result.
+const SAMPLE_SCAN = {
+  composite: { score: 89, grade: "A-" },
+  dimensions: [
+    { dimension_id: 1, dimension_name: "llms.txt Quality", score: 93, grade: "A", sub_checks: [] },
+    { dimension_id: 2, dimension_name: "MCP Server Discoverability", score: 100, grade: "A", sub_checks: [] },
+    { dimension_id: 3, dimension_name: "OpenAPI / API Catalog", score: 0, grade: "F", na: true, sub_checks: [] },
+    { dimension_id: 4, dimension_name: "Structured Capability Data", score: 73, grade: "B", sub_checks: [] },
+    { dimension_id: 5, dimension_name: "Agent-Parsable Content", score: 93, grade: "A", sub_checks: [] },
+    {
+      dimension_id: 6,
+      dimension_name: "Citation Visibility",
+      score: 0,
+      grade: "F",
+      na: true,
+      sub_checks: [
+        {
+          id: "free_tier_dim6_preview",
+          name: "Citation Visibility (free-tier preview)",
+          weight: 1,
+          score: 0,
+          passed: false,
+          notes: "",
+          na: true,
+        },
+      ],
+    },
+  ],
+};
 
 export default function ScorePage() {
   return (
@@ -120,49 +136,31 @@ export default function ScorePage() {
       <SiteHeader />
 
       <main>
-        {/* HERO — two-column intro (copy | self-scan example) ABOVE a
-            full-width scan form. ScanForm renders ScanResults inline, so it
-            MUST stay full-width — keeping it inside a half-width grid column
-            crushes the results grid. Typography / slotting are hot-class. */}
-        <section className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
-          <div className="grid gap-12 lg:grid-cols-2 lg:items-start lg:gap-16">
-            <div>
-              <div className="inline-flex border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm font-mono uppercase tracking-wider text-emerald-400">
-                Free · No signup
-              </div>
-              <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-6xl">
-                Your Astrant Score
-              </h1>
-              <p className="mt-4 text-lg text-[var(--color-muted)] sm:text-xl">
-                An agent-discoverability rating across six dimensions.
-              </p>
-              <p className="mt-6 max-w-xl text-base text-[var(--color-muted)]">
-                A live, public score — no signup. Five dimensions are scored
-                live; Citation Visibility (dimension 6) is a static demo preview
-                on the free Score, and runs live across 4 AI models with the $79
-                Audit. Content-only sites have OpenAPI auto-marked N/A.
-              </p>
-            </div>
-
-            {/* Self-scan code block (A5). min-w-0 lets the <pre> scroll inside
-                the column instead of overflowing and clipping the card. */}
-            <div className="min-w-0 lg:pt-2">
-              <div className="border border-[var(--color-border)] bg-[var(--color-surface-2)]">
-                <div className="border-b border-[var(--color-border)] px-4 py-2 text-xs font-mono uppercase tracking-wider text-[var(--color-muted)]">
-                  example · astrant.io self-scan
-                </div>
-                <pre className="overflow-x-auto p-4 text-xs leading-relaxed font-mono text-[var(--color-fg)]">
-                  <code>{SELF_SCAN_EXAMPLE}</code>
-                </pre>
-              </div>
-            </div>
+        {/* HERO — centered single-column entry: copy + width-constrained scan
+            form. Scans route to /score/[id] (no inline results). Eyebrow /
+            typography / slotting are hot-class. */}
+        <section className="mx-auto max-w-3xl px-6 py-20 text-center sm:py-28">
+          <div className="inline-flex border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm font-mono uppercase tracking-wider text-emerald-400">
+            Free · No signup
           </div>
-
-          {/* Scan form — full width so ScanResults renders full-width. */}
-          <div className="mt-12">
+          <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-6xl">
+            Your Astrant Score
+          </h1>
+          <p className="mt-4 text-lg text-[var(--color-muted)] sm:text-xl">
+            An agent-discoverability rating across six dimensions.
+          </p>
+          <p className="mt-6 text-base text-[var(--color-muted)]">
+            A live, public score — no signup. Five dimensions are scored live;
+            Citation Visibility (dimension 6) is a static demo preview on the
+            free Score, and runs live across 4 AI models with the $79 Audit.
+            Content-only sites have OpenAPI auto-marked N/A.
+          </p>
+          {/* Width-constrained wrapper (NOT a ScanForm edit — ScanForm is
+              shared with the homepage, I6). */}
+          <div className="mx-auto mt-10 max-w-xl">
             <ScanForm />
           </div>
-          <p className="mt-6 max-w-2xl text-sm italic text-[var(--color-muted)]">
+          <p className="mx-auto mt-6 max-w-xl text-sm italic text-[var(--color-muted)]">
             Want the deeper analysis now? The $79 Audit delivers a full report
             with live citation data in 60 seconds.{" "}
             {/* Logo + Foundation slice: inline upsell link demoted accent → fg;
@@ -176,13 +174,53 @@ export default function ScorePage() {
           </p>
         </section>
 
+        {/* SAMPLE — astrant.io's own self-scan rendered as a score (not JSON).
+            The SAMPLE caption is rendered so it never reads as the visitor's
+            own live result. */}
+        <section className="border-t border-[var(--color-border)]">
+          <div className="mx-auto max-w-6xl px-6 py-16">
+            <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-muted)]">
+              Sample · astrant.io
+            </p>
+            <div className="mt-8">
+              <ScorePanel
+                composite={SAMPLE_SCAN.composite}
+                dimensions={SAMPLE_SCAN.dimensions}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* AUDIT CTA — directly below the score (sample panel). Routes to
+            /audit (503-gated paid checkout); amber retained per decision 5. */}
+        <section className="border-t border-[var(--color-border)]">
+          <div className="mx-auto max-w-6xl px-6 py-20">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Want a deeper read?
+            </h2>
+            <p className="mt-4 text-lg text-[var(--color-muted)]">
+              The free Score tells you where you stand. The $79 Audit gives you a
+              prioritized action plan with live citation data and competitor
+              comparison — delivered as a PDF in 60 seconds.
+            </p>
+            <div className="mt-8">
+              <Link
+                href="/audit"
+                className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
+              >
+                Run your audit →
+              </Link>
+            </div>
+          </div>
+        </section>
+
         {/* WHAT WE SCORE — six-column dimension strip */}
         <section className="border-t border-[var(--color-border)]">
           <div className="mx-auto max-w-6xl px-6 py-20">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               The six dimensions
             </h2>
-            <p className="mt-4 max-w-3xl text-lg text-[var(--color-muted)]">
+            <p className="mt-4 text-lg text-[var(--color-muted)]">
               Each dimension maps to a specific piece of technical infrastructure.
               The score tells you where you stand; the gap report tells you exactly
               what to fix.
@@ -208,7 +246,7 @@ export default function ScorePage() {
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               Why this, not the free Cloudflare tool?
             </h2>
-            <p className="mt-4 max-w-3xl text-lg text-[var(--color-muted)]">
+            <p className="mt-4 text-lg text-[var(--color-muted)]">
               Cloudflare shipped a free Agent Readiness Score tool in 2026 that does
               pass/fail checks across five categories. It&apos;s a good free check.
               We go deeper in three places:
@@ -233,12 +271,13 @@ export default function ScorePage() {
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               Built the way we build for clients
             </h2>
-            <p className="mt-4 max-w-3xl text-lg text-[var(--color-muted)]">
+            <p className="mt-4 text-lg text-[var(--color-muted)]">
               The scanner runs on Cloudflare Workers. Citation audits go through
               Profound&apos;s enterprise API. Everything is MCP-callable — agents
               can invoke the scanner against any URL programmatically, the same way
-              our clients&apos; MCPs are invoked. When the score ships, we&apos;ll
-              score ourselves first and publish the result here.
+              our clients&apos; MCPs are invoked. The Score is live now — and we
+              score ourselves first: astrant.io&apos;s own Astrant Score is the
+              sample above.
             </p>
             <p className="mt-6 text-base">
               See our MCP server →{" "}
@@ -273,30 +312,6 @@ export default function ScorePage() {
           </div>
         </section>
 
-        {/* FINAL CTA */}
-        <section className="border-t border-[var(--color-border)]">
-          <div className="mx-auto max-w-6xl px-6 py-20">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Want a deeper read?
-            </h2>
-            <p className="mt-4 max-w-3xl text-lg text-[var(--color-muted)]">
-              The free Score tells you where you stand. The $79 Audit gives you a
-              prioritized action plan with live citation data and competitor
-              comparison — delivered as a PDF in 60 seconds.
-            </p>
-            <div className="mt-8">
-              {/* Logo + Foundation slice: routes to /audit (503-gated paid
-                  checkout). Per decision 5 EXCEPTION amber retained on this
-                  CTA. Radius stripped per decision 4. */}
-              <Link
-                href="/audit"
-                className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
-              >
-                Run your audit →
-              </Link>
-            </div>
-          </div>
-        </section>
       </main>
 
       <SiteFooter />

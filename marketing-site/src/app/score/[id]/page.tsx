@@ -12,12 +12,16 @@ import {
 } from "@/lib/score-scanner-client";
 import type { ScanResult } from "@/lib/audit-types";
 import {
-  gradeColorClass,
   dimensionCountPhrase,
   applicableDimensionCount,
   isDim6DemoPreview,
 } from "@/lib/score-display";
 import { DIM6_DISCLOSURE } from "@/lib/dim6/disclosure";
+import ScorePanel from "@/components/ScorePanel";
+import {
+  SessionResultCleanup,
+  SessionResultFallback,
+} from "@/components/score/SessionResult";
 
 // Slice 2b Phase 1 — shareable Score results page.
 //
@@ -69,22 +73,17 @@ export default async function ScoreResultsPage({
   const tokenIsValid = !!validToken && validToken.scanId === scanId;
   const tokenWasProvided = tokenInput.length > 0;
 
-  // Fetch the public scan record. Falls through to a "not found" page on miss.
+  // Fetch the public scan record. On a server miss, do NOT 404 immediately: a
+  // just-scanned user may carry a sessionStorage stash (the rare best-effort-
+  // persist failure). The client fallback shell reads it and renders a degraded
+  // score-only view, or the not-found UI if there's nothing stashed.
   const scanFetch = await getPublicScan(scanId);
   if (!scanFetch.ok) {
     return (
       <div className="min-h-screen">
         <SiteHeader />
         <main>
-          <section className="mx-auto max-w-3xl px-6 py-20">
-            <h1 className="text-3xl font-bold tracking-tight">
-              Scan not found
-            </h1>
-            <p className="mt-4 text-[var(--color-muted)]">
-              We don&apos;t have a record for that scan ID. Run a fresh scan
-              at <Link href="/score" className="text-[var(--color-fg)] underline">/score</Link>.
-            </p>
-          </section>
+          <SessionResultFallback scanId={scanId} />
         </main>
         <SiteFooter />
       </div>
@@ -211,7 +210,7 @@ export default async function ScoreResultsPage({
     <div className="min-h-screen">
       <SiteHeader />
       <main>
-        <section className="mx-auto max-w-3xl px-6 py-16">
+        <section className="mx-auto max-w-6xl px-6 py-16">
           {showOldEngineBanner ? (
             <div className="mb-8 border border-orange-400/40 bg-orange-400/5 p-4 text-sm text-orange-200">
               <strong className="text-orange-300">
@@ -239,15 +238,13 @@ export default async function ScoreResultsPage({
             </span>
           </h1>
 
-          <div className="mt-8 flex items-baseline gap-6">
-            <span className="text-7xl font-bold text-[var(--color-fg)]">
-              {scan.composite.score}
-            </span>
-            <span className={`text-3xl font-mono ${gradeColorClass(scan.composite.grade)}`}>
-              {scan.composite.grade}
-            </span>
+          <div className="mt-8">
+            <ScorePanel
+              composite={scan.composite}
+              dimensions={scan.dimensions}
+            />
           </div>
-          <p className="mt-2 text-sm text-[var(--color-muted)] italic">
+          <p className="mt-6 text-sm text-[var(--color-muted)] italic">
             Scored on{" "}
             {dimensionCountPhrase(
               scan.dimensions_applicable,
@@ -264,87 +261,52 @@ export default async function ScoreResultsPage({
               : ""}
           </p>
 
-          <h2 className="mt-12 text-2xl font-bold tracking-tight">
-            Dimension breakdown
-          </h2>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            {scan.dimensions.map((d) => {
-              // Score V2 — D6 row mapping (demo-preview sniff BEFORE the
-              // generic na branch; early-precedence). Daily-cap + true-N/A
-              // fall through to the existing na rendering below.
-              if (isDim6DemoPreview(d)) {
-                return (
-                  <div
-                    key={d.dimension_id}
-                    className="border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5 p-5"
-                  >
-                    <div className="flex items-baseline justify-between gap-4">
+          {/* Normal server path: the row exists, so clear any sessionStorage
+              stash from the scan-to-route hop (client-side; server can't). */}
+          <SessionResultCleanup scanId={scanId} />
+
+          {/* A7 — "Where you're losing points": per-dimension below-threshold
+              gaps (truncated ~80 chars), sectioned out of the clean ScorePanel
+              and positioned to feed the email/Audit CTA below. Full gap detail
+              stays in the emailed PDF. Heading is hot-class. */}
+          {(() => {
+            const gapDims = scan.dimensions.filter(
+              (d) => !d.na && d.sub_checks.some((s) => !s.na && s.score < 80)
+            );
+            if (gapDims.length === 0) return null;
+            return (
+              <>
+                <h2 className="mt-14 text-2xl font-bold tracking-tight">
+                  Where you&apos;re losing points
+                </h2>
+                <div className="mt-6 flex flex-col gap-5">
+                  {gapDims.map((d) => (
+                    <div key={d.dimension_id}>
                       <h3 className="text-base font-semibold">
+                        <span className="mr-2 font-mono text-xs text-[var(--color-muted)]">
+                          D{d.dimension_id}
+                        </span>
                         {d.dimension_name}
-                        <span className="ml-2 border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/10 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-[var(--color-accent)]">
-                          Demo preview
-                        </span>
                       </h3>
-                      <span className="text-sm italic text-[var(--color-muted)]">
-                        Demo preview — live with $79 Audit
-                      </span>
+                      <ul className="mt-2 flex flex-col gap-1 text-sm text-[var(--color-muted)]">
+                        {d.sub_checks
+                          .filter((s) => !s.na && s.score < 80)
+                          .slice(0, 3)
+                          .map((s) => (
+                            <li key={s.id}>
+                              <span className="text-[var(--color-fg)]">
+                                {s.name}
+                              </span>
+                              : {s.notes}
+                            </li>
+                          ))}
+                      </ul>
                     </div>
-                    <p className="mt-3 text-sm text-[var(--color-muted)]">
-                      {DIM6_DISCLOSURE.freeTierPreview}
-                    </p>
-                  </div>
-                );
-              }
-              return (
-              <div
-                key={d.dimension_id}
-                className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-5"
-              >
-                <div className="flex items-baseline justify-between gap-4">
-                  <h3 className="text-base font-semibold">
-                    {d.dimension_name}
-                    {d.na ? (
-                      <span className="ml-2 border border-[var(--color-border)] bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-[var(--color-muted)]">
-                        N/A
-                      </span>
-                    ) : null}
-                  </h3>
-                  <div className="flex items-baseline gap-2">
-                    {d.na ? (
-                      <span className="text-sm text-[var(--color-muted)] italic">not applicable</span>
-                    ) : (
-                      <>
-                        <span className="text-xl font-bold">{d.score}</span>
-                        <span className={`font-mono text-sm ${gradeColorClass(d.grade)}`}>
-                          {d.grade}
-                        </span>
-                      </>
-                    )}
-                  </div>
+                  ))}
                 </div>
-                {d.na ? (
-                  <p className="mt-3 text-sm text-[var(--color-muted)]">
-                    {d.sub_checks[0]?.notes ?? "Dimension did not apply to this site; dropped from composite."}
-                  </p>
-                ) : (
-                  /* Gap teasers — first 80 chars of each below-threshold sub-check note */
-                  <ul className="mt-3 flex flex-col gap-1 text-sm text-[var(--color-muted)]">
-                    {d.sub_checks
-                      .filter((s) => !s.na && s.score < 80)
-                      .slice(0, 3)
-                      .map((s) => (
-                        <li key={s.id}>
-                          <span className="text-[var(--color-fg)]">{s.name}</span>:{" "}
-                          {s.notes.slice(0, 80)}
-                          {s.notes.length > 80 ? "…" : ""}
-                        </li>
-                      ))}
-                  </ul>
-                )}
-              </div>
-              );
-            })}
-          </div>
+              </>
+            );
+          })()}
 
           <h2 className="mt-14 text-2xl font-bold tracking-tight">
             Get the full gap report
@@ -384,6 +346,30 @@ export default async function ScoreResultsPage({
             }
             return null;
           })()}
+
+          {/* Audit upsell — the post-result high-intent close. The free PDF
+              (email gate above) stays the primary capture; this is the paid
+              $79 Audit upsell. Added beyond the locked CTA matrix; that matrix
+              is untouched. */}
+          <div className="mt-16 border-t border-[var(--color-border)] pt-12">
+            <h2 className="text-2xl font-bold tracking-tight">
+              Want these gaps fixed, prioritized?
+            </h2>
+            <p className="mt-4 text-base text-[var(--color-muted)]">
+              Your free report shows where you stand. The $79 Audit turns it
+              into a prioritized action plan — with live citation data across 4
+              AI models and competitor comparison — delivered as a PDF in 60
+              seconds.
+            </p>
+            <div className="mt-6">
+              <Link
+                href="/audit"
+                className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
+              >
+                Run your audit →
+              </Link>
+            </div>
+          </div>
 
           <p className="mt-12 text-sm text-[var(--color-muted)]">
             By using this page you agree to our{" "}

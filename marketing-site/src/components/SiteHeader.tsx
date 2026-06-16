@@ -27,6 +27,11 @@ export default function SiteHeader() {
             md+ shows all three with the wider gap. whitespace-nowrap prevents
             individual links wrapping internally even if the row gets tight. */}
         <nav className="flex items-center gap-3 whitespace-nowrap text-sm text-[var(--color-muted)] sm:gap-6">
+          {/* Score is the primary product entry — visible at all breakpoints
+              (unlike "How it works", which hides on mobile). */}
+          <Link href="/score" className="hover:text-[var(--color-fg)]">
+            Score
+          </Link>
           <Link
             href="/#how-it-works"
             className="hidden hover:text-[var(--color-fg)] md:inline"

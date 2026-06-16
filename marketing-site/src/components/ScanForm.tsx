@@ -1,16 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import ScanResults, { type ScanResultData } from "./ScanResults";
+import { useRouter } from "next/navigation";
+import type { ScanResult } from "@/lib/audit-types";
 import { normalizeUrl } from "@/lib/normalize-url";
 
 type Status = "idle" | "scanning" | "done" | "error";
 
 export default function ScanForm() {
+  const router = useRouter();
   const [url, setUrl] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<ScanResultData | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -22,14 +23,13 @@ export default function ScanForm() {
     }
     setStatus("scanning");
     setError(null);
-    setResult(null);
     try {
       const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: normalized }),
       });
-      const data = (await res.json()) as ScanResultData | { ok: false; error?: string };
+      const data = (await res.json()) as ScanResult | { ok: false; error?: string };
       if (!res.ok) {
         if (res.status >= 500) {
           setError("Scanner is having a moment. Try again in a sec.");
@@ -43,8 +43,17 @@ export default function ScanForm() {
         setStatus("error");
         return;
       }
-      setResult(data as ScanResultData);
-      setStatus("done");
+      // Score V3 — route to the canonical /score/[id] result page. Stash the
+      // result in sessionStorage as a fallback for the rare best-effort-persist
+      // miss (the result page reads it only if getPublicScan misses server-side).
+      const scan = data as ScanResult;
+      try {
+        sessionStorage.setItem(scan.id, JSON.stringify(scan));
+      } catch {
+        // sessionStorage unavailable (private mode / quota) — the server path
+        // still works; only the rare-miss fallback is forgone.
+      }
+      router.push(`/score/${scan.id}`);
     } catch {
       setError("Network error. Try again.");
       setStatus("error");
@@ -101,12 +110,6 @@ export default function ScanForm() {
           </p>
         ) : null}
       </form>
-
-      {status === "done" && result ? (
-        <div className="mt-12">
-          <ScanResults data={result} />
-        </div>
-      ) : null}
     </div>
   );
 }
