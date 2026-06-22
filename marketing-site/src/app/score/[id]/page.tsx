@@ -17,7 +17,6 @@ import {
   applicableDimensionCount,
   isDim6DemoPreview,
 } from "@/lib/score-display";
-import { DIM6_DISCLOSURE } from "@/lib/dim6/disclosure";
 import ScorePanel from "@/components/ScorePanel";
 import {
   SessionResultCleanup,
@@ -56,6 +55,17 @@ interface PageProps {
 interface ScoreEnv {
   UNSUBSCRIBE_SECRET: string;
   INTERNAL_SCANNER_ADMIN_KEY: string;
+}
+
+// Citation Visibility (Dim 6) urgency bridge — keyed on the composite (0-100),
+// interpolating the grade letter. Defensible per audit-discipline: states the
+// risk/unknown, never asserts a specific competitor is cited.
+function citationBridge(composite: number, grade: string): string {
+  if (composite < 60)
+    return `You scored ${grade} on agent-readiness. Sites this weak are rarely cited by AI — and you can't see who's being recommended in your place.`;
+  if (composite < 80)
+    return `You scored ${grade} on readiness — the basics are there. But readiness isn't citation; plenty of well-built sites still get passed over.`;
+  return `You scored ${grade} on readiness — a strong foundation. But being built to be found isn't the same as being found. See if it's translating.`;
 }
 
 export default async function ScoreResultsPage({
@@ -287,10 +297,10 @@ export default async function ScoreResultsPage({
                       className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-5"
                     >
                       <div className="flex items-baseline justify-between gap-3">
-                        <h3 className="text-base font-semibold">
+                        <h3 className="text-lg font-semibold">
                           {d.dimension_name}
                         </h3>
-                        <span className={`font-mono text-sm ${gradeColorClass(d.grade)}`}>
+                        <span className={`font-mono text-xl font-bold ${gradeColorClass(d.grade)}`}>
                           {d.grade}
                         </span>
                       </div>
@@ -329,8 +339,9 @@ export default async function ScoreResultsPage({
                 na:true), so a measured Dim 6 never reaches here. The measured
                 narrative is deleted from render (recoverable from git history);
                 this comment is the defensive no-op marking arm 1.
-              - ARM 2 (Dim 6 demo preview): render the demo-state variant
-                (A3 copy + imported DIM6_DISCLOSURE.freeTierPreview).
+              - ARM 2 (Dim 6 demo preview): render the Citation Visibility
+                urgency section (B+C framing + grade-band bridge; no sample
+                numbers — the demo prose was dropped in the urgency patch).
               - ARM 3 (Dim 6 absent, or na without the demo sub-check incl.
                 daily-cap): suppressed — render nothing. Majority path for
                 legacy scans. */}
@@ -338,56 +349,52 @@ export default async function ScoreResultsPage({
             const dim6 = scan.dimensions.find((d) => d.dimension_id === 6);
             if (dim6 && isDim6DemoPreview(dim6)) {
               return (
-                <>
-                  <h2 className="mt-20 text-2xl font-bold tracking-tight">
-                    Citation Visibility (dimension 6)
+                <div className="mt-20">
+                  <p className="font-mono text-xs uppercase tracking-wider text-[var(--color-accent)]">
+                    Dimension 6 · Not scored in your free scan
+                  </p>
+                  <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
+                    Is AI sending your customers to a competitor?
                   </h2>
                   <p className="mt-4 text-base text-[var(--color-muted)]">
-                    Citation Visibility measures whether AI models actually cite
-                    your domain when someone asks about your category — the one
-                    signal Cloudflare&apos;s tool can&apos;t see. It runs live
-                    across ChatGPT, Claude, Gemini, and Perplexity with the $79
-                    Audit; the free Score shows the static sample below.
+                    When someone asks ChatGPT, Claude, Gemini, or Perplexity for
+                    the best in your category, it names someone. Dimensions 1–5
+                    above measure whether you&apos;re built to be found. Citation
+                    Visibility measures whether you actually are — how often those
+                    four models name you in real buyer questions, and whether
+                    competitors get named ahead of you. It&apos;s the number that
+                    decides revenue, and the one your free Score can&apos;t show
+                    you.
                   </p>
-                  <div className="mt-6 border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5 p-5">
-                    <p className="font-mono text-xs uppercase tracking-wider text-[var(--color-accent)]">
-                      Sample audit · illustrative
-                    </p>
-                    <p className="mt-3 text-base text-[var(--color-fg)]">
-                      {DIM6_DISCLOSURE.freeTierPreview}
-                    </p>
+                  <p className="mt-4 text-base text-[var(--color-fg)]">
+                    {citationBridge(scan.composite.score, scan.composite.grade)}
+                  </p>
+                  <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 font-mono text-sm text-[var(--color-muted)]">
+                    {["ChatGPT", "Claude", "Gemini", "Perplexity"].map((m) => (
+                      <span key={m}>
+                        {m} <span className="text-[var(--color-accent)]">?</span>
+                      </span>
+                    ))}
                   </div>
-                </>
+                  <p className="mt-8 text-base text-[var(--color-fg)]">
+                    Run the $79 Audit — see exactly where you stand across all
+                    four models, and whether competitors are outranking you.
+                  </p>
+                  <div className="mt-4">
+                    <Link
+                      href="/audit"
+                      className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
+                    >
+                      Run your audit →
+                    </Link>
+                  </div>
+                </div>
               );
             }
             return null;
           })()}
 
-          {/* Audit upsell — the post-result high-intent close. The free PDF
-              (email gate above) stays the primary capture; this is the paid
-              $79 Audit upsell. Added beyond the locked CTA matrix; that matrix
-              is untouched. */}
-          <div className="mt-16 border-t border-[var(--color-border)] pt-12">
-            <h2 className="text-2xl font-bold tracking-tight">
-              Want these gaps fixed, prioritized?
-            </h2>
-            <p className="mt-4 text-base text-[var(--color-muted)]">
-              Your free report shows where you stand. The $79 Audit turns it
-              into a prioritized action plan — with live citation data across 4
-              AI models and competitor comparison — delivered as a PDF in 60
-              seconds.
-            </p>
-            <div className="mt-6">
-              <Link
-                href="/audit"
-                className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
-              >
-                Run your audit →
-              </Link>
-            </div>
-          </div>
-
-          <p className="mt-12 text-sm text-[var(--color-muted)]">
+          <p className="mt-16 text-sm text-[var(--color-muted)]">
             By using this page you agree to our{" "}
             {/* Logo + Foundation slice: footer-text legal links demoted accent → fg. */}
             <Link href="/privacy" className="text-[var(--color-fg)] underline-offset-4 hover:underline">

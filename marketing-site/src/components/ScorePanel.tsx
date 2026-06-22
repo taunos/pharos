@@ -9,7 +9,6 @@
 
 import type { Composite, DimensionResult } from "@/lib/audit-types";
 import { gradeColorClass, isDim6DemoPreview } from "@/lib/score-display";
-import { DIM6_DISCLOSURE } from "@/lib/dim6/disclosure";
 
 // Dimension weights live in the scanner scoring map, not on DimensionResult.
 // Mirror scanner/src/scoring.ts (D1–D6 / 15·20·10·20·15·20).
@@ -102,10 +101,7 @@ export default function ScorePanel({
                   </span>
                 </div>
                 <p className="mt-1 text-sm italic text-[var(--color-muted)]">
-                  Demo preview — live with $79 Audit
-                </p>
-                <p className="mt-1 text-sm text-[var(--color-muted)]">
-                  {DIM6_DISCLOSURE.freeTierPreview}
+                  Live with the $79 Audit
                 </p>
               </div>
             );
@@ -116,20 +112,26 @@ export default function ScorePanel({
             return (
               <div
                 key={d.dimension_id}
-                className="flex items-baseline justify-between gap-3 border-t border-[var(--color-border)] py-4"
+                className="border-t border-[var(--color-border)] py-4"
               >
-                <span className="text-base font-semibold">
-                  <span className="mr-2 font-mono text-xs text-[var(--color-muted)]">
-                    {code(d.dimension_id)}
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-base font-semibold">
+                    <span className="mr-2 font-mono text-xs text-[var(--color-muted)]">
+                      {code(d.dimension_id)}
+                    </span>
+                    {d.dimension_name}
+                    <span className="ml-2 border border-[var(--color-border)] bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-[var(--color-muted)]">
+                      N/A
+                    </span>
                   </span>
-                  {d.dimension_name}
-                  <span className="ml-2 border border-[var(--color-border)] bg-[var(--color-bg)] px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-[var(--color-muted)]">
-                    N/A
+                  <span className="font-mono text-xs text-[var(--color-muted)]">
+                    {weightLabel}
                   </span>
-                </span>
-                <span className="font-mono text-xs text-[var(--color-muted)]">
-                  {weightLabel}
-                </span>
+                </div>
+                <p className="mt-1 text-sm italic text-[var(--color-muted)]">
+                  Doesn&apos;t apply to this site — dropped from the composite, no
+                  penalty.
+                </p>
               </div>
             );
           }
