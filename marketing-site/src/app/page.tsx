@@ -289,7 +289,7 @@ export default function Page() {
             <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-accent)]">
               The shift already happened
             </p>
-            <h2 className="mt-4 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl">
+            <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
               Agents are already recommending vendors in your category.{" "}
               <span className="text-[var(--color-muted)]">
                 The only question is whether yours is one of them.
