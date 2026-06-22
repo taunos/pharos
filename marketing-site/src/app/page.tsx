@@ -321,7 +321,7 @@ export default function Page() {
         <section className="border-t border-[var(--color-border)]">
           <div className="mx-auto max-w-6xl px-6 py-20">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Half of B2B buyers now start research in AI chatbots
+              Agents read a different web than people do
             </h2>
             <p className="mt-10 text-lg text-[var(--color-muted)]">
               The agentic discovery shift is well underway. Most sites aren&apos;t
@@ -454,10 +454,6 @@ export default function Page() {
                 Inspect the methodology →
               </a>
             </div>
-            <p className="mt-8 text-sm italic text-[var(--color-muted)]">
-              The free Score tool is live — try it above. Astrant&apos;s own audit
-              score will render here once dogfood self-display ships.
-            </p>
           </div>
         </section>
 
