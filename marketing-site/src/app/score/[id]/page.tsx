@@ -12,6 +12,7 @@ import {
 } from "@/lib/score-scanner-client";
 import type { ScanResult } from "@/lib/audit-types";
 import {
+  gradeColorClass,
   dimensionCountPhrase,
   applicableDimensionCount,
   isDim6DemoPreview,
@@ -279,25 +280,32 @@ export default async function ScoreResultsPage({
                 <h2 className="mt-14 text-2xl font-bold tracking-tight">
                   Where you&apos;re losing points
                 </h2>
-                <div className="mt-6 flex flex-col gap-5">
+                <div className="mt-6 grid gap-4 sm:grid-cols-2">
                   {gapDims.map((d) => (
-                    <div key={d.dimension_id}>
-                      <h3 className="text-base font-semibold">
-                        <span className="mr-2 font-mono text-xs text-[var(--color-muted)]">
-                          D{d.dimension_id}
+                    <div
+                      key={d.dimension_id}
+                      className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-5"
+                    >
+                      <div className="flex items-baseline justify-between gap-3">
+                        <h3 className="text-base font-semibold">
+                          {d.dimension_name}
+                        </h3>
+                        <span className={`font-mono text-sm ${gradeColorClass(d.grade)}`}>
+                          {d.grade}
                         </span>
-                        {d.dimension_name}
-                      </h3>
-                      <ul className="mt-2 flex flex-col gap-1 text-sm text-[var(--color-muted)]">
+                      </div>
+                      <ul className="mt-4 flex flex-col gap-3 text-sm">
                         {d.sub_checks
                           .filter((s) => !s.na && s.score < 80)
                           .slice(0, 3)
                           .map((s) => (
                             <li key={s.id}>
-                              <span className="text-[var(--color-fg)]">
+                              <span className="font-medium text-[var(--color-fg)]">
                                 {s.name}
                               </span>
-                              : {s.notes}
+                              <span className="mt-0.5 block text-[var(--color-muted)]">
+                                {s.notes}
+                              </span>
                             </li>
                           ))}
                       </ul>
@@ -308,10 +316,10 @@ export default async function ScoreResultsPage({
             );
           })()}
 
-          <h2 className="mt-14 text-2xl font-bold tracking-tight">
-            Get the full gap report
-          </h2>
-          <div className="mt-6">{cta}</div>
+          {/* The CTA self-heads (EmailGate: "Get the full PDF gap report";
+              other states have their own lead text) — no page-level heading,
+              to avoid the duplicate "Get the full gap report". */}
+          <div className="mt-14">{cta}</div>
 
           {/* Score V2 — three-way Dim 6 narrative gate (D6), keyed off the
               Dim 6 entry in scan.dimensions:
@@ -334,13 +342,21 @@ export default async function ScoreResultsPage({
                   <h2 className="mt-20 text-2xl font-bold tracking-tight">
                     Citation Visibility (dimension 6)
                   </h2>
-                  <p className="mt-3 text-sm text-[var(--color-muted)]">
-                    Citation Visibility runs live across 4 AI models with the
-                    $79 Audit. Below is a static demo preview of that check.
+                  <p className="mt-4 text-base text-[var(--color-muted)]">
+                    Citation Visibility measures whether AI models actually cite
+                    your domain when someone asks about your category — the one
+                    signal Cloudflare&apos;s tool can&apos;t see. It runs live
+                    across ChatGPT, Claude, Gemini, and Perplexity with the $79
+                    Audit; the free Score shows the static sample below.
                   </p>
-                  <p className="mt-3 text-sm text-[var(--color-muted)]">
-                    {DIM6_DISCLOSURE.freeTierPreview}
-                  </p>
+                  <div className="mt-6 border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5 p-5">
+                    <p className="font-mono text-xs uppercase tracking-wider text-[var(--color-accent)]">
+                      Sample audit · illustrative
+                    </p>
+                    <p className="mt-3 text-base text-[var(--color-fg)]">
+                      {DIM6_DISCLOSURE.freeTierPreview}
+                    </p>
+                  </div>
                 </>
               );
             }
