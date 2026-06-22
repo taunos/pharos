@@ -52,11 +52,23 @@ export default function ScorePanel({
   composite,
   dimensions,
   compact = false,
+  // Home V2 — per-surface D6 presentation. "auto" (default) keeps /score and
+  // /score/[id] fully unchanged: the D6 demo-preview row renders via the
+  // isDim6DemoPreview discriminator. "auditNote" (homepage dogfood rail only)
+  // drops the D6 row entirely and shows a one-line Audit upsell plus a
+  // 5-dimension scope line under the grade. The composite is passed in
+  // pre-computed (D6 already excluded) and is unchanged in both modes.
+  dim6 = "auto",
 }: {
   composite: Composite;
   dimensions: DimensionResult[];
   compact?: boolean;
+  dim6?: "auto" | "auditNote";
 }) {
+  const rows =
+    dim6 === "auditNote"
+      ? dimensions.filter((d) => d.dimension_id !== 6)
+      : dimensions;
   return (
     <div
       className={
@@ -92,11 +104,16 @@ export default function ScorePanel({
         >
           Grade {composite.grade}
         </p>
+        {dim6 === "auditNote" ? (
+          <p className="mt-2 text-xs text-[var(--color-muted)]">
+            Readiness across 5 technical dimensions.
+          </p>
+        ) : null}
       </div>
 
       {/* Dimension rows — result-forward; weight demoted to a small annotation. */}
       <div className="flex flex-col">
-        {dimensions.map((d) => {
+        {rows.map((d) => {
           const weight = DIM_WEIGHTS[d.dimension_id];
           const weightLabel = weight != null ? `${weight}%` : "";
 
@@ -187,6 +204,12 @@ export default function ScorePanel({
             </div>
           );
         })}
+        {dim6 === "auditNote" ? (
+          <p className="border-t border-[var(--color-border)] pt-3 text-sm italic text-[var(--color-muted)]">
+            Citation Visibility &#8212; the 6th dimension &#8212; runs live in
+            the $79 Audit.
+          </p>
+        ) : null}
       </div>
     </div>
   );

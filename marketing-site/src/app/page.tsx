@@ -276,6 +276,7 @@ export default function Page() {
                 <div className="mt-5">
                   <ScorePanel
                     compact
+                    dim6="auditNote"
                     composite={SAMPLE_SCAN.composite}
                     dimensions={SAMPLE_SCAN.dimensions}
                   />
