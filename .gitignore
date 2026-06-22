@@ -52,3 +52,9 @@ coverage/
 # E2E scratch artifacts (manual fulfillment runs)
 test-audit.pdf
 test-audit.json
+
+# Reports / review register — local working artifacts (ship-reports, deploy
+# prompts, spec + deploy-prompt reviews). Kept local per Bruno 2026-06-16:
+# online = code only. NOTE: some legacy reports remain tracked from earlier
+# sessions; they are not force-removed (history left intact).
+reports/
