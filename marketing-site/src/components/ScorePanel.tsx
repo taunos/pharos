@@ -51,22 +51,44 @@ function code(id: number) {
 export default function ScorePanel({
   composite,
   dimensions,
+  compact = false,
 }: {
   composite: Composite;
   dimensions: DimensionResult[];
+  compact?: boolean;
 }) {
   return (
-    <div className="grid gap-10 lg:grid-cols-[auto_1fr] lg:items-start lg:gap-16">
+    <div
+      className={
+        compact
+          ? "grid gap-5"
+          : "grid gap-10 lg:grid-cols-[auto_1fr] lg:items-start lg:gap-16"
+      }
+    >
       {/* Composite — the headline result. */}
       <div>
         <div className="flex items-baseline gap-2">
-          <span className="text-7xl font-bold tracking-tight sm:text-8xl">
+          <span
+            className={
+              compact
+                ? "text-4xl font-bold tracking-tight"
+                : "text-7xl font-bold tracking-tight sm:text-8xl"
+            }
+          >
             {composite.score}
           </span>
-          <span className="text-2xl text-[var(--color-muted)]">/100</span>
+          <span
+            className={
+              compact
+                ? "text-lg text-[var(--color-muted)]"
+                : "text-2xl text-[var(--color-muted)]"
+            }
+          >
+            /100
+          </span>
         </div>
         <p
-          className={`mt-2 font-mono text-lg ${gradeColorClass(composite.grade)}`}
+          className={`mt-2 font-mono ${compact ? "text-sm" : "text-lg"} ${gradeColorClass(composite.grade)}`}
         >
           Grade {composite.grade}
         </p>
@@ -84,7 +106,7 @@ export default function ScorePanel({
             return (
               <div
                 key={d.dimension_id}
-                className="border-t border-[var(--color-border)] py-4"
+                className={`border-t border-[var(--color-border)] ${compact ? "py-2" : "py-4"}`}
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="text-base font-semibold">
@@ -100,7 +122,7 @@ export default function ScorePanel({
                     {weightLabel}
                   </span>
                 </div>
-                <p className="mt-1 text-sm italic text-[var(--color-muted)]">
+                <p className={`mt-1 italic text-[var(--color-muted)] ${compact ? "text-xs" : "text-sm"}`}>
                   Live with the $79 Audit
                 </p>
               </div>
@@ -112,7 +134,7 @@ export default function ScorePanel({
             return (
               <div
                 key={d.dimension_id}
-                className="border-t border-[var(--color-border)] py-4"
+                className={`border-t border-[var(--color-border)] ${compact ? "py-2" : "py-4"}`}
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="text-base font-semibold">
@@ -128,7 +150,7 @@ export default function ScorePanel({
                     {weightLabel}
                   </span>
                 </div>
-                <p className="mt-1 text-sm italic text-[var(--color-muted)]">
+                <p className={`mt-1 italic text-[var(--color-muted)] ${compact ? "text-xs" : "text-sm"}`}>
                   Doesn&apos;t apply to this site — dropped from the composite, no
                   penalty.
                 </p>
@@ -140,7 +162,7 @@ export default function ScorePanel({
           return (
             <div
               key={d.dimension_id}
-              className="border-t border-[var(--color-border)] py-4"
+              className={`border-t border-[var(--color-border)] ${compact ? "py-2" : "py-4"}`}
             >
               <div className="flex items-baseline justify-between gap-3">
                 <span className="text-base font-semibold">

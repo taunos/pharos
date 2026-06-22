@@ -1,17 +1,61 @@
 import Link from "next/link";
 import ScanForm from "@/components/ScanForm";
+import ScorePanel from "@/components/ScorePanel";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import SixDimensions from "@/components/SixDimensions";
 
 const STATS = [
-  { figure: "527%", label: "YoY growth in AI-sourced sessions" },
+  {
+    figure: "6",
+    label: <>signals agents read before they&apos;ll recommend you</>,
+    sub: <>Miss one and you fall out of the answer entirely.</>,
+  },
   {
     figure: "~70%",
-    label: "of AI traffic arrives with no referrer (invisible in GA4)",
+    label: <>of AI traffic arrives with no referrer</>,
+    sub: (
+      <>
+        You can&apos;t see the buyers AI sends you &#8212; or the ones it sends
+        elsewhere.
+      </>
+    ),
   },
-  { figure: "50%", label: "of B2B buyers begin research in AI, not search" },
+  {
+    figure: "4",
+    label: <>AI engines already fielding buying questions in your category</>,
+    sub: <>They answer today &#8212; with or without you.</>,
+  },
 ];
+
+const SAMPLE_SCAN = {
+  composite: { score: 89, grade: "A-" },
+  dimensions: [
+    { dimension_id: 1, dimension_name: "llms.txt Quality", score: 93, grade: "A", sub_checks: [] },
+    { dimension_id: 2, dimension_name: "MCP Server Discoverability", score: 100, grade: "A", sub_checks: [] },
+    { dimension_id: 3, dimension_name: "OpenAPI / API Catalog", score: 0, grade: "F", na: true, sub_checks: [] },
+    { dimension_id: 4, dimension_name: "Structured Capability Data", score: 73, grade: "B", sub_checks: [] },
+    { dimension_id: 5, dimension_name: "Agent-Parsable Content", score: 93, grade: "A", sub_checks: [] },
+    {
+      dimension_id: 6,
+      dimension_name: "Citation Visibility",
+      score: 0,
+      grade: "F",
+      na: true,
+      sub_checks: [
+        {
+          id: "free_tier_dim6_preview",
+          name: "Citation Visibility (free-tier preview)",
+          weight: 1,
+          score: 0,
+          passed: false,
+          notes: "",
+          na: true,
+        },
+      ],
+    },
+  ],
+};
 
 type BadgeKind = "free" | "instant" | "call";
 
@@ -70,7 +114,7 @@ const SUBSCRIPTION_TIERS: Array<{
     href: "/subscriptions",
   },
   {
-    name: "Astrant Pro",
+    name: "Pro",
     price: "$899/mo",
     body: "Standard, faster. Daily citation probes across all four engines for sub-24-hour competitive signal.",
     href: "/subscriptions",
@@ -201,23 +245,74 @@ export default function Page() {
       <SiteHeader />
 
       <main>
-        {/* HERO */}
-        <section className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
-            Is your site findable by AI agents?
-          </h1>
-          <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)] sm:text-xl">
-            Astrant makes businesses structurally discoverable and invokable by
-            ChatGPT, Claude, Perplexity, and every agent built on MCP. We implement
-            the technical layer — llms.txt, MCP server, structured capability data,
-            agent-parsable content — and monitor the results.
-          </p>
-          <div className="mt-10">
-            {/* The free Score scanner is live (Slices 2a/2b/3a/3b shipped).
-                Hero CTA runs the actual scan instead of the legacy pre-launch
-                waitlist form. ScanForm hosts its own results panel, email-gate,
-                and dimension breakdown. */}
-            <ScanForm />
+        <section className="mx-auto max-w-6xl px-6 py-16 sm:py-24">
+          <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start lg:gap-20">
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-muted)]">
+                Free · No signup
+              </p>
+              <h1 className="mt-5 text-5xl font-bold tracking-tight sm:text-7xl">
+                Is your site findable by AI agents?
+              </h1>
+              <p className="mt-6 text-lg text-[var(--color-muted)] sm:text-xl">
+                Astrant makes businesses structurally discoverable and invokable by
+                ChatGPT, Claude, Perplexity, and every agent built on MCP. We implement
+                the technical layer — llms.txt, MCP server, structured capability data,
+                agent-parsable content — and monitor the results.
+              </p>
+              <div className="mt-10">
+                <ScanForm variant="hero" />
+              </div>
+              <p className="mt-4 font-mono text-xs uppercase tracking-wider text-[var(--color-muted)]">
+                No signup · Public result · MCP-callable
+              </p>
+            </div>
+
+            <aside>
+              <div className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-5">
+                <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-muted)]">
+                  Sample · astrant.io self-scan
+                </p>
+                <div className="mt-5">
+                  <ScorePanel
+                    compact
+                    composite={SAMPLE_SCAN.composite}
+                    dimensions={SAMPLE_SCAN.dimensions}
+                  />
+                </div>
+              </div>
+            </aside>
+          </div>
+
+          <div className="mt-20">
+            <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-accent)]">
+              The shift already happened
+            </p>
+            <h2 className="mt-4 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl">
+              Agents are already recommending vendors in your category.{" "}
+              <span className="text-[var(--color-muted)]">
+                The only question is whether yours is one of them.
+              </span>
+            </h2>
+          </div>
+
+          <div className="mt-10 grid border-y border-[var(--color-rule)] sm:grid-cols-3">
+            {STATS.map((s) => (
+              <div
+                key={s.figure}
+                className="border-b border-[var(--color-rule)] py-8 sm:border-b-0 sm:border-r sm:px-8 sm:py-10 first:sm:pl-0 last:sm:border-r-0 last:sm:pr-0"
+              >
+                <div className="text-5xl font-bold tracking-tight text-[var(--color-fg)] sm:text-6xl">
+                  {s.figure}
+                </div>
+                <p className="mt-4 text-sm font-medium text-[var(--color-fg)]">
+                  {s.label}
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--color-muted)]">
+                  {s.sub}
+                </p>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -227,22 +322,7 @@ export default function Page() {
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               Half of B2B buyers now start research in AI chatbots
             </h2>
-            <div className="mt-10 grid gap-6 sm:grid-cols-3">
-              {STATS.map((s) => (
-                // Logo + Foundation slice: rounded-lg stripped; stat figure
-                // demoted accent → fg (already bold = sufficient hierarchy).
-                <div
-                  key={s.figure}
-                  className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6"
-                >
-                  <div className="text-4xl font-bold text-[var(--color-fg)]">
-                    {s.figure}
-                  </div>
-                  <p className="mt-3 text-[var(--color-muted)]">{s.label}</p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-10 max-w-3xl text-lg text-[var(--color-muted)]">
+            <p className="mt-10 text-lg text-[var(--color-muted)]">
               The agentic discovery shift is well underway. Most sites aren&apos;t
               structured to be found, understood, or invoked by agents. SEO agencies
               are rebadging old content playbooks. The technical layer is missing —
@@ -260,7 +340,7 @@ export default function Page() {
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               Six dimensions of agent discoverability
             </h2>
-            <p className="mt-4 max-w-3xl text-lg text-[var(--color-muted)]">
+            <p className="mt-4 text-lg text-[var(--color-muted)]">
               Our Agent Discoverability Score evaluates the full technical stack.
               Each dimension maps to a specific service deliverable.
             </p>
@@ -279,7 +359,7 @@ export default function Page() {
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               From first check to full deployment
             </h2>
-            <p className="mt-4 max-w-3xl text-lg text-[var(--color-muted)]">
+            <p className="mt-4 text-lg text-[var(--color-muted)]">
               Free to start, instant delivery on core tiers. Humans only when the
               work genuinely requires it.
             </p>
@@ -305,7 +385,7 @@ export default function Page() {
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               Astrant is its own first reference implementation
             </h2>
-            <p className="mt-4 max-w-3xl text-lg text-[var(--color-muted)]">
+            <p className="mt-4 text-lg text-[var(--color-muted)]">
               Every layer we sell is live on our own brand. You can inspect the
               dogfood directly — no login, no sales call.
             </p>
@@ -426,7 +506,7 @@ export default function Page() {
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               Ready to see how agent-ready your site is?
             </h2>
-            <p className="mt-4 max-w-3xl text-lg text-[var(--color-muted)]">
+            <p className="mt-4 text-lg text-[var(--color-muted)]">
               Free 5-of-6-dimension scan, public composite score on screen, no signup. Optional email for the gap-report PDF and monthly auto-rescan.
             </p>
             <div className="mt-8">

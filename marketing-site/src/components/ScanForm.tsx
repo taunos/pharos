@@ -6,12 +6,14 @@ import type { ScanResult } from "@/lib/audit-types";
 import { normalizeUrl } from "@/lib/normalize-url";
 
 type Status = "idle" | "scanning" | "done" | "error";
+type ScanFormVariant = "default" | "hero";
 
-export default function ScanForm() {
+export default function ScanForm({ variant = "default" }: { variant?: ScanFormVariant }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
+  const isHero = variant === "hero";
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -62,8 +64,22 @@ export default function ScanForm() {
 
   return (
     <div className="w-full">
-      <form onSubmit={onSubmit} className="w-full max-w-2xl">
-        <div className="flex flex-col gap-3 sm:flex-row">
+      <form onSubmit={onSubmit} className={isHero ? "w-full" : "w-full max-w-2xl"}>
+        <div
+          className={
+            isHero
+              ? "grid border border-[var(--color-border)] bg-[var(--color-surface-2)] sm:grid-cols-[auto_1fr_auto]"
+              : "flex flex-col gap-3 sm:flex-row"
+          }
+        >
+          {isHero ? (
+            <label
+              htmlFor="scan-url"
+              className="flex items-center border-b border-[var(--color-border)] px-4 py-3 font-mono text-[11px] uppercase tracking-wider text-[var(--color-muted)] sm:border-b-0 sm:border-r"
+            >
+              URL
+            </label>
+          ) : null}
           <input
             id="scan-url"
             name="url"
@@ -77,20 +93,28 @@ export default function ScanForm() {
             disabled={status === "scanning"}
             // Logo + Foundation slice: input focus border demoted accent → fg.
             // Radius stripped.
-            className="flex-1 border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-fg)] focus:outline-none disabled:opacity-60"
+            className={
+              isHero
+                ? "min-w-0 border-0 bg-transparent px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:outline-none disabled:opacity-60"
+                : "flex-1 border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-fg)] focus:outline-none disabled:opacity-60"
+            }
           />
           {/* Logo + Foundation slice: primary-CTA fill — amber retained per
               decision 5 (this IS the canonical primary CTA). Radius stripped. */}
           <button
             type="submit"
             disabled={status === "scanning"}
-            className="bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            className={
+              isHero
+                ? "bg-[var(--color-accent)] px-5 py-3 text-base font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                : "bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            }
           >
-            {status === "scanning" ? "Scanning…" : "Run free scan"}
+            {status === "scanning" ? "Scanning…" : isHero ? "Get your score →" : "Run free scan"}
           </button>
         </div>
         <p className="mt-3 text-sm text-[var(--color-muted)]">
-          Six dimensions. Citation Visibility appears as a demo preview on the free Score — live with the $79 Audit.
+          Five dimensions scored live. Citation Visibility — do AI models actually cite you? — runs with the $79 Audit.
         </p>
         {status === "scanning" ? (
           <p className="mt-4 flex items-center gap-2 text-sm text-[var(--color-muted)]">

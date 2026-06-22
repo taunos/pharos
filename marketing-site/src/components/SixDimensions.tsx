@@ -31,7 +31,7 @@ const DIMENSIONS = [
     name: "Citation Visibility",
     weight: "20%",
     description:
-      "A static demo preview on the free Score; the live audit of where AI models cite you runs with the $79 Audit.",
+      "Whether AI models actually cite you — your brand vs competitors — when buyers ask about your category. Runs live with the $79 Audit.",
   },
 ];
 
