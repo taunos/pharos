@@ -32,7 +32,7 @@ them freely in your repo — the Worker is yours.
 
 ## One-command future deploys
 
-The \`npx @astrant/deploy-mcp\` wrapper (F2-pre-1, shipping shortly) automates
-the \`wrangler login + deploy + mcp.json URL update\` sequence into a single
-command. Until then, the manual three-line sequence above works.
+A \`npx @astrant/deploy-mcp\` wrapper that automates the
+\`wrangler login + deploy + mcp.json URL update\` sequence into a single
+command is on the roadmap. Until then, the manual three-line sequence above works.
 `;

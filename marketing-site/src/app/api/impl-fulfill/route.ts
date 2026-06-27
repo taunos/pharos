@@ -23,6 +23,7 @@ import { generateOpenApi } from "@/lib/f2-generators/openapi";
 import { generateJsonLd } from "@/lib/f2-generators/jsonld";
 import { renderMcpServerWorker } from "@/lib/f2-mcp-server-template";
 import { assembleGitAmPatch } from "@/lib/f2-patch-assembler";
+import { validateGitAmPatch } from "@/lib/f2-patch-validate";
 import { sendF2PatchDeliveryEmail } from "@/lib/f2-email";
 import { sendOperatorAlert } from "@/lib/operator-alerts";
 import type { ProbeCadence } from "@/lib/cadence";
@@ -187,6 +188,35 @@ export async function POST(req: Request) {
     const customerIdValidation = validateCustomerIdForProbeTarget(f2.customer_id);
     if (!customerIdValidation.ok) {
       throw new Error(`F2_CUSTOMER_ID_INVALID session_id=${sessionId} reason=${customerIdValidation.reason}`);
+    }
+
+    // F2-VALIDATE-1 — fail-closed structural/encoding gate on the assembled patch,
+    // BEFORE enrollment + email. Generators are deterministic (callModel hardcoded
+    // null), so no retry/fallback ladder — a retry would re-emit identical bytes;
+    // that ladder belongs in the future slice that wires a real LLM call. On fail:
+    // no probe-target enrollment, no email, patch retained in R2 for inspection.
+    const patchValidation = validateGitAmPatch(patchContent, Object.keys(allFiles));
+    if (!patchValidation.ok) {
+      const failTime = Math.floor(Date.now() / 1000);
+      await env.CITATION_DB.prepare(
+        `UPDATE implementation_sessions
+         SET status = 'failed_validation', failed_reason = ?, updated_at = ?
+         WHERE session_id = ?`,
+      )
+        .bind(
+          `patch_validation_failed:${patchValidation.failures.join("|").slice(0, 400)}`,
+          failTime,
+          sessionId,
+        )
+        .run();
+      await sendOperatorAlert(env, {
+        alert_code: "F2_PATCH_VALIDATION_FAILED",
+        customer_email: f2.customer_email,
+        session_id: sessionId,
+        dodo_payment_id: f2.dodo_payment_id,
+        notes: `Patch failed structural validation; retained at ${patchR2Key}. Customer paid; needs manual refund via Dodo dashboard. Failures: ${patchValidation.failures.join("; ")}`,
+      });
+      return NextResponse.json({ error: "VALIDATION_FAILED" }, { status: 500 });
     }
 
     // Step 8 — customer_probe_targets INSERT-with-CHECK + ON CONFLICT
@@ -380,8 +410,8 @@ npx wrangler deploy
 
 After deploy, your MCP server is live at \`<worker-name>.<your-account>.workers.dev\`.
 
-The one-command \`npx @astrant/deploy-mcp\` wrapper (F2-pre-1) automates the
-\`login + deploy + mcp.json URL update\` sequence; it's shipping shortly.
+A one-command \`npx @astrant/deploy-mcp\` wrapper that automates the
+\`login + deploy + mcp.json URL update\` sequence is on the roadmap.
 
 ## Over the next 90 days
 

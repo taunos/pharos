@@ -159,7 +159,7 @@ function BundleDisclosure() {
       <h3 className="text-lg font-semibold">Your $1,299 Implementation includes</h3>
       <ul className="mt-4 flex flex-col gap-2 text-[var(--color-muted)]">
         <li>• A <code>git am</code>-applicable patch with deployable MCP server code, llms.txt, OpenAPI, JSON-LD, and monitoring scripts</li>
-        <li>• One-command deploy via <code>npx @astrant/deploy-mcp</code> (shipping shortly)</li>
+        <li>• One-command deploy wrapper (<code>npx @astrant/deploy-mcp</code>) on the roadmap; deploy today with <code>wrangler deploy</code></li>
         <li>• 90 days of citation-tracking probes across 4 major-model providers</li>
         <li>• 3 follow-up audits at Day 30, Day 60, Day 90</li>
         <li>• Standard continuation option at Day 90 ($149/mo) for ongoing measurement</li>
