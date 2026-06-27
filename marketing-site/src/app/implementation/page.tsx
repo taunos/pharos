@@ -4,6 +4,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { ImplementationCheckoutForm } from "@/components/ImplementationCheckoutForm";
+import { ImplPatchEvidence } from "@/components/ImplPatchEvidence";
 
 // F2 v6.1 — page renders D1 ceiling state per request (D18 Stage 1 page-CTA gate).
 // Force-dynamic ensures the SELECT COUNT(*) check runs on every load, not at build time.
@@ -130,13 +131,22 @@ const FLOW = [
   },
 ];
 
+// Implementation V2 (A5) — compact hero process strip; the lower FLOW section
+// stays as the detailed version (D11).
+const STEPS = [
+  { stage: "Pay", detail: "$1,299 via Dodo" },
+  { stage: "Questionnaire", detail: "5 questions, ~3 minutes" },
+  { stage: "Pipeline", detail: "build runs, email progress" },
+  { stage: "Patch", detail: "<24h · git am-applicable file" },
+];
+
 // Anchor-link CTA (F2 v6.1) — scrolls to the in-page ImplementationCheckoutForm.
 // Replaces the pre-launch waitlist CTA after F2 ships.
 function Cta({ label }: { label: string }) {
   return (
     <a
       href={CHECKOUT_IMPL_ANCHOR}
-      className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
+      className="inline-flex bg-[var(--color-accent)] px-8 py-4 text-lg font-semibold text-black transition hover:brightness-110"
     >
       {label}
     </a>
@@ -184,32 +194,47 @@ export default async function ImplementationPage() {
       <SiteHeader />
 
       <main>
-        {/* HERO */}
+        {/* HERO — Implementation V2 patch-evidence split (D1) */}
         <section className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
-          <div className="inline-flex rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm font-mono text-emerald-400">
-            $1,299 · delivered in &lt;24 hours
-          </div>
-          <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-6xl">
-            AEO Implementation
-          </h1>
-          <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)] sm:text-xl">
-            An automated build pipeline generates your full agent-discoverability
-            stack — llms.txt, baseline MCP server, OpenAPI spec, JSON-LD schema,
-            baseline monitoring — and emails it within 24 hours as a Git-applicable
-            patch file. Your developer applies it with <code>git am</code> in about
-            five minutes, reviews the diff in your repo&apos;s normal workflow, and
-            merges when ready. We don&apos;t ask for any access to your repo or
-            infrastructure — the patch works entirely from your developer&apos;s
-            local environment.
-          </p>
-          <div className="mt-10 flex flex-col items-start gap-4">
-            <Cta label="Buy Implementation — $1,299" />
-            <Link
-              href="/custom"
-              className="text-sm text-[var(--color-muted)] underline-offset-4 hover:text-[var(--color-fg)] hover:underline"
-            >
-              Need something custom? See the Custom tier →
-            </Link>
+          <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+            {/* LEFT — pitch + process + checkout CTA */}
+            <div className="min-w-0">
+              <div className="inline-flex rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm font-mono text-emerald-400">
+                $1,299 · delivered in &lt;24 hours
+              </div>
+              <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl">
+                The reason agents don&apos;t mention you is fixable in one merge.
+              </h1>
+              <p className="mt-6 text-lg text-[var(--color-muted)]">
+                The whole agent-discoverability stack as a patch file, reviewed in
+                your repo&apos;s normal workflow. No deploy keys, no service
+                accounts.
+              </p>
+              <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {STEPS.map((s) => (
+                  <div
+                    key={s.stage}
+                    className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3"
+                  >
+                    <div className="text-sm font-semibold">{s.stage}</div>
+                    <div className="mt-1 text-xs text-[var(--color-muted)]">
+                      {s.detail}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-10 flex flex-col items-start gap-4">
+                <Cta label="Buy Implementation — $1,299" />
+                <Link
+                  href="/custom"
+                  className="text-sm text-[var(--color-muted)] underline-offset-4 hover:text-[var(--color-fg)] hover:underline"
+                >
+                  Need something custom? See the Custom tier →
+                </Link>
+              </div>
+            </div>
+            {/* RIGHT — labelled representative patch (A1/A2) */}
+            <ImplPatchEvidence />
           </div>
         </section>
 
@@ -312,7 +337,7 @@ export default async function ImplementationPage() {
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               Everything we build, you own
             </h2>
-            <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)]">
+            <p className="mt-6 text-lg text-[var(--color-muted)]">
               No black box. Every artifact lives on your infrastructure. MCP
               server on your Cloudflare account. JSON-LD and content in your
               codebase via the patch your team applied. No dependency on Astrant
