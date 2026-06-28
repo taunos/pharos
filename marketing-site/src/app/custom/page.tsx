@@ -99,11 +99,10 @@ export default function CustomPage() {
             Custom · from $4,999 · 2–4 weeks
           </div>
           <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-6xl">
-            Agent discoverability,
-            <br />
+            Agent discoverability,{" "}
             <span className="text-[var(--color-muted)]">for the hardest problems.</span>
           </h1>
-          <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)] sm:text-xl">
+          <p className="mt-6 text-lg text-[var(--color-muted)] sm:text-xl">
             The cases that warrant senior engineering and a proper scope — complex
             APIs, multiple regions, real-time MCP tools, compliance to clear. A
             hands-on engagement, built with your team, under NDA, in 2–4 weeks.
@@ -124,7 +123,7 @@ export default function CustomPage() {
               Already know you need Custom? Notify me when it opens →
             </a>
           </div>
-          <p className="mt-4 max-w-3xl text-sm text-[var(--color-muted)]">
+          <p className="mt-4 text-sm text-[var(--color-muted)]">
             A 2-minute fit-check — a few questions about your APIs, regions,
             timeline, and compliance — points you to Standard Implementation,
             Custom, or a focused scoping call, so we only spend a call on the
@@ -146,7 +145,7 @@ export default function CustomPage() {
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               When Standard Implementation is enough
             </h2>
-            <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)]">
+            <p className="mt-6 text-lg text-[var(--color-muted)]">
               If you have a typical B2B SaaS site, our $1,299 Standard
               Implementation covers it: llms.txt, MCP server, OpenAPI spec,
               JSON-LD schema, baseline monitoring — emailed within 24 hours as a
@@ -172,7 +171,7 @@ export default function CustomPage() {
                 </div>
               ))}
             </div>
-            <div className="mt-6 max-w-3xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
+            <div className="mt-6 border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
               <h3 className="text-base font-semibold text-[var(--color-fg)]">
                 Bonus for Custom-tier customers
               </h3>
@@ -191,16 +190,15 @@ export default function CustomPage() {
           id="fit-check"
           className="border-t border-[var(--color-border)] scroll-mt-20"
         >
-          <div className="mx-auto max-w-3xl px-6 py-20">
+          <div className="mx-auto max-w-6xl px-6 py-20">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               2-minute fit check
             </h2>
             <p className="mt-4 text-lg text-[var(--color-muted)]">
-              Tell us what you need. Our triage agent (an LLM running on
-              Cloudflare Workers AI) will recommend the right tier — instant, no
-              signup required.
+              Tell us what you need. Our triage agent will recommend the right
+              tier — instant, no signup required.
             </p>
-            <div className="mt-10">
+            <div className="mt-10 max-w-3xl">
               <TriageForm />
             </div>
           </div>
