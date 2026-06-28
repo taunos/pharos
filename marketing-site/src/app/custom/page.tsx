@@ -34,7 +34,7 @@ const serviceLd = {
 const FAQS = [
   {
     q: "What's the $250 deposit for, and what happens if I don't proceed?",
-    a: "It secures your scoping call slot and is credited toward your final fixed quote — not an extra fee. The deposit is non-refundable if you decide not to proceed, but that's deliberate: it filters for prospects genuinely committed to exploring the engagement, not a profit center on its own. We'd rather have $250 from serious prospects than spend free 30-minute slots on tire-kickers.",
+    a: "It secures your scoping call slot and is credited toward your final fixed quote — not an extra fee. The deposit is non-refundable if you decide not to proceed; that's deliberate, so the 30-minute slots go to prospects ready to commit to exploring the engagement.",
   },
   {
     q: "How quickly will the scoping call be scheduled?",
@@ -93,38 +93,58 @@ export default function CustomPage() {
       <main>
         {/* HERO */}
         <section className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
-          {/* Logo + Foundation slice: rounded-full retained — small status pill
-              (functional shape — radius-free allowlist). */}
-          <div className="inline-flex rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-1 text-sm font-mono text-[var(--color-muted)]">
-            From $4,999 · 2–4 weeks typical
+          {/* Eyebrow — emerald short-pill, parity with the Audit/Implementation
+              V2 hero eyebrows (text-sm is the shipped value). */}
+          <div className="inline-flex rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm font-mono text-emerald-400">
+            Custom · from $4,999 · 2–4 weeks
           </div>
           <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-6xl">
-            Custom Implementation
+            Agent discoverability,
+            <br />
+            <span className="text-[var(--color-muted)]">for the hardest problems.</span>
           </h1>
           <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)] sm:text-xl">
-            For B2B SaaS sites that exceed our standard Implementation scope —
-            complex APIs, multi-region content, bespoke MCP tools, deep content
-            rewrites, multi-stakeholder engagements. Most prospects don&apos;t
-            actually need this. Take the 2-minute fit check below and we&apos;ll
-            route you to the right option.
+            The cases that warrant senior engineering and a proper scope — complex
+            APIs, multiple regions, real-time MCP tools, compliance to clear. A
+            hands-on engagement, built with your team, under NDA, in 2–4 weeks.
           </p>
-          <div className="mt-8">
-            {/* Logo + Foundation slice: primary CTA (live triage tool, not a
-                paid checkout) — amber retained per decision 5; radius stripped. */}
+          <div className="mt-8 flex flex-wrap items-center gap-4">
             <a
               href="#fit-check"
               className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
             >
-              Take the fit check ↓
+              Take the 2-minute fit-check →
+            </a>
+            {/* Secondary: same-origin launch-notify → /audit#waitlist. Ghost
+                style; NO target/rel (same-site link must not open a new tab). */}
+            <a
+              href="/audit#waitlist"
+              className="inline-flex border border-[var(--color-border)] bg-[var(--color-bg)] px-6 py-3 text-base font-semibold text-[var(--color-fg)] transition hover:border-[var(--color-fg)]"
+            >
+              Already know you need Custom? Notify me when it opens →
             </a>
           </div>
+          <p className="mt-4 max-w-3xl text-sm text-[var(--color-muted)]">
+            A 2-minute fit-check — a few questions about your APIs, regions,
+            timeline, and compliance — points you to Standard Implementation,
+            Custom, or a focused scoping call, so we only spend a call on the
+            right problem.
+          </p>
+          <p className="mt-2 text-sm text-[var(--color-muted)]">
+            The deposit credits toward your fixed quote.
+          </p>
+          {/* Trust row */}
+          <p className="mt-6 font-mono text-xs text-[var(--color-muted)]">
+            NDA-first · CTOs welcome (bring security) · Routes to Standard
+            Implementation if it fits
+          </p>
         </section>
 
         {/* WHEN STANDARD IS ENOUGH */}
         <section className="border-t border-[var(--color-border)]">
           <div className="mx-auto max-w-6xl px-6 py-20">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              When standard Implementation is enough
+              When Standard Implementation is enough
             </h2>
             <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)]">
               If you have a typical B2B SaaS site, our $1,299 Standard
@@ -140,23 +160,18 @@ export default function CustomPage() {
         <section className="border-t border-[var(--color-border)]">
           <div className="mx-auto max-w-6xl px-6 py-20">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              When Custom is genuinely needed
+              When Custom is the right call
             </h2>
-            <ul className="mt-10 flex flex-col gap-4 text-lg">
+            <div className="mt-10 grid gap-4 sm:grid-cols-2">
               {CUSTOM_TRIGGERS.map((t) => (
-                // Logo + Foundation slice: checkmark color demoted accent → muted.
-                <li key={t} className="flex gap-4">
-                  <span className="mt-1 shrink-0 text-[var(--color-muted)]">✓</span>
-                  <span className="text-[var(--color-muted)]">{t}</span>
-                </li>
+                <div
+                  key={t}
+                  className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-5 text-base text-[var(--color-fg)]"
+                >
+                  {t}
+                </div>
               ))}
-            </ul>
-            <p className="mt-10 max-w-3xl text-base text-[var(--color-muted)]">
-              Booking a Custom scoping call requires a $250 deposit — credited
-              toward your final fixed quote, not an extra fee. It&apos;s a
-              seriousness filter so we only take calls with prospects committed
-              enough to put cash down.
-            </p>
+            </div>
             <div className="mt-6 max-w-3xl border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
               <h3 className="text-base font-semibold text-[var(--color-fg)]">
                 Bonus for Custom-tier customers
