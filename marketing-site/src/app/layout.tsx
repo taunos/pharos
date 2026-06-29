@@ -132,7 +132,7 @@ const jsonLd = [
           billingDuration: "P1M",
         },
         description:
-          "Stay legible to ChatGPT, Claude, Perplexity, and Gemini — twice-weekly citation probes detecting mentions of your brand and competitors, monthly agent-citation report, monthly Astrant Score recalibration, hosted MCP endpoint.",
+          "Stay legible to ChatGPT, Claude, Perplexity, and Gemini — twice-weekly citation probes detecting mentions of your brand and tracked competitors, monthly agent-citation report, monthly Astrant Score recalibration, hosted MCP endpoint.",
       },
       {
         "@type": "Offer",
@@ -145,7 +145,7 @@ const jsonLd = [
           billingDuration: "P1M",
         },
         description:
-          "Everything in Standard plus daily citation probes detecting mentions of your brand and competitors across all four engines — sub-24-hour competitive change detection.",
+          "Everything in Standard plus daily citation probes and gap intelligence — which tracked competitors get cited in the prompts where your brand is absent — across ChatGPT, Claude, Perplexity, and Gemini, with sub-24-hour competitive change detection.",
       },
     ],
   },

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Fragment } from "react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
@@ -73,7 +74,7 @@ const serviceLd = [
         billingDuration: "P1M",
       },
       description:
-        "Stay legible to ChatGPT, Claude, Perplexity, and Gemini — twice-weekly citation probes detecting mentions of your brand and competitors, monthly agent-citation report, monthly Astrant Score recalibration, hosted MCP endpoint.",
+        "Stay legible to ChatGPT, Claude, Perplexity, and Gemini — twice-weekly citation probes detecting mentions of your brand and tracked competitors, monthly agent-citation report, monthly Astrant Score recalibration, hosted MCP endpoint.",
     },
   },
   {
@@ -95,7 +96,7 @@ const serviceLd = [
         billingDuration: "P1M",
       },
       description:
-        "Everything in Standard plus daily citation probes detecting mentions of your brand and competitors across all four engines — sub-24-hour competitive change detection.",
+        "Everything in Standard plus daily citation probes and gap intelligence — which tracked competitors get cited in the prompts where your brand is absent — across ChatGPT, Claude, Perplexity, and Gemini, with sub-24-hour competitive change detection.",
     },
   },
 ];
@@ -125,21 +126,33 @@ const faqLd = {
   })),
 };
 
-const STANDARD_INCLUDES = [
-  "Always-on MCP endpoint on your domain — Astrant owns uptime, security, and MCP spec evolution",
-  "Monthly PDF intelligence report on your agent-citation share — what's working, what changed, where competitors stand",
-  "Monthly Astrant Score recalibration against the latest 6-dimension AEO rubric — track your posture dimension by dimension",
-  "Twice-weekly citation probes across ChatGPT, Claude, Perplexity, and Gemini — see when you're cited, and when you're not",
-  "Detect mentions of your brand and competitors across the four major AI engines — twice-weekly refresh",
+// D13 comparison-table model (locked design 2026-06-29). Shared rows = ✓✓ both tiers;
+// diff rows carry the tier split. Literal apostrophes inside TS strings (C9).
+const SUBS_SHARED = [
+  "Hosted MCP endpoint on your domain",
+  "Monthly PDF intelligence report",
+  "Monthly Astrant Score recalibration",
+  "Brand mention detection — see when you're cited",
+  "Competitor presence — who gets cited in your category",
 ];
 
-const PRO_EXTRAS = [
-  "Daily citation probes across ChatGPT, Claude, Perplexity, and Gemini — citation shifts surface in 24 hours, not days",
-  "3.5× Standard's probe frequency per engine — sharper signal on what's working, sooner",
-  "Everything Standard includes — always-on MCP endpoint, monthly report, monthly Astrant Score recalibration",
-  "Early-access tier — Pro-only features ship to your subscription at no additional cost as they're built",
-  "Detect mentions of your brand and competitors across the four major AI engines — daily refresh",
+const SUBS_DIFF: { label: string; standard: string; pro: string }[] = [
+  { label: "Citation-probe cadence", standard: "Twice-weekly", pro: "Daily — 3.5×" },
+  {
+    label: "Gap intelligence — where competitors win and you're not cited",
+    standard: "✗",
+    pro: "✓ Included",
+  },
 ];
+
+// Light amber wash for the two differentiator rows (inline style — color-mix in a
+// Tailwind arbitrary value is brittle across builds).
+const amberWash = { background: "color-mix(in srgb, var(--color-accent) 8%, transparent)" } as const;
+
+// Neutral row divider for the Pro column interior cells: a thin grey top border
+// (matching the Standard column) while Tailwind keeps the amber left/right sides.
+// Inline style avoids brittle per-side Tailwind arbitrary border colors.
+const rowDivider = { borderTop: "1px solid var(--color-border)" } as const;
 
 const EXCLUDED = [
   "New MCP tools or new feature builds (separate Implementation or Custom work)",
@@ -170,6 +183,10 @@ function ProCta({ label }: { label: string }) {
       {label}
     </a>
   );
+}
+
+function Check() {
+  return <span className="text-lg text-[var(--color-fg)]">✓</span>;
 }
 
 export default async function SubscriptionsPage() {
@@ -209,14 +226,17 @@ export default async function SubscriptionsPage() {
       <main>
         {/* HERO */}
         <section className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
-            Subscriptions
+          <span className="inline-flex rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm font-mono text-emerald-400">
+            Standard $149 · Pro $899 · month-to-month
+          </span>
+          <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-6xl">
+            Stay findable.{" "}
+            <span className="text-[var(--color-muted)]">Track what moves.</span>
           </h1>
-          <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)] sm:text-xl">
-            Keep your agent-discoverability stack healthy and measure its impact.
-            Two tiers: Standard ($149/month, twice-weekly citation probes) and Pro
-            ($899/month, daily citation probes). Month-to-month on both. Cancel
-            anytime.
+          <p className="mt-6 text-lg text-[var(--color-muted)] sm:text-xl">
+            Keep your agent-discoverability stack legible to ChatGPT, Claude,
+            Perplexity, and Gemini — and measure what changes. Two tiers,
+            month-to-month, cancel anytime.
           </p>
         </section>
 
@@ -247,64 +267,167 @@ export default async function SubscriptionsPage() {
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               Compare tiers
             </h2>
-            <div className="mt-10 grid gap-6 lg:grid-cols-2">
-              {/* STANDARD CARD */}
-              {/* Logo + Foundation slice: rounded-lg stripped; price color
-                  demoted accent → fg; checkmarks demoted accent → muted. */}
-              <div className="flex flex-col border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="text-2xl font-semibold">Standard</h3>
-                  <span className="text-xl font-bold text-[var(--color-fg)]">
-                    $149 / month
-                  </span>
-                </div>
-                <p className="mt-4 text-[var(--color-muted)]">
-                  Stay legible to ChatGPT, Claude, Perplexity, and Gemini. We host
-                  the infrastructure, run the measurements, and ship a fresh report
-                  each month showing what changed.
+            {/* DESKTOP — comparison table */}
+            <div className="mt-10 hidden rounded-[14px] border border-[var(--color-border)] lg:grid lg:grid-cols-[1.7fr_1fr_1fr]">
+              {/* Header: framing (fills the old empty column) */}
+              <div className="flex flex-col justify-end p-6">
+                <p className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--color-accent)]">
+                  Compare plans
                 </p>
-                <ul className="mt-6 flex flex-col gap-3 text-base">
-                  {STANDARD_INCLUDES.map((i) => (
-                    <li key={i} className="flex gap-3">
-                      <span className="mt-1 shrink-0 text-[var(--color-muted)]">
-                        ✓
-                      </span>
-                      <span className="text-[var(--color-muted)]">{i}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-auto pt-8">
-                  <StandardCta label="Notify me when Standard launches" href={effectiveStandardUrl} />
+                <p className="mt-2 text-[17px] leading-snug text-[var(--color-fg)]">
+                  Standard keeps you visible.
+                  <br />
+                  Pro shows where you&apos;re losing.
+                </p>
+              </div>
+              {/* Header: Standard */}
+              <div className="border-l border-[var(--color-border)] p-6 text-center">
+                <div className="text-2xl font-semibold">Standard</div>
+                <div className="mt-1.5 text-[var(--color-muted)]">
+                  $149<span className="text-[13px]"> / mo</span>
+                </div>
+              </div>
+              {/* Header: Pro (highlighted) */}
+              <div className="relative rounded-t-[14px] border-x border-t border-[var(--color-accent)] bg-white/[0.02] p-6 text-center">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[var(--color-accent)] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-black">
+                  Best value
+                </span>
+                <div className="text-2xl font-semibold">Pro</div>
+                <div className="mt-1.5 text-[var(--color-muted)]">
+                  $899<span className="text-[13px]"> / mo</span>
                 </div>
               </div>
 
-              {/* PRO CARD */}
-              <div className="flex flex-col border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="text-2xl font-semibold">Pro</h3>
-                  <span className="text-xl font-bold text-[var(--color-fg)]">
-                    $899 / month
-                  </span>
+              {/* Shared rows — full-contrast, equal in both columns */}
+              {SUBS_SHARED.map((f) => (
+                <Fragment key={f}>
+                  <div className="flex items-center border-t border-[var(--color-border)] px-5 py-[18px] text-[15px]">
+                    {f}
+                  </div>
+                  <div className="flex items-center justify-center border-t border-[var(--color-border)] px-5 py-[18px]">
+                    <Check />
+                  </div>
+                  <div
+                    className="flex items-center justify-center border-x border-[var(--color-accent)] bg-white/[0.02] px-5 py-[18px]"
+                    style={rowDivider}
+                  >
+                    <Check />
+                  </div>
+                </Fragment>
+              ))}
+
+              {/* Differentiator rows — light amber wash across the whole row */}
+              {SUBS_DIFF.map((d) => (
+                <Fragment key={d.label}>
+                  <div
+                    className="flex items-center border-t border-[var(--color-border)] px-5 py-[18px] text-[15px] font-medium"
+                    style={amberWash}
+                  >
+                    {d.label}
+                  </div>
+                  <div
+                    className="flex items-center justify-center border-t border-[var(--color-border)] px-5 py-[18px] text-[15px]"
+                    style={amberWash}
+                  >
+                    <span className={d.standard === "✗" ? "text-[var(--color-muted)]" : "text-[var(--color-fg)]"}>
+                      {d.standard}
+                    </span>
+                  </div>
+                  <div
+                    className="flex items-center justify-center border-x border-[var(--color-accent)] px-5 py-[18px] text-[15px] font-semibold"
+                    style={{ ...amberWash, ...rowDivider }}
+                  >
+                    {d.pro}
+                  </div>
+                </Fragment>
+              ))}
+
+              {/* CTA row */}
+              <div className="flex items-center border-t border-[var(--color-border)] px-5 py-5 text-[13px] italic text-[var(--color-muted)]">
+                Month-to-month. Cancel anytime.
+              </div>
+              <div className="flex items-center justify-center border-l border-t border-[var(--color-border)] px-5 py-5">
+                <a
+                  href={effectiveStandardUrl}
+                  className="inline-flex border border-[var(--color-accent)] px-[18px] py-2.5 text-sm font-semibold text-[var(--color-accent)] transition hover:bg-[var(--color-accent)] hover:text-black"
+                >
+                  Notify me — Standard
+                </a>
+              </div>
+              <div
+                className="flex items-center justify-center rounded-b-[14px] border-x border-b border-[var(--color-accent)] bg-white/[0.02] px-5 py-5"
+                style={rowDivider}
+              >
+                <a
+                  href={CHECKOUT_PRO_URL}
+                  className="inline-flex bg-[var(--color-accent)] px-[18px] py-2.5 text-sm font-semibold text-black transition hover:brightness-110"
+                >
+                  Notify me — Pro
+                </a>
+              </div>
+            </div>
+
+            {/* MOBILE — stacked cards */}
+            <div className="mt-10 flex flex-col gap-6 lg:hidden">
+              {/* Standard */}
+              <div className="rounded-[14px] border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
+                <div className="flex items-baseline justify-between">
+                  <h3 className="text-2xl font-semibold">Standard</h3>
+                  <span className="text-[var(--color-muted)]">$149 / mo</span>
                 </div>
-                <p className="mt-4 text-[var(--color-muted)]">
-                  Everything in Standard, but faster: daily citation probes across all
-                  four engines. See competitive shifts within 24 hours, not 3-4 days. New
-                  Pro-only features ship to your subscription as they&apos;re built, at no
-                  additional cost.
-                </p>
-                <ul className="mt-6 flex flex-col gap-3 text-base">
-                  {PRO_EXTRAS.map((i) => (
-                    <li key={i} className="flex gap-3">
-                      <span className="mt-1 shrink-0 text-[var(--color-muted)]">
-                        ✓
-                      </span>
-                      <span className="text-[var(--color-muted)]">{i}</span>
+                <ul className="mt-5 flex flex-col gap-3 text-[15px]">
+                  {SUBS_SHARED.map((f) => (
+                    <li key={f} className="flex gap-3">
+                      <span className="shrink-0 text-[var(--color-fg)]">✓</span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                  {SUBS_DIFF.map((d) => (
+                    <li key={d.label} className="flex justify-between gap-3 border-t border-[var(--color-border)] pt-3">
+                      <span>{d.label}</span>
+                      <span className="shrink-0 text-[var(--color-muted)]">{d.standard}</span>
                     </li>
                   ))}
                 </ul>
-                <div className="mt-auto pt-8">
-                  <ProCta label="Notify me when Pro launches" />
+                <a
+                  href={effectiveStandardUrl}
+                  className="mt-6 inline-flex border border-[var(--color-accent)] px-[18px] py-2.5 text-sm font-semibold text-[var(--color-accent)] transition hover:bg-[var(--color-accent)] hover:text-black"
+                >
+                  Notify me — Standard
+                </a>
+              </div>
+              {/* Pro (highlighted) */}
+              <div className="relative rounded-[14px] border border-[var(--color-accent)] bg-white/[0.02] p-6">
+                <span className="absolute -top-3 left-6 rounded-full bg-[var(--color-accent)] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-black">
+                  Best value
+                </span>
+                <div className="flex items-baseline justify-between">
+                  <h3 className="text-2xl font-semibold">Pro</h3>
+                  <span className="text-[var(--color-muted)]">$899 / mo</span>
                 </div>
+                <ul className="mt-5 flex flex-col gap-3 text-[15px]">
+                  {SUBS_SHARED.map((f) => (
+                    <li key={f} className="flex gap-3">
+                      <span className="shrink-0 text-[var(--color-fg)]">✓</span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                  {SUBS_DIFF.map((d) => (
+                    <li
+                      key={d.label}
+                      className="flex justify-between gap-3 border-t border-[var(--color-border)] pt-3 font-medium"
+                    >
+                      <span>{d.label}</span>
+                      <span className="shrink-0 font-semibold">{d.pro}</span>
+                    </li>
+                  ))}
+                </ul>
+                <a
+                  href={CHECKOUT_PRO_URL}
+                  className="mt-6 inline-flex bg-[var(--color-accent)] px-[18px] py-2.5 text-sm font-semibold text-black transition hover:brightness-110"
+                >
+                  Notify me — Pro
+                </a>
               </div>
             </div>
           </div>
@@ -316,7 +439,7 @@ export default async function SubscriptionsPage() {
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               What you get each month
             </h2>
-            <p className="mt-6 max-w-3xl text-lg text-[var(--color-muted)]">
+            <p className="mt-6 text-lg text-[var(--color-muted)] sm:text-xl">
               One PDF, six sections. Direct MCP invocations, agent fetches of your
               pages, agent-attributed click-throughs, citation share across AI
               engines, conversion attribution where applicable, and three specific

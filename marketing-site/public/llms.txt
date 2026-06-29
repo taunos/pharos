@@ -8,8 +8,8 @@
 - [AEO Audit](/audit.md): $79 one-time, instant delivery. Rich PDF — 6-dimension deep analysis, live citation audit across ChatGPT/Claude/Perplexity/Gemini, competitor comparison, prioritized lift estimates, machine-readable JSON export.
 - [AEO Implementation](/implementation.md): $1,299 one-time, <24h delivery. Automated build: llms.txt, MCP server, OpenAPI spec, JSON-LD schema, baseline monitoring. Delivered as a PR against your repo. For standard B2B SaaS sites.
 - [Custom Implementation](/custom.md): From $4,999. Bespoke builds for complex APIs, multi-region content, custom MCP tools, deep content rewrites, or multi-stakeholder engagements. Scoping call + fixed quote + 2–4 week build.
-- [Standard Subscription](/subscriptions.md): $149/month, month-to-month. Twice-weekly citation probes detecting mentions of your brand and competitors across ChatGPT, Claude, Perplexity, Gemini; monthly 6-section agent-citation report; monthly Astrant Score recalibration; hosted MCP endpoint.
-- [Pro Subscription](/subscriptions.md): $899/month, month-to-month. Everything in Standard plus daily citation probes detecting mentions of your brand and competitors across all four engines for sub-24-hour competitive change detection.
+- [Standard Subscription](/subscriptions.md): $149/month, month-to-month. Twice-weekly citation probes detecting mentions of your brand and tracked competitors across ChatGPT, Claude, Perplexity, Gemini — see which competitors show up in your category; monthly 6-section agent-citation report; monthly Astrant Score recalibration; hosted MCP endpoint.
+- [Pro Subscription](/subscriptions.md): $899/month, month-to-month. Everything in Standard plus daily citation probes and gap intelligence — which tracked competitors get cited in the prompts where your brand is absent — across ChatGPT, Claude, Perplexity, Gemini, for sub-24-hour competitive change detection.
 
 ## Technical surface (dogfood)
 

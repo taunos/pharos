@@ -15,17 +15,16 @@ Stay legible to ChatGPT, Claude, Perplexity, and Gemini. We host the infrastruct
 - Monthly PDF intelligence report on your agent-citation share — what's working, what changed, where competitors stand
 - Monthly Astrant Score recalibration against the latest 6-dimension AEO rubric — track your posture dimension by dimension
 - Twice-weekly citation probes across ChatGPT, Claude, Perplexity, and Gemini — see when you're cited, and when you're not
-- Detect mentions of your brand and competitors across the four major AI engines — twice-weekly refresh
+- Detect mentions of your brand and tracked competitors across the four major AI engines — see which competitors show up in your category, twice-weekly refresh
 
 ## Astrant Pro — $899 / month
 
-Everything in Standard, but faster: daily citation probes across all four engines. See competitive shifts within 24 hours, not 3-4 days. New Pro-only features ship to your subscription as they're built, at no additional cost.
+Everything in Standard, plus the gap signal: the prompts where your brand is absent and a tracked competitor gets named instead. Daily citation probes across all four engines — competitive shifts surface within 24 hours, not days.
 
 - Daily citation probes across ChatGPT, Claude, Perplexity, and Gemini — citation shifts surface in 24 hours, not days
+- Gap intelligence — which tracked competitors get cited in the prompts where you're absent, refreshed daily
 - 3.5× Standard's probe frequency per engine — sharper signal on what's working, sooner
 - Everything Standard includes — always-on MCP endpoint, monthly report, monthly Astrant Score recalibration
-- Early-access tier — Pro-only features ship to your subscription at no additional cost as they're built
-- Detect mentions of your brand and competitors across the four major AI engines — daily refresh
 
 ## The monthly report
 
