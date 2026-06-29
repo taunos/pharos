@@ -99,7 +99,8 @@ export default function CustomPage() {
             Custom · from $4,999 · 2–4 weeks
           </div>
           <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-6xl">
-            Agent discoverability,{" "}
+            Agent discoverability,
+            <br />
             <span className="text-[var(--color-muted)]">for the hardest problems.</span>
           </h1>
           <p className="mt-6 text-lg text-[var(--color-muted)] sm:text-xl">
@@ -120,7 +121,7 @@ export default function CustomPage() {
               href="/audit#waitlist"
               className="inline-flex border border-[var(--color-border)] bg-[var(--color-bg)] px-6 py-3 text-base font-semibold text-[var(--color-fg)] transition hover:border-[var(--color-fg)]"
             >
-              Already know you need Custom? Notify me when it opens →
+              Notify me when available →
             </a>
           </div>
           <p className="mt-4 text-sm text-[var(--color-muted)]">
@@ -191,10 +192,10 @@ export default function CustomPage() {
           className="border-t border-[var(--color-border)] scroll-mt-20"
         >
           <div className="mx-auto max-w-6xl px-6 py-20">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            <h2 className="max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl">
               2-minute fit check
             </h2>
-            <p className="mt-4 text-lg text-[var(--color-muted)]">
+            <p className="mt-4 max-w-3xl text-lg text-[var(--color-muted)]">
               Tell us what you need. Our triage agent will recommend the right
               tier — instant, no signup required.
             </p>
