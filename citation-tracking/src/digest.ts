@@ -56,7 +56,21 @@ export async function aggregateAndRender(
 
   // F4.1.2c D13: isAstrantBaseline determined from customerId (canonical at digest layer).
   const isAstrantBaseline = customerId === null;
-  const data = computeDigestData(result.results ?? [], periodStart, periodEnd, isAstrantBaseline);
+
+  // Subs-V2 D13: gap-intelligence entitlement gate. aggregateAndRender is the sole
+  // production funnel to computeDigestData (all four render paths reach it), so the
+  // signal is resolved once here. Keyed on current probe_cadence='daily' (the Pro
+  // proxy already present in this Worker — no cross-Worker product-id dependency,
+  // Bruno lock #16). status='active' guards operator-preview of stale rows.
+  let gapEligible = false;
+  if (customerId !== null) {
+    const t = await env.DB.prepare(
+      `SELECT probe_cadence FROM customer_probe_targets WHERE customer_id = ? AND status = 'active'`
+    ).bind(customerId).first<{ probe_cadence: string }>();
+    gapEligible = t?.probe_cadence === 'daily';
+  }
+
+  const data = computeDigestData(result.results ?? [], periodStart, periodEnd, isAstrantBaseline, gapEligible);
   return renderDigest(data, brand, subscribedAt);
 }
 
@@ -106,6 +120,7 @@ interface DayLevelObservation {
   d1b_present: number;
   competitors_present: Set<string>;
   complementary_present: Set<string>;
+  gap_competitors_present: Set<string>;
 }
 
 export function computeDigestData(
@@ -113,6 +128,7 @@ export function computeDigestData(
   periodStart: number,
   periodEnd: number,
   isAstrantBaseline: boolean,
+  gapEligible: boolean,
 ): DigestData {
   const generated_at = Math.floor(Date.now() / 1000);
   const total_probes = rows.length;
@@ -151,6 +167,7 @@ export function computeDigestData(
     // Customer rows read customer_specific.brand_absent_competitors (matches detect.ts:93 brand-absent-only semantic).
     const competitors = new Set<string>();
     const complementary = new Set<string>();
+    const gapCompetitors = new Set<string>();
     for (const r of groupRows) {
       if (!r.d3_competitors_cited) continue;
       try {
@@ -163,8 +180,14 @@ export function computeDigestData(
           if (d3.direct) for (const c of d3.direct) competitors.add(c);
           if (d3.complementary) for (const c of d3.complementary) complementary.add(c);
         } else {
-          if (d3.customer_specific?.brand_absent_competitors) {
-            for (const c of d3.customer_specific.brand_absent_competitors) competitors.add(c);
+          // Subs-V2 D13: two-concept split for customer rows.
+          // PRESENCE (competitors) — all tracked competitors cited; rendered for BOTH tiers.
+          // GAP (gapCompetitors) — competitors cited where the brand was absent; Pro-only (gapEligible).
+          if (d3.customer_specific?.competitors) {
+            for (const c of d3.customer_specific.competitors) competitors.add(c);
+          }
+          if (gapEligible && d3.customer_specific?.brand_absent_competitors) {
+            for (const c of d3.customer_specific.brand_absent_competitors) gapCompetitors.add(c);
           }
           // complementary stays empty for customer rows.
         }
@@ -184,6 +207,7 @@ export function computeDigestData(
       d1b_present: d1bReplicates >= 2 ? 1 : 0,
       competitors_present: competitors,
       complementary_present: complementary,
+      gap_competitors_present: gapCompetitors,
     });
   }
 
@@ -253,12 +277,16 @@ export function computeDigestData(
 
   const competitorMap: Map<string, number> = new Map();
   const complementaryMap: Map<string, number> = new Map();
+  const gapCompetitorMap: Map<string, number> = new Map();
   for (const o of dayObs) {
     for (const c of o.competitors_present) {
       competitorMap.set(c, (competitorMap.get(c) ?? 0) + 1);
     }
     for (const c of o.complementary_present) {
       complementaryMap.set(c, (complementaryMap.get(c) ?? 0) + 1);
+    }
+    for (const c of o.gap_competitors_present) {
+      gapCompetitorMap.set(c, (gapCompetitorMap.get(c) ?? 0) + 1);
     }
   }
   const competitors: CompetitorRollup[] = [];
@@ -271,6 +299,12 @@ export function computeDigestData(
     complementary.push({ name, cites, is_complementary: true });
   }
   complementary.sort((a, b) => b.cites - a.cites);
+  // Subs-V2 D13: gap rollup (Pro-only). Empty for Standard (gapEligible=false).
+  const gap_competitors: CompetitorRollup[] = [];
+  for (const [name, cites] of gapCompetitorMap.entries()) {
+    gap_competitors.push({ name, cites, is_complementary: false });
+  }
+  gap_competitors.sort((a, b) => b.cites - a.cites);
 
   const promptProviderCite: Map<string, Set<string>> = new Map();
   for (const o of dayObs) {
@@ -321,6 +355,8 @@ export function computeDigestData(
     d2_hits,
     competitors,
     complementary,
+    gap_competitors,
+    gap_eligible: gapEligible,
     model_deprecation_flags,
     single_provider_only_flags,
   };

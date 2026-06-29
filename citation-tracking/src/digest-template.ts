@@ -111,6 +111,12 @@ export interface DigestData {
   d2_hits: number;
   competitors: CompetitorRollup[];
   complementary: CompetitorRollup[];
+  // Subs-V2 D13: for customer rows, `competitors` carries PRESENCE (all tracked
+  // competitors, both tiers); `gap_competitors` carries the GAP subset (cited where
+  // brand absent), populated only when `gap_eligible` (Pro). For Astrant baseline,
+  // `competitors` stays the curated direct list and `gap_competitors` is empty.
+  gap_competitors: CompetitorRollup[];
+  gap_eligible: boolean;
   model_deprecation_flags: ModelDeprecationFlag[];
   single_provider_only_flags: SingleProviderOnlyFlag[];
 }
@@ -208,28 +214,62 @@ export function renderDigest(d: DigestData, brand: string, subscribedAt: number 
 
   lines.push('## 6. Competitive context (D3)');
   lines.push('');
-  const directRows = d.competitors.filter((c) => c.cites > 0);
-  const compRows = d.complementary.filter((c) => c.cites > 0);
-  if (directRows.length === 0 && compRows.length === 0) {
-    lines.push('*No competitor cites detected this period.*');
+  if (brand === 'Astrant') {
+    // Astrant baseline: curated AEO landscape (direct = brand-absent by detectAxes) + complementary.
+    const directRows = d.competitors.filter((c) => c.cites > 0);
+    const compRows = d.complementary.filter((c) => c.cites > 0);
+    if (directRows.length === 0 && compRows.length === 0) {
+      lines.push('*No competitor cites detected this period.*');
+    } else {
+      if (directRows.length > 0) {
+        lines.push(`### Direct competitors (${brand} absent in same response)`);
+        lines.push('');
+        lines.push('| Competitor | Cite-firing observations |');
+        lines.push('|---|---:|');
+        for (const c of directRows) {
+          lines.push(`| ${c.name} | ${c.cites} |`);
+        }
+        lines.push('');
+      }
+      if (compRows.length > 0) {
+        lines.push('### Complementary tools (flagged separately per OQ-D)');
+        lines.push('');
+        lines.push('| Tool | Cite-firing observations |');
+        lines.push('|---|---:|');
+        for (const c of compRows) {
+          lines.push(`| ${c.name} | ${c.cites} |`);
+        }
+        lines.push('');
+      }
+    }
   } else {
-    if (directRows.length > 0) {
-      lines.push(`### Direct competitors (${brand} absent in same response)`);
-      lines.push('');
+    // Subs-V2 D13 customer view: PRESENCE (both tiers) then GAP (Pro only, gap_eligible).
+    const presenceRows = d.competitors.filter((c) => c.cites > 0);
+    lines.push('### Competitors cited in your category');
+    lines.push('');
+    if (presenceRows.length === 0) {
+      lines.push('*No tracked competitors were cited in your category this period.*');
+    } else {
       lines.push('| Competitor | Cite-firing observations |');
       lines.push('|---|---:|');
-      for (const c of directRows) {
+      for (const c of presenceRows) {
         lines.push(`| ${c.name} | ${c.cites} |`);
       }
-      lines.push('');
     }
-    if (compRows.length > 0) {
-      lines.push('### Complementary tools (flagged separately per OQ-D)');
+    lines.push('');
+    // GAP section: Pro-only. Standard (gap_eligible=false) omits it entirely.
+    if (d.gap_eligible) {
+      const gapRows = d.gap_competitors.filter((c) => c.cites > 0);
+      lines.push(`### Where you're losing — competitors cited where ${brand} was absent`);
       lines.push('');
-      lines.push('| Tool | Cite-firing observations |');
-      lines.push('|---|---:|');
-      for (const c of compRows) {
-        lines.push(`| ${c.name} | ${c.cites} |`);
+      if (gapRows.length === 0) {
+        lines.push(`*No tracked competitors were cited in prompts where ${brand} was absent this period.*`);
+      } else {
+        lines.push('| Competitor | Cite-firing observations |');
+        lines.push('|---|---:|');
+        for (const c of gapRows) {
+          lines.push(`| ${c.name} | ${c.cites} |`);
+        }
       }
       lines.push('');
     }

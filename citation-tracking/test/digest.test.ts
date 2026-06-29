@@ -70,25 +70,49 @@ const PERIOD_END = 1718000000;
     makeRow({d1a: 1, d3_direct: ['Profound'], cs_brand_absent_competitors: ['ShouldNotAppear']}),
     makeRow({d1b: 1, d3_direct: ['HubSpot AEO Grader'], cs_brand_absent_competitors: ['ShouldNotAppear']}),
   ];
-  const data: any = computeDigestData(rows, PERIOD_START, PERIOD_END, true /* isAstrantBaseline */);
+  const data: any = computeDigestData(rows, PERIOD_START, PERIOD_END, true /* isAstrantBaseline */, false /* gapEligible (ignored on baseline) */);
   const competitorNames = (data.competitors ?? []).map((c: any) => c.name);
   assert(competitorNames.includes('Profound'), 'AC-13a: Astrant branch reads direct (Profound)');
   assert(competitorNames.includes('HubSpot AEO Grader'), 'AC-13b: Astrant branch reads direct (HubSpot AEO Grader)');
   assert(!competitorNames.includes('ShouldNotAppear'), 'AC-13c: Astrant branch IGNORES customer_specific.brand_absent_competitors');
 }
 
-// AC-14: Customer branch — reads customer_specific.brand_absent_competitors; ignores direct/complementary
+// AC-14 (Subs-V2 D13): customer PRESENCE is ungated (both tiers); GAP is Pro-only (gapEligible).
+// Presence superset {Mailchimp,ConvertKit,Klaviyo}; gap subset {Mailchimp}.
 {
   const rows = [
-    makeRow({customer_id: 'cust1', d1d: 1, d3_direct: ['ShouldNotAppear'], cs_brand_absent_competitors: ['Mailchimp']}),
-    makeRow({customer_id: 'cust1', d1d: 1, d3_direct: ['ShouldNotAppear'], cs_brand_absent_competitors: ['ConvertKit']}),
-    makeRow({customer_id: 'cust1', d1c: 1, d3_direct: ['ShouldNotAppear'], cs_brand_absent_competitors: ['Mailchimp']}),
+    makeRow({customer_id: 'cust1', d1d: 1, d3_direct: ['ShouldNotAppear'], cs_competitors: ['Mailchimp', 'ConvertKit', 'Klaviyo'], cs_brand_absent_competitors: ['Mailchimp']}),
+    makeRow({customer_id: 'cust1', d1d: 1, d3_direct: ['ShouldNotAppear'], cs_competitors: ['Mailchimp', 'ConvertKit', 'Klaviyo'], cs_brand_absent_competitors: ['Mailchimp']}),
+    makeRow({customer_id: 'cust1', d1c: 1, d3_direct: ['ShouldNotAppear'], cs_competitors: ['Mailchimp', 'ConvertKit', 'Klaviyo'], cs_brand_absent_competitors: ['Mailchimp']}),
   ];
-  const data: any = computeDigestData(rows, PERIOD_START, PERIOD_END, false /* isAstrantBaseline */);
-  const competitorNames = (data.competitors ?? []).map((c: any) => c.name);
-  assert(competitorNames.includes('Mailchimp'), 'AC-14a: Customer branch reads brand_absent_competitors (Mailchimp)');
-  assert(competitorNames.includes('ConvertKit'), 'AC-14b: Customer branch reads brand_absent_competitors (ConvertKit)');
-  assert(!competitorNames.includes('ShouldNotAppear'), 'AC-14c: Customer branch IGNORES direct/complementary');
+  for (const gapEligible of [true, false]) {
+    const data: any = computeDigestData(rows, PERIOD_START, PERIOD_END, false /* isAstrantBaseline */, gapEligible);
+    const presence = (data.competitors ?? []).map((c: any) => c.name);
+    assert(
+      presence.includes('Mailchimp') && presence.includes('ConvertKit') && presence.includes('Klaviyo'),
+      `AC-14a[gapEligible=${gapEligible}]: presence ungated — all tracked competitors present`,
+    );
+    assert(!presence.includes('ShouldNotAppear'), `AC-14b[gapEligible=${gapEligible}]: presence IGNORES direct/complementary`);
+    const gap = (data.gap_competitors ?? []).map((c: any) => c.name);
+    if (gapEligible) {
+      assert(gap.includes('Mailchimp'), 'AC-14c: gap shows brand-absent competitor (Mailchimp) when Pro');
+      assert(!gap.includes('ConvertKit') && !gap.includes('Klaviyo'), 'AC-14d: presence-only names NEVER appear in gap');
+    } else {
+      assert(gap.length === 0, 'AC-14e: gap empty when Standard (gapEligible=false)');
+    }
+  }
+}
+
+// AC-14b (Subs-V2 D13 Standard): gap withheld, presence retained.
+{
+  const rows = [
+    makeRow({customer_id: 'cust1', d1d: 0, cs_competitors: ['Mailchimp', 'ConvertKit'], cs_brand_absent_competitors: ['Mailchimp', 'ConvertKit']}),
+    makeRow({customer_id: 'cust1', d1d: 0, cs_competitors: ['Mailchimp', 'ConvertKit'], cs_brand_absent_competitors: ['Mailchimp', 'ConvertKit']}),
+  ];
+  const data: any = computeDigestData(rows, PERIOD_START, PERIOD_END, false, false /* gapEligible */);
+  const presence = (data.competitors ?? []).map((c: any) => c.name);
+  assert(presence.includes('Mailchimp') && presence.includes('ConvertKit'), 'AC-14b-1: Standard still gets presence');
+  assert((data.gap_competitors ?? []).length === 0, 'AC-14b-2: Standard gap_competitors empty');
 }
 
 // AC-15: Customer cite-share derives from d1c||d1d (NOT d1a||d1b)
@@ -98,7 +122,7 @@ const PERIOD_END = 1718000000;
     makeRow({customer_id: 'cust1', d1c: 1, d1d: 0, d1a: 0, d1b: 0, provider: 'openai', prompt_id: 'p1', timestamp: 1715600001}),
     makeRow({customer_id: 'cust1', d1c: 1, d1d: 0, d1a: 0, d1b: 0, provider: 'openai', prompt_id: 'p1', timestamp: 1715600002}),
   ];
-  const data: any = computeDigestData(rows, PERIOD_START, PERIOD_END, false);
+  const data: any = computeDigestData(rows, PERIOD_START, PERIOD_END, false, false);
   assert(data.headline_cite_share > 0, 'AC-15: customer branch cite-share derives from d1c (d1a/d1b=0)');
 }
 
@@ -109,7 +133,7 @@ const PERIOD_END = 1718000000;
     makeRow({customer_id: 'cust1', d1c: null, d1d: null, d1a: 1, d1b: 1, provider: 'openai', prompt_id: 'p1', timestamp: 1715600011}),
     makeRow({customer_id: 'cust1', d1c: null, d1d: null, d1a: 1, d1b: 1, provider: 'openai', prompt_id: 'p1', timestamp: 1715600012}),
   ];
-  const data: any = computeDigestData(rows, PERIOD_START, PERIOD_END, false);
+  const data: any = computeDigestData(rows, PERIOD_START, PERIOD_END, false, false);
   assert(data.headline_cite_share === 0, 'AC-15.5: customer branch does NOT fall through to d1a/d1b when d1c/d1d null');
 }
 
@@ -120,7 +144,7 @@ const PERIOD_END = 1718000000;
     makeRow({d1a: 1, d1b: 0, d1c: null, d1d: null, provider: 'openai', prompt_id: 'p1', timestamp: 1715600021}),
     makeRow({d1b: 1, d1a: 0, d1c: null, d1d: null, provider: 'openai', prompt_id: 'p1', timestamp: 1715600022}),
   ];
-  const data: any = computeDigestData(rows, PERIOD_START, PERIOD_END, true);
+  const data: any = computeDigestData(rows, PERIOD_START, PERIOD_END, true, false /* gapEligible (ignored on baseline) */);
   assert(data.headline_cite_share > 0, 'AC-16: Astrant baseline cite-share derives from d1a/d1b');
 }
 
@@ -130,7 +154,7 @@ const PERIOD_END = 1718000000;
     makeRow({customer_id: 'cust1', d1d: 0, cs_brand_absent_competitors: [], cs_competitors: []}),
     makeRow({customer_id: 'cust1', d1d: 0, cs_brand_absent_competitors: [], cs_competitors: []}),
   ];
-  const data: any = computeDigestData(rows, PERIOD_START, PERIOD_END, false);
+  const data: any = computeDigestData(rows, PERIOD_START, PERIOD_END, false, false);
   const competitorNames = (data.competitors ?? []).map((c: any) => c.name);
   assert(competitorNames.length === 0, 'AC-17: empty customer_specific → empty competitor rollup');
 }
