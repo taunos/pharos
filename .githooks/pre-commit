@@ -1,0 +1,28 @@
+#!/bin/sh
+# Repo-owned secret-scan pre-commit guard (P0-B Stage 3).
+#
+# Blocks a commit whose STAGED additions contain a credential-shaped literal,
+# so secrets can't be committed by accident. No external dependency.
+#
+# Activate (once per clone):  git config core.hooksPath .githooks
+# Bypass (only when certain):  git commit --no-verify
+#
+# Never prints the matched value.
+
+added=$(git diff --cached --unified=0 --no-color | grep -E '^\+' | grep -vE '^\+\+\+')
+
+# Known secret shapes: bearer/hex internal keys, provider keys, private keys.
+patterns='(Bearer[[:space:]]+[0-9a-f]{40,})'
+patterns="$patterns|(x-internal-[a-z-]*key[\"' :=]+[0-9a-f]{16,})"
+patterns="$patterns|(whsec_[A-Za-z0-9]{16,})"
+patterns="$patterns|(sk-[A-Za-z0-9]{20,})|(sk_live_[A-Za-z0-9]{16,})|(pk_live_[A-Za-z0-9]{16,})"
+patterns="$patterns|(AKIA[0-9A-Z]{16})"
+patterns="$patterns|(-----BEGIN[[:space:]][A-Z ]*PRIVATE KEY-----)"
+
+if printf '%s\n' "$added" | grep -qEi "$patterns"; then
+  echo "pre-commit: BLOCKED — staged content matches a credential pattern." 1>&2
+  echo "Remove the secret (load it from env / a wrangler secret) and re-commit." 1>&2
+  echo "If you are certain this is a false positive: git commit --no-verify" 1>&2
+  exit 1
+fi
+exit 0
