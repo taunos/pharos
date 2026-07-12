@@ -5,6 +5,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { ImplementationCheckoutForm } from "@/components/ImplementationCheckoutForm";
 import { ImplPatchEvidence } from "@/components/ImplPatchEvidence";
+import { isImplementationCheckoutEnabled } from "@/lib/implementation-gate";
 
 // F2 v6.1 — page renders D1 ceiling state per request (D18 Stage 1 page-CTA gate).
 // Force-dynamic ensures the SELECT COUNT(*) check runs on every load, not at build time.
@@ -14,6 +15,8 @@ interface ImplementationPageEnv {
   CITATION_DB: D1Database;
   // B1.3 v1.1 — replaces hardcoded ceiling=3 (default "30").
   MAX_PROBE_TARGETS?: string;
+  // Pre-launch gate — fail-closed; only "true" enables paid Implementation checkout.
+  IMPLEMENTATION_CHECKOUT_ENABLED?: string;
 }
 
 export const metadata: Metadata = {
@@ -179,6 +182,10 @@ export default async function ImplementationPage() {
   ).first<{ count: number }>();
   const atCapacity = (ceilingResult?.count ?? 0) >= maxProbeTargets;
 
+  // Pre-launch gate (fail-closed). When disabled, the checkout form renders the
+  // unavailable/waitlist state and the route refuses server-side.
+  const checkoutEnabled = isImplementationCheckoutEnabled(env);
+
   const serviceLd = buildServiceLd(atCapacity);
 
   return (
@@ -269,7 +276,7 @@ export default async function ImplementationPage() {
             </h2>
             <div className="mt-10 grid gap-6 lg:grid-cols-2">
               <BundleDisclosure />
-              <ImplementationCheckoutForm atCapacity={atCapacity} />
+              <ImplementationCheckoutForm atCapacity={atCapacity} checkoutEnabled={checkoutEnabled} />
             </div>
           </div>
         </section>

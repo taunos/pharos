@@ -12,6 +12,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { dodoApiBase } from "@/lib/dodo";
 import { CUSTOMER_CATEGORIES } from "@/lib/customer-categories";
 import { checkF2CheckoutCreateRateLimit } from "@/lib/rate-limit-kv";
+import { isImplementationCheckoutEnabled } from "@/lib/implementation-gate";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -24,6 +25,8 @@ interface F2CheckoutCreateEnv {
   F2_CHECKOUT_RATE_LIMIT?: string;  // dev-override only; default 5
   // B1.3 v1.1 — replaces hardcoded CUSTOMER_CEILING=3 (default "30").
   MAX_PROBE_TARGETS?: string;
+  // Pre-launch gate — fail-closed; only "true" enables paid Implementation checkout.
+  IMPLEMENTATION_CHECKOUT_ENABLED?: string;
 }
 
 const IMPLEMENTATION_PRODUCT_ID = "pdt_0NdQE5vccUUgOHMsF6Pzz";
@@ -31,6 +34,13 @@ const IMPLEMENTATION_PRODUCT_ID = "pdt_0NdQE5vccUUgOHMsF6Pzz";
 
 export async function POST(req: Request) {
   const env = getCloudflareContext().env as unknown as F2CheckoutCreateEnv;
+
+  // 0. Pre-launch gate (server-authoritative). Checked FIRST — before rate
+  // limiting, D1, or any Dodo call — so a disabled tier never creates a
+  // payment session, regardless of how the request was crafted. Fail-closed.
+  if (!isImplementationCheckoutEnabled(env)) {
+    return NextResponse.json({ error: "PRELAUNCH_DISABLED" }, { status: 503 });
+  }
 
   if (!env.DODO_API_KEY) {
     return NextResponse.json(

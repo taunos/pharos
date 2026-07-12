@@ -71,6 +71,9 @@
 		"STANDARD_PRODUCT_ID": "pdt_0NdQEbaRcrAC3qQuCAlnh",
 		"PRO_PRODUCT_ID":      "pdt_0NdQEw8wrcH0nd5OlZ3IJ",
 		"F_FND_COPY_LIVE":     "false",
-		"ASTRANT_BASE_URL":    "https://astrant.io"
+		"ASTRANT_BASE_URL":    "https://astrant.io",
+		// Pre-launch gate for paid Implementation checkout. Fail-closed:
+		// only the exact string "true" enables it. Flip to "true" at launch.
+		"IMPLEMENTATION_CHECKOUT_ENABLED": "false"
 	}
 }

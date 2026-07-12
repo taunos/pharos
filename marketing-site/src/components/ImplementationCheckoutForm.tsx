@@ -3,6 +3,7 @@
 // F2 v6.1 D21 + D22 — client component for the /implementation page CTA.
 //
 // State-render-state:
+//   - !checkoutEnabled (pre-launch gate) → Waitlist CTA only (highest priority)
 //   - atCapacity (Stage 2 page-CTA gate) → Waitlist CTA only
 //   - codebaseType not selected → Stage 1 gate (radio + disabled Buy button)
 //   - codebaseType === "non-git" → Custom tier CTA (out-of-scope for F2 v1.0)
@@ -11,10 +12,35 @@
 
 import { useState } from "react";
 
-export function ImplementationCheckoutForm({ atCapacity }: { atCapacity: boolean }) {
+export function ImplementationCheckoutForm({
+  atCapacity,
+  checkoutEnabled,
+}: {
+  atCapacity: boolean;
+  checkoutEnabled: boolean;
+}) {
   const [codebaseType, setCodebaseType] = useState<"git" | "non-git" | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  if (!checkoutEnabled) {
+    return (
+      <div className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
+        <h3 className="text-lg font-semibold">Not open for purchase yet</h3>
+        <p className="mt-3 text-[var(--color-muted)]">
+          Astrant Implementation is in pre-launch verification and isn&apos;t
+          open for purchase yet. Join the waitlist and we&apos;ll email you the
+          moment it opens.
+        </p>
+        <a
+          href="/audit#waitlist"
+          className="mt-6 inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
+        >
+          Join waitlist
+        </a>
+      </div>
+    );
+  }
 
   if (atCapacity) {
     return (
