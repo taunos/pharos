@@ -229,6 +229,8 @@ export function mountScoreAdmin(app: Hono<{ Bindings: Env }>): void {
         `UPDATE scans
             SET email = NULL,
                 unsubscribe_token = NULL,
+                user_ip = NULL,
+                email_opted_in_rescan = 0,
                 deletion_requested_at = COALESCE(deletion_requested_at, ?)
           WHERE id = ?`
       )

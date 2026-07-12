@@ -1,19 +1,23 @@
-// Slice 2b Phase 1 — GET /api/score/delete-me/confirm?t=<token>
+// GET/POST /api/score/delete-me/confirm
 //
-// Validates the deletion-confirm token (24h HMAC) and purges every scan
-// record matching the email:
-//   1. Look up scan_ids by email (scanner internal endpoint).
-//   2. For each scan: clear PII via scanner internal /delete-pii.
-//   3. Best-effort R2 purge of the per-email PDF for each scan_id.
-// Phase 2 of 2b may add an async sweep cron for R2 if the inline iteration
-// becomes a bottleneck (currently fine for low volume).
+// Two-step, prefetcher-safe deletion (OD#7 / P0-C1):
+//   GET  ?t=<token>  -> renders a confirmation page ONLY. No mutation, so an
+//                        email prefetcher / link-scanner cannot trigger deletion.
+//   POST  (t in form) -> validates the 24h HMAC token again, then per scan:
+//                        1. Deletes the per-email gap-report PDF from R2 FIRST
+//                           (authoritative — only reported removed once R2
+//                           confirms). If R2 fails, the email association is
+//                           retained so the same token can retry (no orphaned
+//                           PDF behind a cleared, unfindable row).
+//                        2. Only AFTER R2 succeeds, clears PII via scanner
+//                           /delete-pii (email, unsubscribe_token, user_ip,
+//                           email_opted_in_rescan).
+// The submitted URL + technical scan results remain for calibration (OD#7); the
+// copy does not claim these are fully anonymous (a URL can identify a business).
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { verifyDeletionToken, hashEmailForR2Key, hashEmailForLog } from "@/lib/score-tokens";
-import {
-  deletePiiForScan,
-  getScansByEmail,
-} from "@/lib/score-scanner-client";
+import { deletePiiForScan, getScansByEmail } from "@/lib/score-scanner-client";
 
 interface ConfirmEnv {
   AUDITS: R2Bucket;
@@ -21,13 +25,18 @@ interface ConfirmEnv {
   INTERNAL_SCANNER_ADMIN_KEY: string;
 }
 
-function htmlPage(title: string, bodyInner: string): Response {
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function htmlPage(title: string, bodyInner: string, status = 200): Response {
   const html = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
+<meta name="referrer" content="no-referrer" />
 <title>${title}</title>
 <style>
   html, body { margin: 0; padding: 0; }
@@ -35,18 +44,38 @@ function htmlPage(title: string, bodyInner: string): Response {
   h1 { font-size: 22pt; margin: 0 0 16px 0; }
   p { color: #334155; }
   a { color: #0f172a; text-decoration: underline; }
+  button { font-size: 15px; font-weight: 600; color: #fff; background: #dc2626; border: 0; border-radius: 6px; padding: 12px 20px; cursor: pointer; margin-top: 8px; }
   .muted { color: #64748b; font-size: 13px; margin-top: 24px; }
 </style>
 </head>
 <body>${bodyInner}</body>
 </html>`;
   return new Response(html, {
-    status: 200,
+    status,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
+      "Referrer-Policy": "no-referrer",
+      "X-Robots-Tag": "noindex",
     },
   });
+}
+
+// Renders the confirmation form (used by GET and by the retry link on a partial
+// failure). Keeps the token in a POST body so a prefetcher/GET can't mutate.
+function confirmForm(token: string, heading: string, intro: string, status = 200): Response {
+  return htmlPage(
+    "Astrant — confirm deletion",
+    `<h1>${heading}</h1>
+     <p>${intro}</p>
+     <form method="POST" action="/api/score/delete-me/confirm">
+       <input type="hidden" name="t" value="${escapeAttr(token)}" />
+       <button type="submit">Delete my data</button>
+     </form>
+     <p class="muted">If you didn't request this, close this page — nothing
+     happens until you click the button.</p>`,
+    status
+  );
 }
 
 function invalidPage(): Response {
@@ -58,89 +87,127 @@ function invalidPage(): Response {
   );
 }
 
+function errorPage(): Response {
+  return htmlPage(
+    "Astrant — error",
+    `<h1>We couldn't process your deletion right now.</h1>
+     <p>Try again in a minute, or email
+     <a href="mailto:contact@astrant.io">contact@astrant.io</a>.</p>`,
+    502
+  );
+}
+
+// GET — confirmation page ONLY. Never mutates (prefetcher / scanner safe).
 export async function GET(req: Request) {
   const env = getCloudflareContext().env as unknown as ConfirmEnv;
-  const url = new URL(req.url);
-  const token = url.searchParams.get("t") ?? "";
+  const token = new URL(req.url).searchParams.get("t") ?? "";
 
   if (!token || !env.UNSUBSCRIBE_SECRET || !env.INTERNAL_SCANNER_ADMIN_KEY) {
     return invalidPage();
   }
   const verified = await verifyDeletionToken(token, env.UNSUBSCRIBE_SECRET);
   if (!verified) return invalidPage();
-  // F-01: token's HMAC payload was signed over the normalized email at
-  // issuance (see issueDeletionToken). The recovered value here is therefore
-  // already canonical — no re-normalization needed before by-email lookup.
-  const email = verified.email;
 
+  return confirmForm(
+    token,
+    "Confirm data deletion",
+    `This removes the stored email, IP address, unsubscribe token, opt-in state,
+     and personalized report tied to your Astrant scans. The submitted URL and
+     technical scan results remain for calibration. This can't be undone.`
+  );
+}
+
+// POST — performs the deletion. Token comes from the confirmation form.
+export async function POST(req: Request) {
+  const env = getCloudflareContext().env as unknown as ConfirmEnv;
+
+  let token = "";
+  try {
+    const form = await req.formData();
+    token = (form.get("t") as string) ?? "";
+  } catch {
+    token = new URL(req.url).searchParams.get("t") ?? "";
+  }
+
+  if (!token || !env.UNSUBSCRIBE_SECRET || !env.INTERNAL_SCANNER_ADMIN_KEY) {
+    return invalidPage();
+  }
+  const verified = await verifyDeletionToken(token, env.UNSUBSCRIBE_SECRET);
+  if (!verified) return invalidPage();
+  // F-01: token payload was signed over the normalized email at issuance, so
+  // the recovered value is already canonical — no re-normalization needed.
+  const email = verified.email;
   const emailLogHash = await hashEmailForLog(email, env.UNSUBSCRIBE_SECRET);
 
-  // 1. Look up scan_ids by email.
   const scansRes = await getScansByEmail(env, email);
   if (!scansRes.ok) {
-    console.error(
-      `[delete-confirm] scans-by-email failed email_hash=${emailLogHash}: ${scansRes.error}`
-    );
-    return htmlPage(
-      "Astrant — error",
-      `<h1>We couldn't process your deletion right now.</h1>
-       <p>Try again in a minute, or email
-       <a href="mailto:contact@astrant.io">contact@astrant.io</a>.</p>`
-    );
+    console.error(`[delete-confirm] scans-by-email failed email_hash=${emailLogHash}: ${scansRes.error}`);
+    return errorPage();
   }
   const scanIds = scansRes.scan_ids;
 
-  // 2. Clear PII on each scan + best-effort R2 purge.
+  if (scanIds.length === 0) {
+    return htmlPage(
+      "Astrant — nothing to remove",
+      `<h1>No records found for this email.</h1>
+       <p>There are no scan records associated with this email — they may have
+       already been removed. Nothing further is needed.</p>`
+    );
+  }
+
   const emailHashForR2 = await hashEmailForR2Key(email);
-  const failures: string[] = [];
+  let fullyDone = 0;
+  const incomplete: string[] = []; // R2 failed (email retained) OR D1 failed after R2
+
+  // Order matters (OD#7 / Codex): delete the personalized R2 PDF FIRST, then
+  // clear D1 PII. If R2 fails we do NOT clear D1 — the email association is
+  // retained so the same token can retry and re-find the scan (otherwise the
+  // PDF would be orphaned by a cleared, unfindable row). R2 delete is
+  // idempotent (no throw on a missing key), so a throw is a genuine failure.
   for (const scanId of scanIds) {
-    const res = await deletePiiForScan(env, scanId);
-    if (!res.ok) {
-      console.error(
-        `[delete-confirm] delete-pii failed scan=${scanId} email_hash=${emailLogHash}: ${res.error}`
-      );
-      failures.push(scanId);
-    }
-    // R2 deletion is best-effort. Don't block on errors.
+    let r2ok = true;
     try {
       await env.AUDITS.delete(`score-reports/${scanId}/${emailHashForR2}.pdf`);
     } catch (err) {
-      console.error(
-        `[delete-confirm] R2 delete failed scan=${scanId} email_hash=${emailLogHash}: ${err instanceof Error ? err.message : String(err)}`
-      );
-      // best-effort; do not block
+      r2ok = false;
+      console.error(`[delete-confirm] R2 delete failed scan=${scanId} email_hash=${emailLogHash}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    if (!r2ok) {
+      incomplete.push(scanId); // retain email — do not clear D1 for this scan
+      continue;
+    }
+    const res = await deletePiiForScan(env, scanId);
+    if (res.ok) {
+      fullyDone++;
+    } else {
+      console.error(`[delete-confirm] delete-pii failed scan=${scanId} email_hash=${emailLogHash}: ${res.error}`);
+      incomplete.push(scanId); // PDF gone, PII not yet cleared
     }
   }
 
-  console.log(
-    `[delete-confirm] processed email_hash=${emailLogHash} scans=${scanIds.length} failures=${failures.length}`
-  );
+  console.log(`[delete-confirm] processed email_hash=${emailLogHash} scans=${scanIds.length} fully_done=${fullyDone} incomplete=${incomplete.length}`);
 
-  if (failures.length > 0 && failures.length === scanIds.length) {
-    // All failed — surface error.
-    return htmlPage(
-      "Astrant — error",
-      `<h1>We couldn't process your deletion right now.</h1>
-       <p>Try again in a minute, or email
+  // Partial or total failure: never claim complete removal. Non-2xx + retry.
+  if (incomplete.length > 0) {
+    return confirmForm(
+      token,
+      "Deletion not fully complete",
+      `We removed your data from ${fullyDone} of ${scanIds.length} record${scanIds.length === 1 ? "" : "s"}.
+       ${incomplete.length} couldn't be fully removed just now. Click below to
+       retry — your deletion link is still valid. If it keeps failing, email
        <a href="mailto:contact@astrant.io">contact@astrant.io</a> with the
-       subject "deletion failed" so we can purge manually.</p>`
+       subject "deletion failed".`,
+      500
     );
   }
 
   return htmlPage(
-    "Astrant — data deleted",
-    `<h1>All data for this email has been deleted.</h1>
-     <p>${scanIds.length} scan record${scanIds.length === 1 ? "" : "s"} purged.
-     PII fields cleared, captured email removed, gap-report PDF deleted from
-     storage. Anonymous scan records (with PII removed) may be retained for
-     aggregate metrics; no identifying information remains.</p>
-     ${
-       failures.length > 0
-         ? `<p class="muted">Note: ${failures.length} scan record(s) couldn't
-            be cleared on the first pass. We've logged this and will purge
-            manually within 24 hours.</p>`
-         : ""
-     }
+    "Astrant — data removed",
+    `<h1>Your personal data has been removed.</h1>
+     <p>Across ${scanIds.length} scan record${scanIds.length === 1 ? "" : "s"}, we removed the
+     stored email, IP address, unsubscribe token, opt-in state, and personalized
+     report. The submitted URL and technical scan results remain for
+     calibration.</p>
      <p class="muted">Astrant — Agent Discoverability for B2B SaaS.</p>`
   );
 }

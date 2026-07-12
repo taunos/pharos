@@ -24,6 +24,8 @@ interface TriageEnv {
   TRIAGE_CACHE: KVNamespace;
   AI: Ai;
   UNSUBSCRIBE_SECRET?: string;
+  // Privacy (OD#7): HMAC secret to pseudonymize IP in rate-limit keys.
+  RATE_LIMIT_HASH_SECRET?: string;
 }
 
 function buildResponse(
@@ -67,8 +69,12 @@ export async function POST(req: Request) {
   // F-12 per-IP rate limit (10/hour fixed UTC bucket). MUST run AFTER honeypot
   // check above so honeypot-filled submissions don't reveal rate-limit state.
   const ip = req.headers.get("CF-Connecting-IP") ?? "unknown";
-  const ipRl = await checkTriageIpRateLimit(env.TRIAGE_CACHE, ip);
+  const ipRl = await checkTriageIpRateLimit(env.TRIAGE_CACHE, ip, env.RATE_LIMIT_HASH_SECRET);
   if (!ipRl.allowed) {
+    if (ipRl.misconfigured) {
+      console.error("RATE_LIMIT_MISCONFIGURED: RATE_LIMIT_HASH_SECRET is not set");
+      return NextResponse.json({ ok: false, error: "MISCONFIGURED" }, { status: 503 });
+    }
     return NextResponse.json(
       { ok: false, error: "Too many requests. Try again in an hour." },
       { status: 429, headers: { "Retry-After": "3600" } }

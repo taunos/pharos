@@ -17,6 +17,9 @@ export interface Env {
   // stroke. Both secrets initially hold independent random values and are
   // rotated independently. When absent, all Slice 2b admin endpoints reject.
   INTERNAL_SCANNER_ADMIN_KEY?: string;
+  // Privacy (OD#7): HMAC secret used to pseudonymize the IP in rate-limit KV
+  // keys, so no raw IP is stored at rest. Rate limiting fails closed if absent.
+  RATE_LIMIT_HASH_SECRET?: string;
 }
 
 export type ScanTier = "free" | "paid";

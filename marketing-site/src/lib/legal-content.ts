@@ -22,7 +22,7 @@ This is the plain-English privacy policy for Astrant — Agent Discoverability f
 When you use Astrant's free Score tool or any paid tier:
 
 - **The URL you scan.** That's the whole point — we can't compute a discoverability score without it.
-- **Your IP address.** Used for rate-limiting (preventing abuse) and aggregate traffic analytics. Stored in tail logs for ~7 days.
+- **Your IP address.** Used for rate-limiting (preventing abuse) and aggregate traffic analytics. It is **not** stored in your scan record; it may appear in server tail logs (~7 days). Rate-limit counters use an HMAC-derived key rather than the raw IP and expire within approximately 25 hours.
 - **Your User-Agent string.** Same uses as IP — rate-limiting and aggregate analytics. Stored in tail logs for ~7 days.
 - **Your email address, if you submit one.** You'll only submit an email if you choose to: receive your gap-report PDF, opt into monthly auto-rescan emails, contact support, or join the pre-launch waitlist (we'll notify you when paid tiers — Audit, Implementation, Custom, Standard, Pro — open for purchase). We don't email you for any reason you didn't explicitly ask for.
 - **Sub-check results from the scan.** The structured data Astrant computes about your site — llms.txt presence, MCP server discoverability, JSON-LD schema completeness, etc. This is not your content; it's our analysis of your public technical surface.
@@ -60,7 +60,7 @@ When the system needs to log information about a transactional email (for exampl
 - **Free Score scan records:** retained ~90 days, then deleted.
 - **Email-opted-in scan records:** retained until you cancel the rescan opt-in (or submit a deletion request).
 - **Tail logs (IP, User-Agent, hashed email):** retained ~7 days.
-- **Anonymous scan records** (with all PII removed) may be retained longer for aggregate metrics. No identifying information remains.
+- **Retained scan records** (email, IP, unsubscribe token, and opt-in state removed) may be kept for calibration and aggregate metrics. The submitted URL and technical scan results remain — and because a URL can contain identifying information (names, tenant paths, query parameters), we don't claim these records are fully anonymous.
 
 ## Your rights
 
@@ -68,7 +68,7 @@ You have the following rights, regardless of where you're located:
 
 - **Access:** ask us what data we hold about you. Email privacy@astrant.io.
 - **Correction:** if we have something wrong, tell us, and we'll fix it.
-- **Deletion:** visit [\`/score/delete-me\`](/score/delete-me) to delete every Score scan record associated with your email. We send a confirmation link valid for 24 hours. When you confirm, we delete every scan record associated with the email address you submit, not just the most recent one. If you've used Astrant from multiple email addresses, you'll need to submit a deletion request for each.
+- **Deletion:** visit [\`/score/delete-me\`](/score/delete-me) to remove your personal data from every Score scan record associated with your email. We send a confirmation link valid for 24 hours; opening it shows a confirmation page, and only when you click Delete do we remove the stored email, IP address, unsubscribe token, opt-in state, and personalized report across every record for that email (not just the most recent). The submitted URL and technical scan results remain for calibration. If you've used Astrant from multiple email addresses, submit a request for each.
 - **Portability:** ask us for a JSON export of your data. Email privacy@astrant.io.
 - **Unsubscribe:** every email we send has a one-click unsubscribe link in the header (RFC 8058) and a visible unsubscribe link in the body.
 

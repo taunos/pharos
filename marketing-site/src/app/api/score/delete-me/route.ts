@@ -24,6 +24,8 @@ interface DeleteMeEnv {
   RESEND_API_KEY: string;
   UNSUBSCRIBE_SECRET: string;
   AUDITS: R2Bucket;
+  // Privacy (OD#7): HMAC secret to pseudonymize IP in rate-limit keys.
+  RATE_LIMIT_HASH_SECRET?: string;
 }
 
 export async function POST(req: Request) {
@@ -74,8 +76,12 @@ export async function POST(req: Request) {
   const emailLogHash = await hashEmailForLog(email, env.UNSUBSCRIBE_SECRET);
 
   // Rate limit. 1/hr per email, 3/day per email, 3/hr per IP, 10/day per IP.
-  const rl = await checkDeleteMeRateLimit(env.TRIAGE_CACHE, ip, emailLogHash);
+  const rl = await checkDeleteMeRateLimit(env.TRIAGE_CACHE, ip, emailLogHash, env.RATE_LIMIT_HASH_SECRET);
   if (!rl.allowed) {
+    if (rl.misconfigured) {
+      console.error("RATE_LIMIT_MISCONFIGURED: RATE_LIMIT_HASH_SECRET is not set");
+      return NextResponse.json({ success: false, error: "MISCONFIGURED" }, { status: 503 });
+    }
     const retry = rl.retryAfterSec ?? 3600;
     return NextResponse.json(
       {

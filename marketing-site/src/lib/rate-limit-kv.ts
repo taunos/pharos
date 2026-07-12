@@ -16,6 +16,26 @@
 export interface RateLimitResult {
   allowed: boolean;
   retryAfterSec?: number;
+  // True when the limiter denied because RATE_LIMIT_HASH_SECRET is absent
+  // (a misconfiguration), not because a real limit was hit. Callers should
+  // surface 503, not 429.
+  misconfigured?: boolean;
+}
+
+// Privacy (OD#7): rate-limit keys pseudonymize the IP with a keyed HMAC (not a
+// plain hash — IPv4 hashes are enumerable). Normalizes the input; same IP →
+// same key, so rate-limiting is unchanged, but no raw IP is stored at rest.
+// Callers pass RATE_LIMIT_HASH_SECRET; the limiters fail closed if it's absent.
+export async function hmacIp(secret: string, ip: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(ip.trim().toLowerCase()));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 interface CounterValue {
@@ -81,9 +101,11 @@ function utcHourBucket(): string {
 
 export async function checkTriageIpRateLimit(
   kv: KVNamespace,
-  ip: string
+  ip: string,
+  hashSecret: string | undefined
 ): Promise<RateLimitResult> {
-  const key = `rl:triage:ip:${ip}:${utcHourBucket()}`;
+  if (!hashSecret) return { allowed: false, misconfigured: true }; // fail closed — never key on raw IP
+  const key = `rl:triage:ip:${await hmacIp(hashSecret, ip)}:${utcHourBucket()}`;
   return checkAndIncrement(kv, key, 10, 3600);
 }
 
@@ -103,25 +125,30 @@ export async function checkTriageCanonicalRateLimit(
 export async function checkF2CheckoutCreateRateLimit(
   kv: KVNamespace,
   ip: string,
+  hashSecret: string | undefined,
   envLimit?: string
 ): Promise<RateLimitResult> {
+  if (!hashSecret) return { allowed: false, misconfigured: true }; // fail closed — never key on raw IP
   const parsedLimit = envLimit ? parseInt(envLimit, 10) : 5;
   const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 5;
-  const key = `rl:f2-checkout:${ip}`;
+  const key = `rl:f2-checkout:${await hmacIp(hashSecret, ip)}`;
   return checkAndIncrement(kv, key, limit, 60);
 }
 
 export async function checkDeleteMeRateLimit(
   kv: KVNamespace,
   ip: string,
-  emailLogHash: string
+  emailLogHash: string,
+  hashSecret: string | undefined
 ): Promise<RateLimitResult> {
+  if (!hashSecret) return { allowed: false, misconfigured: true }; // fail closed — never key on raw IP
   // Strictest applicable limit wins.
+  const ipHash = await hmacIp(hashSecret, ip);
   const checks: Array<{ key: string; limit: number; windowSec: number }> = [
     { key: `dl:email:${emailLogHash}:hr`, limit: 1, windowSec: 3600 },
     { key: `dl:email:${emailLogHash}:day`, limit: 3, windowSec: 86400 },
-    { key: `dl:ip:${ip}:hr`, limit: 3, windowSec: 3600 },
-    { key: `dl:ip:${ip}:day`, limit: 10, windowSec: 86400 },
+    { key: `dl:ip:${ipHash}:hr`, limit: 3, windowSec: 3600 },
+    { key: `dl:ip:${ipHash}:day`, limit: 10, windowSec: 86400 },
   ];
 
   // Check all; only increment if all are under the limit. Two-pass to

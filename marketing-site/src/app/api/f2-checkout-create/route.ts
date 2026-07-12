@@ -27,6 +27,8 @@ interface F2CheckoutCreateEnv {
   MAX_PROBE_TARGETS?: string;
   // Pre-launch gate — fail-closed; only "true" enables paid Implementation checkout.
   IMPLEMENTATION_CHECKOUT_ENABLED?: string;
+  // Privacy (OD#7): HMAC secret to pseudonymize IP in rate-limit keys.
+  RATE_LIMIT_HASH_SECRET?: string;
 }
 
 const IMPLEMENTATION_PRODUCT_ID = "pdt_0NdQE5vccUUgOHMsF6Pzz";
@@ -51,8 +53,12 @@ export async function POST(req: Request) {
 
   // 1. Per-IP rate-limit
   const ip = req.headers.get("cf-connecting-ip") ?? "unknown";
-  const rl = await checkF2CheckoutCreateRateLimit(env.SESSIONS, ip, env.F2_CHECKOUT_RATE_LIMIT);
+  const rl = await checkF2CheckoutCreateRateLimit(env.SESSIONS, ip, env.RATE_LIMIT_HASH_SECRET, env.F2_CHECKOUT_RATE_LIMIT);
   if (!rl.allowed) {
+    if (rl.misconfigured) {
+      console.error("RATE_LIMIT_MISCONFIGURED: RATE_LIMIT_HASH_SECRET is not set");
+      return NextResponse.json({ error: "MISCONFIGURED" }, { status: 503 });
+    }
     return NextResponse.json(
       { error: "RATE_LIMITED", retry_after_sec: rl.retryAfterSec ?? 60 },
       { status: 429 },

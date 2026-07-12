@@ -21,13 +21,15 @@ export default function DeleteMePage() {
           </h1>
           <p className="mt-6 text-lg text-[var(--color-muted)]">
             Submit your email below. We&apos;ll send a confirmation link valid
-            for 24 hours. Once confirmed, every Score scan record associated
-            with that email is purged: PII fields cleared, captured email
-            removed, gap-report PDF deleted from storage.
+            for 24 hours. Opening it shows a confirmation page; only when you
+            click Delete do we remove your personal data from every Score scan
+            record associated with that email — the stored email, IP address,
+            unsubscribe token, opt-in state, and personalized report are deleted.
           </p>
           <p className="mt-3 text-sm italic text-[var(--color-muted)]">
-            Anonymous scan records (with PII removed) may be retained for
-            aggregate metrics. No identifying information remains. See our{" "}
+            The submitted URL and technical scan results remain for calibration
+            — because a URL can contain identifying information, we don&apos;t
+            claim the retained record is fully anonymous. See our{" "}
             {/* Logo + Foundation slice: link demoted accent → fg. */}
             <a
               className="text-[var(--color-fg)] underline-offset-4 hover:underline"

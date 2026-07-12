@@ -113,7 +113,13 @@ app.post("/api/scan", async (c) => {
   const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
 
   const rl = await checkRateLimit(c.env, ip, url);
-  if (!rl.allowed) return c.json({ ok: false, error: rl.reason }, 429);
+  if (!rl.allowed) {
+    if (rl.misconfigured) {
+      console.error("RATE_LIMIT_MISCONFIGURED: RATE_LIMIT_HASH_SECRET is not set");
+      return c.json({ ok: false, error: "MISCONFIGURED" }, 503);
+    }
+    return c.json({ ok: false, error: rl.reason }, 429);
+  }
 
   // Cache check (1h). Cache key incorporates SCORING_VERSION + tier so:
   //  - SCORING_VERSION bumps invalidate stale entries automatically.
@@ -174,9 +180,12 @@ app.post("/api/scan", async (c) => {
 
   // Persist to D1 (best-effort; don't fail the scan if D1 hiccups).
   try {
+    // Privacy (OD#7): do NOT persist raw IP to D1. The user_ip column is left
+    // nullable in the schema (no destructive DROP) but is no longer written.
+    // Rate-limiting uses a short-lived, hashed KV key (see checkRateLimit).
     await c.env.DB.prepare(
-      `INSERT INTO scans (id, url, composite_score, composite_grade, dimensions_scored, dimensions_total, results_json, email, user_ip, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO scans (id, url, composite_score, composite_grade, dimensions_scored, dimensions_total, results_json, email, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         id,
@@ -187,7 +196,6 @@ app.post("/api/scan", async (c) => {
         result.dimensions_total,
         JSON.stringify(result),
         email ?? null,
-        ip,
         created_at
       )
       .run();
