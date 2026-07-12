@@ -21,6 +21,7 @@ import { Hono } from "hono";
 import type { Env } from "./types";
 import { normalizeEmail } from "./email-normalize";
 import { constantTimeEqual } from "./auth";
+import { CAPTURE_SET_EMAIL_SQL, UNSUBSCRIBE_SQL } from "./score-sql";
 
 // Per-IP / per-scan rate limit on the email read-back endpoint.
 // 1 req/sec per scan_id and 60/min total per worker IP. KV-backed best-effort
@@ -123,13 +124,11 @@ export function mountScoreAdmin(app: Hono<{ Bindings: Env }>): void {
     const normalizedEmail = normalizeEmail(b.email);
 
     try {
-      const res = await c.env.DB.prepare(
-        `UPDATE scans
-            SET email = ?,
-                email_opted_in_rescan = ?,
-                unsubscribe_token = ?
-          WHERE id = ?`
-      )
+      // P0-C2 invariant (CAPTURE_SET_EMAIL_SQL): an unsubscribed row must never
+      // regain email_opted_in_rescan=1 while unsubscribed_at is set — opt-in is
+      // clamped to 0 at the DB until a dedicated resubscribe op clears it. Email
+      // capture (for the PDF) still proceeds.
+      const res = await c.env.DB.prepare(CAPTURE_SET_EMAIL_SQL)
         .bind(normalizedEmail, optedIn, b.unsubscribe_token, scanId)
         .run();
       if (!res.success || (res.meta.changes ?? 0) === 0) {
@@ -196,11 +195,7 @@ export function mountScoreAdmin(app: Hono<{ Bindings: Env }>): void {
     const scanId = c.req.param("id");
     const now = Date.now();
     try {
-      const res = await c.env.DB.prepare(
-        `UPDATE scans
-            SET unsubscribed_at = COALESCE(unsubscribed_at, ?)
-          WHERE id = ?`
-      )
+      const res = await c.env.DB.prepare(UNSUBSCRIBE_SQL)
         .bind(now, scanId)
         .run();
       if (!res.success || (res.meta.changes ?? 0) === 0) {

@@ -184,8 +184,8 @@ app.post("/api/scan", async (c) => {
     // nullable in the schema (no destructive DROP) but is no longer written.
     // Rate-limiting uses a short-lived, hashed KV key (see checkRateLimit).
     await c.env.DB.prepare(
-      `INSERT INTO scans (id, url, composite_score, composite_grade, dimensions_scored, dimensions_total, results_json, email, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO scans (id, url, composite_score, composite_grade, dimensions_scored, dimensions_total, results_json, email, tier, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         id,
@@ -196,6 +196,7 @@ app.post("/api/scan", async (c) => {
         result.dimensions_total,
         JSON.stringify(result),
         email ?? null,
+        tier,  // P0-C2 dual-write: first-class column mirrors results_json.$.tier
         created_at
       )
       .run();
