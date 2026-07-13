@@ -12,6 +12,8 @@ import { runDim5 } from "./checks/dim5-parsable";
 import { runDim6 } from "./checks/dim6-citation";
 import { SCORING_VERSION } from "./version";
 import { mountScoreAdmin } from "./score-admin";
+import { mountCaptureOutbox, runCaptureWatchdog } from "./capture-outbox";
+import { mountCaptureConsumerRpc } from "./capture-consumer-rpc";
 import { normalizeEmail } from "./email-normalize";
 import { constantTimeEqual } from "./auth";
 
@@ -50,6 +52,12 @@ app.use(
 // delete-pii, by-email-internal, email read-back, state). All require
 // INTERNAL_SCANNER_ADMIN_KEY (separate trust domain from INTERNAL_FULFILL_KEY).
 mountScoreAdmin(app);
+
+// P0-C2 Chunk C: scanner-owned deferred-capture outbox producer endpoint.
+mountCaptureOutbox(app);
+
+// P0-C2 Chunk E1: scanner-owned capture-consumer RPC / state machine.
+mountCaptureConsumerRpc(app);
 
 app.get("/health", (c) =>
   c.json({ ok: true, version: VERSION, scoring_version: SCORING_VERSION })
@@ -238,4 +246,15 @@ app.get("/", (c) =>
   )
 );
 
-export default app;
+// P0-C2 Chunk C: expose fetch (unchanged) + a DORMANT scheduled handler for the
+// capture-outbox watchdog. No cron trigger is declared in wrangler.jsonc in this
+// chunk, so `scheduled` never fires in production yet; it stays testable via
+// runCaptureWatchdog. `app.fetch` remains the request entrypoint (existing tests
+// call the default export's .fetch).
+export default {
+  fetch: (req: Request, env: Env, ctx: ExecutionContext): Response | Promise<Response> =>
+    app.fetch(req, env, ctx),
+  async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
+    await runCaptureWatchdog(env, { now: Date.now() });
+  },
+};

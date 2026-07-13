@@ -10,9 +10,12 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "cf:build": "opennextjs-cloudflare build",
-    "cf:preview": "opennextjs-cloudflare build && wrangler dev",
-    "cf:deploy": "opennextjs-cloudflare build && wrangler deploy"
+    "cf:opennext": "opennextjs-cloudflare build",
+    "cf:bundle": "wrangler deploy --dry-run --outdir .open-next/.gate-bundle --metafile .open-next/.gate-bundle/meta.json",
+    "cf:gate": "node scripts/worker-bundle-gate.mjs .open-next/.gate-bundle/worker.js .open-next/.gate-bundle/meta.json",
+    "cf:build": "npm run cf:opennext && npm run cf:bundle && npm run cf:gate",
+    "cf:preview": "npm run cf:build && wrangler dev",
+    "cf:deploy": "npm run cf:build && wrangler deploy"
   },
   "dependencies": {
     "next": "^15.5.15",

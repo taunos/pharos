@@ -97,15 +97,31 @@ function commonHeaders(input: {
 
 // ─── PDF-ready email ─────────────────────────────────────────────────────
 
-export async function sendGapReportReadyEmail(
-  env: SendEnv,
-  input: BaseSendInput
-): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  const resend = new Resend(env.RESEND_API_KEY);
+// The EXACT Resend request. P0-C2 v2.9: the deferred-capture consumer freezes
+// one of these into `capture_jobs.delivery_snapshot` before entering
+// email_sending, then re-sends it VERBATIM under the stable `job_id`
+// idempotency key — so a retry is byte-identical (Resend dedups within 24h;
+// a differing payload under the same key would 409).
+export type GapReportPayload = {
+  from: string;
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+  headers: Record<string, string>;
+};
+
+// PURE + DETERMINISTIC: no `Date.now()`, no ambient state. `requestedDate` and
+// the tokens are INPUTS, so identical inputs → byte-identical output. Freezing
+// THIS payload (not the inputs) is the v2.9 acceptance gate: a later code deploy
+// or secret rotation cannot alter an already-stored snapshot.
+export function buildGapReportReadyPayload(
+  input: BaseSendInput & { requestedDate: string }
+): GapReportPayload {
   const pdfUrl = `${input.origin}/api/score/${input.scan.id}/pdf?t=${input.scanToken}`;
   const resultsUrl = `${input.origin}/score/${input.scan.id}?t=${input.scanToken}`;
   const unsubUrl = `${input.origin}/api/score/unsubscribe?t=${input.unsubscribeToken}`;
-  const requestedDate = new Date().toISOString().slice(0, 10);
+  const requestedDate = input.requestedDate;
 
   const subject = "Your Astrant Score gap report is ready";
   const text = [
@@ -155,15 +171,27 @@ export async function sendGapReportReadyEmail(
   <p style="color: #94a3b8; font-size: 12px; margin-top: 16px;">${escapeHtml(COMPANY_FOOTER)}</p>
 </body></html>`;
 
+  return {
+    from: FROM_ADDRESS,
+    to: input.toEmail,
+    subject,
+    text,
+    html,
+    headers: commonHeaders({ unsubscribeUrl: unsubUrl }),
+  };
+}
+
+// Shared thin sender. A non-empty idempotencyKey enables Resend's 24h dedup.
+async function sendResendPayload(
+  env: SendEnv,
+  payload: GapReportPayload,
+  idempotencyKey?: string
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const resend = new Resend(env.RESEND_API_KEY);
   try {
-    const result = await resend.emails.send({
-      from: FROM_ADDRESS,
-      to: input.toEmail,
-      subject,
-      text,
-      html,
-      headers: commonHeaders({ unsubscribeUrl: unsubUrl }),
-    });
+    const result = idempotencyKey
+      ? await resend.emails.send(payload, { idempotencyKey })
+      : await resend.emails.send(payload);
     if (result.error) {
       return { ok: false, error: result.error.message };
     }
@@ -174,6 +202,28 @@ export async function sendGapReportReadyEmail(
       error: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+// Legacy synchronous path (behavior preserved): resolve today's date, build the
+// payload, send without an idempotency key.
+export async function sendGapReportReadyEmail(
+  env: SendEnv,
+  input: BaseSendInput
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const requestedDate = new Date().toISOString().slice(0, 10);
+  const payload = buildGapReportReadyPayload({ ...input, requestedDate });
+  return sendResendPayload(env, payload);
+}
+
+// Deferred-capture consumer path (P0-C2 v2.9): send a PRE-FROZEN payload verbatim
+// under the stable job_id idempotency key. A crash-retry re-sends identical bytes;
+// Resend dedups within its 24h window.
+export async function sendFrozenGapReport(
+  env: SendEnv,
+  payload: GapReportPayload,
+  idempotencyKey: string
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  return sendResendPayload(env, payload, idempotencyKey);
 }
 
 // ─── PDF-deferred email ──────────────────────────────────────────────────

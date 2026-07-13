@@ -20,7 +20,26 @@ export interface Env {
   // Privacy (OD#7): HMAC secret used to pseudonymize the IP in rate-limit KV
   // keys, so no raw IP is stored at rest. Rate limiting fails closed if absent.
   RATE_LIMIT_HASH_SECRET?: string;
+  // P0-C2 Chunk C: optional deferred-capture Queue producer binding. Optional so
+  // the disabled build typechecks/deploys without a Queue created yet; when
+  // absent, the producer still writes the durable outbox job (enqueued_at NULL)
+  // and the watchdog leaves it repairable. No wrangler.jsonc binding is declared
+  // in this chunk.
+  CAPTURE_QUEUE?: Queue<CaptureJobMessage>;
+  // P0-C2 Chunk E1: separate trust domain for the marketing capture-consumer
+  // Service Binding (distinct from INTERNAL_SCANNER_ADMIN_KEY / INTERNAL_FULFILL_KEY).
+  // Optional + fail-closed when absent; NOT provisioned/bound in this chunk.
+  CAPTURE_CONSUMER_KEY?: string;
+  // P0-C2 Chunk F1: Service Binding to marketing's R2 reconciliation endpoints
+  // (scanner drives reconciliation but marketing owns R2). Optional + fail-closed;
+  // NOT provisioned/bound in this chunk.
+  MARKETING_R2?: Fetcher;
+  RECONCILE_R2_KEY?: string;
 }
+
+// The ONLY value put on the capture Queue — the stable job_id. The consumer
+// (Chunk E, marketing-owned) loads everything else from D1 by this id.
+export type CaptureJobMessage = { job_id: string };
 
 export type ScanTier = "free" | "paid";
 

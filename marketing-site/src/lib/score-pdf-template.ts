@@ -281,19 +281,70 @@ export function renderScoreReportHTML(input: RenderInput): string {
 
 // ─── PDF generation + R2 upload ──────────────────────────────────────────
 
+// P0-C2 v2.9: a BR 429 is scheduled backpressure, and its class governs the
+// re-enqueue delay — a short per-account rate/concurrency limit retries soon,
+// a daily-quota exhaustion defers to the next quota window. `reason` defaults
+// to "daily_cap" so pre-existing single-arg throws keep their prior meaning.
+export type BrowserRenderingCapReason = "rate_limit" | "daily_cap";
+
 export class BrowserRenderingCapError extends Error {
-  constructor(message: string) {
+  readonly reason: BrowserRenderingCapReason;
+  readonly retryAfterMs?: number;
+  constructor(
+    message: string,
+    reason: BrowserRenderingCapReason = "daily_cap",
+    retryAfterMs?: number
+  ) {
     super(message);
     this.name = "BrowserRenderingCapError";
+    this.reason = reason;
+    this.retryAfterMs = retryAfterMs;
   }
 }
 
-export async function generateScoreReportPDF(
+// Defensive Retry-After classifier — isolated equivalent of dim6/adapters.ts's
+// parseRetryAfter (integer-seconds OR HTTP-date OR missing), kept separate so PDF
+// rendering doesn't couple to the Dim6 ladder. `nowMs` is injectable for tests.
+// Semantics:
+//   - present + parseable (delta-seconds or HTTP-date) → "rate_limit" with
+//     retryAfterMs (a past HTTP-date clamps to 0).
+//   - absent / empty / MALFORMED → "daily_cap" (the safe direction: never
+//     hammer BR on a hint we cannot compute; defer to the next daily window).
+export function classifyRetryAfter(
+  headerValue: string | null,
+  nowMs: number = Date.now()
+): { reason: BrowserRenderingCapReason; retryAfterMs?: number } {
+  if (headerValue == null) return { reason: "daily_cap" };
+  const trimmed = headerValue.trim();
+  if (trimmed.length === 0) return { reason: "daily_cap" };
+
+  // delta-seconds form
+  if (/^\d+$/.test(trimmed)) {
+    const n = Number(trimmed);
+    if (Number.isFinite(n)) return { reason: "rate_limit", retryAfterMs: n * 1000 };
+    return { reason: "daily_cap" };
+  }
+
+  // HTTP-date form
+  const ts = Date.parse(trimmed);
+  if (Number.isFinite(ts)) {
+    return { reason: "rate_limit", retryAfterMs: Math.max(0, ts - nowMs) };
+  }
+
+  // malformed → safe fallback
+  return { reason: "daily_cap" };
+}
+
+// P0-C2 v2.9 render/write SPLIT: render-only. Returns the PDF bytes and writes
+// NOTHING to R2 — the deferred-capture consumer writes its own VALIDATED
+// versioned key. (Pre-v2.9 this function self-wrote the legacy key, which would
+// orphan an unregistered object when the consumer then wrote the versioned key.)
+export async function renderScoreReportPDF(
   env: ScorePdfEnv,
   scan: ScanResult,
   email: string,
   scoringVersion: string
-): Promise<{ r2_key: string; pdf_size_bytes: number }> {
+): Promise<{ pdf: ArrayBuffer; pdf_size_bytes: number }> {
   const html = renderScoreReportHTML({ scan, email, scoringVersion });
   const url = `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/browser-rendering/pdf`;
   const res = await fetch(url, {
@@ -318,11 +369,20 @@ export async function generateScoreReportPDF(
   });
 
   if (res.status === 429) {
-    // BR daily soft-cap or per-account rate limit. Surface as a typed error
-    // so capture-email can flip pdf_deferred_until_tomorrow without aborting.
+    // Classify the 429 so the caller can pick the re-enqueue delay without
+    // aborting: a parseable Retry-After → short rate/concurrency limit; absent
+    // or malformed → daily-quota (defer to next window).
+    const retryAfter = res.headers.get("retry-after");
     const body = await res.text();
+    const { reason, retryAfterMs } = classifyRetryAfter(retryAfter);
+    const label =
+      reason === "rate_limit"
+        ? `Browser Rendering rate limit (HTTP 429, Retry-After=${retryAfter})`
+        : "Browser Rendering daily cap reached (HTTP 429)";
     throw new BrowserRenderingCapError(
-      `Browser Rendering daily cap reached (HTTP 429): ${body.slice(0, 300)}`
+      `${label}: ${body.slice(0, 300)}`,
+      reason,
+      retryAfterMs
     );
   }
   if (!res.ok) {
@@ -333,12 +393,30 @@ export async function generateScoreReportPDF(
   }
 
   const pdf = await res.arrayBuffer();
+  return { pdf, pdf_size_bytes: pdf.byteLength };
+}
+
+// Legacy SYNCHRONOUS path (unchanged behavior): render, then write the per-email
+// legacy key `score-reports/<id>/<hash>.pdf`. Preserved verbatim for the current
+// capture-email flow until the deferred consumer cuts over (§6 deploy step 3).
+export async function generateScoreReportPDF(
+  env: ScorePdfEnv,
+  scan: ScanResult,
+  email: string,
+  scoringVersion: string
+): Promise<{ r2_key: string; pdf_size_bytes: number }> {
+  const { pdf, pdf_size_bytes } = await renderScoreReportPDF(
+    env,
+    scan,
+    email,
+    scoringVersion
+  );
   const emailHash = await hashEmailForR2Key(email);
   const r2_key = `score-reports/${scan.id}/${emailHash}.pdf`;
   await env.AUDITS.put(r2_key, pdf, {
     httpMetadata: { contentType: "application/pdf" },
   });
-  return { r2_key, pdf_size_bytes: pdf.byteLength };
+  return { r2_key, pdf_size_bytes };
 }
 
 export async function getScoreReportPDFKey(

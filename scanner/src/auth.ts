@@ -16,3 +16,14 @@ export function constantTimeEqual(a: string, b: string): boolean {
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
 }
+
+// Shared INTERNAL_SCANNER_ADMIN_KEY check (fail-closed: absent secret or absent
+// header ⇒ false). score-admin.ts keeps its own inline copy; this export is used
+// by the P0-C2 capture-outbox endpoint so both stay on the same trust domain.
+export function requireScannerAdminAuth(
+  secret: string | undefined,
+  provided: string | undefined
+): boolean {
+  if (!secret || !provided) return false;
+  return constantTimeEqual(provided, secret);
+}
