@@ -38,9 +38,10 @@ export class MarketingR2Client {
   }
 
   // Confirmed prefix purge (returns the object count), else throw. The count must
-  // be a NON-NEGATIVE integer.
-  async purgePrefix(prefix: string): Promise<number> {
-    const r = await this.call("purge-prefix", { prefix });
+  // be a NON-NEGATIVE integer. Optional timeout bounds the RPC below the caller's
+  // remaining lease window (deleteArtifact precedent).
+  async purgePrefix(prefix: string, timeoutMs?: number): Promise<number> {
+    const r = await this.call("purge-prefix", { prefix }, timeoutMs);
     if (r.status !== "purged" || !Number.isInteger(r.purged) || (r.purged as number) < 0) throw new Error("r2_purge_unconfirmed");
     return r.purged as number;
   }

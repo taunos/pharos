@@ -35,6 +35,11 @@ export interface Env {
   // NOT provisioned/bound in this chunk.
   MARKETING_R2?: Fetcher;
   RECONCILE_R2_KEY?: string;
+  // P0-C2 Chunk F2: retention-sweep mode gate. Fail-closed — absent or any
+  // non-exact value resolves to 'off' (parseRetentionMode). Not set in
+  // wrangler.jsonc in this chunk; the sweep is unreachable in production
+  // until activation.
+  RETENTION_SWEEP_MODE?: string;
 }
 
 // The ONLY value put on the capture Queue — the stable job_id. The consumer

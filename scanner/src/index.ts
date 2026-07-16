@@ -14,6 +14,7 @@ import { SCORING_VERSION } from "./version";
 import { mountScoreAdmin } from "./score-admin";
 import { mountCaptureOutbox, runCaptureWatchdog } from "./capture-outbox";
 import { mountCaptureConsumerRpc } from "./capture-consumer-rpc";
+import { runRetentionSweep, HANDLER_WALL_BUDGET_MS } from "./retention-sweep";
 import { normalizeEmail } from "./email-normalize";
 import { constantTimeEqual } from "./auth";
 
@@ -255,6 +256,14 @@ export default {
   fetch: (req: Request, env: Env, ctx: ExecutionContext): Response | Promise<Response> =>
     app.fetch(req, env, ctx),
   async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
-    await runCaptureWatchdog(env, { now: Date.now() });
+    // P0-C2 F2: the 15-min platform limit binds the WHOLE invocation, so the
+    // shared wall deadline is established here, before the watchdog (D12).
+    // The retention call is unconditional — mode gating (off|dry_run|enforce,
+    // fail-closed off) lives solely inside runRetentionSweep (D1). No cron
+    // trigger is declared in wrangler.jsonc, so this stays unreachable in
+    // production until activation.
+    const handlerDeadline = Date.now() + HANDLER_WALL_BUDGET_MS;         // FIRST statement (new)
+    await runCaptureWatchdog(env, { now: Date.now() });                  // existing line — BYTE-UNCHANGED
+    await runRetentionSweep(env, { now: Date.now(), deadlineMs: handlerDeadline });   // new
   },
 };
