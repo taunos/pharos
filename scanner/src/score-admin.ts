@@ -22,6 +22,7 @@ import type { Env } from "./types";
 import { normalizeEmail } from "./email-normalize";
 import { constantTimeEqual } from "./auth";
 import { CAPTURE_SET_EMAIL_SQL, UNSUBSCRIBE_SQL } from "./score-sql";
+import { parseIntegrationMode, runGuardedCaptureEmail, runPrivacyDelete, PdError } from "./privacy-delete";
 
 // Per-IP / per-scan rate limit on the email read-back endpoint.
 // 1 req/sec per scan_id and 60/min total per worker IP. KV-backed best-effort
@@ -90,6 +91,11 @@ export function mountScoreAdmin(app: Hono<{ Bindings: Env }>): void {
   // Persists email + opt-in flag + opaque hex HMAC to the row. Idempotent
   // on (scan_id, email): repeated calls with the same email are no-ops.
   app.post("/api/scan/:id/capture-email", async (c) => {
+    // P0-C2 Chunk G (GD1): gate evaluated ONCE at handler entry — a pure
+    // string compare with no config/DB side effects. The branch on the stored
+    // value sits at the legacy statement point below; auth + validation stay
+    // the shared legacy bytes on both branches.
+    const mode = parseIntegrationMode(c.env.PRIVACY_INTEGRATION_MODE);
     if (!requireAdminAuth(c).ok) {
       return c.json({ ok: false, error: "unauthorized" }, 401);
     }
@@ -122,6 +128,29 @@ export function mountScoreAdmin(app: Hono<{ Bindings: Env }>): void {
     // before calling this endpoint; idempotent re-application here protects
     // against any future direct caller missing the step.
     const normalizedEmail = normalizeEmail(b.email);
+
+    // P0-C2 Chunk G (GD8): gate-on runs the guarded statement (tombstone +
+    // free/expired-op-lease predicates) via the privacy-delete guard helper;
+    // rejections are identifier-free fixed classes. Gate-off falls through to
+    // the literal legacy bytes below (C7).
+    if (mode === "on") {
+      try {
+        const outcome = await runGuardedCaptureEmail(
+          c.env,
+          scanId,
+          normalizedEmail,
+          optedIn,
+          b.unsubscribe_token
+        );
+        if (outcome === "captured") return c.json({ ok: true });
+        if (outcome === "not_found") return c.json({ ok: false, error: "scan not found" }, 404);
+        if (outcome === "tombstoned") return c.json({ ok: false, error: "tombstoned" }, 409);
+        return c.json({ ok: false, error: "pd_busy" }, 409);
+      } catch {
+        console.error(`[capture-email] pd_internal`);
+        return c.json({ ok: false, error: "pd_internal" }, 500);
+      }
+    }
 
     try {
       // P0-C2 invariant (CAPTURE_SET_EMAIL_SQL): an unsubscribed row must never
@@ -214,11 +243,45 @@ export function mountScoreAdmin(app: Hono<{ Bindings: Env }>): void {
   // Clears email + unsubscribe_token. Sets deletion_requested_at. R2 deletion
   // happens marketing-site-side (it holds the AUDITS bucket binding).
   app.post("/api/scan/:id/delete-pii", async (c) => {
+    // P0-C2 Chunk G (GD1): gate evaluated ONCE at handler entry — a pure
+    // string compare with no config/DB side effects. The branch on the stored
+    // value sits at the legacy statement point below; auth stays the shared
+    // legacy bytes on both branches.
+    const mode = parseIntegrationMode(c.env.PRIVACY_INTEGRATION_MODE);
     if (!requireAdminAuth(c).ok) {
       return c.json({ ok: false, error: "unauthorized" }, 401);
     }
     const scanId = c.req.param("id");
     const now = Date.now();
+    // P0-C2 Chunk G (GD3–GD9): gate-on runs the coordinated privacy-delete
+    // machine (op-lease acquisition → capture cancel → bounded prefix purge →
+    // registry delete → capture scrub → scan-row PII clear → optional
+    // dead-letter replay → fenced release). Gate-off falls through to the
+    // literal legacy bytes below (C7), including the raw-scan_id catch log.
+    if (mode === "on") {
+      try {
+        const outcome = await runPrivacyDelete(c.env, scanId);
+        switch (outcome.status) {
+          case "ok":
+            return c.json({ ok: true });
+          case "not_found":
+            return c.json({ ok: false, error: "scan not found" }, 404);
+          case "pd_busy":
+            return c.json({ ok: false, error: "pd_busy" }, 409);
+          case "pd_lease_lost":
+            return c.json({ ok: false, error: "pd_lease_lost" }, 409);
+          case "pd_purge_failed":
+            return c.json({ ok: false, error: "pd_purge_failed" }, 502);
+        }
+      } catch (e) {
+        if (e instanceof PdError) {
+          console.error(`[delete-pii] ${e.cls}`);
+          return c.json({ ok: false, error: e.cls }, 500);
+        }
+        console.error(`[delete-pii] pd_internal`);
+        return c.json({ ok: false, error: "pd_internal" }, 500);
+      }
+    }
     try {
       const res = await c.env.DB.prepare(
         `UPDATE scans

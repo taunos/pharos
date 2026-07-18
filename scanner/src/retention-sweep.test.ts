@@ -1216,7 +1216,7 @@ describe("F2 t33–t35 — boundary silence, legacy canary, handler deadline", (
     expect(d1.executed.some((e) => e.sql.includes("retention_jobs"))).toBe(false); // retention touched nothing
   });
 
-  it("t34: ACTIVATION-BLOCKING legacy-surface canary — capture-email AND delete-PII route dispatch mutates a TOMBSTONED scan at current ship-state (documents the hole)", async () => {
+  it("t34a: legacy gate-off canary — capture-email AND delete-PII route dispatch still mutates a TOMBSTONED scan with the gate off/absent (documents that the shipped DEFAULT preserves ship-state behavior; retained until the legacy gate-off branch is removed)", async () => {
     const sqlite = freshSqlite();
     const d1 = makeD1(sqlite);
     const id = uuid();
@@ -1260,6 +1260,55 @@ describe("F2 t33–t35 — boundary silence, legacy canary, handler deadline", (
     // the same authenticated dispatches are REJECTED and D1 state is byte-unchanged; or
     // (ii) retired → the routes are absent and a repo-wide grep proves no remaining caller
     // of the legacy SQL shape. An ad-hoc direct SQL update is NOT the activation proof.
+    // → Chunk G ships the retained+guarded arm: t34b below is the inversion proof (G-2).
+  });
+
+  it("t34b: ACTIVATION-BLOCKING inversion proof G-2 — gate ON: the same authenticated dispatches against the same seeded state (tombstone + LIVE retention lease) are REJECTED (409) and the D1 row is byte-unchanged, both surfaces", async () => {
+    const sqlite = freshSqlite();
+    const d1 = makeD1(sqlite);
+    const id = uuid();
+    seedScan(sqlite, {
+      id,
+      email: "orig@x.com",
+      retention_locked_at: OLD,
+      retention_job_id: "J",
+      op_lease_id: "retention-cid",
+      op_lease_expires_at: FAR,
+    });
+    const r2 = makeR2();
+    const env = {
+      DB: d1 as unknown as Env["DB"],
+      INTERNAL_SCANNER_ADMIN_KEY: "admin-key",
+      PRIVACY_INTEGRATION_MODE: "on",
+      MARKETING_R2: r2.fetcher,
+      RECONCILE_R2_KEY: KEY,
+    } as unknown as Env;
+    const ctx = { waitUntil() {}, passThroughOnException() {} } as unknown as ExecutionContext;
+    const before = scanRow(sqlite, id)!;
+    // guarded capture-email: tombstoned → rejected, byte-unchanged
+    const res1 = await scannerWorker.fetch(
+      new Request(`https://scanner.astrant.io/api/scan/${id}/capture-email`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-internal-scanner-admin-key": "admin-key" },
+        body: JSON.stringify({ email: "attacker@x.com", unsubscribe_token: "tok", email_opted_in_rescan: 1 }),
+      }),
+      env,
+      ctx
+    );
+    expect(res1.status).toBe(409);
+    expect(scanRow(sqlite, id)).toEqual(before);
+    // coordinated delete-pii: live retention lease → rejected (pd_busy), byte-unchanged
+    const res2 = await scannerWorker.fetch(
+      new Request(`https://scanner.astrant.io/api/scan/${id}/delete-pii`, {
+        method: "POST",
+        headers: { "x-internal-scanner-admin-key": "admin-key" },
+      }),
+      env,
+      ctx
+    );
+    expect(res2.status).toBe(409);
+    expect(scanRow(sqlite, id)).toEqual(before);
+    expect(r2.state.purges).toHaveLength(0);
   });
 
   it("t35: handler-level shared deadline — watchdog consumes injected time → retention shrinks/skips; TICK_STOP_MARGIN observable", async () => {

@@ -40,6 +40,12 @@ export interface Env {
   // wrangler.jsonc in this chunk; the sweep is unreachable in production
   // until activation.
   RETENTION_SWEEP_MODE?: string;
+  // P0-C2 Chunk G: privacy-integration gate. Fail-closed — absent or any
+  // non-exact value resolves to 'off' (parseIntegrationMode), and 'off' means
+  // byte-identical legacy behavior on every touched surface. Not set anywhere
+  // in this chunk; activation is separately gated (see the activation section
+  // of the Chunk G ship-report).
+  PRIVACY_INTEGRATION_MODE?: string;
 }
 
 // The ONLY value put on the capture Queue — the stable job_id. The consumer

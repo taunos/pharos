@@ -14,6 +14,7 @@ import { SCORING_VERSION } from "./version";
 import { mountScoreAdmin } from "./score-admin";
 import { mountCaptureOutbox, runCaptureWatchdog } from "./capture-outbox";
 import { mountCaptureConsumerRpc } from "./capture-consumer-rpc";
+import { mountPrivacyDelete } from "./privacy-delete";
 import { runRetentionSweep, HANDLER_WALL_BUDGET_MS } from "./retention-sweep";
 import { normalizeEmail } from "./email-normalize";
 import { constantTimeEqual } from "./auth";
@@ -59,6 +60,12 @@ mountCaptureOutbox(app);
 
 // P0-C2 Chunk E1: scanner-owned capture-consumer RPC / state machine.
 mountCaptureConsumerRpc(app);
+
+// P0-C2 Chunk G: gated privacy-delete integration + authenticated replay
+// endpoint. PRIVACY_INTEGRATION_MODE is fail-closed 'off' (not set anywhere
+// in this chunk) — the replay route 404s and both score-admin surfaces run
+// legacy bytes until activation.
+mountPrivacyDelete(app);
 
 app.get("/health", (c) =>
   c.json({ ok: true, version: VERSION, scoring_version: SCORING_VERSION })
