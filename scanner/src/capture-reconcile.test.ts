@@ -332,7 +332,11 @@ describe("F1 reconciliation — operational bounds (Service Binding invocation l
     expect(art(sqlite, k1)!.status).toBe("superseded"); // not purged
     expect(art(sqlite, k2)!.status).toBe("superseded"); // later artifact never attempted
     expect(scanRow(sqlite, s).op_lease_id).toBeNull(); // lease released in finally
-  }, 10_000);
+  // Ceiling only (CI-contention allowance, not a behavioural change): the abort is engineered to fire at
+  // ~1s — timeoutMs = min(R2_DELETE_BUDGET_MS, safeWindow) = 1_000 — and none of the assertions above depend on timing.
+  // Raised from 10_000 after CI run 33024291081 timed out at 10006ms: on a contended 2-vCPU GitHub runner the
+  // real 1s timer can be delayed far enough to race a 10s ceiling. A re-run of the same commit passed.
+  }, 30_000);
 });
 
 describe("F1 reconciliation — lease-time safety (live clock)", () => {
