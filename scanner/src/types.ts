@@ -46,6 +46,11 @@ export interface Env {
   // in this chunk; activation is separately gated (see the activation section
   // of the Chunk G ship-report).
   PRIVACY_INTEGRATION_MODE?: string;
+  // P0-C2 capture cutover: fail-closed capture-pipeline gate (spec CD1). Absent
+  // or any non-exact value resolves to 'off' (parseCapturePipelineMode); not set
+  // in wrangler.jsonc in this slice — the pdf-key endpoint is unreachable in
+  // production until activation.
+  CAPTURE_PIPELINE_MODE?: string;
 }
 
 // The ONLY value put on the capture Queue — the stable job_id. The consumer

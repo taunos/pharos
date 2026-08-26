@@ -30,6 +30,12 @@ import { parseIntegrationMode, runGuardedCaptureEmail, runPrivacyDelete, PdError
 const EMAIL_READBACK_PER_SCAN_PER_SEC = 1;
 const EMAIL_READBACK_TOTAL_PER_MIN = 60;
 
+// P0-C2 capture cutover (CD1): scanner-side fail-closed capture-pipeline gate
+// parser, byte-parallel to the marketing module. Exact 'on' only.
+function parseCapturePipelineMode(v: unknown): "off" | "on" {
+  return v === "on" ? "on" : "off";
+}
+
 function requireAdminAuth(
   c: { req: { header: (name: string) => string | undefined }; env: Env }
 ): { ok: true } | { ok: false } {
@@ -83,6 +89,44 @@ async function checkEmailReadbackRateLimit(
     // KV hiccup — skip
   }
 
+  return { allowed: true };
+}
+
+// P0-C2 capture cutover (CD6): LOCAL copy of the read-back limiter with its own
+// key prefix (int:pdfkey:). Same 1/s per-scan + 60/min per worker-IP posture and
+// the same recorded fail-open-on-KV-error trade-off.
+async function checkPdfKeyRateLimit(
+  env: Env,
+  scanId: string,
+  workerIp: string
+): Promise<{ allowed: true } | { allowed: false; reason: string }> {
+  const now = Math.floor(Date.now() / 1000);
+  const perScanKey = `int:pdfkey:${scanId}:sec`;
+  const perTotalKey = `int:pdfkey:total:min`;
+  try {
+    const last = await env.CACHE.get(perScanKey);
+    if (last) {
+      const lastTs = parseInt(last, 10);
+      if (Number.isFinite(lastTs) && now - lastTs < EMAIL_READBACK_PER_SCAN_PER_SEC) {
+        return { allowed: false, reason: "per-scan rate exceeded" };
+      }
+    }
+    await env.CACHE.put(perScanKey, String(now), { expirationTtl: 60 });
+  } catch {
+    // KV failure → allowed (defense-in-depth limiter; recorded fail-open posture)
+  }
+  try {
+    const minuteBucket = Math.floor(now / 60);
+    const k = `${perTotalKey}:${workerIp}:${minuteBucket}`;
+    const cur = await env.CACHE.get(k);
+    const n = cur ? parseInt(cur, 10) : 0;
+    if (Number.isFinite(n) && n >= EMAIL_READBACK_TOTAL_PER_MIN) {
+      return { allowed: false, reason: "per-minute rate exceeded" };
+    }
+    await env.CACHE.put(k, String(n + 1), { expirationTtl: 120 });
+  } catch {
+    // KV hiccup — skip
+  }
   return { allowed: true };
 }
 
@@ -340,6 +384,34 @@ export function mountScoreAdmin(app: Hono<{ Bindings: Env }>): void {
       console.error(
         `[by-email-internal] D1 query failed: ${e instanceof Error ? e.message : String(e)}`
       );
+      return c.json({ ok: false, error: "db error" }, 500);
+    }
+  });
+
+  // ── GET /api/internal/scan/:id/pdf-key (P0-C2 capture cutover, CD6) ────────
+  // Dispatch order (Appendix F / GD10): gate (off → 404, ZERO statements) →
+  // auth → local rate limit → single plain SELECT. No success logging; no new
+  // log class on this endpoint.
+  app.get("/api/internal/scan/:id/pdf-key", async (c) => {
+    if (parseCapturePipelineMode(c.env.CAPTURE_PIPELINE_MODE) === "off") {
+      return c.notFound();
+    }
+    if (!requireAdminAuth(c).ok) {
+      return c.json({ ok: false, error: "unauthorized" }, 401);
+    }
+    const scanId = c.req.param("id");
+    const workerIp = c.req.header("CF-Connecting-IP") ?? "unknown";
+    const rl = await checkPdfKeyRateLimit(c.env, scanId, workerIp);
+    if (!rl.allowed) {
+      return c.json({ ok: false, error: rl.reason }, 429);
+    }
+    try {
+      const row = await c.env.DB.prepare("SELECT pdf_r2_key FROM scans WHERE id = ?")
+        .bind(scanId)
+        .first<{ pdf_r2_key: string | null }>();
+      if (!row) return c.json({ ok: false, error: "not found" }, 404);
+      return c.json({ ok: true, pdf_r2_key: row.pdf_r2_key ?? null });
+    } catch {
       return c.json({ ok: false, error: "db error" }, 500);
     }
   });

@@ -13,7 +13,7 @@ import type { Env } from "./types";
 import { constantTimeEqual } from "./auth";
 import { emailR2KeyHash } from "./capture-outbox";
 
-const CONSUMER_LEASE_MS = 20 * 60 * 1000; // > 15 min wall bound + margin
+export const CONSUMER_LEASE_MS = 20 * 60 * 1000; // > 15 min wall bound + margin
 const LEASE_CONTENTION_MARGIN_MS = 5_000;
 const MAX_DEFER_MS = 24 * 60 * 60 * 1000;
 const MAX_SNAPSHOT_BYTES = 256 * 1024;

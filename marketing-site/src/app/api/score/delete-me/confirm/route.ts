@@ -17,13 +17,20 @@
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { verifyDeletionToken, hashEmailForR2Key, hashEmailForLog } from "@/lib/score-tokens";
-import { deletePiiForScan, getScansByEmail } from "@/lib/score-scanner-client";
+import { DELETE_PII_TIMEOUT_MS, deletePiiForScan, getScansByEmail } from "@/lib/score-scanner-client";
 
 interface ConfirmEnv {
   AUDITS: R2Bucket;
   UNSUBSCRIBE_SECRET: string;
   INTERNAL_SCANNER_ADMIN_KEY: string;
 }
+
+// P0-C2 capture cutover (CD7): total POST deadline. Checked before each
+// iteration AND after each R2 delete before delete-pii; insufficient headroom
+// (< one bounded delete-pii + margin) marks the current scan and every
+// remaining scan incomplete through the EXISTING partial/retry rendering.
+const CONFIRM_ROUTE_BUDGET_MS = 90_000;
+const CONFIRM_ITER_MARGIN_MS = 5_000;
 
 function escapeAttr(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -119,6 +126,7 @@ export async function GET(req: Request) {
 
 // POST — performs the deletion. Token comes from the confirmation form.
 export async function POST(req: Request) {
+  const routeDeadline = Date.now() + CONFIRM_ROUTE_BUDGET_MS;
   const env = getCloudflareContext().env as unknown as ConfirmEnv;
 
   let token = "";
@@ -164,7 +172,16 @@ export async function POST(req: Request) {
   // retained so the same token can retry and re-find the scan (otherwise the
   // PDF would be orphaned by a cleared, unfindable row). R2 delete is
   // idempotent (no throw on a missing key), so a throw is a genuine failure.
+  const deadlineHeadroom = () => routeDeadline - Date.now() >= DELETE_PII_TIMEOUT_MS + CONFIRM_ITER_MARGIN_MS;
+  const markRestIncomplete = (fromScanId: string) => {
+    for (const rest of scanIds.slice(scanIds.indexOf(fromScanId))) incomplete.push(rest);
+    console.log("[delete-confirm] confirm_deadline");
+  };
   for (const scanId of scanIds) {
+    if (!deadlineHeadroom()) {
+      markRestIncomplete(scanId);
+      break;
+    }
     let r2ok = true;
     try {
       await env.AUDITS.delete(`score-reports/${scanId}/${emailHashForR2}.pdf`);
@@ -175,6 +192,10 @@ export async function POST(req: Request) {
     if (!r2ok) {
       incomplete.push(scanId); // retain email — do not clear D1 for this scan
       continue;
+    }
+    if (!deadlineHeadroom()) {
+      markRestIncomplete(scanId); // PDF gone, PII not yet cleared — existing incomplete state
+      break;
     }
     const res = await deletePiiForScan(env, scanId);
     if (res.ok) {

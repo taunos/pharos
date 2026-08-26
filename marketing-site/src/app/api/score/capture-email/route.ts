@@ -23,6 +23,7 @@ import {
   hashEmailForLog,
 } from "@/lib/score-tokens";
 import { normalizeEmail } from "@/lib/email-normalize";
+import { parseCapturePipelineMode } from "@/lib/capture-pipeline-mode";
 import { requestOrigin } from "@/lib/origin";
 import {
   generateScoreReportPDF,
@@ -35,6 +36,7 @@ import {
 } from "@/lib/score-email";
 import {
   captureEmail,
+  captureOutbox,
   getPublicScan,
   getScanState,
   markPdfGenerated,
@@ -42,6 +44,10 @@ import {
 import type { ScanResult } from "@/lib/audit-types";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// P0-C2 capture cutover (CD3): flat resubmit cool-down under the deferred
+// pipeline. Within the window → 200 deferred with NO outbox call and NO stamp.
+const CAPTURE_RESUBMIT_COOLDOWN_S = 300;
 
 interface CaptureEnv {
   AUDITS: R2Bucket;
@@ -52,6 +58,7 @@ interface CaptureEnv {
   RESEND_API_KEY: string;
   UNSUBSCRIBE_SECRET: string;
   INTERNAL_SCANNER_ADMIN_KEY: string;
+  CAPTURE_PIPELINE_MODE?: string;
 }
 
 // Honeypot success — same JSON shape as a real success, plausible
@@ -70,6 +77,7 @@ export const maxDuration = 120;
 
 export async function POST(req: Request) {
   const env = getCloudflareContext().env as unknown as CaptureEnv;
+  const mode = parseCapturePipelineMode(env.CAPTURE_PIPELINE_MODE);
   const origin = requestOrigin(req);
 
   let body: unknown;
@@ -156,6 +164,59 @@ export async function POST(req: Request) {
     UNSUB_TOKEN_TTL_SECONDS,
     env.UNSUBSCRIBE_SECRET
   );
+
+  // ── P0-C2 capture cutover (CD1/CD3): gate ON → deferred pipeline; ALWAYS returns.
+  // The shared legacy prefix above (honeypot → validation → env guard → state →
+  // idem-key read → token issuance) ran unchanged. Legacy Branches 1–3 below are
+  // the gate-off path and stay byte-unchanged.
+  if (mode === "on") {
+    if (idemPrev) {
+      const prevTs = parseInt(idemPrev, 10);
+      if (Number.isFinite(prevTs) && nowSec - prevTs < CAPTURE_RESUBMIT_COOLDOWN_S) {
+        return NextResponse.json({
+          success: true,
+          deferred: true,
+          results_url: `${origin}/score/${scanId}?t=${scanToken}`,
+          pdf_url: `${origin}/api/score/${scanId}/pdf?t=${scanToken}`,
+        });
+      }
+    }
+    const outcome = await captureOutbox(env, scanId, {
+      email,
+      email_opted_in_rescan: optInRescan,
+      unsubscribe_token: scanToken,
+    });
+    switch (outcome.status) {
+      case "deferred":
+        await env.TRIAGE_CACHE.put(idemKey, String(nowSec), {
+          expirationTtl: 86400,
+        });
+        return NextResponse.json({
+          success: true,
+          deferred: true,
+          results_url: `${origin}/score/${scanId}?t=${scanToken}`,
+          pdf_url: `${origin}/api/score/${scanId}/pdf?t=${scanToken}`,
+        });
+      case "conflict":
+        console.error("[capture-email] outbox_conflict");
+        return NextResponse.json(
+          { success: false, error: "Another email address is already receiving this scan's report. Use that address, or try again once it's delivered." },
+          { status: 409 }
+        );
+      case "not_found":
+        return NextResponse.json(
+          { success: false, error: "Scan not found." },
+          { status: 404 }
+        );
+      case "unavailable":
+      case "transport_error":
+        console.error("[capture-email] outbox_unavailable");
+        return NextResponse.json(
+          { success: false, error: "We couldn't queue your report just now. Please try again in a minute." },
+          { status: 503 }
+        );
+    }
+  }
 
   // ── Branch 1: BR cap was tripped earlier; PDF deferred ─────────────────
   // 1-hour cool-down — repeated submits during a deferred state would

@@ -475,3 +475,29 @@ describe("E2 daily-cap deferral boundaries (fixed clock)", () => {
 });
 
 const DAY = 24 * 60 * 60 * 1000;
+
+// ── P0-C2 capture cutover — CC-1(b) consumer-refusal pins (ACTIVATION-BLOCKING) ──
+describe("P0-C2 capture cutover — CC-1(b) ACTIVATION-BLOCKING consumer-refusal pins", () => {
+  it("CC-1(b) ACTIVATION-BLOCKING: claim → ack_no_work acks WITHOUT touching R2 or BR (a purged/tombstoned scan is refused at the scanner)", async () => {
+    const { env, calls, batch, threw } = await run({ claim: () => ({ status: "ack_no_work" }) });
+    expect(threw).toBe(false);
+    expect(batch.messages[0].ack).toHaveBeenCalledTimes(1);
+    expect(calls).toEqual(["claim"]);
+    expect(env.AUDITS.put).not.toHaveBeenCalled();
+    expect(env.AUDITS.delete).not.toHaveBeenCalled();
+    expect(brFetch).not.toHaveBeenCalled();
+  });
+
+  it("CC-1(b) ACTIVATION-BLOCKING: register-artifact refusal — repairable reason REPAIR-acks with ZERO AUDITS.put; non-repairable reason throws with ZERO AUDITS.put", async () => {
+    const a = await run({ claim: () => claimJob({ phase: "rendering" }), "register-artifact": () => ({ status: "error", reason: "lease_lost" }) });
+    expect(a.threw).toBe(false);
+    expect(a.batch.messages[0].ack).toHaveBeenCalledTimes(1);
+    expect(a.env.AUDITS.put).not.toHaveBeenCalled();
+    expect(brFetch).not.toHaveBeenCalled();
+    const b = await run({ claim: () => claimJob({ phase: "rendering" }), "register-artifact": () => ({ status: "error", reason: "not_found" }) });
+    expect(b.threw).toBe(true);
+    expect(b.batch.messages[0].ack).not.toHaveBeenCalled();
+    expect(b.env.AUDITS.put).not.toHaveBeenCalled();
+    expect(brFetch).not.toHaveBeenCalled();
+  });
+});

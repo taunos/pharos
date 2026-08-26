@@ -20,6 +20,7 @@ vi.mock("@/lib/score-tokens", () => ({
   hashEmailForLog: h.hashEmailForLog,
 }));
 vi.mock("@/lib/score-scanner-client", () => ({
+  DELETE_PII_TIMEOUT_MS: 30_000,
   deletePiiForScan: h.deletePiiForScan,
   getScansByEmail: h.getScansByEmail,
 }));
@@ -150,5 +151,65 @@ describe("POST — deletion ordering and failure semantics", () => {
     expect(res2.status).toBe(200);
     expect(h.deletePiiForScan).toHaveBeenCalledTimes(1);
     expect((await res2.text())).toContain("has been removed");
+  });
+});
+
+// ── P0-C2 capture cutover (CD7) — total route deadline ──────────────────────────
+describe("P0-C2 capture cutover — confirm-route total deadline (CD7)", () => {
+  const T = 1_800_000_000_000;
+  const DEADLINE_LINE = "[delete-confirm] confirm_deadline";
+  const logLines = (spy: { mock: { calls: unknown[][] } }) => spy.mock.calls.map((c) => String(c[0]));
+
+  it("tC1m (confirm leg): normal flow with a non-advancing clock is behavior-invisible — R2-then-D1 per scan, 200 success, ZERO confirm_deadline lines", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(T);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    h.getScansByEmail.mockResolvedValue({ ok: true, scan_ids: ["s1", "s2"] });
+    const order: string[] = [];
+    h.auditsDelete.mockImplementation(async (k: string) => { order.push("r2:" + k); });
+    h.deletePiiForScan.mockImplementation(async (_e: unknown, id: string) => { order.push("d1:" + id); return { ok: true }; });
+    const res = await POST(postReq());
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain("has been removed");
+    expect(order).toEqual(["r2:score-reports/s1/ehash.pdf", "d1:s1", "r2:score-reports/s2/ehash.pdf", "d1:s2"]);
+    expect(logLines(log).filter((l) => l.includes("confirm_deadline"))).toHaveLength(0);
+    vi.restoreAllMocks();
+  });
+
+  it("tC10 (i): deadline is established at POST entry — a pre-loop burn trips before iteration 1: zero R2/D1 calls, every scan incomplete through the EXISTING strings; tC12 class exact", async () => {
+    let first = true;
+    vi.spyOn(Date, "now").mockImplementation(() => { if (first) { first = false; return T; } return T + 90_000; });
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    h.getScansByEmail.mockResolvedValue({ ok: true, scan_ids: ["s1", "s2"] });
+    const res = await POST(postReq());
+    expect(h.auditsDelete).not.toHaveBeenCalled();
+    expect(h.deletePiiForScan).not.toHaveBeenCalled();
+    expect(res.status).toBe(500);
+    const body = await res.text();
+    expect(body).toContain("We removed your data from 0 of 2 records.");
+    expect(body).toContain("2 couldn't be fully removed just now.");
+    expect(body).toContain('value="tok"'); // retry form preserved
+    expect(body).not.toContain("has been removed");
+    const deadlineLines = logLines(log).filter((l) => l.includes("confirm_deadline"));
+    expect(deadlineLines).toEqual([DEADLINE_LINE]); // exactly once, byte-exact, identifier-free
+    vi.restoreAllMocks();
+  });
+
+  it("tC10 (ii): post-R2 recheck — an R2 delete that consumes the budget prevents deletePiiForScan; current + remaining scans incomplete with exact counts", async () => {
+    let t = T;
+    vi.spyOn(Date, "now").mockImplementation(() => t);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    h.getScansByEmail.mockResolvedValue({ ok: true, scan_ids: ["s1", "s2", "s3"] });
+    h.auditsDelete.mockImplementation(async () => { t += 90_000; }); // the first R2 delete eats the whole budget
+    const res = await POST(postReq());
+    expect(h.auditsDelete).toHaveBeenCalledTimes(1); // s1's R2 delete ran (PDF gone)
+    expect(h.deletePiiForScan).not.toHaveBeenCalled(); // PII not yet cleared — existing incomplete state
+    expect(res.status).toBe(500);
+    const body = await res.text();
+    expect(body).toContain("We removed your data from 0 of 3 records.");
+    expect(body).toContain("3 couldn't be fully removed just now.");
+    expect(body).not.toContain("has been removed");
+    expect(logLines(log).filter((l) => l.includes("confirm_deadline"))).toEqual([DEADLINE_LINE]);
+    for (const l of logLines(log)) if (l.includes("confirm_deadline")) { expect(l).not.toContain("s1"); expect(l).not.toContain("lhash"); }
+    vi.restoreAllMocks();
   });
 });
