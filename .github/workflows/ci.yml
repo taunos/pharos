@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: ${{ matrix.dir }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { dir: scanner,           typecheck: true,  test: true }
+          - { dir: marketing-site,    typecheck: true,  test: true }
+          - { dir: citation-tracking, typecheck: false, test: true }
+          - { dir: mcp-server,        typecheck: true,  test: false }
+          - { dir: corpus,            typecheck: true,  test: false }
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ${{ matrix.dir }}/package-lock.json
+      - run: npm ci
+      - if: ${{ matrix.typecheck }}
+        run: npm run typecheck
+      - if: ${{ matrix.test }}
+        run: npm test
+
+  secret-scan:
+    name: secret-scan (mirrors .githooks/pre-commit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan added lines in this push/PR
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.sha }}
+        run: bash scripts/ci-secret-scan.sh "$BASE" "$HEAD"
