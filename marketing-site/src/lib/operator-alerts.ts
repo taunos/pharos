@@ -30,7 +30,6 @@ export async function sendOperatorAlert(
   env: OperatorAlertEnv,
   params: OperatorAlertParams,
 ): Promise<void> {
-  const resend = new Resend(env.RESEND_API_KEY);
   const lines = [
     `Alert: ${params.alert_code}`,
     params.customer_email ? `Customer: ${params.customer_email}` : null,
@@ -41,6 +40,9 @@ export async function sendOperatorAlert(
   ].filter(Boolean);
 
   try {
+    // Constructed inside the try: Resend's constructor throws on a missing key,
+    // and alerts must stay fail-open.
+    const resend = new Resend(env.RESEND_API_KEY);
     const result = await resend.emails.send({
       from: FROM_ADDRESS,
       to: env.OPERATOR_ALERT_EMAIL,

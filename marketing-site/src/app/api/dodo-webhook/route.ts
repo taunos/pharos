@@ -154,6 +154,7 @@ export async function POST(req: Request) {
         console.error(
           `[dodo-webhook] payment.succeeded for audit but missing session_id metadata; webhook-id=${webhookId}`
         );
+        await alertOperator(env, "AUDIT_PAID_SESSION_ID_MISSING", "", `webhook-id=${webhookId}`);
       } else {
         // Test C-A (A3 + R2-1): durable dispatch via AUDIT_FULFILL_QUEUE.
         // Order: enqueue FIRST, then write {fulfilling, paid_at, enqueued_at},
