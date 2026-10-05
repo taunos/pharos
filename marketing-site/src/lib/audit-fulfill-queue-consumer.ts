@@ -5,12 +5,13 @@
 // Routed by batch.queue in lib/queue-router.ts (worker.ts `queue` handler).
 //
 // Consumer config (wrangler.jsonc): max_batch_size 1, max_retries 3 → up to 4
-// deliveries; the 4th (message.attempts >= 4) is the final attempt.
+// deliveries; the 4th (message.attempts >= 4) is the final attempt. Only
+// THROWN errors consume attempts: "not paid yet / not found yet" rechecks and
+// Dim 6 cap deferrals ack and re-send a fresh message with a counter in the body.
 //
 // Operator alerts carry session id + error class only — never buyer PII.
 
 import {
-  alertOperator,
   readAuditSession,
   runAuditFulfillment,
   writeAuditSession,
@@ -18,6 +19,7 @@ import {
   type AuditRunEnv,
   type AuditRunResult,
 } from "./audit-fulfill-run";
+import { alertOperator } from "./operator-alerts";
 import { updateFunnelStatus } from "./audit-funnel";
 
 export const AUDIT_FULFILL_QUEUE_NAME = "astrant-audit-fulfill";
@@ -28,6 +30,8 @@ export type AuditFulfillMessage = {
   origin: string;
   // Dim 6 cap deferrals so far (R2-2: carried in the body, never in attempts).
   deferrals?: number;
+  // "Not paid yet" / "not found yet" rechecks so far (same pattern).
+  rechecks?: number;
 };
 
 export interface AuditFulfillConsumerEnv extends AuditRunEnv {
@@ -35,9 +39,12 @@ export interface AuditFulfillConsumerEnv extends AuditRunEnv {
 }
 
 export const FINAL_ATTEMPT = 4; // max_retries 3 → deliveries 1..4
-export const NOT_YET_PAID_DELAY_SEC = 30;
+export const RECHECK_DELAY_SEC = 60;
+export const MAX_RECHECKS = 10; // ~10 min of rechecks
 export const CAP_DEFERRAL_DELAY_SEC = 6 * 3600; // 21600
 export const CAP_DEFERRAL_ALERT_AT = 2;
+// R2-8: the synthetic queue smoke uses `smoke-<uuid>` session ids.
+export const SMOKE_SESSION_PREFIX = "smoke-";
 
 type RunFn = (
   env: AuditRunEnv,
@@ -46,16 +53,20 @@ type RunFn = (
   deps?: AuditRunDeps,
 ) => Promise<AuditRunResult>;
 
-export function parseAuditFulfillMessage(body: unknown): AuditFulfillMessage | null {
+const nonNegInt = (v: unknown): number =>
+  typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : 0;
+
+export function parseAuditFulfillMessage(body: unknown): Required<AuditFulfillMessage> | null {
   if (typeof body !== "object" || body === null) return null;
   const b = body as Record<string, unknown>;
   if (typeof b.session_id !== "string" || b.session_id.length === 0) return null;
   if (typeof b.origin !== "string" || b.origin.length === 0) return null;
-  const deferrals =
-    typeof b.deferrals === "number" && Number.isInteger(b.deferrals) && b.deferrals >= 0
-      ? b.deferrals
-      : 0;
-  return { session_id: b.session_id, origin: b.origin, deferrals };
+  return {
+    session_id: b.session_id,
+    origin: b.origin,
+    deferrals: nonNegInt(b.deferrals),
+    rechecks: nonNegInt(b.rechecks),
+  };
 }
 
 // Fixed error class for logs/alerts (no message text — it can carry URLs).
@@ -63,8 +74,11 @@ export function errorClass(err: unknown): string {
   return err instanceof Error ? err.name || "Error" : typeof err;
 }
 
-// Final-attempt / DLQ terminal failure. Never downgrades a `ready` session.
-// Throws if its own session write fails (caller must NOT ack then).
+// Final-attempt / DLQ terminal failure. Logs + alerts BEFORE any KV write so
+// the operator hears about it even if the write then fails. Never writes
+// `error` over `ready` (report delivered; email-step failure → alert
+// AUDIT_READY_EMAIL_FAILED) or over `awaiting_payment` (alert only). Throws if
+// its own session write fails (caller must NOT ack then).
 async function markFailed(
   env: AuditRunEnv,
   sessionId: string,
@@ -72,18 +86,15 @@ async function markFailed(
   alertCode: string,
 ): Promise<void> {
   const record = await readAuditSession(env, sessionId);
-  if (!record) {
-    console.error(`${alertCode} session_id=${sessionId} class=${cls} session=not_found`);
-    return;
-  }
-  if (record.status !== "ready") {
-    // No error_message: the status page then shows its existing generic
-    // fallback copy instead of raw error text (no new user-facing string).
-    await writeAuditSession(env, { ...record, status: "error" });
-    await updateFunnelStatus(env.SESSIONS, sessionId, "failed");
-  }
-  console.error(`${alertCode} session_id=${sessionId} class=${cls} status_was=${record.status}`);
-  await alertOperator(env, alertCode, sessionId, `error_class=${cls}`);
+  const statusWas = record?.status ?? "not_found";
+  const code = statusWas === "ready" ? "AUDIT_READY_EMAIL_FAILED" : alertCode;
+  console.error(`${code} session_id=${sessionId} class=${cls} status_was=${statusWas}`);
+  await alertOperator(env, code, sessionId, `error_class=${cls} status_was=${statusWas}`);
+  if (!record || record.status === "ready" || record.status === "awaiting_payment") return;
+  // No error_message: the status page then shows its existing generic
+  // fallback copy instead of raw error text (no new user-facing string).
+  await writeAuditSession(env, { ...record, status: "error" });
+  await updateFunnelStatus(env.SESSIONS, sessionId, "failed");
 }
 
 export async function auditFulfillQueueHandler(
@@ -100,40 +111,65 @@ export async function auditFulfillQueueHandler(
     }
     const sessionId = msg.session_id;
     try {
-      const result = await run(env, sessionId, msg.origin);
+      const result = await run(env, sessionId, msg.origin, { onCap: "defer" });
+      let recheckReason: "not_yet_paid" | "not_found" | null = null;
       switch (result.kind) {
         case "done":
           console.log(`AUDIT_FULFILL_DONE session_id=${sessionId}`);
-          message.ack();
           break;
         case "noop_terminal":
           console.log(`AUDIT_FULFILL_NOOP session_id=${sessionId} reason=terminal status=${result.status}`);
-          message.ack();
           break;
         case "not_found":
-          // R2-8: the synthetic smoke enqueues a bogus session id → logged noop + ack.
-          console.log(`AUDIT_FULFILL_NOOP session_id=${sessionId} reason=not_found`);
-          message.ack();
+          if (sessionId.startsWith(SMOKE_SESSION_PREFIX)) {
+            // R2-8: the synthetic smoke enqueues a bogus session id → logged noop + ack.
+            console.log(`AUDIT_FULFILL_NOOP session_id=${sessionId} reason=not_found`);
+          } else {
+            // A real id may not be visible yet (KV propagation) — recheck.
+            recheckReason = "not_found";
+          }
           break;
         case "not_yet_paid":
-          // Webhook enqueues BEFORE writing `fulfilling` (R2-1) — give it a moment.
-          message.retry({ delaySeconds: NOT_YET_PAID_DELAY_SEC });
+          // Webhook enqueues BEFORE writing `fulfilling` (R2-1) — recheck.
+          recheckReason = "not_yet_paid";
           break;
         case "cap_deferred": {
           // Fresh message so cap deferrals never consume `attempts` (R2-2).
-          const deferrals = (msg.deferrals ?? 0) + 1;
+          const deferrals = msg.deferrals + 1;
           await env.AUDIT_FULFILL_QUEUE.send(
-            { session_id: sessionId, origin: msg.origin, deferrals },
+            { ...msg, deferrals },
             { delaySeconds: CAP_DEFERRAL_DELAY_SEC },
           );
           console.error(`AUDIT_FULFILL_CAP_DEFERRED session_id=${sessionId} deferrals=${deferrals}`);
           if (deferrals === CAP_DEFERRAL_ALERT_AT) {
             await alertOperator(env, "AUDIT_DIM6_CAP_DEFERRED", sessionId, `deferrals=${deferrals}`);
           }
-          message.ack();
           break;
         }
       }
+      if (recheckReason !== null) {
+        if (msg.rechecks >= MAX_RECHECKS) {
+          // Exhausted: alert only — no state write (the session may be unpaid).
+          console.error(
+            `AUDIT_FULFILL_RECHECKS_EXHAUSTED session_id=${sessionId} reason=${recheckReason} rechecks=${msg.rechecks}`,
+          );
+          await alertOperator(
+            env,
+            "AUDIT_FULFILL_RECHECKS_EXHAUSTED",
+            sessionId,
+            `reason=${recheckReason} rechecks=${msg.rechecks}`,
+          );
+        } else {
+          await env.AUDIT_FULFILL_QUEUE.send(
+            { ...msg, rechecks: msg.rechecks + 1 },
+            { delaySeconds: RECHECK_DELAY_SEC },
+          );
+          console.log(
+            `AUDIT_FULFILL_RECHECK session_id=${sessionId} reason=${recheckReason} rechecks=${msg.rechecks + 1}`,
+          );
+        }
+      }
+      message.ack();
     } catch (err) {
       const cls = errorClass(err);
       if (message.attempts >= FINAL_ATTEMPT) {
@@ -150,9 +186,11 @@ export async function auditFulfillQueueHandler(
   }
 }
 
-// R2-3: DLQ consumer. Sets `error` (unless already `ready`), funnel `failed`,
-// alerts, acks. If its own write fails it rethrows (no ack) — DLQ messages
-// are retained for retry.
+// R2-3: DLQ consumer. Logs + alerts, then sets `error` (never over `ready` or
+// `awaiting_payment`) and funnel `failed`, then acks. If its own write fails it
+// rethrows (no ack) and the DLQ consumer retries the message — up to its
+// max_retries (10, wrangler.jsonc); after that the message is dropped, the
+// operator alert having already been sent on every attempt.
 export async function auditFulfillDlqHandler(
   batch: MessageBatch<AuditFulfillMessage>,
   env: AuditRunEnv,

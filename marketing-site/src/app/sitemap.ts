@@ -12,7 +12,7 @@ const PATHS = [
   "/subscriptions",
   "/score",
   "/score/methodology",
-  "/methodology",
+  // /methodology itself 307s to /methodology/calibration — list the target only.
   "/methodology/calibration",
   "/privacy",
   "/terms",

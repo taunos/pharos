@@ -2,14 +2,22 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { AuditRunResult } from "./audit-fulfill-run";
 import type { AuditFulfillConsumerEnv, AuditFulfillMessage } from "./audit-fulfill-queue-consumer";
 
-// Test C-A (A3 + R2-2/R2-3/R2-8) — astrant-audit-fulfill + DLQ consumers.
+// Test C-A (A3 + R2-2/R2-3/R2-8 + fix round) — astrant-audit-fulfill + DLQ
+// consumers. Alerts go through the REAL lib/operator-alerts.ts; only Resend is
+// mocked (so a Resend { error } result is exercised end to end).
 
 const h = vi.hoisted(() => ({
-  alerts: [] as Array<{ alert_code: string; session_id?: string; notes?: string }>,
+  sends: [] as Array<{ to: unknown; subject: string; text: string }>,
+  resendError: null as null | { message: string },
 }));
-vi.mock("./operator-alerts", () => ({
-  sendOperatorAlert: async (_env: unknown, p: { alert_code: string; session_id?: string; notes?: string }) => {
-    h.alerts.push(p);
+vi.mock("resend", () => ({
+  Resend: class {
+    emails = {
+      send: async (p: { to: unknown; subject: string; text: string }) => {
+        h.sends.push(p);
+        return h.resendError ? { data: null, error: h.resendError } : { data: { id: "em_1" }, error: null };
+      },
+    };
   },
 }));
 
@@ -19,11 +27,15 @@ const SID = "11111111-2222-4333-8444-555555555555";
 let store: Map<string, string>;
 let sends: Array<{ body: AuditFulfillMessage; opts?: { delaySeconds?: number } }>;
 let putFails: boolean;
+let events: string[];
+
+const alertCodes = () => h.sends.map((s) => s.subject.replace(/^\[ALERT\] /, ""));
 
 function makeEnv(): AuditFulfillConsumerEnv {
   const kv = {
     get: async (k: string) => store.get(k) ?? null,
     put: async (k: string, v: string) => {
+      events.push(`put:${k}`);
       if (putFails) throw new Error("kv down");
       store.set(k, v);
     },
@@ -55,21 +67,26 @@ function seed(status: string) {
 const read = () => JSON.parse(store.get(`audit:${SID}`)!);
 const funnel = () => JSON.parse(store.get(`funnel:audit:${SID}`)!);
 const runReturning = (r: AuditRunResult) => vi.fn(async () => r);
+const throwing = (e: Error) => vi.fn(async () => {
+  throw e;
+});
 const BODY = { session_id: SID, origin: "https://astrant.io" };
 
 beforeEach(() => {
   store = new Map();
   sends = [];
   putFails = false;
-  h.alerts = [];
+  events = [];
+  h.sends = [];
+  h.resendError = null;
 });
 
-describe("auditFulfillQueueHandler", () => {
-  it("done → ack", async () => {
+describe("auditFulfillQueueHandler — outcomes", () => {
+  it('done → ack; run is called with onCap "defer"', async () => {
     const m = msg(BODY);
     const run = runReturning({ kind: "done" });
     await auditFulfillQueueHandler(batch(m), makeEnv(), run);
-    expect(run).toHaveBeenCalledWith(expect.anything(), SID, "https://astrant.io");
+    expect(run).toHaveBeenCalledWith(expect.anything(), SID, "https://astrant.io", { onCap: "defer" });
     expect(m.ack).toHaveBeenCalledTimes(1);
     expect(m.retry).not.toHaveBeenCalled();
   });
@@ -78,88 +95,56 @@ describe("auditFulfillQueueHandler", () => {
     const m = msg(BODY);
     await auditFulfillQueueHandler(batch(m), makeEnv(), runReturning({ kind: "noop_terminal", status: "ready" }));
     expect(m.ack).toHaveBeenCalledTimes(1);
+    expect(sends).toHaveLength(0);
   });
 
-  it("not_found (synthetic smoke) → logged noop + ack", async () => {
+  it("not_found for a smoke- id → logged noop + ack, no recheck", async () => {
     const m = msg({ session_id: "smoke-abc", origin: "https://astrant.io" });
     const log = vi.spyOn(console, "log");
     await auditFulfillQueueHandler(batch(m), makeEnv(), runReturning({ kind: "not_found" }));
     expect(m.ack).toHaveBeenCalledTimes(1);
+    expect(sends).toHaveLength(0);
     expect(log.mock.calls.some((c) => /AUDIT_FULFILL_NOOP session_id=smoke-abc reason=not_found/.test(String(c[0])))).toBe(true);
     log.mockRestore();
   });
 
-  it("not_yet_paid → retry after 30s", async () => {
-    const m = msg(BODY);
-    await auditFulfillQueueHandler(batch(m), makeEnv(), runReturning({ kind: "not_yet_paid" }));
-    expect(m.retry).toHaveBeenCalledWith({ delaySeconds: 30 });
-    expect(m.ack).not.toHaveBeenCalled();
-  });
-
-  it("thrown error (non-final) → retry with 60 × attempts delay, no state change", async () => {
-    seed("fulfilling");
-    const m = msg(BODY, 2);
-    const run = vi.fn(async () => {
-      throw new Error("scanner down https://example.com");
-    });
-    await auditFulfillQueueHandler(batch(m), makeEnv(), run);
-    expect(m.retry).toHaveBeenCalledWith({ delaySeconds: 120 });
-    expect(m.ack).not.toHaveBeenCalled();
-    expect(read().status).toBe("fulfilling");
-    expect(h.alerts).toHaveLength(0);
-  });
-
-  it("final attempt (attempts >= 4) fails → status error + funnel failed + alert (no PII) + ack", async () => {
-    seed("fulfilling");
-    const m = msg(BODY, 4);
-    const run = vi.fn(async () => {
-      throw new TypeError("boom for https://example.com buyer@example.com");
-    });
-    await auditFulfillQueueHandler(batch(m), makeEnv(), run);
-    expect(read().status).toBe("error");
-    expect(read().error_message).toBeUndefined();
-    expect(funnel().status).toBe("failed");
-    expect(typeof funnel().failed_at).toBe("number");
-    expect(h.alerts).toEqual([
-      { alert_code: "AUDIT_FULFILL_FAILED_FINAL", session_id: SID, notes: "error_class=TypeError" },
-    ]);
-    expect(JSON.stringify(h.alerts)).not.toMatch(/example\.com/);
-    expect(m.ack).toHaveBeenCalledTimes(1);
+  it.each([
+    ["not_yet_paid", { kind: "not_yet_paid" } as AuditRunResult],
+    ["not_found (real id)", { kind: "not_found" } as AuditRunResult],
+  ])("%s → ack + fresh message in 60s with rechecks+1 (no message.retry)", async (_label, result) => {
+    const m = msg({ ...BODY, rechecks: 3, deferrals: 1 });
+    await auditFulfillQueueHandler(batch(m), makeEnv(), runReturning(result));
     expect(m.retry).not.toHaveBeenCalled();
-  });
-
-  it("final attempt on a READY session (email step) → never downgraded to error", async () => {
-    seed("ready");
-    const m = msg(BODY, 4);
-    await auditFulfillQueueHandler(batch(m), makeEnv(), vi.fn(async () => {
-      throw new Error("AUDIT_READY_EMAIL_FAILED");
-    }));
-    expect(read().status).toBe("ready");
-    expect(funnel().status).toBe("paid");
     expect(m.ack).toHaveBeenCalledTimes(1);
+    expect(sends).toEqual([
+      { body: { ...BODY, rechecks: 4, deferrals: 1 }, opts: { delaySeconds: 60 } },
+    ]);
+    expect(h.sends).toHaveLength(0);
   });
 
-  it("final attempt whose error write fails → throws (no ack) so the DLQ takes it", async () => {
-    seed("fulfilling");
-    putFails = true;
-    const m = msg(BODY, 4);
-    await expect(
-      auditFulfillQueueHandler(batch(m), makeEnv(), vi.fn(async () => {
-        throw new Error("x");
-      })),
-    ).rejects.toThrow("kv down");
-    expect(m.ack).not.toHaveBeenCalled();
+  it("rechecks exhausted (10) → operator alert, NO state write, ack, no re-send", async () => {
+    seed("awaiting_payment");
+    const before = store.get(`audit:${SID}`);
+    const m = msg({ ...BODY, rechecks: 10 });
+    await auditFulfillQueueHandler(batch(m), makeEnv(), runReturning({ kind: "not_yet_paid" }));
+    expect(sends).toHaveLength(0);
+    expect(m.ack).toHaveBeenCalledTimes(1);
+    expect(store.get(`audit:${SID}`)).toBe(before);
+    expect(events).toEqual([]);
+    expect(alertCodes()).toEqual(["AUDIT_FULFILL_RECHECKS_EXHAUSTED"]);
+    expect(h.sends[0].text).toContain(`Session: ${SID}`);
+    expect(h.sends[0].text).toContain("reason=not_yet_paid rechecks=10");
   });
 
   it("cap_deferred → ack + fresh message delayed 6h with deferrals+1 (attempts not consumed)", async () => {
     const m = msg(BODY, 1);
     await auditFulfillQueueHandler(batch(m), makeEnv(), runReturning({ kind: "cap_deferred" }));
     expect(sends).toEqual([
-      { body: { session_id: SID, origin: "https://astrant.io", deferrals: 1 }, opts: { delaySeconds: 21600 } },
+      { body: { ...BODY, deferrals: 1, rechecks: 0 }, opts: { delaySeconds: 21600 } },
     ]);
     expect(m.ack).toHaveBeenCalledTimes(1);
     expect(m.retry).not.toHaveBeenCalled();
-    expect(h.alerts).toHaveLength(0);
+    expect(h.sends).toHaveLength(0);
   });
 
   it("cap_deferred alerts exactly once, at the 2nd deferral, and keeps deferring", async () => {
@@ -168,7 +153,7 @@ describe("auditFulfillQueueHandler", () => {
     await auditFulfillQueueHandler(batch(msg({ ...BODY, deferrals: 1 })), env, run);
     await auditFulfillQueueHandler(batch(msg({ ...BODY, deferrals: 2 })), env, run);
     expect(sends.map((s) => s.body.deferrals)).toEqual([2, 3]);
-    expect(h.alerts.map((a) => a.alert_code)).toEqual(["AUDIT_DIM6_CAP_DEFERRED"]);
+    expect(alertCodes()).toEqual(["AUDIT_DIM6_CAP_DEFERRED"]);
   });
 
   it("malformed message → ack without running", async () => {
@@ -180,34 +165,143 @@ describe("auditFulfillQueueHandler", () => {
   });
 });
 
-describe("auditFulfillDlqHandler (R2-3)", () => {
-  it("sets error + funnel failed + alert + ack", async () => {
+describe("auditFulfillQueueHandler — thrown errors", () => {
+  it("non-final → retry with 60 × attempts delay, no state change, no alert", async () => {
     seed("fulfilling");
-    const m = msg(BODY);
-    await auditFulfillDlqHandler(batch(m, "astrant-audit-fulfill-dlq"), makeEnv());
+    const m = msg(BODY, 2);
+    await auditFulfillQueueHandler(batch(m), makeEnv(), throwing(new Error("scanner down https://example.com")));
+    expect(m.retry).toHaveBeenCalledWith({ delaySeconds: 120 });
+    expect(m.ack).not.toHaveBeenCalled();
+    expect(read().status).toBe("fulfilling");
+    expect(h.sends).toHaveLength(0);
+  });
+
+  it("final attempt (attempts >= 4) → alert (no PII) BEFORE write, then error + funnel failed, ack", async () => {
+    seed("fulfilling");
+    const m = msg(BODY, 4);
+    const errLog = vi.spyOn(console, "error");
+    await auditFulfillQueueHandler(batch(m), makeEnv(), throwing(new TypeError("boom https://example.com buyer@example.com")));
     expect(read().status).toBe("error");
+    expect(read().error_message).toBeUndefined();
     expect(funnel().status).toBe("failed");
-    expect(h.alerts.map((a) => a.alert_code)).toEqual(["AUDIT_FULFILL_DLQ"]);
+    expect(alertCodes()).toEqual(["AUDIT_FULFILL_FAILED_FINAL"]);
+    expect(h.sends[0].text).toContain("error_class=TypeError");
+    expect(JSON.stringify(h.sends)).not.toMatch(/example\.com/);
+    expect(m.ack).toHaveBeenCalledTimes(1);
+    expect(m.retry).not.toHaveBeenCalled();
+    expect(errLog.mock.calls.some((c) => String(c[0]).startsWith(`AUDIT_FULFILL_FAILED_FINAL session_id=${SID}`))).toBe(true);
+    errLog.mockRestore();
+  });
+
+  it("final attempt on a READY session (email step) → AUDIT_READY_EMAIL_FAILED alert once with error class; never downgraded", async () => {
+    seed("ready");
+    const emailErr = new Error("AUDIT_READY_EMAIL_FAILED");
+    emailErr.name = "AuditReadyEmailError";
+    const env = makeEnv();
+    for (const attempt of [1, 2, 3]) {
+      await auditFulfillQueueHandler(batch(msg(BODY, attempt)), env, throwing(emailErr));
+    }
+    expect(h.sends).toHaveLength(0); // no alert on non-final attempts
+    const m = msg(BODY, 4);
+    await auditFulfillQueueHandler(batch(m), env, throwing(emailErr));
+    expect(alertCodes()).toEqual(["AUDIT_READY_EMAIL_FAILED"]);
+    expect(h.sends[0].text).toContain("error_class=AuditReadyEmailError");
+    expect(read().status).toBe("ready");
+    expect(funnel().status).toBe("paid");
     expect(m.ack).toHaveBeenCalledTimes(1);
   });
 
-  it("leaves a READY session ready", async () => {
+  it("final attempt on an AWAITING_PAYMENT session → alert only, no error write", async () => {
+    seed("awaiting_payment");
+    const m = msg(BODY, 4);
+    await auditFulfillQueueHandler(batch(m), makeEnv(), throwing(new Error("x")));
+    expect(read().status).toBe("awaiting_payment");
+    expect(events).toEqual([]);
+    expect(alertCodes()).toEqual(["AUDIT_FULFILL_FAILED_FINAL"]);
+    expect(m.ack).toHaveBeenCalledTimes(1);
+  });
+
+  it("final attempt whose error write fails → alert already sent, throws (no ack) so the DLQ takes it", async () => {
+    seed("fulfilling");
+    putFails = true;
+    const m = msg(BODY, 4);
+    await expect(auditFulfillQueueHandler(batch(m), makeEnv(), throwing(new Error("x")))).rejects.toThrow("kv down");
+    expect(alertCodes()).toEqual(["AUDIT_FULFILL_FAILED_FINAL"]);
+    expect(m.ack).not.toHaveBeenCalled();
+  });
+});
+
+describe("operator alert send failure (real helper, Resend returns { error })", () => {
+  it("logs OPERATOR_ALERT_SEND_FAILED code=<code> and stays fail-open (consumer still acks)", async () => {
+    seed("fulfilling");
+    h.resendError = { message: "domain_not_verified" };
+    const errLog = vi.spyOn(console, "error");
+    const m = msg(BODY, 4);
+    await auditFulfillQueueHandler(batch(m), makeEnv(), throwing(new Error("x")));
+    expect(
+      errLog.mock.calls.some((c) =>
+        String(c[0]).startsWith("OPERATOR_ALERT_SEND_FAILED code=AUDIT_FULFILL_FAILED_FINAL"),
+      ),
+    ).toBe(true);
+    expect(read().status).toBe("error");
+    expect(m.ack).toHaveBeenCalledTimes(1);
+    errLog.mockRestore();
+  });
+});
+
+describe("auditFulfillDlqHandler (R2-3)", () => {
+  it("alerts BEFORE the KV write, then error + funnel failed + ack", async () => {
+    seed("fulfilling");
+    const m = msg(BODY);
+    const order: string[] = [];
+    const errLog = vi.spyOn(console, "error").mockImplementation((s: unknown) => {
+      order.push(`log:${String(s).split(" ")[0]}`);
+    });
+    const env = makeEnv();
+    const kvPut = env.SESSIONS.put.bind(env.SESSIONS);
+    (env.SESSIONS as unknown as { put: typeof kvPut }).put = async (k: string, v: string) => {
+      order.push(`put:${k}:alerts=${h.sends.length}`);
+      return kvPut(k, v);
+    };
+    await auditFulfillDlqHandler(batch(m, "astrant-audit-fulfill-dlq"), env);
+    errLog.mockRestore();
+    expect(order[0]).toBe("log:AUDIT_FULFILL_DLQ");
+    expect(order[1]).toBe(`put:audit:${SID}:alerts=1`);
+    expect(read().status).toBe("error");
+    expect(funnel().status).toBe("failed");
+    expect(alertCodes()).toEqual(["AUDIT_FULFILL_DLQ"]);
+    expect(m.ack).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves a READY session ready (alerts AUDIT_READY_EMAIL_FAILED)", async () => {
     seed("ready");
     const m = msg(BODY);
     await auditFulfillDlqHandler(batch(m, "astrant-audit-fulfill-dlq"), makeEnv());
     expect(read().status).toBe("ready");
+    expect(alertCodes()).toEqual(["AUDIT_READY_EMAIL_FAILED"]);
     expect(m.ack).toHaveBeenCalledTimes(1);
   });
 
-  it("own write fails → rethrows, no ack", async () => {
+  it("leaves an AWAITING_PAYMENT session untouched (alert only)", async () => {
+    seed("awaiting_payment");
+    const m = msg(BODY);
+    await auditFulfillDlqHandler(batch(m, "astrant-audit-fulfill-dlq"), makeEnv());
+    expect(read().status).toBe("awaiting_payment");
+    expect(events).toEqual([]);
+    expect(alertCodes()).toEqual(["AUDIT_FULFILL_DLQ"]);
+    expect(m.ack).toHaveBeenCalledTimes(1);
+  });
+
+  it("own write fails → alert already sent, rethrows, no ack", async () => {
     seed("fulfilling");
     putFails = true;
     const m = msg(BODY);
     await expect(auditFulfillDlqHandler(batch(m, "astrant-audit-fulfill-dlq"), makeEnv())).rejects.toThrow();
+    expect(alertCodes()).toEqual(["AUDIT_FULFILL_DLQ"]);
     expect(m.ack).not.toHaveBeenCalled();
   });
 
-  it("unknown session → ack (nothing to mark)", async () => {
+  it("unknown session → alert + ack (nothing to mark)", async () => {
     const m = msg({ session_id: "smoke-x", origin: "o" });
     await auditFulfillDlqHandler(batch(m, "astrant-audit-fulfill-dlq"), makeEnv());
     expect(m.ack).toHaveBeenCalledTimes(1);

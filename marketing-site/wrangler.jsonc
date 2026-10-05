@@ -98,7 +98,8 @@
 			},
 			{
 				"queue": "astrant-audit-fulfill-dlq",
-				"max_batch_size": 1
+				"max_batch_size": 1,
+				"max_retries": 10
 			}
 		]
 	}

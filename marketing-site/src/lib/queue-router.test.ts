@@ -30,10 +30,13 @@ describe("routeQueueBatch", () => {
     expect(hs.capture).not.toHaveBeenCalled();
   });
 
-  it.each(["astrant-capture", "something-else", ""])("%s → existing capture consumer", async (q) => {
+  it.each(["astrant-capture", "something-else", ""])("%s → existing capture consumer (logged fallthrough)", async (q) => {
     const hs = handlers();
     const b = batchFor(q);
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
     await routeQueueBatch(b, env, hs);
+    expect(err.mock.calls.some((c) => String(c[0]).startsWith(`QUEUE_ROUTER_FALLTHROUGH queue=${q} `))).toBe(true);
+    err.mockRestore();
     expect(hs.capture).toHaveBeenCalledWith(b, env);
     expect(hs.auditFulfill).not.toHaveBeenCalled();
     expect(hs.auditFulfillDlq).not.toHaveBeenCalled();

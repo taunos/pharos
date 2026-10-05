@@ -3,7 +3,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { verifyWebhook, type DodoEnvBindings } from "@/lib/dodo";
 import { requestOrigin } from "@/lib/origin";
 import type { SessionRecord } from "@/lib/audit-types";
-import { sendOperatorAlert } from "@/lib/operator-alerts";
+import { alertOperator, sendOperatorAlert } from "@/lib/operator-alerts";
 import {
   tryAssignFoundingStatus,
   resolveTierFromProductId,
@@ -169,11 +169,15 @@ export async function POST(req: Request) {
             console.error(
               `[dodo-webhook] failed to parse session record: ${err instanceof Error ? err.message : String(err)}`
             );
+            await alertOperator(env, "AUDIT_PAID_SESSION_UNREADABLE", sessionId);
           }
         } else {
           console.error(
             `[dodo-webhook] payment.succeeded for unknown session_id=${sessionId}`
           );
+          // A paid Audit with no session record cannot be fulfilled — the
+          // operator must reconcile/refund. Still 200 + dedupe (as before).
+          await alertOperator(env, "AUDIT_PAID_SESSION_NOT_FOUND", sessionId);
         }
 
         if (record) {

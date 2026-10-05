@@ -34,7 +34,7 @@ import {
   sendAutoPilotAuditReadyEmail,
   type AuditReadyEmailCopy,
 } from "./score-email";
-import { sendOperatorAlert } from "./operator-alerts";
+import { alertOperator } from "./operator-alerts";
 import { isAuditCheckoutEnabled } from "./audit-gate";
 import { updateFunnelStatus } from "./audit-funnel";
 
@@ -63,13 +63,26 @@ export type AuditRunResult =
   // queue smoke). Callers log it and treat it as a no-op.
   | { kind: "not_found" };
 
-// Injection seam for tests; production callers use the defaults.
 export interface AuditRunDeps {
+  // Dim 6 daily-cap handling. "defer" (default; the Queue consumer) returns
+  // cap_deferred and never ships a partial report. "partial" (the HTTP
+  // operator / ap- wrapper) keeps pre-C-A behaviour: ship `ready` with Dim 6
+  // n/a (the cap note) instead of deferring.
+  onCap?: "partial" | "defer";
+  // Injection seam for tests; production callers use the default constant.
   emailCopy?: AuditReadyEmailCopy | null;
 }
 
+// Thrown when the standalone buyer email fails; the Queue consumer alerts
+// AUDIT_READY_EMAIL_FAILED once, on the final attempt.
+export class AuditReadyEmailError extends Error {
+  constructor() {
+    super("AUDIT_READY_EMAIL_FAILED");
+    this.name = "AuditReadyEmailError";
+  }
+}
+
 const SESSION_TTL_SEC = 30 * 24 * 60 * 60;
-const OPERATOR_ALERT_FALLBACK = "contact@astrant.io";
 
 export function parseAutoPilotSessionId(sessionId: string): string | null {
   const match = sessionId.match(/^ap-(sub_[A-Za-z0-9_-]+)-\d+$/);
@@ -105,23 +118,6 @@ export async function writeAuditSession(
   );
 }
 
-// Operator alerts go to OPERATOR_ALERT_EMAIL, falling back to contact@astrant.io.
-// Callers pass session id + error class only — never buyer PII.
-export async function alertOperator(
-  env: { RESEND_API_KEY: string; OPERATOR_ALERT_EMAIL?: string },
-  alert_code: string,
-  session_id: string,
-  notes?: string,
-): Promise<void> {
-  await sendOperatorAlert(
-    {
-      RESEND_API_KEY: env.RESEND_API_KEY,
-      OPERATOR_ALERT_EMAIL: env.OPERATOR_ALERT_EMAIL || OPERATOR_ALERT_FALLBACK,
-    },
-    { alert_code, session_id, notes },
-  );
-}
-
 // Providers (models) that produced ZERO measurable cells in this Dim 6 run.
 export function providersWithZeroMeasurableCells(dim6: RunDim6Result): ModelId[] {
   return ALL_MODEL_IDS.filter(
@@ -129,8 +125,9 @@ export function providersWithZeroMeasurableCells(dim6: RunDim6Result): ModelId[]
   );
 }
 
-// Standalone buyer email (A4 + R2-5). Throws on a failed send so the queue
-// retries the email step alone; `ready` is never touched.
+// Standalone buyer email (A4 + R2-5). Throws AuditReadyEmailError on a failed
+// send so the queue retries the email step alone; `ready` is never touched.
+// The operator alert is sent once, by the consumer's final-attempt handling.
 async function deliverBuyerEmail(
   env: AuditRunEnv,
   record: SessionRecord,
@@ -150,8 +147,7 @@ async function deliverBuyerEmail(
   );
   if (!result.ok) {
     console.error(`AUDIT_READY_EMAIL_FAILED session_id=${sessionId}`);
-    await alertOperator(env, "AUDIT_READY_EMAIL_FAILED", sessionId);
-    throw new Error("AUDIT_READY_EMAIL_FAILED");
+    throw new AuditReadyEmailError();
   }
   await writeAuditSession(env, { ...record, email_sent_at: Date.now() });
   console.log(`AUDIT_READY_EMAIL_SENT session_id=${sessionId}`);
@@ -164,6 +160,7 @@ export async function runAuditFulfillment(
   deps: AuditRunDeps = {},
 ): Promise<AuditRunResult> {
   const copy = deps.emailCopy === undefined ? AUDIT_READY_EMAIL_COPY : deps.emailCopy;
+  const deferOnCap = (deps.onCap ?? "defer") === "defer";
   const standalone = isStandaloneSession(sessionId);
 
   const record = await readAuditSession(env, sessionId);
@@ -185,13 +182,14 @@ export async function runAuditFulfillment(
 
   // status === "fulfilling"
   // R2-4: peek the Dim 6 daily budget BEFORE spending a scan + LLM calls.
-  if (await isDim6CapReached(env.SESSIONS)) return { kind: "cap_deferred" };
+  if (deferOnCap && (await isDim6CapReached(env.SESSIONS))) return { kind: "cap_deferred" };
 
   const scannerScan = await runScan(record.url, env.INTERNAL_FULFILL_KEY);
 
   // Slice 3b: replace the scanner's free-tier Dim 6 demo preview with a
   // real paid Dim 6 audit. runDim6Paid handles its own daily-cap branch
-  // (returns capped:true — deferred, never shipped as ready) and its own
+  // (returns capped:true + an n/a dimension — deferred under onCap "defer",
+  // shipped as-is under onCap "partial") and its own
   // all-unmeasurable branch (returns na:true). On success it returns the
   // real DimensionResult plus the cells for corpus persistence.
   const dim6 = await runDim6Paid(
@@ -209,7 +207,7 @@ export async function runAuditFulfillment(
     record.url,
   );
   // R2-4: the cap was hit between the peek and the run (race) — still defer.
-  if (dim6.capped) return { kind: "cap_deferred" };
+  if (dim6.capped && deferOnCap) return { kind: "cap_deferred" };
 
   // A3 provider completeness: finish anyway (the report is honest about
   // unmeasured cells) but tell the operator which provider measured nothing.

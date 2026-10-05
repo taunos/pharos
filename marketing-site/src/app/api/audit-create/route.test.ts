@@ -99,7 +99,7 @@ describe("POST /api/audit-create — gate open", () => {
     }
     const res = await POST(req(VALID));
     expect(res.status).toBe(429);
-    expect(((await res.json()) as { error: string }).error).toBe("RATE_LIMITED");
+    expect(await res.json()).toEqual({ ok: false, error: "RATE_LIMITED", retry_after_sec: expect.any(Number) });
     expect(createCheckoutSession).toHaveBeenCalledTimes(5);
   });
 
@@ -108,7 +108,7 @@ describe("POST /api/audit-create — gate open", () => {
     const { POST } = await import("./route");
     const res = await POST(req(VALID));
     expect(res.status).toBe(503);
-    expect(((await res.json()) as { error: string }).error).toBe("MISCONFIGURED");
+    expect(await res.json()).toEqual({ ok: false, error: "MISCONFIGURED" });
     expect(createCheckoutSession).not.toHaveBeenCalled();
   });
 

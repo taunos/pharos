@@ -41,16 +41,38 @@ export async function sendOperatorAlert(
   ].filter(Boolean);
 
   try {
-    await resend.emails.send({
+    const result = await resend.emails.send({
       from: FROM_ADDRESS,
       to: env.OPERATOR_ALERT_EMAIL,
       subject: `[ALERT] ${params.alert_code}`,
       text: lines.join("\n"),
     });
+    // Resend v6 does not throw on API errors — it returns { error }. Still fail-open.
+    if (result.error) {
+      console.error(`OPERATOR_ALERT_SEND_FAILED code=${params.alert_code} err=${result.error.message}`);
+    }
   } catch (err) {
     // Fail-open: alert send failures should NOT cascade to the caller's
     // primary action (e.g. webhook handler returning 503 to Dodo). Log only.
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`OPERATOR_ALERT_SEND_FAILED code=${params.alert_code} err=${msg}`);
   }
+}
+
+// Test C-A: Audit-path alerts. Recipient is OPERATOR_ALERT_EMAIL, falling back
+// to contact@astrant.io. Callers pass session id + error class only — never
+// buyer PII. Fail-open like sendOperatorAlert.
+export async function alertOperator(
+  env: { RESEND_API_KEY: string; OPERATOR_ALERT_EMAIL?: string },
+  alert_code: string,
+  session_id: string,
+  notes?: string,
+): Promise<void> {
+  await sendOperatorAlert(
+    {
+      RESEND_API_KEY: env.RESEND_API_KEY,
+      OPERATOR_ALERT_EMAIL: env.OPERATOR_ALERT_EMAIL || "contact@astrant.io",
+    },
+    { alert_code, session_id, notes },
+  );
 }

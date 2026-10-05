@@ -5,6 +5,12 @@
 //   astrant-audit-fulfill      → auditFulfillQueueHandler
 //   astrant-audit-fulfill-dlq  → auditFulfillDlqHandler
 //   anything else              → the existing capture consumer, unchanged
+//
+// The P0-C2 capture queue has no fixed name anywhere in the tree (it is not
+// bound in wrangler.jsonc; its DLQ name is the CAPTURE_DLQ_NAME env var), so
+// non-audit queues still fall through to the capture consumer — logged with
+// the queue name so an unexpected binding is visible. Once the capture queue
+// is provisioned, pin its name here and make unknown names throw.
 
 import { captureQueueHandler, type CaptureConsumerEnv, type CaptureJobMessage } from "./capture-queue-consumer";
 import {
@@ -41,6 +47,7 @@ export async function routeQueueBatch(
   } else if (batch.queue === AUDIT_FULFILL_DLQ_NAME) {
     await handlers.auditFulfillDlq(batch as MessageBatch<AuditFulfillMessage>, env);
   } else {
+    console.error(`QUEUE_ROUTER_FALLTHROUGH queue=${batch.queue} → capture consumer`);
     await handlers.capture(batch as MessageBatch<CaptureJobMessage>, env);
   }
 }

@@ -10,6 +10,7 @@ import {
   writeAuditSession,
   type AuditRunEnv,
 } from "@/lib/audit-fulfill-run";
+import { updateFunnelStatus } from "@/lib/audit-funnel";
 
 // Test C-A (A3): thin operator-replay wrapper. Paid standalone Audits are
 // fulfilled by the AUDIT_FULFILL_QUEUE consumer; this route stays for operator
@@ -80,7 +81,11 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await runAuditFulfillment(env, sessionId, new URL(req.url).origin);
+    // onCap "partial": pre-C-A behaviour on this path — when the Dim 6 daily
+    // cap is hit, ship `ready` with Dim 6 n/a instead of deferring.
+    const result = await runAuditFulfillment(env, sessionId, new URL(req.url).origin, {
+      onCap: "partial",
+    });
     switch (result.kind) {
       case "not_found":
         return NextResponse.json(
@@ -97,7 +102,7 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       case "cap_deferred":
-        // Session stays `fulfilling`; replay after the Dim 6 daily budget resets.
+        // Unreachable under onCap "partial"; kept for exhaustiveness.
         console.error(`[audit-fulfill] session=${sessionId} dim6 daily cap reached; deferred`);
         return NextResponse.json(
           { ok: false, error: "dim6_cap_deferred" },
@@ -126,6 +131,7 @@ export async function POST(req: Request) {
         status: "error",
         error_message: message.slice(0, 500),
       }).catch(() => {});
+      await updateFunnelStatus(env.SESSIONS, sessionId, "failed");
     }
     return NextResponse.json(
       { ok: false, error: message },

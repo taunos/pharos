@@ -7,20 +7,38 @@ const state: {
   store: Map<string, string>;
   send: ReturnType<typeof vi.fn>;
   queueBound: boolean;
-} = { store: new Map(), send: vi.fn(), queueBound: true };
+  failSessionPut: boolean;
+} = { store: new Map(), send: vi.fn(), queueBound: true, failSessionPut: false };
 
 const kv = {
   get: vi.fn(async (k: string) => state.store.get(k) ?? null),
   put: vi.fn(async (k: string, v: string) => {
+    if (state.failSessionPut && k.startsWith("audit:")) throw new Error("kv down");
     state.store.set(k, v);
   }),
 };
+
+// Real lib/operator-alerts.ts; only Resend is mocked.
+const alerts = vi.hoisted(() => ({ subjects: [] as string[], texts: [] as string[] }));
+vi.mock("resend", () => ({
+  Resend: class {
+    emails = {
+      send: async (p: { subject: string; text: string }) => {
+        alerts.subjects.push(p.subject);
+        alerts.texts.push(p.text);
+        return { data: { id: "em_1" }, error: null };
+      },
+    };
+  },
+}));
 
 vi.mock("@opennextjs/cloudflare", () => ({
   getCloudflareContext: () => ({
     env: {
       DODO_WEBHOOK_SECRET: "whsec_test",
       SESSIONS: kv,
+      RESEND_API_KEY: "re",
+      OPERATOR_ALERT_EMAIL: "ops@example.test",
       ...(state.queueBound ? { AUDIT_FULFILL_QUEUE: { send: state.send } } : {}),
     },
   }),
@@ -69,6 +87,9 @@ beforeEach(() => {
   state.store = new Map();
   state.send = vi.fn(async () => undefined);
   state.queueBound = true;
+  state.failSessionPut = false;
+  alerts.subjects = [];
+  alerts.texts = [];
   kv.get.mockClear();
   kv.put.mockClear();
 });
@@ -144,12 +165,42 @@ describe("POST /api/dodo-webhook — audit tier", () => {
     expect(state.store.has("webhook:wh_1")).toBe(false);
   });
 
-  it("unknown session → log, 200, no enqueue", async () => {
+  it("unknown session → operator alert, 200 + dedupe, no enqueue", async () => {
     const { POST } = await import("./route");
     const res = await POST(webhook("wh_2", "no-such-session"));
     expect(res.status).toBe(200);
     expect(state.send).not.toHaveBeenCalled();
     expect(state.store.has("webhook:wh_2")).toBe(true);
+    expect(alerts.subjects).toEqual(["[ALERT] AUDIT_PAID_SESSION_NOT_FOUND"]);
+    expect(alerts.texts[0]).toContain("Session: no-such-session");
+  });
+
+  it("unparseable session record → operator alert, 200 + dedupe, no enqueue", async () => {
+    state.store.set(`audit:${SID}`, "{not json");
+    const { POST } = await import("./route");
+    const res = await POST(webhook("wh_3"));
+    expect(res.status).toBe(200);
+    expect(state.send).not.toHaveBeenCalled();
+    expect(state.store.has("webhook:wh_3")).toBe(true);
+    expect(alerts.subjects).toEqual(["[ALERT] AUDIT_PAID_SESSION_UNREADABLE"]);
+  });
+
+  it("session write fails after enqueue → 500, no dedupe key (Dodo retries)", async () => {
+    seed("awaiting_payment");
+    state.failSessionPut = true;
+    const { POST } = await import("./route");
+    const res = await POST(webhook("wh_4"));
+    expect(res.status).toBe(500);
+    expect(state.send).toHaveBeenCalledTimes(1);
+    expect(session().status).toBe("awaiting_payment");
+    expect(state.store.has("webhook:wh_4")).toBe(false);
+  });
+
+  it("happy path sends no operator alert", async () => {
+    seed("awaiting_payment");
+    const { POST } = await import("./route");
+    await POST(webhook("wh_5"));
+    expect(alerts.subjects).toEqual([]);
   });
 
   it("Dodo retry after an enqueue failure re-enters cleanly", async () => {

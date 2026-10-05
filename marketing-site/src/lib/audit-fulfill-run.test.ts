@@ -26,8 +26,8 @@ vi.mock("resend", () => ({
 }));
 
 vi.mock("./operator-alerts", () => ({
-  sendOperatorAlert: async (_env: unknown, p: { alert_code: string; session_id?: string; notes?: string }) => {
-    h.alerts.push(p);
+  alertOperator: async (_env: unknown, alert_code: string, session_id: string, notes?: string) => {
+    h.alerts.push({ alert_code, session_id, notes });
   },
 }));
 
@@ -158,8 +158,19 @@ describe("runAuditFulfillment — result kinds", async () => {
   it("cap hit inside runDim6Paid (race) → cap_deferred, never ready", async () => {
     seed(SID, "fulfilling");
     h.dim6Capped = true;
-    expect(await runAuditFulfillment(makeEnv(), SID, "o")).toEqual({ kind: "cap_deferred" });
+    expect(await runAuditFulfillment(makeEnv(), SID, "o", { onCap: "defer" })).toEqual({ kind: "cap_deferred" });
     expect(read(SID).status).toBe("fulfilling");
+  });
+
+  it('onCap "partial" (HTTP wrapper): cap reached → pre-C-A behaviour, ships ready with the n/a Dim 6', async () => {
+    seed(SID, "fulfilling");
+    h.capPeek = true;
+    h.dim6Capped = true;
+    h.cells = [];
+    const r = await runAuditFulfillment(makeEnv(), SID, "o", { onCap: "partial", emailCopy: COPY });
+    expect(r.kind).toBe("done");
+    expect(h.runScan).toHaveBeenCalledTimes(1);
+    expect(read(SID).status).toBe("ready");
   });
 
   it("pipeline failure throws and NEVER writes error", async () => {
@@ -208,16 +219,16 @@ describe("runAuditFulfillment — buyer email (A4 + R2-5)", async () => {
     expect(read(AP).email_sent_at).toBeUndefined();
   });
 
-  it("Resend result.error → throws, no email_sent_at, status stays ready, operator alert", async () => {
+  it("Resend result.error → throws AuditReadyEmailError, no email_sent_at, status stays ready, no per-attempt alert", async () => {
     seed(SID, "fulfilling");
     h.resendError = { message: "rate limited" };
-    await expect(runAuditFulfillment(makeEnv(), SID, "o", { emailCopy: COPY })).rejects.toThrow(
-      "AUDIT_READY_EMAIL_FAILED",
-    );
+    const err = await runAuditFulfillment(makeEnv(), SID, "o", { emailCopy: COPY }).catch((e) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).name).toBe("AuditReadyEmailError");
     expect(read(SID).status).toBe("ready");
     expect(read(SID).email_sent_at).toBeUndefined();
-    expect(h.alerts.map((a) => a.alert_code)).toContain("AUDIT_READY_EMAIL_FAILED");
-    expect(JSON.stringify(h.alerts)).not.toContain("buyer@example.com");
+    // The alert is sent once, by the consumer's final attempt (not here).
+    expect(h.alerts.map((a) => a.alert_code)).not.toContain("AUDIT_READY_EMAIL_FAILED");
   });
 
   it("resumable: ready + no email_sent_at → only the email step runs", async () => {

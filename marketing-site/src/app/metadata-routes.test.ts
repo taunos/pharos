@@ -39,7 +39,6 @@ describe("sitemap", () => {
       { url: "https://astrant.io/subscriptions" },
       { url: "https://astrant.io/score" },
       { url: "https://astrant.io/score/methodology" },
-      { url: "https://astrant.io/methodology" },
       { url: "https://astrant.io/methodology/calibration" },
       { url: "https://astrant.io/privacy" },
       { url: "https://astrant.io/terms" },

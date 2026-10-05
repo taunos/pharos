@@ -58,10 +58,10 @@ export async function POST(req: Request) {
   if (!rl.allowed) {
     if (rl.misconfigured) {
       console.error("RATE_LIMIT_MISCONFIGURED: RATE_LIMIT_HASH_SECRET is not set");
-      return NextResponse.json({ error: "MISCONFIGURED" }, { status: 503 });
+      return NextResponse.json({ ok: false, error: "MISCONFIGURED" }, { status: 503 });
     }
     return NextResponse.json(
-      { error: "RATE_LIMITED", retry_after_sec: rl.retryAfterSec ?? 3600 },
+      { ok: false, error: "RATE_LIMITED", retry_after_sec: rl.retryAfterSec ?? 3600 },
       { status: 429 },
     );
   }
