@@ -10,6 +10,8 @@ import {
   type AssignmentResult,
 } from "@/lib/founding-pricing";
 import { computeNextProbeAt, type ProbeCadence } from "@/lib/cadence";
+import type { AuditFulfillMessage } from "@/lib/audit-fulfill-queue-consumer";
+import { updateFunnelStatus } from "@/lib/audit-funnel";
 
 interface WebhookEnv extends DodoEnvBindings {
   SESSIONS: KVNamespace;
@@ -32,6 +34,8 @@ interface WebhookEnv extends DodoEnvBindings {
   // dynamic-import + invocation site (see Phase 3 verification gate output).
   EMAIL_UNSUB_SIGNING_KEY: string;
   ASTRANT_BASE_URL: string;
+  // Test C-A (A3): durable Audit fulfillment producer (astrant-audit-fulfill).
+  AUDIT_FULFILL_QUEUE?: Queue<AuditFulfillMessage>;
 }
 
 const F2_IMPLEMENTATION_PRODUCT_ID = "pdt_0NdQE5vccUUgOHMsF6Pzz";
@@ -151,23 +155,19 @@ export async function POST(req: Request) {
           `[dodo-webhook] payment.succeeded for audit but missing session_id metadata; webhook-id=${webhookId}`
         );
       } else {
+        // Test C-A (A3 + R2-1): durable dispatch via AUDIT_FULFILL_QUEUE.
+        // Order: enqueue FIRST, then write {fulfilling, paid_at, enqueued_at},
+        // and the webhook dedupe key LAST (outer handler). If the send fails
+        // we return 500 with no state change and no dedupe write, so Dodo's
+        // retry re-enters cleanly.
         const recordRaw = await env.SESSIONS.get(`audit:${sessionId}`);
+        let record: SessionRecord | null = null;
         if (recordRaw) {
           try {
-            const record = JSON.parse(recordRaw) as SessionRecord;
-            const next: SessionRecord = {
-              ...record,
-              status: "fulfilling",
-              started_at: Date.now(),
-            };
-            await env.SESSIONS.put(
-              `audit:${sessionId}`,
-              JSON.stringify(next),
-              { expirationTtl: 30 * 24 * 60 * 60 }
-            );
+            record = JSON.parse(recordRaw) as SessionRecord;
           } catch (err) {
             console.error(
-              `[dodo-webhook] failed to update session record: ${err instanceof Error ? err.message : String(err)}`
+              `[dodo-webhook] failed to parse session record: ${err instanceof Error ? err.message : String(err)}`
             );
           }
         } else {
@@ -176,28 +176,59 @@ export async function POST(req: Request) {
           );
         }
 
-        // Fire-and-forget the fulfillment call. Do NOT await — Dodo expects a
-        // fast 200 or it retries.
-        if (env.INTERNAL_FULFILL_KEY) {
-          const origin = requestOrigin(req);
-          const fulfillUrl = `${origin}/api/audit-fulfill`;
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          fetch(fulfillUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-internal-fulfill-key": env.INTERNAL_FULFILL_KEY,
-            },
-            body: JSON.stringify({ session_id: sessionId }),
-          }).catch((err) => {
-            console.error(
-              `[dodo-webhook] fulfill dispatch failed: ${err instanceof Error ? err.message : String(err)}`
+        if (record) {
+          const needsEnqueue =
+            record.status === "awaiting_payment" ||
+            (record.status === "fulfilling" && !record.enqueued_at);
+          if (!needsEnqueue) {
+            console.log(
+              `[dodo-webhook] audit session_id=${sessionId} already status=${record.status}${record.enqueued_at ? " (enqueued)" : ""}; no enqueue`
             );
-          });
-        } else {
-          console.error(
-            "[dodo-webhook] INTERNAL_FULFILL_KEY missing — fulfillment skipped"
-          );
+          } else {
+            try {
+              if (!env.AUDIT_FULFILL_QUEUE) {
+                throw new Error("AUDIT_FULFILL_QUEUE binding missing");
+              }
+              await env.AUDIT_FULFILL_QUEUE.send({
+                session_id: sessionId,
+                origin: requestOrigin(req),
+              });
+            } catch (err) {
+              console.error(
+                `[dodo-webhook] AUDIT_FULFILL_ENQUEUE_FAILED session_id=${sessionId}: ${err instanceof Error ? err.message : String(err)}`
+              );
+              return NextResponse.json(
+                { ok: false, reason: "enqueue failed" },
+                { status: 500 }
+              );
+            }
+            const now = Date.now();
+            const next: SessionRecord = {
+              ...record,
+              status: "fulfilling",
+              started_at: record.started_at ?? now,
+              paid_at: record.paid_at ?? now,
+              enqueued_at: now,
+            };
+            try {
+              await env.SESSIONS.put(
+                `audit:${sessionId}`,
+                JSON.stringify(next),
+                { expirationTtl: 30 * 24 * 60 * 60 }
+              );
+            } catch (err) {
+              // Already enqueued; no dedupe write so Dodo retries the state
+              // write (a duplicate enqueue is the accepted R2-6 residual).
+              console.error(
+                `[dodo-webhook] failed to update session record: ${err instanceof Error ? err.message : String(err)}`
+              );
+              return NextResponse.json(
+                { ok: false, reason: "session update failed" },
+                { status: 500 }
+              );
+            }
+            await updateFunnelStatus(env.SESSIONS, sessionId, "paid");
+          }
         }
       }
     } else if (tier === "implementation") {

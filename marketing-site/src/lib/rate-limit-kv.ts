@@ -135,6 +135,23 @@ export async function checkF2CheckoutCreateRateLimit(
   return checkAndIncrement(kv, key, limit, 60);
 }
 
+// Test C-A — /api/audit-create per-IP rate limit (anti-abuse).
+//   - Default: 5 requests / 1-hour window.
+//   - Env override: AUDIT_CHECKOUT_RATE_LIMIT (defaults to 5).
+// Same shape as checkF2CheckoutCreateRateLimit. SESSIONS KV, `rl:audit-checkout:` prefix.
+export async function checkAuditCheckoutCreateRateLimit(
+  kv: KVNamespace,
+  ip: string,
+  hashSecret: string | undefined,
+  envLimit?: string
+): Promise<RateLimitResult> {
+  if (!hashSecret) return { allowed: false, misconfigured: true }; // fail closed — never key on raw IP
+  const parsedLimit = envLimit ? parseInt(envLimit, 10) : 5;
+  const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 5;
+  const key = `rl:audit-checkout:${await hmacIp(hashSecret, ip)}`;
+  return checkAndIncrement(kv, key, limit, 3600);
+}
+
 export async function checkDeleteMeRateLimit(
   kv: KVNamespace,
   ip: string,

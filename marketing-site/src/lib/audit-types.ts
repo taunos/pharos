@@ -86,4 +86,10 @@ export type SessionRecord = {
   composite_score?: number;
   grade?: string;
   error_message?: string;
+  // Test C-A: set by the dodo-webhook audit branch. `enqueued_at` is written
+  // only AFTER a confirmed AUDIT_FULFILL_QUEUE.send (R2-1 ordering).
+  paid_at?: number;
+  enqueued_at?: number;
+  // Test C-A (A4): set only after a confirmed standalone buyer-email send.
+  email_sent_at?: number;
 };

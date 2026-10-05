@@ -74,6 +74,32 @@
 		"ASTRANT_BASE_URL":    "https://astrant.io",
 		// Pre-launch gate for paid Implementation checkout. Fail-closed:
 		// only the exact string "true" enables it. Flip to "true" at launch.
-		"IMPLEMENTATION_CHECKOUT_ENABLED": "false"
+		"IMPLEMENTATION_CHECKOUT_ENABLED": "false",
+		// Pre-launch gate for paid Audit checkout (Test C-A). Fail-closed:
+		// only the exact string "true" enables it. Flip to "true" at launch.
+		"AUDIT_CHECKOUT_ENABLED": "false",
+		// /api/audit-create per-IP limit per hour.
+		"AUDIT_CHECKOUT_RATE_LIMIT": "5"
+	},
+	// Test C-A: durable Audit fulfillment. Provision BOTH queues before deploy:
+	//   npx wrangler queues create astrant-audit-fulfill
+	//   npx wrangler queues create astrant-audit-fulfill-dlq
+	// worker.ts routes the consumers on batch.queue (src/lib/queue-router.ts).
+	"queues": {
+		"producers": [
+			{ "binding": "AUDIT_FULFILL_QUEUE", "queue": "astrant-audit-fulfill" }
+		],
+		"consumers": [
+			{
+				"queue": "astrant-audit-fulfill",
+				"max_batch_size": 1,
+				"max_retries": 3,
+				"dead_letter_queue": "astrant-audit-fulfill-dlq"
+			},
+			{
+				"queue": "astrant-audit-fulfill-dlq",
+				"max_batch_size": 1
+			}
+		]
 	}
 }

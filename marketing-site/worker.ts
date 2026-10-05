@@ -14,16 +14,19 @@
 import generatedHandler from "./.open-next/worker.js";
 // @ts-expect-error generated at build time
 export { DOQueueHandler, DOShardedTagCache, BucketCachePurge } from "./.open-next/worker.js";
-import { captureQueueHandler, type CaptureConsumerEnv, type CaptureJobMessage } from "./src/lib/capture-queue-consumer";
+import { routeQueueBatch, type WorkerQueueEnv, type WorkerQueueMessage } from "./src/lib/queue-router";
 
 export default {
   // Forward the Next/OpenNext request handler unchanged.
   fetch: generatedHandler.fetch,
 
-  // P0-C2 Chunk E2: the real deferred-capture Queue consumer. Expected outcomes
-  // are acked inside the handler; unexpected failures throw so Queue automatic
-  // retry / DLQ semantics apply. Missing bindings/secrets fail closed.
-  async queue(batch: MessageBatch<CaptureJobMessage>, env: CaptureConsumerEnv): Promise<void> {
-    await captureQueueHandler(batch, env);
+  // Test C-A: routes on batch.queue (src/lib/queue-router.ts) —
+  // astrant-audit-fulfill / astrant-audit-fulfill-dlq → Audit fulfillment
+  // consumers; anything else → the P0-C2 Chunk E2 deferred-capture consumer,
+  // unchanged. Expected outcomes are acked inside the handlers; unexpected
+  // failures throw so Queue automatic retry / DLQ semantics apply. Missing
+  // bindings/secrets fail closed.
+  async queue(batch: MessageBatch<WorkerQueueMessage>, env: WorkerQueueEnv): Promise<void> {
+    await routeQueueBatch(batch, env);
   },
-} satisfies ExportedHandler<CaptureConsumerEnv, CaptureJobMessage>;
+} satisfies ExportedHandler<WorkerQueueEnv, WorkerQueueMessage>;

@@ -47,6 +47,9 @@ export interface RunDim6Result {
   dimension: Dim6Dimension;
   cells: CellEnvelope[]; // for the corpus writer
   raw: Dim6Result | null; // null when we short-circuited (free or daily-cap)
+  // Test C-A R2-4: true ONLY for the daily-cap short-circuit, so the paid
+  // fulfillment can defer instead of shipping a partial report as ready.
+  capped: boolean;
 }
 
 const DAILY_CAP = 100;
@@ -199,6 +202,17 @@ function buildDailyCapDim6(): Dim6Dimension {
   };
 }
 
+/**
+ * Test C-A R2-4: non-incrementing peek at the paid Dim 6 daily budget, so the
+ * paid fulfillment can defer BEFORE spending a scan + LLM calls. Same key and
+ * threshold as runDim6Paid's own check (which stays authoritative for races).
+ */
+export async function isDim6CapReached(kv: KVNamespace): Promise<boolean> {
+  const rawCount = await kv.get(`dim6:budget:${todayKey()}`);
+  const count = rawCount ? parseInt(rawCount, 10) : 0;
+  return Number.isFinite(count) && count >= DAILY_CAP;
+}
+
 export interface Dim6PaidEnv extends OrchestratorEnv {
   // Same KV used for the dim6:v1 cache; we also use it for the daily-cap
   // counter. Distinct key prefix `dim6:budget:` so cache eviction never
@@ -231,6 +245,7 @@ export async function runDim6Paid(
       dimension: buildDailyCapDim6(),
       cells: [],
       raw: null,
+      capped: true,
     };
   }
   // Increment BEFORE the call so concurrent requests under the cap can't
@@ -273,6 +288,7 @@ export async function runDim6Paid(
       },
       cells: result.cells,
       raw: result,
+      capped: false,
     };
   }
 
@@ -289,6 +305,7 @@ export async function runDim6Paid(
     },
     cells: result.cells,
     raw: result,
+    capped: false,
   };
 }
 

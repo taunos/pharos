@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Test C-A (A5): no Cloudflare IMAGES binding — serve next/image sources
+  // as-is instead of via /_next/image.
+  images: { unoptimized: true },
   async redirects() {
     return [
       { source: "/retainer", destination: "/subscriptions", permanent: true },

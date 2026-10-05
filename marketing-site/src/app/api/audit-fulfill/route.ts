@@ -1,37 +1,21 @@
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import {
-  llmEnrichGaps,
-  renderAuditHtml,
-  generatePdf,
-  runScan,
-  splicePaidDim6,
-  storeJson,
-  storePdf,
-  REMEDIATION_ENGINE_VERSION_TAG,
-  type AuditEnv,
-} from "@/lib/audit-pipeline";
-import type { AuditResult, SessionRecord } from "@/lib/audit-types";
-import { writeAuditToCorpus } from "@/lib/corpus-write";
-import { runDim6Paid } from "@/lib/dim6/runDim6";
+import { runScan } from "@/lib/audit-pipeline";
 import { constantTimeEqual } from "@/lib/dodo";
-import { sendAutoPilotAuditReadyEmail } from "@/lib/score-email";
 import { sendF2DayNAuditEmail } from "@/lib/f2-email";
 import { generateAuditRecs } from "@/lib/f2-generators/audit-recs";
+import {
+  readAuditSession,
+  runAuditFulfillment,
+  writeAuditSession,
+  type AuditRunEnv,
+} from "@/lib/audit-fulfill-run";
 
-interface FulfillEnv extends AuditEnv {
-  INTERNAL_FULFILL_KEY: string;
-  PHAROS_CORPUS: D1Database;
-  CORPUS_DEAD_LETTER: KVNamespace;
-  CITATION_DB: D1Database;
-  RESEND_API_KEY: string;
-  UNSUBSCRIBE_SECRET: string;
-}
-
-function parseAutoPilotSessionId(sessionId: string): string | null {
-  const match = sessionId.match(/^ap-(sub_[A-Za-z0-9_-]+)-\d+$/);
-  return match ? match[1] : null;
-}
+// Test C-A (A3): thin operator-replay wrapper. Paid standalone Audits are
+// fulfilled by the AUDIT_FULFILL_QUEUE consumer; this route stays for operator
+// replay and the ap- (onboarding) path. The run itself lives in
+// lib/audit-fulfill-run.ts; the impl-day branch below is unchanged.
+type FulfillEnv = AuditRunEnv;
 
 // F2 v6.1 D19 — parse `impl-day{30|60|90}-impl-{dodo_payment_id}` shape.
 // Returns {day_n, f2_session_id} where f2_session_id is the underlying
@@ -47,33 +31,7 @@ function parseImplementationAuditSessionId(
   };
 }
 
-const SESSION_TTL_SEC = 30 * 24 * 60 * 60;
-
 export const maxDuration = 300;
-
-async function readSession(
-  env: FulfillEnv,
-  sessionId: string
-): Promise<SessionRecord | null> {
-  const raw = await env.SESSIONS.get(`audit:${sessionId}`);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as SessionRecord;
-  } catch {
-    return null;
-  }
-}
-
-async function writeSession(
-  env: FulfillEnv,
-  record: SessionRecord
-): Promise<void> {
-  await env.SESSIONS.put(
-    `audit:${record.session_id}`,
-    JSON.stringify(record),
-    { expirationTtl: SESSION_TTL_SEC }
-  );
-}
 
 export async function POST(req: Request) {
   const env = getCloudflareContext().env as unknown as FulfillEnv;
@@ -121,159 +79,54 @@ export async function POST(req: Request) {
     return await handleF2DayNAudit(env, implAudit);
   }
 
-  const record = await readSession(env, sessionId);
-  if (!record) {
-    return NextResponse.json(
-      { ok: false, error: "session not found" },
-      { status: 404 }
-    );
-  }
-
-  if (record.status !== "fulfilling") {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: `session not in fulfilling state (status=${record.status})`,
-      },
-      { status: 400 }
-    );
-  }
-
   try {
-    const scannerScan = await runScan(record.url, env.INTERNAL_FULFILL_KEY);
-
-    // Slice 3b: replace the scanner's free-tier Dim 6 demo preview with a
-    // real paid Dim 6 audit. runDim6Paid handles its own daily-cap branch
-    // (returns na:true with a "queued for tomorrow" note when over cap) and
-    // its own all-unmeasurable branch (returns na:true). On success it
-    // returns the real DimensionResult plus the cells for corpus persistence.
-    const dim6 = await runDim6Paid(
-      {
-        AI: env.AI,
-        OPENAI_API_KEY: env.OPENAI_API_KEY,
-        ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY,
-        GOOGLE_AI_API_KEY: env.GOOGLE_AI_API_KEY,
-        PERPLEXITY_API_KEY: env.PERPLEXITY_API_KEY,
-        // Reuse the SESSIONS KV for the dim6:v1 cache + daily-cap counter.
-        // Distinct key prefixes (`dim6:v1:` for cache, `dim6:budget:` for the
-        // counter) ensure no collision with audit-fulfill's session keys.
-        cacheKv: env.SESSIONS,
-      },
-      record.url
-    );
-    const scan = splicePaidDim6(scannerScan, dim6.dimension);
-
-    const gaps = await llmEnrichGaps(env, scan, sessionId);
-    const audit: AuditResult = {
-      scan,
-      gaps,
-      engine_version: REMEDIATION_ENGINE_VERSION_TAG,
-    };
-    const html = renderAuditHtml(audit, sessionId);
-    const pdf = await generatePdf(env, html);
-    await storePdf(env, sessionId, pdf);
-    await storeJson(env, sessionId, audit);
-
-    const next: SessionRecord = {
-      ...record,
-      status: "ready",
-      completed_at: Date.now(),
-      pdf_url: `/audit-results/${sessionId}/pdf`,
-      json_url: `/audit-results/${sessionId}/json`,
-      composite_score: scan.composite.score,
-      grade: scan.composite.grade,
-    };
-    await writeSession(env, next);
-
-    // ── Corpus write — non-blocking on customer delivery ────────────────────
-    // Per pharos-corpus-layer-spec.md and the dead-letter design: a corpus
-    // write failure NEVER blocks the customer Audit. The PDF + JSON have
-    // already been stored above; the session is already "ready". Best-effort
-    // from here. Failures land in CORPUS_DEAD_LETTER for manual replay.
-    try {
-      const corpusScanId = await writeAuditToCorpus(
-        env.PHAROS_CORPUS,
-        REMEDIATION_ENGINE_VERSION_TAG,
-        {
-          sessionRecord: next,
-          audit,
-          dim6Cells: dim6.cells,
-        }
-      );
-      console.error(
-        `[corpus] wrote scan_event session=${sessionId} scan_id=${corpusScanId} gaps=${gaps.length} dim6_cells=${dim6.cells.length}`
-      );
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(
-        `[corpus] write failed (session=${sessionId}, dead-lettered): ${msg}`
-      );
-      try {
-        await env.CORPUS_DEAD_LETTER.put(
-          `dlq:${Date.now()}:${sessionId}`,
-          JSON.stringify({
-            session_id: sessionId,
-            url: next.url,
-            error: msg,
-            audit_engine_version: REMEDIATION_ENGINE_VERSION_TAG,
-            failed_at: Date.now(),
-            // Enough to manually replay: include the audit payload itself
-            // (already in R2 too, but having a copy in DLQ avoids a fetch).
-            payload: audit,
-          }),
-          { expirationTtl: 60 * 60 * 24 * 30 } // 30-day retention
+    const result = await runAuditFulfillment(env, sessionId, new URL(req.url).origin);
+    switch (result.kind) {
+      case "not_found":
+        return NextResponse.json(
+          { ok: false, error: "session not found" },
+          { status: 404 }
         );
-      } catch (dlqErr) {
-        console.error(
-          `[corpus] dead-letter write ALSO failed (session=${sessionId}): ${dlqErr instanceof Error ? dlqErr.message : String(dlqErr)}`
+      case "not_yet_paid":
+      case "noop_terminal":
+        return NextResponse.json(
+          {
+            ok: false,
+            error: `session not in fulfilling state (status=${result.kind === "not_yet_paid" ? "awaiting_payment" : result.status})`,
+          },
+          { status: 400 }
         );
-      }
+      case "cap_deferred":
+        // Session stays `fulfilling`; replay after the Dim 6 daily budget resets.
+        console.error(`[audit-fulfill] session=${sessionId} dim6 daily cap reached; deferred`);
+        return NextResponse.json(
+          { ok: false, error: "dim6_cap_deferred" },
+          { status: 503 }
+        );
+      case "done":
+        return NextResponse.json({
+          ok: true,
+          session_id: sessionId,
+          composite_score: result.composite_score,
+          grade: result.grade,
+          gap_count: result.gap_count,
+        });
     }
-
-    const apSubscriptionId = parseAutoPilotSessionId(sessionId);
-    if (apSubscriptionId !== null) {
-      try {
-        const sub = await env.CITATION_DB.prepare(
-          `SELECT customer_email FROM subscriptions WHERE subscription_id = ?`
-        ).bind(apSubscriptionId).first<{ customer_email: string }>();
-        if (!sub) {
-          console.error(`F3_AUDIT_WELCOME_NO_SUBSCRIPTION session_id=${sessionId}`);
-        } else {
-          const sendResult = await sendAutoPilotAuditReadyEmail(env, {
-            toEmail: sub.customer_email,
-            sessionId,
-            pdfR2Key: `audits/${sessionId}.pdf`,
-            origin: new URL(req.url).origin,
-          });
-          if (sendResult.ok) {
-            console.log(`F3_AUDIT_WELCOME_SENT session_id=${sessionId}`);
-          } else {
-            console.error(`F3_AUDIT_WELCOME_FAILED session_id=${sessionId} reason=${sendResult.error}`);
-          }
-        }
-      } catch (err) {
-        console.error(`F3_AUDIT_WELCOME_FAILED session_id=${sessionId} reason=exception`, err);
-      }
-    }
-
-    return NextResponse.json({
-      ok: true,
-      session_id: sessionId,
-      composite_score: scan.composite.score,
-      grade: scan.composite.grade,
-      gap_count: gaps.length,
-    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(
       `[audit-fulfill] session=${sessionId} failed: ${message}`
     );
-    const next: SessionRecord = {
-      ...record,
-      status: "error",
-      error_message: message.slice(0, 500),
-    };
-    await writeSession(env, next).catch(() => {});
+    // Today's behaviour for the operator / ap- path: mark the session `error`.
+    // A `ready` session (email-step failure) is never downgraded.
+    const record = await readAuditSession(env, sessionId).catch(() => null);
+    if (record && record.status !== "ready") {
+      await writeAuditSession(env, {
+        ...record,
+        status: "error",
+        error_message: message.slice(0, 500),
+      }).catch(() => {});
+    }
     return NextResponse.json(
       { ok: false, error: message },
       { status: 500 }

@@ -4,6 +4,7 @@ import {
   checkTriageIpRateLimit,
   checkDeleteMeRateLimit,
   checkF2CheckoutCreateRateLimit,
+  checkAuditCheckoutCreateRateLimit,
 } from "./rate-limit-kv";
 
 describe("hmacIp — IP pseudonymization (OD#7)", () => {
@@ -46,5 +47,45 @@ describe("rate limiters fail closed when the hash secret is absent", () => {
     const r = await checkF2CheckoutCreateRateLimit(kv, "1.1.1.1", undefined);
     expect(r.allowed).toBe(false);
     expect(r.misconfigured).toBe(true);
+  });
+  it("audit-checkout denies and flags misconfigured", async () => {
+    const r = await checkAuditCheckoutCreateRateLimit(kv, "1.1.1.1", undefined);
+    expect(r.allowed).toBe(false);
+    expect(r.misconfigured).toBe(true);
+  });
+});
+
+describe("checkAuditCheckoutCreateRateLimit — 5/hour per IP by default", () => {
+  function memKv() {
+    const m = new Map<string, { v: string; ttl?: number }>();
+    return {
+      store: m,
+      kv: {
+        get: async (k: string) => m.get(k)?.v ?? null,
+        put: async (k: string, v: string, o?: { expirationTtl?: number }) => {
+          m.set(k, { v, ttl: o?.expirationTtl });
+        },
+      } as unknown as KVNamespace,
+    };
+  }
+
+  it("allows 5 then denies the 6th within the hour; key is HMAC'd with a 1-hour window", async () => {
+    const { kv, store } = memKv();
+    for (let i = 0; i < 5; i++) {
+      expect((await checkAuditCheckoutCreateRateLimit(kv, "1.1.1.1", "s")).allowed).toBe(true);
+    }
+    const sixth = await checkAuditCheckoutCreateRateLimit(kv, "1.1.1.1", "s");
+    expect(sixth.allowed).toBe(false);
+    expect(sixth.retryAfterSec).toBeGreaterThan(3500);
+    const [key, entry] = [...store.entries()][0];
+    expect(key).toMatch(/^rl:audit-checkout:[0-9a-f]{64}$/);
+    expect(key).not.toContain("1.1.1.1");
+    expect(entry.ttl).toBe(3600 + 60);
+  });
+
+  it("honours the AUDIT_CHECKOUT_RATE_LIMIT override", async () => {
+    const { kv } = memKv();
+    expect((await checkAuditCheckoutCreateRateLimit(kv, "1.1.1.1", "s", "1")).allowed).toBe(true);
+    expect((await checkAuditCheckoutCreateRateLimit(kv, "1.1.1.1", "s", "1")).allowed).toBe(false);
   });
 });

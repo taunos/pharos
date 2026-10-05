@@ -358,7 +358,7 @@ export async function sendAutoPilotAuditReadyEmail(
 
   const resend = new Resend(env.RESEND_API_KEY);
   try {
-    await resend.emails.send({
+    const result = await resend.emails.send({
       from: "Astrant <reports@astrant.io>",
       to: input.toEmail,
       subject: "Your Astrant audit is ready",
@@ -381,6 +381,53 @@ Your first monthly tracking digest delivers 2026-06-01 with citation-tracking da
         },
       ],
     });
+    // Resend v6 does not throw on API errors — it returns { error }.
+    if (result.error) return { ok: false, error: result.error.message };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+// ─── Test C-A (A4) standalone Audit buyer "ready" email ─────────────────
+//
+// Copy is owned by Test C-B. Until C-B sets it, this constant is null and the
+// send is HELD by lib/audit-fulfill-run.ts (R2-5) — no buyer email goes out.
+export type AuditReadyEmailCopy = {
+  subject: string;
+  // `url` is the audited site; `resultsUrl` is the buyer's results page.
+  text: (args: { url: string; resultsUrl: string }) => string;
+};
+export const AUDIT_READY_EMAIL_COPY: AuditReadyEmailCopy | null = null;
+
+export type AuditReadyInput = {
+  toEmail: string;
+  sessionId: string;
+  url: string;
+  origin: string;
+};
+
+export async function sendAuditReadyEmail(
+  env: { RESEND_API_KEY: string },
+  input: AuditReadyInput,
+  copy: AuditReadyEmailCopy | null = AUDIT_READY_EMAIL_COPY,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!copy) return { ok: false, error: "copy_not_set" };
+  const resultsUrl = `${input.origin}/audit-results/${input.sessionId}`;
+  const resend = new Resend(env.RESEND_API_KEY);
+  try {
+    const result = await resend.emails.send(
+      {
+        from: "Astrant <reports@astrant.io>",
+        to: input.toEmail,
+        replyTo: "contact@astrant.io",
+        subject: copy.subject,
+        text: copy.text({ url: input.url, resultsUrl }),
+      },
+      { idempotencyKey: `audit-ready:${input.sessionId}` },
+    );
+    // Resend v6 does not throw on API errors — it returns { error }.
+    if (result.error) return { ok: false, error: result.error.message };
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };

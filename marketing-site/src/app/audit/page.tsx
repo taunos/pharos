@@ -4,6 +4,10 @@ import SiteFooter from "@/components/SiteFooter";
 import AuditCheckoutForm from "@/components/AuditCheckoutForm";
 import AuditSamplePanel from "@/components/AuditSamplePanel";
 
+// Test C-A (A1): the Audit gate is an env var, so this page must not be
+// prerendered at build time (C-B reads the gate here for the open-state UI).
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "AEO Audit — $79 instant delivery — Astrant",
   description:
