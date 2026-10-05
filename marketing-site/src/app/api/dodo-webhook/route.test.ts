@@ -8,7 +8,8 @@ const state: {
   send: ReturnType<typeof vi.fn>;
   queueBound: boolean;
   failSessionPut: boolean;
-} = { store: new Map(), send: vi.fn(), queueBound: true, failSessionPut: false };
+  publicOrigin: string | undefined;
+} = { store: new Map(), send: vi.fn(), queueBound: true, failSessionPut: false, publicOrigin: undefined };
 
 const kv = {
   get: vi.fn(async (k: string) => state.store.get(k) ?? null),
@@ -40,6 +41,7 @@ vi.mock("@opennextjs/cloudflare", () => ({
       RESEND_API_KEY: "re",
       OPERATOR_ALERT_EMAIL: "ops@example.test",
       ...(state.queueBound ? { AUDIT_FULFILL_QUEUE: { send: state.send } } : {}),
+      ...(state.publicOrigin !== undefined ? { PUBLIC_ORIGIN: state.publicOrigin } : {}),
     },
   }),
 }));
@@ -64,8 +66,8 @@ function seed(status: string, extra: Record<string, unknown> = {}) {
   );
 }
 
-function webhook(id = "wh_1", sessionId = SID) {
-  return new Request("https://astrant.io/api/dodo-webhook", {
+function webhook(id = "wh_1", sessionId = SID, host = "https://astrant.io") {
+  return new Request(`${host}/api/dodo-webhook`, {
     method: "POST",
     headers: {
       "webhook-id": id,
@@ -88,6 +90,7 @@ beforeEach(() => {
   state.send = vi.fn(async () => undefined);
   state.queueBound = true;
   state.failSessionPut = false;
+  state.publicOrigin = undefined;
   alerts.subjects = [];
   alerts.texts = [];
   kv.get.mockClear();
@@ -95,6 +98,28 @@ beforeEach(() => {
 });
 
 describe("POST /api/dodo-webhook — audit tier", () => {
+  const WORKERS_DEV = "https://pharos-marketing.pharos-dev.workers.dev";
+
+  it("Test C-B: webhook on workers.dev + PUBLIC_ORIGIN → enqueues the canonical origin", async () => {
+    seed("awaiting_payment");
+    state.publicOrigin = "https://astrant.io";
+    const { POST } = await import("./route");
+    expect((await POST(webhook("wh_po1", SID, WORKERS_DEV))).status).toBe(200);
+    expect(state.send).toHaveBeenCalledWith({ session_id: SID, origin: "https://astrant.io" });
+  });
+
+  it("Test C-B: PUBLIC_ORIGIN unset or not https → falls back to the request origin", async () => {
+    const { POST } = await import("./route");
+    for (const [i, po] of [undefined, "http://astrant.io", "not a url"].entries()) {
+      state.store = new Map();
+      state.send = vi.fn(async () => undefined);
+      seed("awaiting_payment");
+      state.publicOrigin = po;
+      expect((await POST(webhook(`wh_po_fb${i}`, SID, WORKERS_DEV))).status).toBe(200);
+      expect(state.send).toHaveBeenCalledWith({ session_id: SID, origin: WORKERS_DEV });
+    }
+  });
+
   it("awaiting_payment → enqueue, then fulfilling + paid_at + enqueued_at, dedupe last", async () => {
     seed("awaiting_payment");
     state.store.set(

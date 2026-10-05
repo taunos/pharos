@@ -251,7 +251,7 @@ export default async function ScoreResultsPage({
             Astrant Score · scan {scanId.slice(0, 8)}
           </p>
           <h1 className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">
-            <span className="font-mono text-[var(--color-fg)]">
+            <span className="font-mono break-all text-[var(--color-fg)]">
               {scan.url}
             </span>
           </h1>
@@ -333,9 +333,16 @@ export default async function ScoreResultsPage({
             );
           })()}
 
-          {/* Test C-B (C3) — $79 Audit CTA, every scan, open state only. */}
+          {/* The CTA self-heads (EmailGate: "Get the full PDF gap report";
+              other states have their own lead text) — no page-level heading,
+              to avoid the duplicate "Get the full gap report". */}
+          <div className="mt-14">{cta}</div>
+
+          {/* Test C-B (C3) — $79 Audit CTA, every scan, open state only. Placed
+              after the free email/PDF block (free first, paid second); amber
+              left border sets it apart from the gap cards. */}
           {checkoutEnabled ? (
-            <div className="mt-14 border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
+            <div className="mt-14 border border-[var(--color-border)] border-l-4 border-l-[var(--color-accent)] bg-[var(--color-surface-2)] p-6">
               <h2 className="text-2xl font-bold tracking-tight">
                 Get the full Audit — $79
               </h2>
@@ -354,11 +361,6 @@ export default async function ScoreResultsPage({
               </div>
             </div>
           ) : null}
-
-          {/* The CTA self-heads (EmailGate: "Get the full PDF gap report";
-              other states have their own lead text) — no page-level heading,
-              to avoid the duplicate "Get the full gap report". */}
-          <div className="mt-14">{cta}</div>
 
           {/* Score V2 — three-way Dim 6 narrative gate (D6), keyed off the
               Dim 6 entry in scan.dimensions:

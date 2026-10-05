@@ -11,10 +11,16 @@ export function parseSourceScanId(raw: string | null | undefined): string | null
 }
 
 // Map an /api/audit-create error to buyer-facing text. Raw server error
-// strings are never shown.
-export function checkoutErrorMessage(code: string | undefined): string {
+// strings are never shown. A 400 is a field-validation refusal.
+export function checkoutErrorMessage(
+  code: string | undefined,
+  status?: number,
+): string {
   if (code === "RATE_LIMITED") {
     return "Too many checkout attempts — try again in an hour or email contact@astrant.io.";
+  }
+  if (status === 400) {
+    return "Check your URL and email and try again.";
   }
   return "Checkout isn't available right now — email contact@astrant.io and we'll sort it out.";
 }

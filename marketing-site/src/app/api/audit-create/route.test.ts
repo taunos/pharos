@@ -27,12 +27,12 @@ vi.mock("@opennextjs/cloudflare", () => ({
   getCloudflareContext: () => ({ env: state.env }),
 }));
 
-const createCheckoutSession = vi.fn(async (_env: unknown, _input: { metadata: Record<string, string> }) => ({
+const createCheckoutSession = vi.fn(async (_env: unknown, _input: { metadata: Record<string, string>; cancel_url?: string }) => ({
   checkout_url: "https://checkout.example/abc",
   checkout_session_id: "cks_1",
 }));
 vi.mock("@/lib/dodo", () => ({
-  createCheckoutSession: (env: unknown, input: { metadata: Record<string, string> }) =>
+  createCheckoutSession: (env: unknown, input: { metadata: Record<string, string>; cancel_url?: string }) =>
     createCheckoutSession(env, input),
 }));
 
@@ -121,6 +121,7 @@ describe("POST /api/audit-create — gate open", () => {
     }
     for (const call of createCheckoutSession.mock.calls) {
       expect(call[1].metadata.source_scan_id).toBeUndefined();
+      expect(call[1].cancel_url).toBe("https://astrant.io/audit?canceled=1");
     }
   });
 
@@ -130,6 +131,10 @@ describe("POST /api/audit-create — gate open", () => {
     const res = await POST(req({ ...VALID, source_scan_id: SCAN_V4 }));
     expect(res.status).toBe(200);
     expect(createCheckoutSession.mock.calls[0][1].metadata.source_scan_id).toBe(SCAN_V4);
+    // Test C-B: a canceled checkout returns to /audit with the scan id kept.
+    expect(createCheckoutSession.mock.calls[0][1].cancel_url).toBe(
+      `https://astrant.io/audit?canceled=1&source_scan_id=${SCAN_V4}`,
+    );
   });
 
   it("field caps → 400 (url > 2048, email > 254), no Dodo", async () => {

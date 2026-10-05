@@ -152,7 +152,11 @@ export async function POST(req: Request) {
       customer_email: email,
       metadata: checkoutMetadata,
       return_url: `${origin}/audit-results/${session_id}`,
-      cancel_url: `${origin}/audit?canceled=1`,
+      // Keep the conversion arc across a canceled checkout: the form re-reads
+      // source_scan_id from the /audit URL on the retry.
+      cancel_url: `${origin}/audit?canceled=1${
+        sourceScanId ? `&source_scan_id=${encodeURIComponent(sourceScanId)}` : ""
+      }`,
     });
   } catch (err) {
     console.error("[audit-create] Dodo checkout failed:", err);

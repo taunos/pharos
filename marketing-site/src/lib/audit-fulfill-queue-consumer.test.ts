@@ -195,7 +195,7 @@ describe("auditFulfillQueueHandler — thrown errors", () => {
 
   it("final attempt on a READY session (email step) → AUDIT_READY_EMAIL_FAILED alert once with error class; never downgraded", async () => {
     seed("ready");
-    const emailErr = new Error("AUDIT_READY_EMAIL_FAILED");
+    const emailErr = Object.assign(new Error("AUDIT_READY_EMAIL_FAILED"), { reason: "pdf_not_found" });
     emailErr.name = "AuditReadyEmailError";
     const env = makeEnv();
     for (const attempt of [1, 2, 3]) {
@@ -205,7 +205,7 @@ describe("auditFulfillQueueHandler — thrown errors", () => {
     const m = msg(BODY, 4);
     await auditFulfillQueueHandler(batch(m), env, throwing(emailErr));
     expect(alertCodes()).toEqual(["AUDIT_READY_EMAIL_FAILED"]);
-    expect(h.sends[0].text).toContain("error_class=AuditReadyEmailError");
+    expect(h.sends[0].text).toContain("error_class=AuditReadyEmailError reason=pdf_not_found");
     expect(read().status).toBe("ready");
     expect(funnel().status).toBe("paid");
     expect(m.ack).toHaveBeenCalledTimes(1);

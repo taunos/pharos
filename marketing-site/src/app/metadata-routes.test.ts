@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import robots from "./robots";
+import { GET as robotsGET } from "./robots.txt/route";
 import sitemap from "./sitemap";
 import { GET as mcpJsonGET } from "./.well-known/mcp.json/route";
 import { GET as mcpGET } from "./.well-known/mcp/route";
@@ -16,16 +16,27 @@ describe("/.well-known/mcp", () => {
   });
 });
 
-describe("robots", () => {
-  it("matches the snapshot", () => {
-    expect(robots()).toEqual({
-      rules: {
-        userAgent: "*",
-        allow: "/",
-        disallow: ["/api/", "/account", "/onboarding", "/audit-results/", "/score/delete-me", "/f2-success"],
-      },
-      sitemap: "https://astrant.io/sitemap.xml",
-    });
+describe("robots.txt", () => {
+  it("serves the crawl policy as text/plain, with Content-Signal under User-Agent: *", async () => {
+    const res = robotsGET();
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("text/plain; charset=utf-8");
+    expect(await res.text()).toBe(
+      [
+        "User-Agent: *",
+        "Content-Signal: search=yes, ai-input=yes",
+        "Allow: /",
+        "Disallow: /api/",
+        "Disallow: /account",
+        "Disallow: /onboarding",
+        "Disallow: /audit-results/",
+        "Disallow: /score/delete-me",
+        "Disallow: /f2-success",
+        "",
+        "Sitemap: https://astrant.io/sitemap.xml",
+        "",
+      ].join(String.fromCharCode(10)),
+    );
   });
 });
 

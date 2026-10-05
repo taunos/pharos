@@ -75,11 +75,21 @@ export interface AuditRunDeps {
 
 // Thrown when the standalone buyer email fails; the Queue consumer alerts
 // AUDIT_READY_EMAIL_FAILED once, on the final attempt.
+// `reason` is a fixed classification (no message text, no PII).
+export type AuditReadyEmailFailReason = "pdf_not_found" | "copy_not_set" | "send_error";
 export class AuditReadyEmailError extends Error {
-  constructor() {
+  readonly reason: AuditReadyEmailFailReason;
+  constructor(reason: AuditReadyEmailFailReason) {
     super("AUDIT_READY_EMAIL_FAILED");
     this.name = "AuditReadyEmailError";
+    this.reason = reason;
   }
+}
+
+export function classifyAuditReadyEmailError(error: string): AuditReadyEmailFailReason {
+  if (error.startsWith("pdf_not_found")) return "pdf_not_found";
+  if (error === "copy_not_set") return "copy_not_set";
+  return "send_error";
 }
 
 const SESSION_TTL_SEC = 30 * 24 * 60 * 60;
@@ -146,8 +156,9 @@ async function deliverBuyerEmail(
     copy,
   );
   if (!result.ok) {
-    console.error(`AUDIT_READY_EMAIL_FAILED session_id=${sessionId}`);
-    throw new AuditReadyEmailError();
+    const reason = classifyAuditReadyEmailError(result.error);
+    console.error(`AUDIT_READY_EMAIL_FAILED session_id=${sessionId} reason=${reason}`);
+    throw new AuditReadyEmailError(reason);
   }
   await writeAuditSession(env, { ...record, email_sent_at: Date.now() });
   console.log(`AUDIT_READY_EMAIL_SENT session_id=${sessionId}`);

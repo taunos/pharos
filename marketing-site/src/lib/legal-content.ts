@@ -13,6 +13,7 @@
 export const PRIVACY_MD = `# Privacy Policy
 
 **Last updated:** 2026-10-04
+
 **Status:** v1 in good faith. [Subject to legal review pre-launch.]
 
 This is the plain-English privacy policy for Astrant — Agent Discoverability for B2B SaaS. We try to write privacy policies the way we'd want one written for us: short, specific, and honest about what we collect and why.
@@ -103,7 +104,8 @@ We'll update this page if we materially change how we handle data. Material chan
 
 export const TERMS_MD = `# Terms of Service
 
-**Last updated:** 2026-04-30
+**Last updated:** 2026-10-04
+
 **Status:** v1 in good faith. [Subject to legal review pre-launch.]
 
 These are the plain-English terms for using Astrant — Agent Discoverability for B2B SaaS. We've tried to write them like we'd want them written for us: specific, short, and honest about what's on offer.

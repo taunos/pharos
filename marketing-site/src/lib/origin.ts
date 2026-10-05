@@ -16,3 +16,23 @@
 export function requestOrigin(req: Request): string {
   return new URL(req.url).origin;
 }
+
+// Test C-B: canonical public origin for links that leave the request (the
+// Audit buyer email). The Dodo webhook can arrive on the workers.dev host, so
+// prefer env.PUBLIC_ORIGIN when it is a valid https URL; otherwise fall back
+// to the request origin.
+export function publicOrigin(
+  env: { PUBLIC_ORIGIN?: string },
+  req: Request,
+): string {
+  const raw = env.PUBLIC_ORIGIN;
+  if (raw) {
+    try {
+      const u = new URL(raw);
+      if (u.protocol === "https:") return u.origin;
+    } catch {
+      // fall through
+    }
+  }
+  return requestOrigin(req);
+}

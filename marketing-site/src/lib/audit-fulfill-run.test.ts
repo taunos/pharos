@@ -228,6 +228,7 @@ describe("runAuditFulfillment — buyer email (A4 + R2-5)", async () => {
     const err = await runAuditFulfillment(makeEnv(), SID, "o", { emailCopy: COPY }).catch((e) => e);
     expect(err).toBeInstanceOf(Error);
     expect((err as Error).name).toBe("AuditReadyEmailError");
+    expect((err as { reason?: string }).reason).toBe("send_error");
     expect(read(SID).status).toBe("ready");
     expect(read(SID).email_sent_at).toBeUndefined();
     // The alert is sent once, by the consumer's final attempt (not here).
@@ -252,6 +253,18 @@ describe("runAuditFulfillment — buyer email (A4 + R2-5)", async () => {
     expect(read(SID).email_sent_at).toBeUndefined();
     expect(log.mock.calls.some((c) => String(c[0]).startsWith("AUDIT_READY_EMAIL_HELD"))).toBe(true);
     log.mockRestore();
+  });
+
+  it("PDF missing from R2 → AuditReadyEmailError reason pdf_not_found, logged without PII", async () => {
+    seed(SID, "fulfilling");
+    const errLog = vi.spyOn(console, "error");
+    const env = makeEnv({ AUDITS: { get: async () => null } as unknown as R2Bucket });
+    const err = await runAuditFulfillment(env, SID, "o", { emailCopy: COPY }).catch((e) => e);
+    expect((err as { reason?: string }).reason).toBe("pdf_not_found");
+    const line = errLog.mock.calls.map((c) => String(c[0])).find((l) => l.startsWith("AUDIT_READY_EMAIL_FAILED"));
+    expect(line).toBe(`AUDIT_READY_EMAIL_FAILED session_id=${SID} reason=pdf_not_found`);
+    expect(h.resendSends).toHaveLength(0);
+    errLog.mockRestore();
   });
 
   it("null copy → held even with the gate open", async () => {

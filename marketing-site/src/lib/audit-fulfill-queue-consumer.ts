@@ -70,8 +70,15 @@ export function parseAuditFulfillMessage(body: unknown): Required<AuditFulfillMe
 }
 
 // Fixed error class for logs/alerts (no message text — it can carry URLs).
+// AuditReadyEmailError carries a fixed `reason` (pdf_not_found / send_error /
+// copy_not_set), appended so the alert says why the buyer email failed.
 export function errorClass(err: unknown): string {
-  return err instanceof Error ? err.name || "Error" : typeof err;
+  if (!(err instanceof Error)) return typeof err;
+  const name = err.name || "Error";
+  const reason = (err as { reason?: unknown }).reason;
+  return name === "AuditReadyEmailError" && typeof reason === "string" && /^[a-z_]+$/.test(reason)
+    ? `${name} reason=${reason}`
+    : name;
 }
 
 // Final-attempt / DLQ terminal failure. Logs + alerts BEFORE any KV write so

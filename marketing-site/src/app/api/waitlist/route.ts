@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { hashEmailForLog } from "@/lib/score-tokens";
 import { normalizeEmail } from "@/lib/email-normalize";
+import { waitlistSource } from "@/lib/waitlist-source";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { url, email } = body as { url?: unknown; email?: unknown };
+  const { url, email, source } = body as { url?: unknown; email?: unknown; source?: unknown };
 
   if (typeof url !== "string" || typeof email !== "string") {
     return NextResponse.json(
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
   const kvKey = `waitlist:${normalizedEmail}`;
   const existingRaw = await env.WAITLIST.get(kvKey);
   const now = Math.floor(Date.now() / 1000);
-  const captureEvent = { url, captured_at: now, source: "waitlist" as const };
+  const captureEvent = { url, captured_at: now, source: waitlistSource(source) };
 
   if (existingRaw) {
     const existing = JSON.parse(existingRaw);

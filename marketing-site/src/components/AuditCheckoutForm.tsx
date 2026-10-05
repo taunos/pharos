@@ -38,6 +38,19 @@ export default function AuditCheckoutForm({
     );
   }, [checkoutEnabled]);
 
+  // Back button from the Dodo checkout restores this page from the bfcache
+  // with status "redirecting" (form disabled). Reset it so the buyer can retry.
+  useEffect(() => {
+    if (!checkoutEnabled) return;
+    function onPageShow(e: PageTransitionEvent) {
+      if (e.persisted) {
+        setStatus((s) => (s === "redirecting" ? "idle" : s));
+      }
+    }
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, [checkoutEnabled]);
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const normalized = normalizeUrl(url);
@@ -64,7 +77,7 @@ export default function AuditCheckoutForm({
         };
         if (!res.ok || !data.ok || !data.checkout_url) {
           setStatus("error");
-          setErrorMsg(checkoutErrorMessage(data.error));
+          setErrorMsg(checkoutErrorMessage(data.error, res.status));
           return;
         }
         setStatus("redirecting");
@@ -79,7 +92,7 @@ export default function AuditCheckoutForm({
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: normalized, email }),
+        body: JSON.stringify({ url: normalized, email, source: "audit" }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (!res.ok || !data.ok) {

@@ -79,7 +79,10 @@
 		// only the exact string "true" enables it. Flip to "true" at launch.
 		"AUDIT_CHECKOUT_ENABLED": "false",
 		// /api/audit-create per-IP limit per hour.
-		"AUDIT_CHECKOUT_RATE_LIMIT": "5"
+		"AUDIT_CHECKOUT_RATE_LIMIT": "5",
+		// Test C-B: canonical public origin for links in the Audit buyer email
+		// (the Dodo webhook may arrive on the workers.dev host).
+		"PUBLIC_ORIGIN": "https://astrant.io"
 	},
 	// Test C-A: durable Audit fulfillment. Provision BOTH queues before deploy:
 	//   npx wrangler queues create astrant-audit-fulfill

@@ -1,6 +1,7 @@
 # Privacy Policy
 
 **Last updated:** 2026-10-04
+
 **Status:** v1 in good faith. [Subject to legal review pre-launch.]
 
 This is the plain-English privacy policy for Astrant — Agent Discoverability for B2B SaaS. We try to write privacy policies the way we'd want one written for us: short, specific, and honest about what we collect and why.

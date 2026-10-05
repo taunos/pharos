@@ -30,7 +30,7 @@ export default function TierWaitlistForm() {
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: normalized, email }),
+        body: JSON.stringify({ url: normalized, email, source: "other_plans" }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (!res.ok || !data.ok) {

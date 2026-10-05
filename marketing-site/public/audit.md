@@ -35,7 +35,7 @@ No. The audit is read-only. Just the URL.
 LLM inference does the analysis and remediation drafting; nothing is human-gated. PDF rendering takes a few extra seconds; the whole pipeline finishes in about 60 seconds end-to-end.
 
 **Can I audit a competitor instead?**
-Only sites you own or have permission to analyze — see our terms.
+Only sites you own or have permission to analyze — see [our terms](https://astrant.io/terms).
 
 **Is ongoing citation tracking and competitor comparison in here yet?**
 The Audit includes a one-time Citation Visibility snapshot — whether ChatGPT, Claude, Perplexity, and Gemini recognize and name your domain when asked about it (Perplexity via live web search; the others from what the model already knows) — as one of its six dimensions. What's not in v0: ongoing citation tracking over time (that's the monitoring subscription) and side-by-side competitor comparison. We'd rather under-promise and over-deliver than ship a hollow report.

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { verifyWebhook, type DodoEnvBindings } from "@/lib/dodo";
-import { requestOrigin } from "@/lib/origin";
+import { publicOrigin, requestOrigin } from "@/lib/origin";
 import type { SessionRecord } from "@/lib/audit-types";
 import { alertOperator, sendOperatorAlert } from "@/lib/operator-alerts";
 import {
@@ -36,6 +36,8 @@ interface WebhookEnv extends DodoEnvBindings {
   ASTRANT_BASE_URL: string;
   // Test C-A (A3): durable Audit fulfillment producer (astrant-audit-fulfill).
   AUDIT_FULFILL_QUEUE?: Queue<AuditFulfillMessage>;
+  // Test C-B: canonical public origin for the audit enqueue (wrangler var).
+  PUBLIC_ORIGIN?: string;
 }
 
 const F2_IMPLEMENTATION_PRODUCT_ID = "pdt_0NdQE5vccUUgOHMsF6Pzz";
@@ -196,7 +198,9 @@ export async function POST(req: Request) {
               }
               await env.AUDIT_FULFILL_QUEUE.send({
                 session_id: sessionId,
-                origin: requestOrigin(req),
+                // Canonical origin: the buyer email links must not point at
+                // the workers.dev host the webhook may arrive on.
+                origin: publicOrigin(env, req),
               });
             } catch (err) {
               console.error(

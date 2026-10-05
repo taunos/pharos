@@ -6,6 +6,7 @@ import AuditSamplePanel from "@/components/AuditSamplePanel";
 import TierWaitlistForm from "@/components/TierWaitlistForm";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { isAuditCheckoutEnabled } from "@/lib/audit-gate";
+import Link from "next/link";
 
 // Test C-A (A1): the Audit gate is an env var, so this page must not be
 // prerendered at build time (C-B reads the gate here for the open-state UI).
@@ -39,7 +40,9 @@ const serviceLd = {
   },
 };
 
-const FAQS = [
+// `aNode` (optional) is the visible answer when it carries markup; `a` stays
+// plain text for the FAQPage JSON-LD.
+const FAQS: { q: string; a: string; aNode?: React.ReactNode }[] = [
   {
     q: "Do I need to give you access to my site?",
     a: "No. The audit is read-only. Just the URL.",
@@ -51,6 +54,18 @@ const FAQS = [
   {
     q: "Can I audit a competitor instead?",
     a: "Only sites you own or have permission to analyze — see our terms.",
+    aNode: (
+      <>
+        Only sites you own or have permission to analyze — see{" "}
+        <Link
+          href="/terms"
+          className="text-[var(--color-fg)] underline-offset-4 hover:underline"
+        >
+          our terms
+        </Link>
+        .
+      </>
+    ),
   },
   {
     q: "Is ongoing citation tracking and competitor comparison in here yet?",
@@ -243,7 +258,7 @@ export default async function AuditPage({
                   className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6"
                 >
                   <dt className="text-lg font-semibold">{f.q}</dt>
-                  <dd className="mt-2 text-[var(--color-muted)]">{f.a}</dd>
+                  <dd className="mt-2 text-[var(--color-muted)]">{f.aNode ?? f.a}</dd>
                 </div>
               ))}
             </dl>
