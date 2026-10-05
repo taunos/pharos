@@ -36,7 +36,7 @@ const serviceLd = {
 const FAQS = [
   {
     q: "What's the difference between Score and Audit?",
-    a: "The free Score gives you a public grade across six dimensions. The $79 Audit adds live citation audit across major AI engines, competitor comparison, implementation estimates, and a JSON export for programmatic use. If you just want to know where you stand, use the Score. If you want a prioritized action plan, use the Audit.",
+    a: "The free Score gives you a public grade across six dimensions. The $79 Audit adds a live Citation Visibility check across 4 AI models, a specific fix for every gap, implementation estimates, and a JSON export for programmatic use. If you just want to know where you stand, use the Score. If you want a prioritized action plan, use the Audit.",
   },
   {
     q: "Does the free Score check Citation Visibility?",
@@ -73,7 +73,7 @@ const DIFFERENTIATORS = [
   },
   {
     name: "Live citation audit",
-    body: "We query ChatGPT, Claude, Perplexity, and Gemini for prompts in your category and report your current citation share against competitors. Cloudflare can't see inside those engines. We can.",
+    body: "We ask ChatGPT, Claude, Perplexity, and Gemini about your domain and check whether each one recognizes and names it — Perplexity from a live web search, the others from what the model already knows. Cloudflare can't see inside those engines. We can.",
   },
 ];
 
@@ -200,8 +200,8 @@ export default function ScorePage() {
             </h2>
             <p className="mt-4 text-lg text-[var(--color-muted)]">
               The free Score tells you where you stand. The $79 Audit gives you a
-              prioritized action plan with live citation data and competitor
-              comparison — delivered as a PDF in 60 seconds.
+              prioritized action plan and a Citation Visibility snapshot across 4
+              AI models — delivered as a PDF in 60 seconds.
             </p>
             <div className="mt-8">
               <Link

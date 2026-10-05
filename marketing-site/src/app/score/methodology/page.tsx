@@ -98,7 +98,7 @@ export default function MethodologyPage() {
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_no_competitor_first_rate</span>{" "}
-              (weight 10) — what fraction avoided naming a competitor BEFORE your domain.
+              (weight 10) — what fraction avoided naming a competitor BEFORE your domain. Not measured in the current Audit: no competitor list is supplied, so this check passes by default.
             </li>
           </ul>
 

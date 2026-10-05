@@ -58,7 +58,8 @@ vi.mock("./dim6/runDim6", () => ({
 
 const COPY: AuditReadyEmailCopy = {
   subject: "TEST SUBJECT",
-  text: ({ url, resultsUrl }) => `TEST ${url} ${resultsUrl}`,
+  text: ({ url, pdfUrl }) => `TEST ${url} ${pdfUrl}`,
+  html: () => "<p>TEST</p>",
 };
 
 const ALL_MEASURED = [
@@ -200,7 +201,9 @@ describe("runAuditFulfillment — buyer email (A4 + R2-5)", async () => {
     expect(payload.to).toBe("buyer@example.com");
     expect(payload.replyTo).toBe("contact@astrant.io");
     expect(payload.subject).toBe("TEST SUBJECT");
-    expect(payload.text).toBe(`TEST https://example.com/ https://astrant.io/audit-results/${SID}`);
+    expect(payload.text).toBe(`TEST https://example.com/ https://astrant.io/audit-results/${SID}/pdf`);
+    expect(payload.html).toBe("<p>TEST</p>");
+    expect(payload.attachments).toEqual([{ filename: `astrant-audit-${SID}.pdf`, content: "AAA=" }]);
     expect(opts).toEqual({ idempotencyKey: `audit-ready:${SID}` });
 
     // Replay of a ready session with email_sent_at → noop, no resend.
@@ -251,11 +254,19 @@ describe("runAuditFulfillment — buyer email (A4 + R2-5)", async () => {
     log.mockRestore();
   });
 
-  it("C-A placeholder copy (AUDIT_READY_EMAIL_COPY = null) → held even with the gate open", async () => {
+  it("null copy → held even with the gate open", async () => {
     seed(SID, "fulfilling");
-    await runAuditFulfillment(makeEnv(), SID, "o"); // default copy = the real constant
+    await runAuditFulfillment(makeEnv(), SID, "o", { emailCopy: null });
     expect(h.resendSends).toHaveLength(0);
     expect(read(SID).email_sent_at).toBeUndefined();
+  });
+
+  it("C-B: default copy (C5) is set → gate open sends the real email", async () => {
+    seed(SID, "fulfilling");
+    await runAuditFulfillment(makeEnv(), SID, "https://astrant.io"); // default copy = the real constant
+    expect(h.resendSends).toHaveLength(1);
+    expect(h.resendSends[0].payload.subject).toBe("Your Astrant Audit is ready");
+    expect(typeof read(SID).email_sent_at).toBe("number");
   });
 });
 

@@ -22,9 +22,13 @@ export const DIM6_DISCLOSURE = {
     "frontier models what they say when prompted about your domain. Astrant " +
     "queries OpenAI GPT-4o, Anthropic Claude, Google Gemini, and Perplexity " +
     "with a generated short-answer prompt set, scores each response for " +
-    "whether your domain is correctly cited, and aggregates. Cells that " +
+    "whether your domain is named and cited, and aggregates. Cells that " +
     "couldn't be scored (network failure, safety refusal, quota) are excluded " +
-    "from the formula rather than penalized — see methodology for details.",
+    "from the formula rather than penalized — see methodology for details. " +
+    "Perplexity's answers come from a live web search; GPT-4o, Claude and " +
+    "Gemini are queried without web search, so their answers reflect what " +
+    "each model already knows about your brand (brand recall), not live " +
+    "search results.",
 
   // Long — full methodology-page-section copy
   long:
@@ -32,12 +36,16 @@ export const DIM6_DISCLOSURE = {
     "Score cannot see — it's the dimension that asks the question every " +
     "AEO buyer actually wants answered: \"What do hosted frontier models " +
     "actually say about my domain?\"\n\n" +
-    "Methodology: Astrant generates a short-answer prompt set tuned to " +
-    "your domain's category and signals, dispatches each prompt across " +
-    "OpenAI GPT-4o, Anthropic Claude, Google Gemini 2.0 Flash, and " +
-    "Perplexity Sonar (4 models, ~10 prompts = ~40 cells per audit), " +
-    "scores each response for whether the model correctly identifies and " +
-    "cites your domain, and aggregates. Each cell costs roughly $0.02 in " +
+    "Methodology: Astrant generates a short-answer prompt set about your " +
+    "domain (direct questions such as \"What does {domain} do?\"), " +
+    "dispatches each prompt across OpenAI GPT-4o, Anthropic Claude, Google " +
+    "Gemini 2.5 Flash, and Perplexity Sonar (4 models, ~10 prompts = ~40 " +
+    "cells per audit), scores each response for whether the model engages " +
+    "with and names your domain, and aggregates. Perplexity's answers come " +
+    "from a live web search; GPT-4o, Claude and Gemini are queried without " +
+    "web search, so their answers reflect what each model already knows " +
+    "about your brand (brand recall), not live search results. Each cell " +
+    "costs roughly $0.02 in " +
     "model fees; a full Dim 6 audit costs Astrant about $0.85.\n\n" +
     "Cell states: a cell is unmeasurable (excluded from the score) when " +
     "the network failed, the model refused on safety grounds, the provider " +

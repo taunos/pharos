@@ -1,0 +1,178 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Audit-ready email HTML (C5 via renderEmailLayout) > snapshot 1`] = `
+"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
+  <title>Your Astrant Audit is ready</title>
+</head>
+<body style="margin: 0; padding: 0; background: #fafaf7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b;">
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #fafaf7; opacity: 0;">Your Astrant Audit for https://example.com/ is ready.</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #fafaf7;">
+    <tr>
+      <td style="padding: 32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 640px; margin: 0 auto;">
+    <tr>
+      <td style="padding: 28px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+        <img src="https://astrant.io/brand/astrant-wordmark.png" alt="Astrant" width="150" height="44" border="0" style="display: block;" />
+        <h1 style="font-size: 18px; color: #18181b; margin: 12px 0 4px 0; letter-spacing: -0.01em; font-weight: 600;">Your Astrant Audit is ready</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <p style="margin: 0 0 12px 0;">Your Astrant Audit for https://example.com/ is ready.</p><p style="margin: 0 0 12px 0;">The PDF is attached. You can also open it here:<br /><a href="https://astrant.io/audit-results/11111111-2222-4333-8444-555555555555/pdf" style="color: #18181b; word-break: break-all;">https://astrant.io/audit-results/11111111-2222-4333-8444-555555555555/pdf</a></p><p style="margin: 0 0 12px 0;">Questions or something looks wrong? Reply to this email or write to <a href="mailto:contact@astrant.io" style="color: #18181b;">contact@astrant.io</a>.</p><p style="margin: 0;">—Astrant</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px 0 0 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px; text-align: center;">
+              <div>
+                <a href="https://astrant.io/audit-results/11111111-2222-4333-8444-555555555555/pdf" style="display: inline-block; padding: 12px 24px; background: #f59e0b; color: #000000; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">Open your Audit (PDF)</a>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px 8px 0 8px; text-align: center;">
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io</div>
+      </td>
+    </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"
+`;
+
+exports[`renderEmailLayout > full input snapshot 1`] = `
+"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
+  <title>Heading &amp; more</title>
+</head>
+<body style="margin: 0; padding: 0; background: #fafaf7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b;">
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #fafaf7; opacity: 0;">Preheader &lt;text&gt;</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #fafaf7;">
+    <tr>
+      <td style="padding: 32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 640px; margin: 0 auto;">
+    <tr>
+      <td style="padding: 28px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+        <img src="https://astrant.io/brand/astrant-wordmark.png" alt="Astrant" width="150" height="44" border="0" style="display: block;" />
+        <h1 style="font-size: 18px; color: #18181b; margin: 12px 0 4px 0; letter-spacing: -0.01em; font-weight: 600;">Heading &amp; more</h1>
+        <p style="font-size: 13px; color: #71717a; margin: 0;">Sub</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <p>Card one</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <p>Card two</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px 0 0 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px; text-align: center;">
+              <div style="margin-bottom: 12px;">
+                <a href="https://astrant.io/x?a=1&amp;b=2" style="display: inline-block; padding: 12px 24px; background: #f59e0b; color: #000000; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">Open it</a>
+              </div>
+              <div style="font-size: 12px; color: #71717a;">Caption</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px 8px 0 8px; text-align: center;">
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Line one</div><div style="font-size: 12px; color: #71717a; line-height: 1.5;">Line two</div>
+      </td>
+    </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"
+`;
+
+exports[`renderEmailLayout > minimal input snapshot (no subheading, no CTA) 1`] = `
+"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
+  <title>H</title>
+</head>
+<body style="margin: 0; padding: 0; background: #fafaf7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b;">
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #fafaf7; opacity: 0;">P</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #fafaf7;">
+    <tr>
+      <td style="padding: 32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 640px; margin: 0 auto;">
+    <tr>
+      <td style="padding: 28px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+        <img src="https://astrant.io/brand/astrant-wordmark.png" alt="Astrant" width="150" height="44" border="0" style="display: block;" />
+        <h1 style="font-size: 18px; color: #18181b; margin: 12px 0 4px 0; letter-spacing: -0.01em; font-weight: 600;">H</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <p>C</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px 8px 0 8px; text-align: center;">
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">F</div>
+      </td>
+    </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"
+`;

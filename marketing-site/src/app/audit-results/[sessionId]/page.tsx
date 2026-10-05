@@ -29,7 +29,7 @@ export default async function AuditResultsPage({
           <p className="mt-6 text-lg text-[var(--color-muted)]">
             Hold tight — we&apos;re scanning your site, generating remediation
             guidance for each gap, and rendering your PDF. Usually about 60
-            seconds. Bookmark this URL — you can come back anytime.
+            seconds. We&apos;ll also email you the PDF.
           </p>
           <p className="mt-2 text-xs font-mono text-[var(--color-muted)]">
             Session: {sessionId}

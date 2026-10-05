@@ -37,7 +37,7 @@ const SERVICE_CATALOG = {
       price_usd: 79,
       turnaround: "instant",
       description:
-        "Automated deep audit delivered as a rich PDF: 6-dimension analysis, live citation audit, competitor comparison, and prioritized lift estimates. Self-serve, no human-in-loop.",
+        "Automated deep audit delivered as a rich PDF: 6-dimension analysis, per-gap remediation with effort estimates, a one-time Citation Visibility snapshot across 4 AI models, and a JSON export. Self-serve, no human-in-loop.",
     },
     {
       id: "implementation",
@@ -107,7 +107,7 @@ function buildMcpServer(): McpServer {
               ),
               currency: "USD",
               notes:
-                "Score, Audit, Implementation, and both subscription tiers are self-serve via Dodo Payments checkout. Custom Implementation requires a scoping call.",
+                "The Score is free. The Audit is purchasable now via Dodo Payments checkout at https://astrant.io/audit. Implementation, Custom Implementation, and both subscription tiers are pre-launch — join the waitlist at https://astrant.io/audit#waitlist.",
             },
             null,
             2
@@ -160,7 +160,7 @@ function buildMcpServer(): McpServer {
               price_usd: 79,
               turnaround: "instant",
               deliverable:
-                "Rich PDF: 6-dimension analysis, live citation audit, competitor comparison, prioritized lift estimates.",
+                "Rich PDF: 6-dimension analysis, per-gap remediation with effort estimates, one-time Citation Visibility snapshot across 4 AI models, JSON export.",
             },
             null,
             2

@@ -22,7 +22,7 @@ Cloudflare shipped a free Agent Readiness Score tool in 2026 that does pass/fail
 
 1. **Quality rubrics, not pass/fail.** Our llms.txt check doesn't just verify the file exists; it scores curation quality, blockquote elevator-pitch, and whether the linked pages return good markdown. Same depth on every other dimension.
 2. **Predicted referral lift per gap.** Each gap is annotated with an estimated impact on agent-attributed traffic. You fix what moves the needle first, not what's easy to check off.
-3. **Live citation audit.** We query ChatGPT, Claude, Perplexity, and Gemini for prompts in your category and report your current citation share against competitors. Cloudflare can't see inside those engines. We can.
+3. **Live citation audit.** We ask ChatGPT, Claude, Perplexity, and Gemini about your domain and check whether each one recognizes and names it — Perplexity from a live web search, the others from what the model already knows. Cloudflare can't see inside those engines. We can.
 
 ## Want the deeper analysis now?
 
@@ -31,7 +31,7 @@ The $79 Audit delivers the full 6-dimension report with live citation data in 60
 ## FAQ
 
 **What's the difference between Score and Audit?**
-The free Score gives you a public grade across six dimensions. The $79 Audit adds live citation audit across major AI engines, competitor comparison, implementation estimates, and a JSON export for programmatic use. If you just want to know where you stand, use the Score. If you want a prioritized action plan, use the Audit.
+The free Score gives you a public grade across six dimensions. The $79 Audit adds a live Citation Visibility check across 4 AI models, a specific fix for every gap, implementation estimates, and a JSON export for programmatic use. If you just want to know where you stand, use the Score. If you want a prioritized action plan, use the Audit.
 
 **Is the Score live?**
 Yes — it's live now. Run it free at https://astrant.io/score, no signup required.

@@ -18,6 +18,7 @@ import {
   isDim6DemoPreview,
 } from "@/lib/score-display";
 import ScorePanel from "@/components/ScorePanel";
+import { isAuditCheckoutEnabled } from "@/lib/audit-gate";
 import {
   SessionResultCleanup,
   SessionResultFallback,
@@ -55,6 +56,7 @@ interface PageProps {
 interface ScoreEnv {
   UNSUBSCRIBE_SECRET: string;
   INTERNAL_SCANNER_ADMIN_KEY: string;
+  AUDIT_CHECKOUT_ENABLED?: string;
 }
 
 // Citation Visibility (Dim 6) urgency bridge — keyed on the composite (0-100),
@@ -62,7 +64,7 @@ interface ScoreEnv {
 // risk/unknown, never asserts a specific competitor is cited.
 function citationBridge(composite: number, grade: string): string {
   if (composite < 60)
-    return `You scored ${grade} on agent-readiness. Sites this weak are rarely cited by AI — and you can't see who's being recommended in your place.`;
+    return `You scored ${grade} on agent-readiness. Sites this weak are rarely cited by AI — and right now you can't see what the models say about you.`;
   if (composite < 80)
     return `You scored ${grade} on readiness — the basics are there. But readiness isn't citation; plenty of well-built sites still get passed over.`;
   return `You scored ${grade} on readiness — a strong foundation. But being built to be found isn't the same as being found. See if it's translating.`;
@@ -76,6 +78,11 @@ export default async function ScoreResultsPage({
   const sp = await searchParams;
   const tokenInput = sp.t ?? "";
   const env = getCloudflareContext().env as unknown as ScoreEnv;
+  // Test C-B: Audit CTA + source_scan_id link only while the checkout is open.
+  const checkoutEnabled = isAuditCheckoutEnabled(env);
+  const auditHref = checkoutEnabled
+    ? `/audit?source_scan_id=${encodeURIComponent(scanId)}`
+    : "/audit";
 
   // Validate token (if present).
   const validToken = tokenInput
@@ -326,6 +333,28 @@ export default async function ScoreResultsPage({
             );
           })()}
 
+          {/* Test C-B (C3) — $79 Audit CTA, every scan, open state only. */}
+          {checkoutEnabled ? (
+            <div className="mt-14 border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
+              <h2 className="text-2xl font-bold tracking-tight">
+                Get the full Audit — $79
+              </h2>
+              <p className="mt-3 text-base text-[var(--color-muted)]">
+                A PDF report for this site: a specific fix for every gap above,
+                plus Citation Visibility — what ChatGPT, Claude, Gemini and
+                Perplexity say when asked about your brand.
+              </p>
+              <div className="mt-6">
+                <Link
+                  href={auditHref}
+                  className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
+                >
+                  Buy the $79 Audit →
+                </Link>
+              </div>
+            </div>
+          ) : null}
+
           {/* The CTA self-heads (EmailGate: "Get the full PDF gap report";
               other states have their own lead text) — no page-level heading,
               to avoid the duplicate "Get the full gap report". */}
@@ -354,17 +383,17 @@ export default async function ScoreResultsPage({
                     Dimension 6 · Not scored in your free scan
                   </p>
                   <h2 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">
-                    Is AI sending your customers to a competitor?
+                    What does AI say when asked about you?
                   </h2>
                   <p className="mt-4 text-base text-[var(--color-muted)]">
-                    When someone asks ChatGPT, Claude, Gemini, or Perplexity for
-                    the best in your category, it names someone. Dimensions 1–5
-                    above measure whether you&apos;re built to be found. Citation
-                    Visibility measures whether you actually are — how often those
-                    four models name you in real buyer questions, and whether
-                    competitors get named ahead of you. It&apos;s the number that
-                    decides revenue, and the one your free Score can&apos;t show
-                    you.
+                    When someone asks ChatGPT, Claude, Gemini or Perplexity about
+                    your company, what comes back? Dimensions 1–5 above measure
+                    whether you&apos;re built to be found. Citation Visibility asks
+                    the four models about your domain directly and checks whether
+                    they recognize it and name it. Perplexity answers from a live
+                    web search; the other three answer from what the model already
+                    knows about your brand. Your free Score can&apos;t show you
+                    this.
                   </p>
                   <p className="mt-4 text-base text-[var(--color-fg)]">
                     {citationBridge(scan.composite.score, scan.composite.grade)}
@@ -377,12 +406,12 @@ export default async function ScoreResultsPage({
                     ))}
                   </div>
                   <p className="mt-8 text-base text-[var(--color-fg)]">
-                    Run the $79 Audit — see exactly where you stand across all
-                    four models, and whether competitors are outranking you.
+                    Run the $79 Audit — see whether each of the four models
+                    recognizes and names your domain.
                   </p>
                   <div className="mt-4">
                     <Link
-                      href="/audit"
+                      href={auditHref}
                       className="inline-flex bg-[var(--color-accent)] px-6 py-3 text-base font-semibold text-black transition hover:brightness-110"
                     >
                       Run your audit →

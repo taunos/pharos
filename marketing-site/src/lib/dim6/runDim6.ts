@@ -134,13 +134,13 @@ function buildSubChecks(result: Dim6Result): Dim6SubCheck[] {
     },
     {
       id: SUBCHECK_IDS.no_competitor_first_rate,
-      name: "Competitors don't outrank you",
+      name: "Competitor-first check (not measured)",
       weight: 10,
       score: compRate,
       passed: compRate >= 70,
       notes:
         compRate === 100
-          ? "No competitor host appeared before the target in any measurable cell (or no competitor list was provided to v1)."
+          ? "Not measured: this Audit doesn't take a competitor list yet, so this check passes by default."
           : `${compRate}% of measurable cells avoided a competitor-first mention.`,
     },
   ];

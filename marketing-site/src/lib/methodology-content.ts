@@ -21,11 +21,11 @@ Most agentic-discoverability scores are black boxes. Astrant's isn't. This page 
 
 ## How Dim 6 is measured
 
-Dim 6 measures whether AI models cite your domain when asked questions a buyer or researcher might ask about your category. The Dim 6 pipeline runs in three stages:
+Dim 6 measures whether AI models recognize and name your domain when asked about it directly. The Dim 6 pipeline runs in three stages:
 
-1. **Prompt generation.** For each audited domain, Dim 6 generates a citation-eliciting query set from observed signals about the domain. Queries are deterministic (same domain produces the same prompts on repeat runs until the underlying signals change) and validated before being sent to citation-target models.
+1. **Prompt generation.** For each audited domain, Dim 6 generates a short-answer query set that names the domain (for example, "What does {domain} do?"), with a fixed domain-named fallback. Queries are deterministic (same domain produces the same prompts on repeat runs) and validated before being sent to citation-target models.
 
-2. **Citation querying.** Each prompt is sent to multiple major language models. Responses are captured verbatim into Dim 6's audit corpus.
+2. **Citation querying.** Each prompt is sent to four major language models. Perplexity answers using live web search; GPT-4o, Claude, and Gemini are queried without web search, so their answers reflect what each model already knows (brand recall). Responses are captured verbatim into Dim 6's audit corpus.
 
 3. **Judging and scoring.** Each response is judged for whether it substantively engages with the audited domain. The Dim 6 composite reflects citation rate, citation specificity, and surrounding-context relevance.
 

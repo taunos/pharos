@@ -1,20 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { normalizeUrl } from "@/lib/normalize-url";
+import {
+  checkoutErrorMessage,
+  parseSourceScanId,
+} from "@/lib/audit-checkout-client";
 
-// PRE-LAUNCH MODE — paid checkouts disabled. The form below captures email
-// + URL as a waitlist entry instead of creating a Dodo checkout session.
-// To re-enable real purchases, restore the audit-create POST + redirect logic
-// from git history (commit 54fa925 or earlier).
+// Two modes, chosen server-side by isAuditCheckoutEnabled (lib/audit-gate.ts)
+// and passed in as `checkoutEnabled`:
+// - false (PRE-LAUNCH MODE): the form captures email + URL as a waitlist
+//   entry instead of creating a Dodo checkout session.
+// - true (Test C-B): the 54fa925 purchase flow — POST /api/audit-create, then
+//   redirect to the Dodo checkout_url.
 
-type Status = "idle" | "submitting" | "done" | "error";
+type Status = "idle" | "submitting" | "redirecting" | "done" | "error";
 
-export default function AuditCheckoutForm() {
+export default function AuditCheckoutForm({
+  checkoutEnabled = false,
+}: {
+  checkoutEnabled?: boolean;
+}) {
   const [url, setUrl] = useState("");
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [sourceScanId, setSourceScanId] = useState<string | null>(null);
+
+  // The /score/[id] Audit CTA forwards the prior scan as ?source_scan_id=…
+  // so the conversion arc is recoverable. Read once at mount (open mode only).
+  useEffect(() => {
+    if (!checkoutEnabled) return;
+    setSourceScanId(
+      parseSourceScanId(
+        new URL(window.location.href).searchParams.get("source_scan_id"),
+      ),
+    );
+  }, [checkoutEnabled]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -26,6 +48,33 @@ export default function AuditCheckoutForm() {
     }
     setStatus("submitting");
     setErrorMsg(null);
+    if (checkoutEnabled) {
+      try {
+        const body: Record<string, string> = { url: normalized, email };
+        if (sourceScanId) body.source_scan_id = sourceScanId;
+        const res = await fetch("/api/audit-create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = (await res.json()) as {
+          ok: boolean;
+          error?: string;
+          checkout_url?: string;
+        };
+        if (!res.ok || !data.ok || !data.checkout_url) {
+          setStatus("error");
+          setErrorMsg(checkoutErrorMessage(data.error));
+          return;
+        }
+        setStatus("redirecting");
+        window.location.href = data.checkout_url;
+      } catch {
+        setStatus("error");
+        setErrorMsg("Network error. Try again in a moment.");
+      }
+      return;
+    }
     try {
       const res = await fetch("/api/waitlist", {
         method: "POST",
@@ -48,9 +97,15 @@ export default function AuditCheckoutForm() {
     }
   }
 
-  const disabled = status === "submitting" || status === "done";
-  const buttonLabel =
-    status === "submitting"
+  const disabled =
+    status === "submitting" || status === "redirecting" || status === "done";
+  const buttonLabel = checkoutEnabled
+    ? status === "submitting"
+      ? "Creating checkout…"
+      : status === "redirecting"
+        ? "Redirecting to checkout…"
+        : "Run my audit ($79)"
+    : status === "submitting"
       ? "Saving…"
       : status === "done"
         ? "You're on the list ✓"
@@ -62,6 +117,7 @@ export default function AuditCheckoutForm() {
     // EXCEPTION amber stays on the pre-launch banner + focus borders + CTA.
     // Only the radii are stripped per decision 4.
     <form onSubmit={onSubmit} className="w-full max-w-2xl">
+      {checkoutEnabled ? null : (
       <div className="border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5 p-4 text-sm text-[var(--color-fg)]">
         <strong className="text-[var(--color-accent)]">Pre-launch.</strong>{" "}
         Astrant Audit is in final pre-launch verification. Drop your URL and
@@ -76,7 +132,8 @@ export default function AuditCheckoutForm() {
         gives you all six dimensions — five scored live, with a Citation
         Visibility demo preview.
       </div>
-      <div className="mt-4 flex flex-col gap-3">
+      )}
+      <div className={checkoutEnabled ? "flex flex-col gap-3" : "mt-4 flex flex-col gap-3"}>
         <input
           name="url"
           type="text"
@@ -107,6 +164,12 @@ export default function AuditCheckoutForm() {
           {buttonLabel}
         </button>
       </div>
+      {checkoutEnabled ? (
+        <p className="mt-3 text-sm italic text-[var(--color-muted)]">
+          After payment you&apos;ll land on your results page, and we&apos;ll
+          email you the PDF.
+        </p>
+      ) : null}
       {status === "done" ? (
         <p className="mt-3 text-sm text-emerald-400">
           Thanks. We&apos;ll email you the moment Audit goes live.

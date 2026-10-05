@@ -20,7 +20,7 @@ const env = {
   AUDITS: { get: async () => ({ arrayBuffer: async () => new ArrayBuffer(2) }) } as unknown as R2Bucket,
 };
 const apInput = { toEmail: "a@b.co", sessionId: "ap-sub_x-1", pdfR2Key: "audits/ap-sub_x-1.pdf", origin: "o" };
-const copy = { subject: "S", text: () => "T" };
+const copy = { subject: "S", text: () => "T", html: () => "<p>H</p>" };
 
 beforeEach(() => {
   h.error = null;
@@ -38,11 +38,25 @@ describe("sendAutoPilotAuditReadyEmail", () => {
 
 describe("sendAuditReadyEmail", () => {
   const input = { toEmail: "a@b.co", sessionId: "s", url: "https://x.co/", origin: "o" };
-  it("C-A ships the copy constant as a null placeholder", () => {
-    expect(AUDIT_READY_EMAIL_COPY).toBeNull();
-  });
   it("refuses to send without copy", async () => {
-    expect(await sendAuditReadyEmail(env, input)).toEqual({ ok: false, error: "copy_not_set" });
+    expect(await sendAuditReadyEmail(env, input, null)).toEqual({ ok: false, error: "copy_not_set" });
+  });
+  it("C-B copy (C5) is set; text is exactly C5", () => {
+    expect(AUDIT_READY_EMAIL_COPY?.subject).toBe("Your Astrant Audit is ready");
+    expect(AUDIT_READY_EMAIL_COPY?.text({ url: "https://x.co/", pdfUrl: "https://astrant.io/audit-results/s/pdf" })).toBe(
+      `Your Astrant Audit for https://x.co/ is ready.
+
+The PDF is attached. You can also open it here:
+https://astrant.io/audit-results/s/pdf
+
+Questions or something looks wrong? Reply to this email or write to contact@astrant.io.
+
+—Astrant`,
+    );
+  });
+  it("ok:false when the PDF is missing from R2 (queue retries)", async () => {
+    const noPdf = { ...env, AUDITS: { get: async () => null } as unknown as R2Bucket };
+    expect(await sendAuditReadyEmail(noPdf, input, copy)).toEqual({ ok: false, error: "pdf_not_found:audits/s.pdf" });
   });
   it("ok:false when Resend returns result.error", async () => {
     h.error = { message: "rate_limited" };

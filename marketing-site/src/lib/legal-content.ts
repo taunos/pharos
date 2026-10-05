@@ -12,7 +12,7 @@
 
 export const PRIVACY_MD = `# Privacy Policy
 
-**Last updated:** 2026-05-10
+**Last updated:** 2026-10-04
 **Status:** v1 in good faith. [Subject to legal review pre-launch.]
 
 This is the plain-English privacy policy for Astrant — Agent Discoverability for B2B SaaS. We try to write privacy policies the way we'd want one written for us: short, specific, and honest about what we collect and why.
@@ -24,7 +24,7 @@ When you use Astrant's free Score tool or any paid tier:
 - **The URL you scan.** That's the whole point — we can't compute a discoverability score without it.
 - **Your IP address.** Used for rate-limiting (preventing abuse) and aggregate traffic analytics. It is **not** stored in your scan record; it may appear in server tail logs (~7 days). Rate-limit counters use an HMAC-derived key rather than the raw IP and expire within approximately 25 hours.
 - **Your User-Agent string.** Same uses as IP — rate-limiting and aggregate analytics. Stored in tail logs for ~7 days.
-- **Your email address, if you submit one.** You'll only submit an email if you choose to: receive your gap-report PDF, opt into monthly auto-rescan emails, contact support, or join the pre-launch waitlist (we'll notify you when paid tiers — Audit, Implementation, Custom, Standard, Pro — open for purchase). We don't email you for any reason you didn't explicitly ask for.
+- **Your email address, if you submit one.** You'll only submit an email if you choose to: receive your gap-report PDF, buy an Audit, opt into monthly auto-rescan emails, contact support, or join the pre-launch waitlist (we'll notify you when paid tiers — Implementation, Custom, Standard, Pro — open for purchase). We don't email you for any reason you didn't explicitly ask for.
 - **Sub-check results from the scan.** The structured data Astrant computes about your site — llms.txt presence, MCP server discoverability, JSON-LD schema completeness, etc. This is not your content; it's our analysis of your public technical surface.
 
 ## What we don't collect
@@ -38,13 +38,15 @@ When you use Astrant's free Score tool or any paid tier:
 - **Compute your Astrant Score.** That's the primary use.
 - **Send you the gap-report PDF you requested,** if you submitted an email.
 - **Send monthly auto-rescan emails,** if you opted in (default: off, never auto-checked).
-- **Send a launch notification,** if you joined the pre-launch waitlist. One-shot transactional email when paid tiers open for purchase.
+- **Deliver an Audit you bought:** we use the URL and email you submit to run the audit, email you the PDF, and handle support or refund requests.
+- **Send a launch notification,** if you joined the pre-launch waitlist. One-shot transactional email when the tier you asked about opens for purchase.
 - **Improve our scoring engine** in aggregate. We may use anonymized scan data (no email, no IP, no User-Agent — just URL+score+sub-check results) to calibrate our methodology over time. Disclosed here so it's not a surprise.
 
 ## What we don't do with what we collect
 
 - We don't sell your data. Ever.
-- We don't share it beyond our infrastructure providers (Cloudflare, who runs our Workers / D1 / KV / R2; Resend, who delivers our transactional emails; and Profound, when our paid tiers eventually integrate with their citation-tracking API). These are processors, not partners — they hold data on our behalf, under contract.
+- We don't share it beyond the providers who run the service for us: Cloudflare (Workers / D1 / KV / R2, Workers AI, Browser Rendering); Resend, who delivers our transactional emails; OpenAI, Anthropic, Google and Perplexity, which receive your site's domain (never your email) in the prompts of a paid Audit's Citation Visibility check; and Profound, when our paid tiers eventually integrate with their citation-tracking API. These are processors, not partners — they hold data on our behalf, under contract.
+- **Payments** are handled by Dodo Payments, our merchant of record. Dodo collects your payment details directly under its own privacy policy; we never see your card number. We receive your email, the purchase and its status.
 - We don't run ads, advertising pixels, or affiliate tracking.
 
 ## Watermarking on PDF gap reports
@@ -61,6 +63,7 @@ When the system needs to log information about a transactional email (for exampl
 - **Email-opted-in scan records:** retained until you cancel the rescan opt-in (or submit a deletion request).
 - **Tail logs (IP, User-Agent, hashed email):** retained ~7 days.
 - **Retained scan records** (email, IP, unsubscribe token, and opt-in state removed) may be kept for calibration and aggregate metrics. The submitted URL and technical scan results remain — and because a URL can contain identifying information (names, tenant paths, query parameters), we don't claim these records are fully anonymous.
+- **Audit orders:** the URL and email you submit are kept with your order for 30 days, then deleted automatically. Your Audit PDF and JSON are stored with no automatic expiry so your download link keeps working; email privacy@astrant.io to have them deleted. Anonymized Audit results (no email) may be kept for calibration, as described above.
 
 ## Your rights
 
@@ -68,7 +71,7 @@ You have the following rights, regardless of where you're located:
 
 - **Access:** ask us what data we hold about you. Email privacy@astrant.io.
 - **Correction:** if we have something wrong, tell us, and we'll fix it.
-- **Deletion:** visit [\`/score/delete-me\`](/score/delete-me) to remove your personal data from every Score scan record associated with your email. We send a confirmation link valid for 24 hours; opening it shows a confirmation page, and only when you click Delete do we remove the stored email, IP address, unsubscribe token, opt-in state, and personalized report across every record for that email (not just the most recent). The submitted URL and technical scan results remain for calibration. If you've used Astrant from multiple email addresses, submit a request for each.
+- **Deletion:** visit [\`/score/delete-me\`](/score/delete-me) to remove your personal data from every Score scan record associated with your email. We send a confirmation link valid for 24 hours; opening it shows a confirmation page, and only when you click Delete do we remove the stored email, IP address, unsubscribe token, opt-in state, and personalized report across every record for that email (not just the most recent). The submitted URL and technical scan results remain for calibration. If you've used Astrant from multiple email addresses, submit a request for each. For Audit orders and reports, email privacy@astrant.io.
 - **Portability:** ask us for a JSON export of your data. Email privacy@astrant.io.
 - **Unsubscribe:** every email we send has a one-click unsubscribe link in the header (RFC 8058) and a visible unsubscribe link in the body.
 
@@ -82,7 +85,7 @@ Astrant is not directed at children. If you're under 16, please don't use this s
 
 ## International transfers
 
-Our infrastructure runs on Cloudflare's global network. Your data may be processed in any region Cloudflare operates in, including the United States. Our email delivery (Resend) is US-based. If you're in the EU/UK and want stronger guarantees about data residency, email privacy@astrant.io.
+Our infrastructure runs on Cloudflare's global network. Your data may be processed in any region Cloudflare operates in, including the United States. Our email delivery (Resend) and the AI model providers used in a paid Audit are US-based, and Dodo Payments may process payment data outside your country. If you're in the EU/UK and want stronger guarantees about data residency, email privacy@astrant.io.
 
 ## Contact
 
@@ -115,7 +118,7 @@ Astrant provides agent-discoverability tooling for B2B SaaS websites:
 - **Custom** (from $4,999): bespoke human-led builds for complex APIs, multi-region content, or unusual MCP tool needs.
 - **Subscriptions** (Standard $149/mo, Pro $899/mo): ongoing rescan + reporting.
 
-Some of these tiers are still in pre-launch verification at the time you're reading this. Active checkout availability is shown on each tier's page.
+The Audit is available now. Implementation, Custom and the subscriptions are still in pre-launch; active checkout availability is shown on each tier's page. Payments are processed by Dodo Payments, our merchant of record, and your purchase is also subject to Dodo's checkout terms.
 
 ## "As-is" service
 
@@ -158,7 +161,7 @@ You agree to indemnify and hold us harmless from any claims arising from your mi
 
 ## Governing law
 
-[Subject to legal review pre-launch — currently provided in good faith without a specific governing-law selection. We'll update this section before commercial launch with the actual jurisdiction.]
+These terms are governed by the laws of the Federative Republic of Brazil.
 
 ## Changes to these terms
 

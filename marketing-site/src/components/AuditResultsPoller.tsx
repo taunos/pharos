@@ -157,8 +157,9 @@ export default function AuditResultsPoller({ sessionId }: { sessionId: string })
         </div>
 
         <p className="text-sm italic text-[var(--color-muted)]">
-          Bookmark this URL — the PDF and JSON stay available for 30 days.
-          Forward to teammates or your dev team as-is.
+          This page expires after 30 days; the PDF and JSON download links
+          keep working, and the PDF is in your inbox. Forward to teammates or
+          your dev team as-is.
         </p>
       </div>
     );

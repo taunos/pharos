@@ -261,10 +261,10 @@ export function renderScoreReportHTML(input: RenderInput): string {
     <h3>Want deeper remediation guidance per gap?</h3>
     <ul>
       <li><strong>$79 Audit</strong> — DIY-ready remediation written specifically for your site, plus a JSON export. Same dimensions, full evidence and per-gap path.</li>
-      <li><strong>$1,299 Implementation</strong> — Astrant builds the AEO stack for you. Patch file, MCP server deployed, baseline monitoring, &lt;24h delivery.</li>
-      <li><strong>$4,999+ Custom</strong> — Bespoke scoping for complex APIs, multi-region content, custom MCP tools.</li>
+      <li><strong>$1,299 Implementation</strong> (pre-launch) — Astrant builds the AEO stack for you. Patch file, MCP server deployed, baseline monitoring, &lt;24h delivery.</li>
+      <li><strong>$4,999+ Custom</strong> (pre-launch) — Bespoke scoping for complex APIs, multi-region content, custom MCP tools.</li>
     </ul>
-    <p style="margin: 8pt 0 0 0; font-size: 10pt;">Compare tiers at <a href="https://astrant.io/" style="color: #0f172a;">astrant.io</a>. (Paid checkouts are in pre-launch verification — drop your email on each page to be notified when they open.)</p>
+    <p style="margin: 8pt 0 0 0; font-size: 10pt;">Compare tiers at <a href="https://astrant.io/" style="color: #0f172a;">astrant.io</a>. The $79 Audit is available now; other paid plans are in pre-launch — join the waitlist at astrant.io/audit#waitlist.</p>
   </div>
 
   <footer>

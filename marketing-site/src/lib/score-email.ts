@@ -17,10 +17,11 @@ import { Resend } from "resend";
 import type { ScanResult } from "./audit-types";
 import { hashEmailForLog } from "./score-tokens";
 import { dimensionCountPhrase } from "./score-display";
+import { renderEmailLayout, escapeHtml as escapeLayoutHtml, EMAIL_PALETTE } from "./email-layout";
 
 const FROM_ADDRESS = "Astrant Score <reports@astrant.io>";
 const COMPANY_FOOTER =
-  "Astrant — Agent Discoverability for B2B SaaS. [Subject to legal review pre-launch: company city placeholder]";
+  "Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io";
 
 export type SendEnv = {
   RESEND_API_KEY: string;
@@ -368,8 +369,8 @@ View your audit (PDF attached; permanent link below):
 ${auditUrl}
 
 What you'll see:
-- Dim 1-5: deterministic content + structure signals (Page, Brand Page, Schema, llms.txt, Robots)
-- Dim 6: how often AI agents cite your brand accurately (baseline across 4 major-model APIs)
+- Dim 1-5: llms.txt, MCP server, OpenAPI catalog, structured data, agent-parsable content
+- Dim 6: how often 4 major AI models name and cite your brand (Perplexity via live web search; the others from model knowledge)
 
 Your first monthly tracking digest delivers 2026-06-01 with citation-tracking data from your subscription start onward.
 
@@ -391,14 +392,34 @@ Your first monthly tracking digest delivers 2026-06-01 with citation-tracking da
 
 // ─── Test C-A (A4) standalone Audit buyer "ready" email ─────────────────
 //
-// Copy is owned by Test C-B. Until C-B sets it, this constant is null and the
-// send is HELD by lib/audit-fulfill-run.ts (R2-5) — no buyer email goes out.
+// Copy set by Test C-B (copy table C5). A null copy still HOLDS the send in
+// lib/audit-fulfill-run.ts (R2-5). The send is also gated there on
+// isAuditCheckoutEnabled. The PDF is attached and linked (pdfUrl reads R2
+// directly, so the link outlives the 30-day session TTL).
 export type AuditReadyEmailCopy = {
   subject: string;
-  // `url` is the audited site; `resultsUrl` is the buyer's results page.
-  text: (args: { url: string; resultsUrl: string }) => string;
+  // `url` is the audited site; `pdfUrl` is the R2-backed PDF route.
+  text: (args: { url: string; pdfUrl: string }) => string;
+  html: (args: { url: string; pdfUrl: string }) => string;
 };
-export const AUDIT_READY_EMAIL_COPY: AuditReadyEmailCopy | null = null;
+export const AUDIT_READY_EMAIL_COPY: AuditReadyEmailCopy | null = {
+  subject: "Your Astrant Audit is ready",
+  text: ({ url, pdfUrl }) =>
+    `Your Astrant Audit for ${url} is ready.\n\nThe PDF is attached. You can also open it here:\n${pdfUrl}\n\nQuestions or something looks wrong? Reply to this email or write to contact@astrant.io.\n\n—Astrant`,
+  html: ({ url, pdfUrl }) =>
+    renderEmailLayout({
+      preheader: `Your Astrant Audit for ${url} is ready.`,
+      heading: "Your Astrant Audit is ready",
+      cards: [
+        `<p style="margin: 0 0 12px 0;">Your Astrant Audit for ${escapeLayoutHtml(url)} is ready.</p>` +
+          `<p style="margin: 0 0 12px 0;">The PDF is attached. You can also open it here:<br /><a href="${escapeLayoutHtml(pdfUrl)}" style="color: ${EMAIL_PALETTE.fg}; word-break: break-all;">${escapeLayoutHtml(pdfUrl)}</a></p>` +
+          `<p style="margin: 0 0 12px 0;">Questions or something looks wrong? Reply to this email or write to <a href="mailto:contact@astrant.io" style="color: ${EMAIL_PALETTE.fg};">contact@astrant.io</a>.</p>` +
+          `<p style="margin: 0;">—Astrant</p>`,
+      ],
+      cta: { label: "Open your Audit (PDF)", href: pdfUrl },
+      footerLines: [COMPANY_FOOTER],
+    }),
+};
 
 export type AuditReadyInput = {
   toEmail: string;
@@ -408,21 +429,32 @@ export type AuditReadyInput = {
 };
 
 export async function sendAuditReadyEmail(
-  env: { RESEND_API_KEY: string },
+  env: { RESEND_API_KEY: string; AUDITS: R2Bucket },
   input: AuditReadyInput,
   copy: AuditReadyEmailCopy | null = AUDIT_READY_EMAIL_COPY,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!copy) return { ok: false, error: "copy_not_set" };
-  const resultsUrl = `${input.origin}/audit-results/${input.sessionId}`;
+  const pdfUrl = `${input.origin}/audit-results/${input.sessionId}/pdf`;
   const resend = new Resend(env.RESEND_API_KEY);
   try {
+    // C5 says "The PDF is attached" — attach it (same pattern as the
+    // AutoPilot sender). A missing object fails the send so the queue retries.
+    const pdfKey = `audits/${input.sessionId}.pdf`;
+    const pdfObj = await env.AUDITS.get(pdfKey);
+    if (!pdfObj) return { ok: false, error: `pdf_not_found:${pdfKey}` };
+    const pdfBase64 = uint8ArrayToBase64Local(new Uint8Array(await pdfObj.arrayBuffer()));
+    const args = { url: input.url, pdfUrl };
     const result = await resend.emails.send(
       {
         from: "Astrant <reports@astrant.io>",
         to: input.toEmail,
         replyTo: "contact@astrant.io",
         subject: copy.subject,
-        text: copy.text({ url: input.url, resultsUrl }),
+        text: copy.text(args),
+        html: copy.html(args),
+        attachments: [
+          { filename: `astrant-audit-${input.sessionId}.pdf`, content: pdfBase64 },
+        ],
       },
       { idempotencyKey: `audit-ready:${input.sessionId}` },
     );

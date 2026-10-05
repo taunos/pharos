@@ -3,6 +3,9 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import AuditCheckoutForm from "@/components/AuditCheckoutForm";
 import AuditSamplePanel from "@/components/AuditSamplePanel";
+import TierWaitlistForm from "@/components/TierWaitlistForm";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { isAuditCheckoutEnabled } from "@/lib/audit-gate";
 
 // Test C-A (A1): the Audit gate is an env var, so this page must not be
 // prerendered at build time (C-B reads the gate here for the open-state UI).
@@ -47,11 +50,11 @@ const FAQS = [
   },
   {
     q: "Can I audit a competitor instead?",
-    a: "Yes. Paste any URL you have a legitimate interest in analyzing.",
+    a: "Only sites you own or have permission to analyze — see our terms.",
   },
   {
     q: "Is ongoing citation tracking and competitor comparison in here yet?",
-    a: "The Audit includes a one-time Citation Visibility snapshot — whether ChatGPT, Claude, Perplexity, and Gemini cite you right now — as one of its six dimensions. What's not in v0: ongoing citation tracking over time (that's the monitoring subscription) and side-by-side competitor comparison. We'd rather under-promise and over-deliver than ship a hollow report.",
+    a: "The Audit includes a one-time Citation Visibility snapshot — whether ChatGPT, Claude, Perplexity, and Gemini recognize and name your domain when asked about it (Perplexity via live web search; the others from what the model already knows) — as one of its six dimensions. What's not in v0: ongoing citation tracking over time (that's the monitoring subscription) and side-by-side competitor comparison. We'd rather under-promise and over-deliver than ship a hollow report.",
   },
   {
     q: "What if the report is wrong?",
@@ -79,7 +82,7 @@ const INCLUDES = [
 const STEPS = [
   {
     title: "Submit URL + email",
-    body: "Two fields, one form. We use the email to send your audit if you ever lose the bookmark.",
+    body: "Two fields, one form. We email the PDF to that address as soon as it's ready.",
   },
   {
     title: "Pay",
@@ -91,7 +94,18 @@ const STEPS = [
   },
 ];
 
-export default function AuditPage() {
+export default async function AuditPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ canceled?: string }>;
+}) {
+  // Test C-B: open-state UI is gated on the same fail-closed flag as
+  // /api/audit-create. Gate closed → the page renders exactly as before.
+  const env = getCloudflareContext().env as unknown as {
+    AUDIT_CHECKOUT_ENABLED?: string;
+  };
+  const checkoutEnabled = isAuditCheckoutEnabled(env);
+  const showCanceled = checkoutEnabled && (await searchParams).canceled === "1";
   return (
     <div className="min-h-screen">
       <script
@@ -116,16 +130,22 @@ export default function AuditPage() {
                 Find out why AI isn&apos;t recommending you yet.
               </h1>
               <p className="mt-6 text-lg text-[var(--color-muted)] sm:text-xl">
-                When someone asks ChatGPT, Claude, or Perplexity for a tool like
-                yours and your name never comes up, the Audit tells you why. A
-                deep six-dimension read of what agents can and can&apos;t parse
+                When ChatGPT, Claude, or Perplexity can&apos;t say what you do
+                — or never bring your name up — the Audit shows what&apos;s
+                missing and how to fix it. A deep six-dimension read of what agents can and can&apos;t parse
                 on your site, with a specific, developer-ready fix for every gap
                 &#8212; delivered as a PDF in about 60 seconds. No call required.
               </p>
-              {/* Form rendered UNCHANGED inside the layout wrapper — zero-touch
-                  (no props, component not edited); w-full fills the column. */}
-              <div className="mt-10">
-                <AuditCheckoutForm />
+              {showCanceled ? (
+                <div className="mt-10 border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4 text-sm text-[var(--color-fg)]">
+                  Checkout canceled — you weren&apos;t charged. You can try
+                  again below.
+                </div>
+              ) : null}
+              {/* w-full fills the column; checkoutEnabled picks waitlist vs
+                  purchase mode (Test C-B). */}
+              <div className={showCanceled ? "mt-6" : "mt-10"}>
+                <AuditCheckoutForm checkoutEnabled={checkoutEnabled} />
               </div>
               <p className="mt-4 font-mono text-xs uppercase tracking-wider text-[var(--color-muted)]">
                 30-day refund · No call · No login
@@ -237,10 +257,23 @@ export default function AuditPage() {
               Ready?
             </h2>
             <div className="mt-10">
-              <AuditCheckoutForm />
+              <AuditCheckoutForm checkoutEnabled={checkoutEnabled} />
             </div>
           </div>
         </section>
+
+        {/* WAITLIST — tiers still in pre-launch; every other tier's
+            "Notify me" lands here. Open state only. */}
+        {checkoutEnabled ? (
+          <section
+            id="waitlist"
+            className="scroll-mt-20 border-t border-[var(--color-border)]"
+          >
+            <div className="mx-auto max-w-6xl px-6 py-20">
+              <TierWaitlistForm />
+            </div>
+          </section>
+        ) : null}
       </main>
 
       <SiteFooter />

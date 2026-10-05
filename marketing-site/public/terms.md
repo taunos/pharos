@@ -15,7 +15,7 @@ Astrant provides agent-discoverability tooling for B2B SaaS websites:
 - **Custom** (from $4,999): bespoke human-led builds for complex APIs, multi-region content, or unusual MCP tool needs.
 - **Subscriptions** (Standard $149/mo, Pro $899/mo): ongoing rescan + reporting.
 
-Some of these tiers are still in pre-launch verification at the time you're reading this. Active checkout availability is shown on each tier's page.
+The Audit is available now. Implementation, Custom and the subscriptions are still in pre-launch; active checkout availability is shown on each tier's page. Payments are processed by Dodo Payments, our merchant of record, and your purchase is also subject to Dodo's checkout terms.
 
 ## "As-is" service
 
@@ -58,7 +58,7 @@ You agree to indemnify and hold us harmless from any claims arising from your mi
 
 ## Governing law
 
-[Subject to legal review pre-launch — currently provided in good faith without a specific governing-law selection. We'll update this section before commercial launch with the actual jurisdiction.]
+These terms are governed by the laws of the Federative Republic of Brazil.
 
 ## Changes to these terms
 

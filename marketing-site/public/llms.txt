@@ -5,7 +5,7 @@
 ## Services
 
 - [Agent Discoverability Score](/score.md): Free. URL-input scan across 6 dimensions — dimensions 1–5 scored live; dimension 6 (Citation Visibility) is a static demo preview on the free tier and runs live across 4 AI models with the $79 Audit. Live now at astrant.io/score.
-- [AEO Audit](/audit.md): $79 one-time, instant delivery. Rich PDF — 6-dimension deep analysis, live citation audit across ChatGPT/Claude/Perplexity/Gemini, competitor comparison, prioritized lift estimates, machine-readable JSON export.
+- [AEO Audit](/audit.md): $79 one-time, instant delivery. Rich PDF — 6-dimension deep analysis, per-gap remediation with effort estimates, one-time Citation Visibility snapshot across ChatGPT/Claude/Perplexity/Gemini, machine-readable JSON export.
 - [AEO Implementation](/implementation.md): $1,299 one-time, <24h delivery. Automated build: llms.txt, MCP server, OpenAPI spec, JSON-LD schema, baseline monitoring. Delivered as a PR against your repo. For standard B2B SaaS sites.
 - [Custom Implementation](/custom.md): From $4,999. Bespoke builds for complex APIs, multi-region content, custom MCP tools, deep content rewrites, or multi-stakeholder engagements. Scoping call + fixed quote + 2–4 week build.
 - [Standard Subscription](/subscriptions.md): $149/month, month-to-month. Twice-weekly citation probes detecting mentions of your brand and tracked competitors across ChatGPT, Claude, Perplexity, Gemini — see which competitors show up in your category; monthly 6-section agent-citation report; monthly Astrant Score recalibration; hosted MCP endpoint.
@@ -29,7 +29,7 @@
 
 ### What Astrant's citation audit does
 
-Astrant's Dim 6 (Citation Audit) measures whether AI models cite a given domain when asked questions a buyer or researcher might ask about its category. The audit uses a deterministic prompt-generation pipeline, multi-provider citation querying across major language models, and a calibrated judge that produces per-cell substantive-engagement verdicts.
+Astrant's Dim 6 (Citation Audit) measures whether AI models recognize and name a given domain when asked about it directly. Perplexity answers via live web search; GPT-4o, Claude, and Gemini answer from model knowledge without web search. The audit uses a deterministic prompt-generation pipeline, multi-provider citation querying across major language models, and a calibrated judge that produces per-cell substantive-engagement verdicts.
 
 ### Calibration methodology
 
