@@ -167,7 +167,7 @@ export interface PromptSetGenEnv {
   AI: Ai;
 }
 
-const GEN_MODEL = "@cf/meta/llama-3.1-8b-instruct";
+const GEN_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
 const TARGET_QUERY_COUNT = 10;
 const MIN_VALID_QUERIES = 5;
 

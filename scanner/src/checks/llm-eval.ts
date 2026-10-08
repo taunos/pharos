@@ -1,6 +1,6 @@
 import type { Env } from "../types";
 
-const MODEL = "@cf/meta/llama-3.1-8b-instruct";
+const MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
 // Bump this prefix whenever any caller's prompt template changes — old cache
 // entries become unreachable and naturally re-populate from the new template.
 const CACHE_VERSION = "v1";

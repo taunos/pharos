@@ -17,7 +17,7 @@ import {
   checkTriageCanonicalRateLimit,
 } from "@/lib/rate-limit-kv";
 
-const MODEL = "@cf/meta/llama-3.1-8b-instruct";
+const MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
 const CACHE_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 interface TriageEnv {

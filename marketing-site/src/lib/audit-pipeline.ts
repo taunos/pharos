@@ -22,7 +22,7 @@ import { dimensionCountPhrase, applicableDimensionCount } from "./score-display"
 const SCANNER_URL =
   "https://pharos-scanner.pharos-dev.workers.dev/api/scan";
 
-const REMEDIATION_MODEL = "@cf/meta/llama-3.1-8b-instruct";
+const REMEDIATION_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
 const REMEDIATION_CACHE_TTL = 30 * 24 * 60 * 60;
 const REMEDIATION_ENGINE_VERSION = "v3";
 

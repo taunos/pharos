@@ -44,7 +44,7 @@
 // citation_audit_response rows — downstream analysis can filter by
 // engine_version to separate v1 (over-counted) from v2 (judge-gated) data.
 
-const JUDGE_MODEL = "@cf/meta/llama-3.1-8b-instruct";
+const JUDGE_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
 
 // Strict-output validator. The judge prompt forces the model to emit ONLY
 // "AFFIRM" or "DENY" on its own line. Any deviation → validator fail.

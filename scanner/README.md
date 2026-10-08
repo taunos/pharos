@@ -15,7 +15,7 @@ Dimensions 3 (OpenAPI), 5 (Agent-Parsable Content), and 6 (Citation Visibility) 
 - Cloudflare Workers (TypeScript) + Hono routing
 - Cloudflare D1 — scan history
 - Cloudflare KV — result cache (1h) + rate limiter
-- Cloudflare Workers AI — `@cf/meta/llama-3.1-8b-instruct` for the blockquote and FAQ-conversational evals
+- Cloudflare Workers AI — `@cf/meta/llama-3.1-8b-instruct-fp8` for the blockquote and FAQ-conversational evals
 
 ## First-time setup
 
