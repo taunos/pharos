@@ -6,6 +6,7 @@ import { ASTRANT_BASELINE, ASTRANT_PROBE_SENTINEL, customerIdToProbeArg } from '
 import { generateCustomerPatterns } from './customer-patterns';
 import { computeNextProbeAt, type ProbeCadence } from './cadence';
 import { sendOperatorAlert } from './alerts';
+import { checkProviderHealth } from './provider-health';
 import { handleTestFoundingInsert } from './__test_founding_insert';
 
 export interface Env {
@@ -702,6 +703,13 @@ async function drainProbeJobsTick(env: Env): Promise<void> {
     "SELECT COUNT(*) as c FROM probe_runs WHERE probe_run_id = ?"
   ).bind(newProbeRunId).first<{ c: number }>();
   const rowsWritten = countRow?.c ?? 0;
+
+  // H1 hygiene: provider health alert — read this cycle's rows before the retry branch deletes them.
+  try {
+    await checkProviderHealth(env, newProbeRunId);
+  } catch (err) {
+    console.error(`PROVIDER_HEALTH_CHECK_THROW job_id=${pending.id} error=${String(err)}`);
+  }
 
   if (rowsWritten === 180 && !probeError) {
     const completedAt = Math.floor(Date.now() / 1000);
