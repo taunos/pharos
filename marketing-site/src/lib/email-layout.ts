@@ -24,6 +24,9 @@ export interface EmailLayoutInput {
   subheading?: string;
   cards: string[];
   cta?: { label: string; href: string; caption?: string };
+  // Pre-rendered footer lines (escape dynamic text first), rendered before
+  // footerLines. For footers that carry links (unsubscribe, delete-my-data).
+  footerHtmlLines?: string[];
   footerLines: string[];
 }
 
@@ -34,6 +37,37 @@ export function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+// ─── Card-body helpers (E1). All dynamic text is escaped here. ──────────────
+
+// The amber button, same markup as the layout CTA.
+export function emailButton(label: string, href: string): string {
+  return `<a href="${escapeHtml(href)}" style="display: inline-block; padding: 12px 24px; background: ${EMAIL_PALETTE.accent}; color: #000000; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">${escapeHtml(label)}</a>`;
+}
+
+export function emailLink(href: string, label: string = href, color: string = EMAIL_PALETTE.fg): string {
+  return `<a href="${escapeHtml(href)}" style="color: ${color}; word-break: break-all;">${escapeHtml(label)}</a>`;
+}
+
+export function emailCode(s: string): string {
+  return `<code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; background: ${EMAIL_PALETTE.bg}; border: 1px solid ${EMAIL_PALETTE.border}; border-radius: 3px; padding: 1px 4px;">${escapeHtml(s)}</code>`;
+}
+
+export function emailCardHeading(title: string): string {
+  return `<h2 style="font-size: 16px; color: ${EMAIL_PALETTE.fg}; margin: 0 0 12px 0; font-weight: 700;">${escapeHtml(title)}</h2>`;
+}
+
+// Pre-rendered blocks (<p>/<ul>/...) stacked with 12px gaps; no trailing margin.
+export function emailStack(blocks: string[]): string {
+  return blocks
+    .map((b, i) => `<div style="margin: 0${i === blocks.length - 1 ? "" : " 0 12px 0"};">${b}</div>`)
+    .join("");
+}
+
+// Pre-rendered list items.
+export function emailList(itemsHtml: string[]): string {
+  return `<ul style="margin: 0; padding-left: 20px;">${itemsHtml.map((i) => `<li style="margin: 0 0 6px 0;">${i}</li>`).join("")}</ul>`;
 }
 
 export function renderEmailLayout(input: EmailLayoutInput): string {
@@ -65,7 +99,7 @@ export function renderEmailLayout(input: EmailLayoutInput): string {
           <tr>
             <td style="padding: 20px; text-align: center;">
               <div${input.cta.caption ? ` style="margin-bottom: 12px;"` : ""}>
-                <a href="${escapeHtml(input.cta.href)}" style="display: inline-block; padding: 12px 24px; background: ${p.accent}; color: #000000; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">${escapeHtml(input.cta.label)}</a>
+                ${emailButton(input.cta.label, input.cta.href)}
               </div>${
                 input.cta.caption
                   ? `\n              <div style="font-size: 12px; color: ${p.muted};">${escapeHtml(input.cta.caption)}</div>`
@@ -77,11 +111,8 @@ export function renderEmailLayout(input: EmailLayoutInput): string {
       </td>
     </tr>`
     : "";
-  const footer = input.footerLines
-    .map(
-      (line) =>
-        `<div style="font-size: 12px; color: ${p.muted}; line-height: 1.5;">${escapeHtml(line)}</div>`,
-    )
+  const footer = [...(input.footerHtmlLines ?? []), ...input.footerLines.map(escapeHtml)]
+    .map((line) => `<div style="font-size: 12px; color: ${p.muted}; line-height: 1.5;">${line}</div>`)
     .join("");
 
   return `<!DOCTYPE html>

@@ -2,6 +2,8 @@
 // BR is the stubbed global fetch; Resend is mocked. Asserts the phase pipeline,
 // the ack-vs-throw matrix, byte-identical replay, and log redaction.
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const { sendMock } = vi.hoisted(() => ({ sendMock: vi.fn() }));
 vi.mock("resend", () => ({ Resend: vi.fn(() => ({ emails: { send: sendMock } })) }));
@@ -357,6 +359,37 @@ describe("E2 exhaustive fail-closed classification", () => {
   it("corrupt stored snapshot (extra field) throws BEFORE Resend", async () => {
     const corrupt = JSON.stringify({ from: "a@b", to: "c@d", subject: "s", text: "t", html: "h", headers: { X: "1" }, evil: "x" });
     const { threw } = await run({ claim: () => claimJob({ phase: "email_sending", delivery_snapshot: corrupt, updated_at: Date.now() }) });
+    expect(threw).toBe(true);
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+
+  // E1 — frozen-payload compatibility across the layout migration.
+  it("pre-E1 frozen snapshot (six fields, legacy HTML) is sent byte-for-byte", async () => {
+    const legacy = readFileSync(join(__dirname, "__fixtures__", "legacy-gap-report-snapshot.json"), "utf8");
+    const { threw } = await run({
+      claim: () => claimJob({ phase: "email_sending", delivery_snapshot: legacy, updated_at: Date.now() }),
+      complete: () => ({ status: "done" }),
+    });
+    expect(threw).toBe(false);
+    expect(sendMock).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(sendMock.mock.calls[0][0])).toBe(legacy);
+    expect(sendMock.mock.calls[0][0]).not.toHaveProperty("replyTo");
+    expect(sendMock.mock.calls[0][1]).toEqual({ idempotencyKey: JOB });
+  });
+
+  it("post-E1 frozen snapshot (with replyTo) is sent byte-for-byte", async () => {
+    const stored = JSON.stringify({ from: "a@b", to: "c@d", replyTo: "contact@astrant.io", subject: "s", text: "t", html: "h", headers: { X: "1" } });
+    const { threw } = await run({
+      claim: () => claimJob({ phase: "email_sending", delivery_snapshot: stored, updated_at: Date.now() }),
+      complete: () => ({ status: "done" }),
+    });
+    expect(threw).toBe(false);
+    expect(JSON.stringify(sendMock.mock.calls[0][0])).toBe(stored);
+  });
+
+  it("frozen snapshot with a non-string replyTo throws BEFORE Resend", async () => {
+    const bad = JSON.stringify({ from: "a@b", to: "c@d", replyTo: ["x@y"], subject: "s", text: "t", html: "h", headers: { X: "1" } });
+    const { threw } = await run({ claim: () => claimJob({ phase: "email_sending", delivery_snapshot: bad, updated_at: Date.now() }) });
     expect(threw).toBe(true);
     expect(sendMock).not.toHaveBeenCalled();
   });

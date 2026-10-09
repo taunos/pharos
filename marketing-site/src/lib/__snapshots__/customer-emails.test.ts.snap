@@ -1,0 +1,972 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`E1 customer emails > #1/#2 gap-report ready (payload builder) > html 1`] = `
+"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
+  <title>Your Astrant Score gap report is ready</title>
+</head>
+<body style="margin: 0; padding: 0; background: #fafaf7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b;">
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #fafaf7; opacity: 0;">Your Astrant Score gap report for https://acme-analytics.com/ is ready.</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #fafaf7;">
+    <tr>
+      <td style="padding: 32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 640px; margin: 0 auto;">
+    <tr>
+      <td style="padding: 28px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+        <img src="https://astrant.io/brand/astrant-wordmark.png" alt="Astrant" width="150" height="44" border="0" style="display: block;" />
+        <h1 style="font-size: 18px; color: #18181b; margin: 12px 0 4px 0; letter-spacing: -0.01em; font-weight: 600;">Your Astrant Score gap report is ready</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">We just scanned <code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; background: #fafaf7; border: 1px solid #e4e4e7; border-radius: 3px; padding: 1px 4px;">https://acme-analytics.com/</code>.</div><div style="margin: 0;"><div style="font-size: 32px; font-weight: 700; line-height: 1.2;">58 <span style="font-size: 22px; font-weight: 600; color: #71717a;">D</span></div><div style="color: #71717a; font-size: 13px;">Scored on 5 of 6 dimensions applicable to this site.</div></div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <h2 style="font-size: 16px; color: #18181b; margin: 0 0 12px 0; font-weight: 700;">Top gaps</h2><ul style="margin: 0; padding-left: 20px;"><li style="margin: 0 0 6px 0;"><strong>llms.txt present</strong> — 0/100. No /llms.txt served at the site root.</li><li style="margin: 0 0 6px 0;"><strong>OpenAPI spec discoverable</strong> — 40/100. No spec linked from /.well-known or the docs index.</li><li style="margin: 0 0 6px 0;"><strong>Spec &lt;valid&gt; &amp; complete</strong> — 70/100. 3 endpoints lack response schemas.</li></ul>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;"><a href="https://astrant.io/api/score/11111111-2222-4333-8444-555555555555/pdf?t=scan-token-FIXED" style="display: inline-block; padding: 12px 24px; background: #f59e0b; color: #000000; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">View full PDF</a> &nbsp; <a href="https://astrant.io/score/11111111-2222-4333-8444-555555555555?t=scan-token-FIXED" style="color: #18181b; word-break: break-all;">View results page</a></div><div style="margin: 0;">Made changes? <a href="https://astrant.io/score" style="color: #18181b; word-break: break-all;">Re-run the scan</a> to see your updated score.</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px 8px 0 8px; text-align: center;">
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">You requested this report on 2026-10-08.</div><div style="font-size: 12px; color: #71717a; line-height: 1.5;"><a href="https://astrant.io/api/score/unsubscribe?t=unsub-token-FIXED" style="color: #71717a; word-break: break-all;">Unsubscribe from rescan emails</a> &nbsp;·&nbsp; <a href="https://astrant.io/score/delete-me" style="color: #71717a; word-break: break-all;">Delete all my data</a></div><div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io</div>
+      </td>
+    </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"
+`;
+
+exports[`E1 customer emails > #1/#2 gap-report ready (payload builder) > text 1`] = `
+"Hi —
+
+Your Astrant Score gap report for https://acme-analytics.com/ is ready.
+
+Composite score: 58 (D)
+Dimensions scored: 5 of 6 applicable
+
+Top gaps to focus on:
+  • llms.txt present — 0/100. No /llms.txt served at the site root.
+  • OpenAPI spec discoverable — 40/100. No spec linked from /.well-known or the docs index.
+  • Spec <valid> & complete — 70/100. 3 endpoints lack response schemas.
+
+View full PDF:    https://astrant.io/api/score/11111111-2222-4333-8444-555555555555/pdf?t=scan-token-FIXED
+Results page:     https://astrant.io/score/11111111-2222-4333-8444-555555555555?t=scan-token-FIXED
+Re-run anytime:   https://astrant.io/score
+
+You requested this report on 2026-10-08.
+
+Unsubscribe from rescan emails: https://astrant.io/api/score/unsubscribe?t=unsub-token-FIXED
+Delete all your data: https://astrant.io/score/delete-me
+
+Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io"
+`;
+
+exports[`E1 customer emails > #3 gap-report deferred > html 1`] = `
+"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
+  <title>Your Astrant Score gap report is queued</title>
+</head>
+<body style="margin: 0; padding: 0; background: #fafaf7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b;">
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #fafaf7; opacity: 0;">Your Astrant Score gap report for https://acme-analytics.com/ is queued for generation.</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #fafaf7;">
+    <tr>
+      <td style="padding: 32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 640px; margin: 0 auto;">
+    <tr>
+      <td style="padding: 28px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+        <img src="https://astrant.io/brand/astrant-wordmark.png" alt="Astrant" width="150" height="44" border="0" style="display: block;" />
+        <h1 style="font-size: 18px; color: #18181b; margin: 12px 0 4px 0; letter-spacing: -0.01em; font-weight: 600;">Your Astrant Score gap report is queued</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">Hi —</div><div style="margin: 0;">Your Astrant Score gap report for https://acme-analytics.com/ is queued for generation. We've reached today's PDF rendering capacity; your PDF will be ready within 24 hours, and we'll email a link the moment it's available.</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              Composite score: 58 (D)<br />Dimensions scored: 5 of 6 applicable
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">Top gaps (preview):</div><div style="margin: 0;"><ul style="margin: 0; padding-left: 20px;"><li style="margin: 0 0 6px 0;"><strong>llms.txt present</strong> — 0/100. No /llms.txt served at the site root.</li><li style="margin: 0 0 6px 0;"><strong>OpenAPI spec discoverable</strong> — 40/100. No spec linked from /.well-known or the docs index.</li><li style="margin: 0 0 6px 0;"><strong>Spec &lt;valid&gt; &amp; complete</strong> — 70/100. 3 endpoints lack response schemas.</li></ul></div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              Results page (refresh for PDF when ready):<br /><a href="https://astrant.io/score/11111111-2222-4333-8444-555555555555?t=scan-token-FIXED" style="color: #18181b; word-break: break-all;">https://astrant.io/score/11111111-2222-4333-8444-555555555555?t=scan-token-FIXED</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px 8px 0 8px; text-align: center;">
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">You requested this report on 2026-10-08.</div><div style="font-size: 12px; color: #71717a; line-height: 1.5;"><a href="https://astrant.io/api/score/unsubscribe?t=unsub-token-FIXED" style="color: #71717a; word-break: break-all;">Unsubscribe from rescan emails</a> &nbsp;·&nbsp; <a href="https://astrant.io/score/delete-me" style="color: #71717a; word-break: break-all;">Delete all your data</a></div><div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io</div>
+      </td>
+    </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"
+`;
+
+exports[`E1 customer emails > #3 gap-report deferred > text 1`] = `
+"Hi —
+
+Your Astrant Score gap report for https://acme-analytics.com/ is queued for generation.
+We've reached today's PDF rendering capacity; your PDF will be ready within 24 hours,
+and we'll email a link the moment it's available.
+
+Composite score: 58 (D)
+Dimensions scored: 5 of 6 applicable
+
+Top gaps (preview):
+  • llms.txt present — 0/100. No /llms.txt served at the site root.
+  • OpenAPI spec discoverable — 40/100. No spec linked from /.well-known or the docs index.
+  • Spec <valid> & complete — 70/100. 3 endpoints lack response schemas.
+
+Results page (refresh for PDF when ready): https://astrant.io/score/11111111-2222-4333-8444-555555555555?t=scan-token-FIXED
+
+You requested this report on 2026-10-08.
+
+Unsubscribe from rescan emails: https://astrant.io/api/score/unsubscribe?t=unsub-token-FIXED
+Delete all your data: https://astrant.io/score/delete-me
+
+Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io"
+`;
+
+exports[`E1 customer emails > #4 deletion confirm > html 1`] = `
+"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
+  <title>Confirm deletion of your Astrant data</title>
+</head>
+<body style="margin: 0; padding: 0; background: #fafaf7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b;">
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #fafaf7; opacity: 0;">Someone — possibly you — requested deletion of all Astrant Score data associated with this email address (jane+x@acme-analytics.com).</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #fafaf7;">
+    <tr>
+      <td style="padding: 32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 640px; margin: 0 auto;">
+    <tr>
+      <td style="padding: 28px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+        <img src="https://astrant.io/brand/astrant-wordmark.png" alt="Astrant" width="150" height="44" border="0" style="display: block;" />
+        <h1 style="font-size: 18px; color: #18181b; margin: 12px 0 4px 0; letter-spacing: -0.01em; font-weight: 600;">Confirm deletion of your Astrant data</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">Hi —</div><div style="margin: 0 0 12px 0;">Someone — possibly you — requested deletion of all Astrant Score data associated with this email address (jane+x@acme-analytics.com).</div><div style="margin: 0 0 12px 0;">If this was you, click the link below within 24 hours to confirm:<br /><a href="https://astrant.io/api/score/delete-me/confirm?t=del-token-FIXED" style="color: #18181b; word-break: break-all;">https://astrant.io/api/score/delete-me/confirm?t=del-token-FIXED</a></div><div style="margin: 0;">If this wasn't you, ignore this email. The link expires in 24 hours and nothing will be deleted without confirmation.</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px 8px 0 8px; text-align: center;">
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io</div>
+      </td>
+    </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"
+`;
+
+exports[`E1 customer emails > #4 deletion confirm > text 1`] = `
+"Hi —
+
+Someone — possibly you — requested deletion of all Astrant Score data
+associated with this email address (jane+x@acme-analytics.com).
+
+If this was you, click the link below within 24 hours to confirm:
+https://astrant.io/api/score/delete-me/confirm?t=del-token-FIXED
+
+If this wasn't you, ignore this email. The link expires in 24 hours and
+nothing will be deleted without confirmation.
+
+Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io"
+`;
+
+exports[`E1 customer emails > #5 AutoPilot audit-ready (date clause removed, dims list fixed) > html 1`] = `
+"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
+  <title>Your Astrant audit is ready</title>
+</head>
+<body style="margin: 0; padding: 0; background: #fafaf7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b;">
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #fafaf7; opacity: 0;">Your 6-dimension AEO audit is ready.</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #fafaf7;">
+    <tr>
+      <td style="padding: 32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 640px; margin: 0 auto;">
+    <tr>
+      <td style="padding: 28px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+        <img src="https://astrant.io/brand/astrant-wordmark.png" alt="Astrant" width="150" height="44" border="0" style="display: block;" />
+        <h1 style="font-size: 18px; color: #18181b; margin: 12px 0 4px 0; letter-spacing: -0.01em; font-weight: 600;">Your Astrant audit is ready</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">Your 6-dimension AEO audit is ready.</div><div style="margin: 0;">View your audit (PDF attached; permanent link below):<br /><a href="https://astrant.io/audit-results/ap-sub_123-1/pdf" style="color: #18181b; word-break: break-all;">https://astrant.io/audit-results/ap-sub_123-1/pdf</a></div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">What you'll see:</div><div style="margin: 0;"><ul style="margin: 0; padding-left: 20px;"><li style="margin: 0 0 6px 0;">Dim 1-5: llms.txt, MCP server, OpenAPI catalog, structured data, agent-parsable content</li><li style="margin: 0 0 6px 0;">Dim 6: how often 4 major AI models name and cite your brand (Perplexity via live web search; the others from model knowledge)</li></ul></div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">Your first monthly tracking digest delivers with citation-tracking data from your subscription start onward.</div><div style="margin: 0;">—Astrant</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px 8px 0 8px; text-align: center;">
+        
+      </td>
+    </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"
+`;
+
+exports[`E1 customer emails > #5 AutoPilot audit-ready (date clause removed, dims list fixed) > text 1`] = `
+"Your 6-dimension AEO audit is ready.
+
+View your audit (PDF attached; permanent link below):
+https://astrant.io/audit-results/ap-sub_123-1/pdf
+
+What you'll see:
+- Dim 1-5: llms.txt, MCP server, OpenAPI catalog, structured data, agent-parsable content
+- Dim 6: how often 4 major AI models name and cite your brand (Perplexity via live web search; the others from model knowledge)
+
+Your first monthly tracking digest delivers with citation-tracking data from your subscription start onward.
+
+—Astrant"
+`;
+
+exports[`E1 customer emails > #6 F2 patch delivery > html 1`] = `
+"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
+  <title>Your Astrant Implementation patch is ready</title>
+</head>
+<body style="margin: 0; padding: 0; background: #fafaf7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b;">
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #fafaf7; opacity: 0;">Your Astrant Implementation patch is ready.</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #fafaf7;">
+    <tr>
+      <td style="padding: 32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 640px; margin: 0 auto;">
+    <tr>
+      <td style="padding: 28px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+        <img src="https://astrant.io/brand/astrant-wordmark.png" alt="Astrant" width="150" height="44" border="0" style="display: block;" />
+        <h1 style="font-size: 18px; color: #18181b; margin: 12px 0 4px 0; letter-spacing: -0.01em; font-weight: 600;">Your Astrant Implementation patch is ready</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">Apply your patch: <code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; background: #fafaf7; border: 1px solid #e4e4e7; border-radius: 3px; padding: 1px 4px;">git am astrant-implementation.patch</code> (run from your project root).</div><div style="margin: 0;">Deploy your MCP server: <code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; background: #fafaf7; border: 1px solid #e4e4e7; border-radius: 3px; padding: 1px 4px;">cd mcp-server &amp;&amp; npx wrangler login &amp;&amp; npx wrangler deploy</code><br />A one-command deploy wrapper (<code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; background: #fafaf7; border: 1px solid #e4e4e7; border-radius: 3px; padding: 1px 4px;">npx @astrant/deploy-mcp</code>) is on the roadmap.</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <h2 style="font-size: 16px; color: #18181b; margin: 0 0 12px 0; font-weight: 700;">What&#39;s included</h2><ul style="margin: 0; padding-left: 20px;"><li style="margin: 0 0 6px 0;">Customized llms.txt for your brand and domain</li><li style="margin: 0 0 6px 0;">Deployable MCP server (TypeScript Worker; your Cloudflare, your control)</li><li style="margin: 0 0 6px 0;">OpenAPI spec scaffold for your category</li><li style="margin: 0 0 6px 0;">JSON-LD schema blocks for your root layout</li><li style="margin: 0 0 6px 0;">Static monitoring scripts</li><li style="margin: 0 0 6px 0;"><code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; background: #fafaf7; border: 1px solid #e4e4e7; border-radius: 3px; padding: 1px 4px;">ASTRANT_IMPLEMENTATION.md</code> with per-stack notes</li></ul>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <h2 style="font-size: 16px; color: #18181b; margin: 0 0 12px 0; font-weight: 700;">Over the next 90 days</h2><div style="margin: 0 0 12px 0;"><ul style="margin: 0; padding-left: 20px;"><li style="margin: 0 0 6px 0;"><strong>Day 30:</strong> trajectory check-in audit + scanner re-scan</li><li style="margin: 0 0 6px 0;"><strong>Day 60:</strong> trajectory check</li><li style="margin: 0 0 6px 0;"><strong>Day 90:</strong> outcome audit + Standard continuation option</li></ul></div><div style="margin: 0;">Citation-tracking probes run continuously over the 90-day window.</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">Reply to this email with any questions.</div><div style="margin: 0;">—Astrant</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px 8px 0 8px; text-align: center;">
+        
+      </td>
+    </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"
+`;
+
+exports[`E1 customer emails > #6 F2 patch delivery > text 1`] = `
+"Your Astrant Implementation patch is ready.
+
+Apply your patch: git am astrant-implementation.patch  (run from your project root).
+
+Deploy your MCP server: cd mcp-server && npx wrangler login && npx wrangler deploy
+A one-command deploy wrapper (npx @astrant/deploy-mcp) is on the roadmap.
+
+What's included:
+  - Customized llms.txt for your brand and domain
+  - Deployable MCP server (TypeScript Worker; your Cloudflare, your control)
+  - OpenAPI spec scaffold for your category
+  - JSON-LD schema blocks for your root layout
+  - Static monitoring scripts
+  - ASTRANT_IMPLEMENTATION.md with per-stack notes
+
+Over the next 90 days:
+  - Day 30: trajectory check-in audit + scanner re-scan
+  - Day 60: trajectory check
+  - Day 90: outcome audit + Standard continuation option
+
+Citation-tracking probes run continuously over the 90-day window.
+
+Reply to this email with any questions.
+
+—Astrant"
+`;
+
+exports[`E1 customer emails > #7 F2 Day-30 audit > html 1`] = `
+"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
+  <title>Your Day 30 Implementation audit is ready.</title>
+</head>
+<body style="margin: 0; padding: 0; background: #fafaf7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b;">
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #fafaf7; opacity: 0;">Your Day 30 Implementation audit is ready.</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #fafaf7;">
+    <tr>
+      <td style="padding: 32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 640px; margin: 0 auto;">
+    <tr>
+      <td style="padding: 28px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+        <img src="https://astrant.io/brand/astrant-wordmark.png" alt="Astrant" width="150" height="44" border="0" style="display: block;" />
+        <h1 style="font-size: 18px; color: #18181b; margin: 12px 0 4px 0; letter-spacing: -0.01em; font-weight: 600;">Your Day 30 Implementation audit is ready.</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <h2 style="font-size: 16px; color: #18181b; margin: 0 0 12px 0; font-weight: 700;">What changed</h2><div style="margin: 0 0 12px 0;"><ul style="margin: 0; padding-left: 20px;"><li style="margin: 0 0 6px 0;">Scanner score: 42/100 → 71/100</li><li style="margin: 0 0 6px 0;">Cite-share: 3.2% → 11.8% across 4 major-model providers</li><li style="margin: 0 0 6px 0;">Trajectory: Improving — cite-share up in 3 of 4 providers</li></ul></div><div style="margin: 0;">Your llms.txt and MCP server are live; agents now resolve your pricing page.</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <h2 style="font-size: 16px; color: #18181b; margin: 0 0 12px 0; font-weight: 700;">Recommendations</h2><ul style="margin: 0; padding-left: 20px;"><li style="margin: 0 0 6px 0;">Add response schemas to the 3 undocumented endpoints.</li><li style="margin: 0 0 6px 0;">Link the OpenAPI spec from /.well-known/ &amp; the docs index.</li></ul>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">Reply to this email with any questions.</div><div style="margin: 0;">—Astrant</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px 8px 0 8px; text-align: center;">
+        
+      </td>
+    </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"
+`;
+
+exports[`E1 customer emails > #7 F2 Day-30 audit > text 1`] = `
+"Your Day 30 Implementation audit is ready.
+
+What changed:
+  - Scanner score: 42/100 → 71/100
+  - Cite-share: 3.2% → 11.8% across 4 major-model providers
+  - Trajectory: Improving — cite-share up in 3 of 4 providers
+
+Your llms.txt and MCP server are live; agents now resolve your pricing page.
+
+Recommendations:
+  - Add response schemas to the 3 undocumented endpoints.
+  - Link the OpenAPI spec from /.well-known/ & the docs index.
+
+Reply to this email with any questions.
+
+—Astrant"
+`;
+
+exports[`E1 customer emails > #7 F2 Day-60 audit > html 1`] = `
+"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
+  <title>Your Day 60 Implementation audit is ready.</title>
+</head>
+<body style="margin: 0; padding: 0; background: #fafaf7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b;">
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #fafaf7; opacity: 0;">Your Day 60 Implementation audit is ready.</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #fafaf7;">
+    <tr>
+      <td style="padding: 32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 640px; margin: 0 auto;">
+    <tr>
+      <td style="padding: 28px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+        <img src="https://astrant.io/brand/astrant-wordmark.png" alt="Astrant" width="150" height="44" border="0" style="display: block;" />
+        <h1 style="font-size: 18px; color: #18181b; margin: 12px 0 4px 0; letter-spacing: -0.01em; font-weight: 600;">Your Day 60 Implementation audit is ready.</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <h2 style="font-size: 16px; color: #18181b; margin: 0 0 12px 0; font-weight: 700;">What changed</h2><div style="margin: 0 0 12px 0;"><ul style="margin: 0; padding-left: 20px;"><li style="margin: 0 0 6px 0;">Scanner score: 42/100 → 71/100</li><li style="margin: 0 0 6px 0;">Cite-share: 3.2% → 11.8% across 4 major-model providers</li><li style="margin: 0 0 6px 0;">Trajectory: Improving — cite-share up in 3 of 4 providers</li></ul></div><div style="margin: 0;">Your llms.txt and MCP server are live; agents now resolve your pricing page.</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <h2 style="font-size: 16px; color: #18181b; margin: 0 0 12px 0; font-weight: 700;">Recommendations</h2><ul style="margin: 0; padding-left: 20px;"><li style="margin: 0 0 6px 0;">Add response schemas to the 3 undocumented endpoints.</li><li style="margin: 0 0 6px 0;">Link the OpenAPI spec from /.well-known/ &amp; the docs index.</li></ul>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">Reply to this email with any questions.</div><div style="margin: 0;">—Astrant</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px 8px 0 8px; text-align: center;">
+        
+      </td>
+    </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"
+`;
+
+exports[`E1 customer emails > #7 F2 Day-60 audit > text 1`] = `
+"Your Day 60 Implementation audit is ready.
+
+What changed:
+  - Scanner score: 42/100 → 71/100
+  - Cite-share: 3.2% → 11.8% across 4 major-model providers
+  - Trajectory: Improving — cite-share up in 3 of 4 providers
+
+Your llms.txt and MCP server are live; agents now resolve your pricing page.
+
+Recommendations:
+  - Add response schemas to the 3 undocumented endpoints.
+  - Link the OpenAPI spec from /.well-known/ & the docs index.
+
+Reply to this email with any questions.
+
+—Astrant"
+`;
+
+exports[`E1 customer emails > #7 F2 Day-90 audit > html 1`] = `
+"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
+  <title>Your 90-day Implementation arc is complete.</title>
+</head>
+<body style="margin: 0; padding: 0; background: #fafaf7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b;">
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #fafaf7; opacity: 0;">Your 90-day Implementation arc is complete.</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #fafaf7;">
+    <tr>
+      <td style="padding: 32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 640px; margin: 0 auto;">
+    <tr>
+      <td style="padding: 28px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+        <img src="https://astrant.io/brand/astrant-wordmark.png" alt="Astrant" width="150" height="44" border="0" style="display: block;" />
+        <h1 style="font-size: 18px; color: #18181b; margin: 12px 0 4px 0; letter-spacing: -0.01em; font-weight: 600;">Your 90-day Implementation arc is complete.</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <h2 style="font-size: 16px; color: #18181b; margin: 0 0 12px 0; font-weight: 700;">What changed</h2><div style="margin: 0 0 12px 0;"><ul style="margin: 0; padding-left: 20px;"><li style="margin: 0 0 6px 0;">Scanner score: 42/100 → 71/100</li><li style="margin: 0 0 6px 0;">Cite-share: 3.2% → 11.8% across 4 major-model providers</li><li style="margin: 0 0 6px 0;">Trajectory: Improving — cite-share up in 3 of 4 providers</li></ul></div><div style="margin: 0;">Your llms.txt and MCP server are live; agents now resolve your pricing page.</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <h2 style="font-size: 16px; color: #18181b; margin: 0 0 12px 0; font-weight: 700;">Recommendations</h2><ul style="margin: 0; padding-left: 20px;"><li style="margin: 0 0 6px 0;">Add response schemas to the 3 undocumented endpoints.</li><li style="margin: 0 0 6px 0;">Link the OpenAPI spec from /.well-known/ &amp; the docs index.</li></ul>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">Continue the measurement rhythm — <a href="https://checkout.example/standard?a=1&amp;b=2" style="color: #18181b; word-break: break-all;">start Standard ($149/mo)</a>. Monthly citation-tracking digests + ongoing scanner re-runs. Same methodology, monthly cadence.</div><div style="margin: 0;">If you deployed your MCP, it keeps running on your Cloudflare account. Your patch + audit PDFs are yours unconditionally.</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">Reply to this email with any questions.</div><div style="margin: 0;">—Astrant</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px 8px 0 8px; text-align: center;">
+        
+      </td>
+    </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"
+`;
+
+exports[`E1 customer emails > #7 F2 Day-90 audit > text 1`] = `
+"Your 90-day Implementation arc is complete.
+
+What changed:
+  - Scanner score: 42/100 → 71/100
+  - Cite-share: 3.2% → 11.8% across 4 major-model providers
+  - Trajectory: Improving — cite-share up in 3 of 4 providers
+
+Your llms.txt and MCP server are live; agents now resolve your pricing page.
+
+Recommendations:
+  - Add response schemas to the 3 undocumented endpoints.
+  - Link the OpenAPI spec from /.well-known/ & the docs index.
+
+Continue the measurement rhythm — start Standard ($149/mo):
+https://checkout.example/standard?a=1&b=2
+Monthly citation-tracking digests + ongoing scanner re-runs. Same methodology, monthly cadence.
+
+If you deployed your MCP, it keeps running on your Cloudflare account. Your patch + audit PDFs are yours unconditionally.
+
+Reply to this email with any questions.
+
+—Astrant"
+`;
+
+exports[`E1 customer emails > #8 welcome-founder-back > html 1`] = `
+"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
+  <title>Welcome back, Founding Member #7.</title>
+</head>
+<body style="margin: 0; padding: 0; background: #fafaf7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b;">
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #fafaf7; opacity: 0;">Welcome back, Founding Member #7.</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #fafaf7;">
+    <tr>
+      <td style="padding: 32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 640px; margin: 0 auto;">
+    <tr>
+      <td style="padding: 28px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+        <img src="https://astrant.io/brand/astrant-wordmark.png" alt="Astrant" width="150" height="44" border="0" style="display: block;" />
+        <h1 style="font-size: 18px; color: #18181b; margin: 12px 0 4px 0; letter-spacing: -0.01em; font-weight: 600;">Welcome back, Founding Member #7.</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">Your Founding pricing of $149/mo continues to apply for as long as your subscription remains active. Your Founder identity persists across subscription lifecycle events.</div><div style="margin: 0 0 12px 0;">Manage your subscription: <a href="https://astrant.io/account?t=acct-token-FIXED" style="color: #18181b; word-break: break-all;">https://astrant.io/account?t=acct-token-FIXED</a></div><div style="margin: 0;">— The Astrant team</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px 8px 0 8px; text-align: center;">
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">You&#39;re receiving this email because you have an active Astrant subscription. To unsubscribe from future welcome and account emails: <a href="https://astrant.io/api/email/unsubscribe?t=unsub-token-FIXED" style="color: #71717a; word-break: break-all;">https://astrant.io/api/email/unsubscribe?t=unsub-token-FIXED</a></div>
+      </td>
+    </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"
+`;
+
+exports[`E1 customer emails > #8 welcome-founder-back > text 1`] = `
+"Welcome back, Founding Member #7.
+
+Your Founding pricing of $149/mo continues to apply for as long as your subscription remains active. Your Founder identity persists across subscription lifecycle events.
+
+Manage your subscription: https://astrant.io/account?t=acct-token-FIXED
+
+— The Astrant team
+
+—
+You're receiving this email because you have an active Astrant subscription. To unsubscribe from future welcome and account emails: https://astrant.io/api/email/unsubscribe?t=unsub-token-FIXED
+"
+`;
+
+exports[`E1 customer emails > #8 welcome-founding-new > html 1`] = `
+"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
+  <title>Welcome — you&#39;re Founding Member #7.</title>
+</head>
+<body style="margin: 0; padding: 0; background: #fafaf7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b;">
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #fafaf7; opacity: 0;">Welcome — you&#39;re Founding Member #7.</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #fafaf7;">
+    <tr>
+      <td style="padding: 32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 640px; margin: 0 auto;">
+    <tr>
+      <td style="padding: 28px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+        <img src="https://astrant.io/brand/astrant-wordmark.png" alt="Astrant" width="150" height="44" border="0" style="display: block;" />
+        <h1 style="font-size: 18px; color: #18181b; margin: 12px 0 4px 0; letter-spacing: -0.01em; font-weight: 600;">Welcome — you&#39;re Founding Member #7.</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">You&#39;ve claimed one of the 30 Founding-cohort slots. Your subscription price of $149/mo is locked at this rate for as long as your subscription remains active. If you cancel, your Founding pricing is permanently forfeited — re-subscribing later returns you to current rates.</div><div style="margin: 0;">Get started: <a href="https://astrant.io/onboarding?t=onb-token-FIXED" style="color: #18181b; word-break: break-all;">https://astrant.io/onboarding?t=onb-token-FIXED</a><br />Manage your subscription: <a href="https://astrant.io/account?t=acct-token-FIXED" style="color: #18181b; word-break: break-all;">https://astrant.io/account?t=acct-token-FIXED</a></div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">A few things to know about Founding pricing:</div><div style="margin: 0;"><ul style="margin: 0; padding-left: 20px;"><li style="margin: 0 0 6px 0;">Your locked rate applies to your current tier. If you upgrade, that tier&#39;s price at the time of upgrade also locks for you (sticky-locks).</li><li style="margin: 0 0 6px 0;">The 30-slot cohort is cumulative. Once 30 unique customers have claimed Founding slots, the offer closes permanently — even if some Founders later cancel.</li><li style="margin: 0 0 6px 0;">Founder identity persists in your /account page whether your subscription is active or cancelled.</li></ul></div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">Questions? Reply to this email — it reaches a person.</div><div style="margin: 0;">— The Astrant team</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px 8px 0 8px; text-align: center;">
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">You&#39;re receiving this welcome email because you started a subscription with Astrant. To unsubscribe from future welcome and account emails: <a href="https://astrant.io/api/email/unsubscribe?t=unsub-token-FIXED" style="color: #71717a; word-break: break-all;">https://astrant.io/api/email/unsubscribe?t=unsub-token-FIXED</a></div>
+      </td>
+    </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"
+`;
+
+exports[`E1 customer emails > #8 welcome-founding-new > text 1`] = `
+"Welcome — you're Founding Member #7.
+
+You've claimed one of the 30 Founding-cohort slots. Your subscription price of $149/mo is locked at this rate for as long as your subscription remains active. If you cancel, your Founding pricing is permanently forfeited — re-subscribing later returns you to current rates.
+
+Get started: https://astrant.io/onboarding?t=onb-token-FIXED
+Manage your subscription: https://astrant.io/account?t=acct-token-FIXED
+
+A few things to know about Founding pricing:
+
+  - Your locked rate applies to your current tier. If you upgrade, that tier's price at the time of upgrade also locks for you (sticky-locks).
+  - The 30-slot cohort is cumulative. Once 30 unique customers have claimed Founding slots, the offer closes permanently — even if some Founders later cancel.
+  - Founder identity persists in your /account page whether your subscription is active or cancelled.
+
+Questions? Reply to this email — it reaches a person.
+
+— The Astrant team
+
+—
+You're receiving this welcome email because you started a subscription with Astrant. To unsubscribe from future welcome and account emails: https://astrant.io/api/email/unsubscribe?t=unsub-token-FIXED
+"
+`;
+
+exports[`E1 customer emails > #8 welcome-standard > html 1`] = `
+"<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
+  <title>Welcome to Astrant.</title>
+</head>
+<body style="margin: 0; padding: 0; background: #fafaf7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b;">
+  <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; font-size: 1px; line-height: 1px; color: #fafaf7; opacity: 0;">Welcome to Astrant.</div>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #fafaf7;">
+    <tr>
+      <td style="padding: 32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 640px; margin: 0 auto;">
+    <tr>
+      <td style="padding: 28px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+        <img src="https://astrant.io/brand/astrant-wordmark.png" alt="Astrant" width="150" height="44" border="0" style="display: block;" />
+        <h1 style="font-size: 18px; color: #18181b; margin: 12px 0 4px 0; letter-spacing: -0.01em; font-weight: 600;">Welcome to Astrant.</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">Your monthly citation-monitoring subscription is active. Once you complete onboarding, your first artifact — a 6-dimension AEO audit of your domain — arrives within 24 hours (usually within 10 minutes). Monthly citation-tracking digests then deliver on the 1st of each month.</div><div style="margin: 0 0 12px 0;"><strong>Next step</strong>: tell us what to monitor. The setup form takes about 2 minutes:</div><div style="margin: 0;"><a href="https://astrant.io/onboarding?t=onb-token-FIXED" style="display: inline-block; padding: 12px 24px; background: #f59e0b; color: #000000; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">Set up monitoring</a></div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">You'll choose:</div><div style="margin: 0 0 12px 0;"><ul style="margin: 0; padding-left: 20px;"><li style="margin: 0 0 6px 0;">The brand name agents should be citing for you</li><li style="margin: 0 0 6px 0;">Your primary domain</li><li style="margin: 0 0 6px 0;">Your category (so we can run category-appropriate citation probes)</li><li style="margin: 0 0 6px 0;">Up to 5 competitors to compare against (optional)</li></ul></div><div style="margin: 0;">This link is good for 7 days. If you need a fresh link, reply to this email.</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding-top: 14px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
+          <tr>
+            <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
+              <div style="margin: 0 0 12px 0;">Manage your subscription anytime: <a href="https://astrant.io/account?t=acct-token-FIXED" style="color: #18181b; word-break: break-all;">https://astrant.io/account?t=acct-token-FIXED</a></div><div style="margin: 0;">—Astrant</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px 8px 0 8px; text-align: center;">
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">You&#39;re receiving this welcome email because you started a subscription with Astrant. To unsubscribe from future welcome and account emails: <a href="https://astrant.io/api/email/unsubscribe?t=unsub-token-FIXED" style="color: #71717a; word-break: break-all;">https://astrant.io/api/email/unsubscribe?t=unsub-token-FIXED</a></div>
+      </td>
+    </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"
+`;
+
+exports[`E1 customer emails > #8 welcome-standard > text 1`] = `
+"Welcome to Astrant.
+
+Your monthly citation-monitoring subscription is active. Once you complete onboarding, your first artifact — a 6-dimension AEO audit of your domain — arrives within 24 hours (usually within 10 minutes). Monthly citation-tracking digests then deliver on the 1st of each month.
+
+Next step: tell us what to monitor. The setup form takes about 2 minutes:
+
+Set up monitoring: https://astrant.io/onboarding?t=onb-token-FIXED
+
+You'll choose:
+- The brand name agents should be citing for you
+- Your primary domain
+- Your category (so we can run category-appropriate citation probes)
+- Up to 5 competitors to compare against (optional)
+
+This link is good for 7 days. If you need a fresh link, reply to this email.
+
+Manage your subscription anytime: https://astrant.io/account?t=acct-token-FIXED
+
+—Astrant
+
+—
+You're receiving this welcome email because you started a subscription with Astrant. To unsubscribe from future welcome and account emails: https://astrant.io/api/email/unsubscribe?t=unsub-token-FIXED
+"
+`;
