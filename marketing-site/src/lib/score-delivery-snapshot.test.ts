@@ -5,6 +5,8 @@
 // `capture_jobs.delivery_snapshot` before email_sending and re-sends it verbatim,
 // so this test guards the property the whole dedup design rests on.
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // Mock the Resend SDK so we can inspect the EXACT (payload, options) each send
 // receives. Hoisted so the mock factory can close over the shared spy.
@@ -86,12 +88,26 @@ describe("frozen delivery payload — byte-identical retry (v2.9 acceptance gate
     expect(p.html).toContain("t=unsubtoken-FIXED");
   });
 
-  it("the payload is exactly the six Resend request fields", () => {
+  it("the payload is exactly the six Resend request fields (replyTo is NOT frozen)", () => {
     const p = buildGapReportReadyPayload(frozenInput);
     expect(Object.keys(p).sort()).toEqual(
       ["from", "headers", "html", "subject", "text", "to"].sort()
     );
     expect(p.to).toBe("alice@example.com");
+  });
+
+  it("E1 changes only html vs a pre-E1 frozen payload of the same input", () => {
+    const legacy = JSON.parse(
+      readFileSync(join(__dirname, "__fixtures__", "legacy-gap-report-snapshot.json"), "utf8")
+    );
+    const p = buildGapReportReadyPayload(frozenInput);
+    expect(p.from).toBe(legacy.from);
+    expect(p.to).toBe(legacy.to);
+    expect(p.subject).toBe(legacy.subject);
+    expect(p.text).toBe(legacy.text);
+    expect(p.headers).toEqual(legacy.headers);
+    expect(p.html).not.toBe(legacy.html);
+    expect(Object.keys(p).sort()).toEqual(Object.keys(legacy).sort());
   });
 });
 
@@ -107,6 +123,16 @@ describe("sendFrozenGapReport — real send path is byte-identical under one key
     sendMock.mockResolvedValue({ data: { id: "email-1" }, error: null });
   });
 
+  it("a pre-E1 frozen payload is sent with its bytes + replyTo added at send", async () => {
+    const legacyStr = readFileSync(join(__dirname, "__fixtures__", "legacy-gap-report-snapshot.json"), "utf8");
+    await sendFrozenGapReport(env, JSON.parse(legacyStr), "job-legacy");
+    const [payload, options] = sendMock.mock.calls[0];
+    expect(JSON.stringify(payload)).toBe(
+      JSON.stringify({ ...JSON.parse(legacyStr), replyTo: "contact@astrant.io" })
+    );
+    expect(options).toEqual({ idempotencyKey: "job-legacy" });
+  });
+
   it("two retries of a JSON-restored snapshot send the exact stored payload + same idempotency key", async () => {
     const snapshot = buildGapReportReadyPayload(frozenInput);
     // Persisted → restored, exactly as the consumer reads delivery_snapshot back.
@@ -120,9 +146,9 @@ describe("sendFrozenGapReport — real send path is byte-identical under one key
     const [payload1, options1] = sendMock.mock.calls[0];
     const [payload2, options2] = sendMock.mock.calls[1];
 
-    // (1) exact stored six-field payload, unchanged
-    expect(payload1).toEqual(snapshot);
-    expect(payload2).toEqual(snapshot);
+    // (1) exact stored six-field payload, unchanged, + replyTo added at send (E1)
+    expect(payload1).toEqual({ ...snapshot, replyTo: "contact@astrant.io" });
+    expect(payload2).toEqual({ ...snapshot, replyTo: "contact@astrant.io" });
 
     // (2) same { idempotencyKey: job_id } on both calls
     expect(options1).toEqual({ idempotencyKey: jobId });

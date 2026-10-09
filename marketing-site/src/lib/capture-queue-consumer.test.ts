@@ -2,6 +2,8 @@
 // BR is the stubbed global fetch; Resend is mocked. Asserts the phase pipeline,
 // the ack-vs-throw matrix, byte-identical replay, and log redaction.
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const { sendMock } = vi.hoisted(() => ({ sendMock: vi.fn() }));
 vi.mock("resend", () => ({ Resend: vi.fn(() => ({ emails: { send: sendMock } })) }));
@@ -128,7 +130,8 @@ describe("E2 send-only + resume", () => {
     expect(threw).toBe(false);
     expect(brFetch).not.toHaveBeenCalled();
     expect(calls).toEqual(["claim", "complete"]);
-    expect(sendMock.mock.calls[0][0]).toEqual(JSON.parse(okSnapshot)); // stored snapshot, verbatim
+    // stored snapshot, verbatim, + replyTo added at send time (E1)
+    expect(sendMock.mock.calls[0][0]).toEqual({ ...JSON.parse(okSnapshot), replyTo: "contact@astrant.io" });
   });
 
   it("freeze race: already_frozen payload wins over the local candidate", async () => {
@@ -139,7 +142,8 @@ describe("E2 send-only + resume", () => {
       "freeze-snapshot": () => ({ status: "already_frozen", snapshot: stored, updated_at: NOW }),
       complete: () => ({ status: "done" }),
     });
-    expect(sendMock.mock.calls[0][0]).toEqual(JSON.parse(stored)); // the STORED snapshot was sent
+    // the STORED snapshot was sent (+ replyTo added at send time, E1)
+    expect(sendMock.mock.calls[0][0]).toEqual({ ...JSON.parse(stored), replyTo: "contact@astrant.io" });
   });
 
   it("crash after Resend acceptance / before completion → throw; leaves snapshot for replay", async () => {
@@ -357,6 +361,28 @@ describe("E2 exhaustive fail-closed classification", () => {
   it("corrupt stored snapshot (extra field) throws BEFORE Resend", async () => {
     const corrupt = JSON.stringify({ from: "a@b", to: "c@d", subject: "s", text: "t", html: "h", headers: { X: "1" }, evil: "x" });
     const { threw } = await run({ claim: () => claimJob({ phase: "email_sending", delivery_snapshot: corrupt, updated_at: Date.now() }) });
+    expect(threw).toBe(true);
+    expect(sendMock).not.toHaveBeenCalled();
+  });
+
+  // E1 — frozen-payload compatibility across the layout migration.
+  it("pre-E1 frozen snapshot (legacy HTML) is sent with its bytes + replyTo added at send", async () => {
+    const legacy = readFileSync(join(__dirname, "__fixtures__", "legacy-gap-report-snapshot.json"), "utf8");
+    const { threw } = await run({
+      claim: () => claimJob({ phase: "email_sending", delivery_snapshot: legacy, updated_at: Date.now() }),
+      complete: () => ({ status: "done" }),
+    });
+    expect(threw).toBe(false);
+    expect(sendMock).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(sendMock.mock.calls[0][0])).toBe(
+      JSON.stringify({ ...JSON.parse(legacy), replyTo: "contact@astrant.io" })
+    );
+    expect(sendMock.mock.calls[0][1]).toEqual({ idempotencyKey: JOB });
+  });
+
+  it("a stored snapshot carrying replyTo (7 fields) is rejected BEFORE Resend (strict six)", async () => {
+    const bad = JSON.stringify({ from: "a@b", to: "c@d", replyTo: "contact@astrant.io", subject: "s", text: "t", html: "h", headers: { X: "1" } });
+    const { threw } = await run({ claim: () => claimJob({ phase: "email_sending", delivery_snapshot: bad, updated_at: Date.now() }) });
     expect(threw).toBe(true);
     expect(sendMock).not.toHaveBeenCalled();
   });

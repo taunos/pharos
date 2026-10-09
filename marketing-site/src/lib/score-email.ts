@@ -17,10 +17,21 @@ import { Resend } from "resend";
 import type { ScanResult } from "./audit-types";
 import { hashEmailForLog } from "./score-tokens";
 import { dimensionCountPhrase } from "./score-display";
-import { renderEmailLayout, escapeHtml as escapeLayoutHtml, EMAIL_PALETTE } from "./email-layout";
+import {
+  renderEmailLayout,
+  escapeHtml,
+  EMAIL_PALETTE,
+  emailButton,
+  emailLink,
+  emailCode,
+  emailCardHeading,
+  emailStack,
+  emailList,
+} from "./email-layout";
 
 const FROM_ADDRESS = "Astrant Score <reports@astrant.io>";
-const COMPANY_FOOTER =
+const REPLY_TO = "contact@astrant.io";
+export const COMPANY_FOOTER =
   "Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io";
 
 export type SendEnv = {
@@ -56,7 +67,8 @@ function topGapsText(scan: ScanResult, max = 3): string {
     .join("\n");
 }
 
-function topGapsHtml(scan: ScanResult, max = 3): string {
+// List items for emailList (E1).
+function topGapsHtml(scan: ScanResult, max = 3): string[] {
   const gaps: { name: string; score: number; notes: string }[] = [];
   for (const dim of scan.dimensions) {
     if (dim.na) continue;
@@ -70,18 +82,29 @@ function topGapsHtml(scan: ScanResult, max = 3): string {
     .slice(0, max)
     .map(
       (g) =>
-        `<li><strong>${escapeHtml(g.name)}</strong> — ${g.score}/100. ${escapeHtml(g.notes)}</li>`
-    )
-    .join("");
+        `<strong>${escapeHtml(g.name)}</strong> — ${escapeHtml(String(g.score))}/100. ${escapeHtml(g.notes)}`
+    );
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+// Large composite score + muted caption (#1, #3).
+function scoreDisplayHtml(scan: ScanResult, captionHtml: string): string {
+  const p = EMAIL_PALETTE;
+  return (
+    `<div style="font-size: 32px; font-weight: 700; line-height: 1.2;">${escapeHtml(String(scan.composite.score))} <span style="font-size: 22px; font-weight: 600; color: ${p.muted};">${escapeHtml(scan.composite.grade)}</span></div>` +
+    `<div style="color: ${p.muted}; font-size: 13px;">${captionHtml}</div>`
+  );
+}
+
+// Footer lines with the unsubscribe + delete-my-data links (#1, #3).
+function scoreFooterHtmlLines(input: {
+  requestedDate: string;
+  unsubUrl: string;
+  deleteUrl: string;
+}): string[] {
+  return [
+    `You requested this report on ${escapeHtml(input.requestedDate)}.`,
+    `${emailLink(input.unsubUrl, "Unsubscribe from rescan emails", EMAIL_PALETTE.muted)} &nbsp;·&nbsp; ${emailLink(input.deleteUrl, "Delete all my data", EMAIL_PALETTE.muted)}`,
+  ];
 }
 
 function commonHeaders(input: {
@@ -103,6 +126,10 @@ function commonHeaders(input: {
 // email_sending, then re-sends it VERBATIM under the stable `job_id`
 // idempotency key — so a retry is byte-identical (Resend dedups within 24h;
 // a differing payload under the same key would 409).
+//
+// Stays EXACTLY six fields: the scanner's /freeze-snapshot (validSnapshotShape)
+// and the consumer's parseSnapshot both reject any other shape. E1's replyTo is
+// added at SEND time in sendResendPayload, never stored in the snapshot.
 export type GapReportPayload = {
   from: string;
   to: string;
@@ -148,29 +175,28 @@ export function buildGapReportReadyPayload(
     COMPANY_FOOTER,
   ].join("\n");
 
-  const html = `<!doctype html>
-<html><body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #0f172a; line-height: 1.5; max-width: 640px; margin: 0 auto; padding: 24px;">
-  <h2 style="margin-top: 0;">Your Astrant Score gap report is ready</h2>
-  <p>We just scanned <code>${escapeHtml(input.scan.url)}</code>.</p>
-  <p style="font-size: 32px; font-weight: 700; margin: 24px 0 8px 0;">${input.scan.composite.score} <span style="font-size: 22px; font-weight: 600; color: #64748b;">${escapeHtml(input.scan.composite.grade)}</span></p>
-  <p style="margin: 0; color: #64748b; font-size: 14px;">Scored on ${dimensionCountPhrase(input.scan.dimensions_applicable, input.scan.dimensions_scored, input.scan.dimensions_total)} dimensions applicable to this site.</p>
-  <h3 style="margin-top: 24px;">Top gaps</h3>
-  <ul>${topGapsHtml(input.scan)}</ul>
-  <p style="margin-top: 28px;">
-    <a href="${pdfUrl}" style="display: inline-block; padding: 10px 18px; background: #0f172a; color: white; text-decoration: none; border-radius: 4px; font-weight: 600;">View full PDF</a>
-    &nbsp;
-    <a href="${resultsUrl}" style="color: #0f172a;">View results page</a>
-  </p>
-  <p style="margin-top: 24px;">Made changes? <a href="${input.origin}/score" style="color: #0f172a;">Re-run the scan</a> to see your updated score.</p>
-  <hr style="margin: 32px 0; border: none; border-top: 1px solid #e2e8f0;">
-  <p style="color: #64748b; font-size: 13px;">You requested this report on ${requestedDate}.</p>
-  <p style="color: #64748b; font-size: 13px;">
-    <a href="${unsubUrl}" style="color: #64748b;">Unsubscribe from rescan emails</a>
-    &nbsp;·&nbsp;
-    <a href="${input.origin}/score/delete-me" style="color: #64748b;">Delete all my data</a>
-  </p>
-  <p style="color: #94a3b8; font-size: 12px; margin-top: 16px;">${escapeHtml(COMPANY_FOOTER)}</p>
-</body></html>`;
+  const phrase = dimensionCountPhrase(input.scan.dimensions_applicable, input.scan.dimensions_scored, input.scan.dimensions_total);
+  const html = renderEmailLayout({
+    preheader: `Your Astrant Score gap report for ${input.scan.url} is ready.`,
+    heading: "Your Astrant Score gap report is ready",
+    cards: [
+      emailStack([
+        `We just scanned ${emailCode(input.scan.url)}.`,
+        scoreDisplayHtml(input.scan, `Scored on ${escapeHtml(phrase)} dimensions applicable to this site.`),
+      ]),
+      emailCardHeading("Top gaps") + emailList(topGapsHtml(input.scan)),
+      emailStack([
+        `${emailButton("View full PDF", pdfUrl)} &nbsp; ${emailLink(resultsUrl, "View results page")}`,
+        `Made changes? ${emailLink(`${input.origin}/score`, "Re-run the scan")} to see your updated score.`,
+      ]),
+    ],
+    footerHtmlLinesTrusted: scoreFooterHtmlLines({
+      requestedDate,
+      unsubUrl,
+      deleteUrl: `${input.origin}/score/delete-me`,
+    }),
+    footerLines: [COMPANY_FOOTER],
+  });
 
   return {
     from: FROM_ADDRESS,
@@ -183,16 +209,20 @@ export function buildGapReportReadyPayload(
 }
 
 // Shared thin sender. A non-empty idempotencyKey enables Resend's 24h dedup.
+// replyTo (E1) is added here, at send time, so the frozen six-field payload is
+// unchanged; the request is still deterministic per payload, so a retry under
+// the same key sends identical bytes.
 async function sendResendPayload(
   env: SendEnv,
   payload: GapReportPayload,
   idempotencyKey?: string
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const resend = new Resend(env.RESEND_API_KEY);
+  const request = { ...payload, replyTo: REPLY_TO };
   try {
     const result = idempotencyKey
-      ? await resend.emails.send(payload, { idempotencyKey })
-      : await resend.emails.send(payload);
+      ? await resend.emails.send(request, { idempotencyKey })
+      : await resend.emails.send(request);
     if (result.error) {
       return { ok: false, error: result.error.message };
     }
@@ -262,12 +292,37 @@ export async function sendGapReportDeferredEmail(
     COMPANY_FOOTER,
   ].join("\n");
 
+  const html = renderEmailLayout({
+    preheader: `Your Astrant Score gap report for ${input.scan.url} is queued for generation.`,
+    heading: subject,
+    cards: [
+      emailStack([
+        `Hi —`,
+        `Your Astrant Score gap report for ${escapeHtml(input.scan.url)} is queued for generation. We've reached today's PDF rendering capacity; your PDF will be ready within 24 hours, and we'll email a link the moment it's available.`,
+      ]),
+      scoreDisplayHtml(
+        input.scan,
+        `Dimensions scored: ${escapeHtml(dimensionCountPhrase(input.scan.dimensions_applicable, input.scan.dimensions_scored, input.scan.dimensions_total))} applicable`,
+      ),
+      emailStack([`Top gaps (preview):`, emailList(topGapsHtml(input.scan))]),
+      `Results page (refresh for PDF when ready):<br />${emailLink(resultsUrl)}`,
+    ],
+    footerHtmlLinesTrusted: scoreFooterHtmlLines({
+      requestedDate,
+      unsubUrl,
+      deleteUrl: `${input.origin}/score/delete-me`,
+    }),
+    footerLines: [COMPANY_FOOTER],
+  });
+
   try {
     const result = await resend.emails.send({
       from: FROM_ADDRESS,
       to: input.toEmail,
+      replyTo: REPLY_TO,
       subject,
       text,
+      html,
       headers: commonHeaders({ unsubscribeUrl: unsubUrl }),
     });
     if (result.error) {
@@ -307,12 +362,28 @@ export async function sendDeletionConfirmEmail(
     COMPANY_FOOTER,
   ].join("\n");
 
+  const html = renderEmailLayout({
+    preheader: `Someone — possibly you — requested deletion of all Astrant Score data associated with this email address (${input.toEmail}).`,
+    heading: subject,
+    cards: [
+      emailStack([
+        `Hi —`,
+        `Someone — possibly you — requested deletion of all Astrant Score data associated with this email address (${escapeHtml(input.toEmail)}).`,
+        `If this was you, click the link below within 24 hours to confirm:<br />${emailLink(confirmUrl)}`,
+        `If this wasn't you, ignore this email. The link expires in 24 hours and nothing will be deleted without confirmation.`,
+      ]),
+    ],
+    footerLines: [COMPANY_FOOTER],
+  });
+
   try {
     const result = await resend.emails.send({
       from: FROM_ADDRESS,
       to: input.toEmail,
+      replyTo: REPLY_TO,
       subject,
       text,
+      html,
     });
     if (result.error) {
       return { ok: false, error: result.error.message };
@@ -356,25 +427,46 @@ export async function sendAutoPilotAuditReadyEmail(
   const pdfBase64 = uint8ArrayToBase64Local(pdfBytes);
 
   const auditUrl = `${input.origin}/audit-results/${input.sessionId}/pdf`;
+  const subject = "Your Astrant Audit is ready";
+  const dimLines = [
+    "Dim 1-5: llms.txt, MCP server, OpenAPI catalog, structured data, agent-parsable content",
+    "Dim 6: how often 4 major AI models name and cite your brand (Perplexity via live web search; the others from model knowledge)",
+  ];
+  const digestLine =
+    "Your first monthly tracking digest arrives on the 1st of next month, with citation-tracking data from your subscription start onward.";
+  const html = renderEmailLayout({
+    preheader: "Your 6-dimension AEO audit is ready.",
+    heading: "Your Astrant Audit is ready",
+    cards: [
+      emailStack([
+        `Your 6-dimension AEO audit is ready.`,
+        `View your audit (PDF attached; permanent link below):<br />${emailLink(auditUrl)}`,
+      ]),
+      emailStack([`What you'll see:`, emailList(dimLines.map(escapeHtml))]),
+      emailStack([escapeHtml(digestLine), `—Astrant`]),
+    ],
+    footerLines: [COMPANY_FOOTER],
+  });
 
   const resend = new Resend(env.RESEND_API_KEY);
   try {
     const result = await resend.emails.send({
       from: "Astrant <reports@astrant.io>",
       to: input.toEmail,
-      subject: "Your Astrant audit is ready",
+      replyTo: REPLY_TO,
+      subject,
       text: `Your 6-dimension AEO audit is ready.
 
 View your audit (PDF attached; permanent link below):
 ${auditUrl}
 
 What you'll see:
-- Dim 1-5: llms.txt, MCP server, OpenAPI catalog, structured data, agent-parsable content
-- Dim 6: how often 4 major AI models name and cite your brand (Perplexity via live web search; the others from model knowledge)
+${dimLines.map((l) => `- ${l}`).join("\n")}
 
-Your first monthly tracking digest delivers 2026-06-01 with citation-tracking data from your subscription start onward.
+${digestLine}
 
 —Astrant`,
+      html,
       attachments: [
         {
           filename: `astrant-autopilot-audit-${input.sessionId}.pdf`,
@@ -411,8 +503,8 @@ export const AUDIT_READY_EMAIL_COPY: AuditReadyEmailCopy | null = {
       preheader: `Your Astrant Audit for ${url} is ready.`,
       heading: "Your Astrant Audit is ready",
       cards: [
-        `<p style="margin: 0 0 12px 0;">Your Astrant Audit for ${escapeLayoutHtml(url)} is ready.</p>` +
-          `<p style="margin: 0 0 12px 0;">The PDF is attached. You can also open it here:<br /><a href="${escapeLayoutHtml(pdfUrl)}" style="color: ${EMAIL_PALETTE.fg}; word-break: break-all;">${escapeLayoutHtml(pdfUrl)}</a></p>` +
+        `<p style="margin: 0 0 12px 0;">Your Astrant Audit for ${escapeHtml(url)} is ready.</p>` +
+          `<p style="margin: 0 0 12px 0;">The PDF is attached. You can also open it here:<br /><a href="${escapeHtml(pdfUrl)}" style="color: ${EMAIL_PALETTE.fg}; word-break: break-all;">${escapeHtml(pdfUrl)}</a></p>` +
           `<p style="margin: 0 0 12px 0;">Questions or something looks wrong? Reply to this email or write to <a href="mailto:contact@astrant.io" style="color: ${EMAIL_PALETTE.fg};">contact@astrant.io</a>.</p>` +
           `<p style="margin: 0;">—Astrant</p>`,
       ],
@@ -448,7 +540,7 @@ export async function sendAuditReadyEmail(
       {
         from: "Astrant <reports@astrant.io>",
         to: input.toEmail,
-        replyTo: "contact@astrant.io",
+        replyTo: REPLY_TO,
         subject: copy.subject,
         text: copy.text(args),
         html: copy.html(args),
