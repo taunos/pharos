@@ -62,7 +62,7 @@ export function emailCode(s: string): string {
 
 // Block shell command: monospace, scrolls horizontally inside the block.
 export function emailPre(s: string): string {
-  return `<pre style="margin: 0; padding: 10px 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.5; background: ${EMAIL_PALETTE.bg}; border: 1px solid ${EMAIL_PALETTE.border}; border-radius: 4px; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-all;">${escapeHtml(s)}</pre>`;
+  return `<pre style="margin: 0; padding: 10px 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.5; background: ${EMAIL_PALETTE.bg}; border: 1px solid ${EMAIL_PALETTE.border}; border-radius: 4px; white-space: pre-wrap; overflow-wrap: anywhere;">${escapeHtml(s)}</pre>`;
 }
 
 export function emailCardHeading(title: string): string {
