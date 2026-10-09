@@ -77,7 +77,15 @@ export default {
       //   A. stale-claim cleanup (D19 MED-1 retriability)
       //   B. Day-N audit dispatch (D19; HTTP to marketing-site /api/audit-fulfill)
       //   C. Day-91 expiration sweep (D7; conditional probe-target pause)
-      await runF2SweepSteps(env);
+      // Isolated: an F2 sweep failure (e.g. migration 0016 not yet applied) must not
+      // stop the cadence sweep or the daily probe enqueue below.
+      try {
+        await runF2SweepSteps(env);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`F2_SWEEP_FAILED err=${msg}`);
+        await sendOperatorAlert(env, `F2_SWEEP_FAILED err=${msg.slice(0, 160)}`).catch(() => {});
+      }
 
       // F4.1 D7.2 (Variant B): period-end cadence-change sweep — flips pending downgrades
       // whose cadence_change_effective_at has elapsed. Reads pending_probe_cadence directly
