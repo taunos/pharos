@@ -112,7 +112,7 @@ export async function sendWelcomeEmail(
 }
 
 function unsubscribeFooterHtml(lead: string, unsubscribeLink: string): string {
-  return `${escapeHtml(lead)} To unsubscribe from future welcome and account emails: ${emailLink(unsubscribeLink, unsubscribeLink, EMAIL_PALETTE.muted)}`;
+  return `${escapeHtml(lead)} To unsubscribe from future welcome and account emails: ${emailLink(unsubscribeLink, "Unsubscribe", EMAIL_PALETTE.muted)}`;
 }
 
 function buildFoundingWelcomeBody(args: {
@@ -123,7 +123,7 @@ function buildFoundingWelcomeBody(args: {
   unsubscribeLink: string;
 }): WelcomeBody {
   const tierPriceDollars = Math.floor(args.tierPriceCents / 100);
-  const heading = `Welcome — you're Founding Member #${args.foundingOrderSeq}.`;
+  const heading = `Welcome — you're Founding Member #${args.foundingOrderSeq}`;
   const intro = `You've claimed one of the 30 Founding-cohort slots. Your subscription price of $${tierPriceDollars}/mo is locked at this rate for as long as your subscription remains active. If you cancel, your Founding pricing is permanently forfeited — re-subscribing later returns you to current rates.`;
   const points = [
     "Your locked rate applies to your current tier. If you upgrade, that tier's price at the time of upgrade also locks for you (sticky-locks).",
@@ -131,7 +131,7 @@ function buildFoundingWelcomeBody(args: {
     "Founder identity persists in your /account page whether your subscription is active or cancelled.",
   ];
   const lead = "You're receiving this welcome email because you started a subscription with Astrant.";
-  const text = `${heading}
+  const text = `${heading}.
 
 ${intro}
 
@@ -144,21 +144,21 @@ ${points.map((pt) => `  - ${pt}`).join("\n")}
 
 Questions? Reply to this email — it reaches a person.
 
-— The Astrant team
+—Astrant
 
 —
 ${lead} To unsubscribe from future welcome and account emails: ${args.unsubscribeLink}
 `;
   const html = renderEmailLayout({
-    preheader: heading,
+    preheader: `${heading}.`,
     heading,
     cards: [
       emailStack([
         escapeHtml(intro),
-        `Get started: ${emailLink(args.onboardingLink)}<br />Manage your subscription: ${emailLink(args.accountLink)}`,
+        `${emailLink(args.onboardingLink, "Get started")}<br />${emailLink(args.accountLink, "Manage your subscription")}`,
       ]),
       emailStack(["A few things to know about Founding pricing:", emailList(points.map(escapeHtml))]),
-      emailStack(["Questions? Reply to this email — it reaches a person.", "— The Astrant team"]),
+      emailStack(["Questions? Reply to this email — it reaches a person.", "—Astrant"]),
     ],
     footerHtmlLinesTrusted: [unsubscribeFooterHtml(lead, args.unsubscribeLink)],
     footerLines: [],
@@ -173,28 +173,28 @@ function buildFounderActiveBackBody(args: {
   unsubscribeLink: string;
 }): WelcomeBody {
   const tierPriceDollars = Math.floor(args.tierPriceCents / 100);
-  const heading = `Welcome back, Founding Member #${args.foundingOrderSeq}.`;
+  const heading = `Welcome back, Founding Member #${args.foundingOrderSeq}`;
   const intro = `Your Founding pricing of $${tierPriceDollars}/mo continues to apply for as long as your subscription remains active. Your Founder identity persists across subscription lifecycle events.`;
   const lead = "You're receiving this email because you have an active Astrant subscription.";
-  const text = `${heading}
+  const text = `${heading}.
 
 ${intro}
 
 Manage your subscription: ${args.accountLink}
 
-— The Astrant team
+—Astrant
 
 —
 ${lead} To unsubscribe from future welcome and account emails: ${args.unsubscribeLink}
 `;
   const html = renderEmailLayout({
-    preheader: heading,
+    preheader: `${heading}.`,
     heading,
     cards: [
       emailStack([
         escapeHtml(intro),
-        `Manage your subscription: ${emailLink(args.accountLink)}`,
-        "— The Astrant team",
+        emailLink(args.accountLink, "Manage your subscription"),
+        "—Astrant",
       ]),
     ],
     footerHtmlLinesTrusted: [unsubscribeFooterHtml(lead, args.unsubscribeLink)],
@@ -213,7 +213,7 @@ function buildStandardWelcomeBody(args: {
   accountLink: string;
   unsubscribeLink: string;
 }): WelcomeBody {
-  const heading = "Welcome to Astrant.";
+  const heading = "Welcome to Astrant";
   const intro =
     "Your monthly citation-monitoring subscription is active. Once you complete onboarding, your first artifact — a 6-dimension AEO audit of your domain — arrives within 24 hours (usually within 10 minutes). Monthly citation-tracking digests then deliver on the 1st of each month.";
   const nextStep = "tell us what to monitor. The setup form takes about 2 minutes:";
@@ -225,7 +225,7 @@ function buildStandardWelcomeBody(args: {
   ];
   const expiry = "This link is good for 7 days. If you need a fresh link, reply to this email.";
   const lead = "You're receiving this welcome email because you started a subscription with Astrant.";
-  const text = `${heading}
+  const text = `${heading}.
 
 ${intro}
 
@@ -246,7 +246,7 @@ Manage your subscription anytime: ${args.accountLink}
 ${lead} To unsubscribe from future welcome and account emails: ${args.unsubscribeLink}
 `;
   const html = renderEmailLayout({
-    preheader: heading,
+    preheader: `${heading}.`,
     heading,
     cards: [
       emailStack([
@@ -255,7 +255,7 @@ ${lead} To unsubscribe from future welcome and account emails: ${args.unsubscrib
         emailButton("Set up monitoring", args.onboardingLink),
       ]),
       emailStack(["You'll choose:", emailList(choices.map(escapeHtml)), escapeHtml(expiry)]),
-      emailStack([`Manage your subscription anytime: ${emailLink(args.accountLink)}`, "—Astrant"]),
+      emailStack([`${emailLink(args.accountLink, "Manage your subscription")} anytime.`, "—Astrant"]),
     ],
     footerHtmlLinesTrusted: [unsubscribeFooterHtml(lead, args.unsubscribeLink)],
     footerLines: [],

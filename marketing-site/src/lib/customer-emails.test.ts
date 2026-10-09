@@ -7,17 +7,24 @@ import { join } from "node:path";
 // asserted. Design-review previews:
 //   EMAIL_PREVIEW_DIR=<dir> npx vitest run src/lib/customer-emails.test.ts
 
-const { sendMock } = vi.hoisted(() => ({ sendMock: vi.fn() }));
+const { sendMock, tok } = vi.hoisted(() => ({ sendMock: vi.fn(), tok: { real: false } }));
 vi.mock("resend", () => ({ Resend: class { emails = { send: sendMock }; } }));
 vi.mock("./onboarding-token", () => ({ issueOnboardingToken: async () => "onb-token-FIXED" }));
 vi.mock("./account-link", () => ({
   issueAccountLink: async () => "https://astrant.io/account?t=acct-token-FIXED",
 }));
-vi.mock("./email-suppressions", () => ({
-  isEmailSuppressed: async () => false,
-  mintUnsubscribeToken: async () => "unsub-token-FIXED",
-  buildUnsubscribeLink: (base: string, t: string) => `${base}/api/email/unsubscribe?t=${t}`,
-}));
+// Real buildUnsubscribeLink (the /api/email/unsubscribe route reads `?token=`).
+// mintUnsubscribeToken is real for the "-real-token" variants (signed, ~170
+// chars), a short fixed token otherwise.
+vi.mock("./email-suppressions", async (importOriginal) => {
+  const real = await importOriginal<typeof import("./email-suppressions")>();
+  return {
+    ...real,
+    isEmailSuppressed: async () => false,
+    mintUnsubscribeToken: async (env: { EMAIL_UNSUB_SIGNING_KEY: string }, email: string) =>
+      tok.real ? real.mintUnsubscribeToken(env, email) : "unsub-token-FIXED",
+  };
+});
 
 import {
   buildGapReportReadyPayload,
@@ -110,6 +117,7 @@ function lastSent(): Sent {
 }
 
 const sent: Record<string, Sent> = {};
+const BRAND_FOOTER = "Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io";
 
 beforeEach(() => {
   sendMock.mockReset();
@@ -157,7 +165,7 @@ describe("E1 customer emails", () => {
     expect(s.replyTo).toBe("contact@astrant.io");
     expect(s.headers?.["List-Unsubscribe"]).toBe("<https://astrant.io/api/score/unsubscribe?t=unsub-token-FIXED>");
     expect(s.html).toContain(">Unsubscribe from rescan emails</a>");
-    expect(s.html).toContain(">Delete all your data</a>");
+    expect(s.html).toContain(">Delete all my data</a>");
     expect(s.text).toMatchSnapshot("text");
     expect(s.html).toMatchSnapshot("html");
   });
@@ -179,6 +187,8 @@ describe("E1 customer emails", () => {
     expect(s.replyTo).toBe("contact@astrant.io");
     expect(s.text).not.toContain("2026-06-01");
     expect(s.html).not.toContain("2026-06-01");
+    expect(s.html).toContain(">Your Astrant Audit is ready</h1>");
+    expect(s.html).toContain(BRAND_FOOTER);
     expect(s.text).toContain("- Dim 1-5: llms.txt, MCP server, OpenAPI catalog, structured data, agent-parsable content");
     expect(s.text).toContain(
       "Your first monthly tracking digest arrives on the 1st of next month, with citation-tracking data from your subscription start onward.",
@@ -192,7 +202,8 @@ describe("E1 customer emails", () => {
       sendF2PatchDeliveryEmail(env, { toEmail: "jane@acme-analytics.com", brandName: "Acme", patchR2Key: "f2/patch", sessionId: "impl-1" }),
     );
     expect(s.replyTo).toBe("contact@astrant.io");
-    expect(s.html).toContain("cd mcp-server &amp;&amp; npx wrangler login &amp;&amp; npx wrangler deploy");
+    expect(s.html).toContain(BRAND_FOOTER);
+    expect(s.html).toMatch(/<pre [^>]*>cd mcp-server &amp;&amp; npx wrangler login &amp;&amp; npx wrangler deploy<\/pre>/);
     expect(s.text).toMatchSnapshot("text");
     expect(s.html).toMatchSnapshot("html");
   });
@@ -215,7 +226,12 @@ describe("E1 customer emails", () => {
       );
       expect(s.replyTo).toBe("contact@astrant.io");
       expect(s.html).toContain("/.well-known/ &amp; the docs index.");
-      if (dayN === 90) expect(s.html).toContain(`href="https://checkout.example/standard?a=1&amp;b=2"`);
+      if (dayN === 90) {
+        // text-labelled link wraps normally (no break-all)
+        expect(s.html).toContain(`<a href="https://checkout.example/standard?a=1&amp;b=2" style="color: #18181b;">start Standard ($149/mo)</a>`);
+      }
+      expect(s.html).toContain(BRAND_FOOTER);
+      expect(s.html).not.toMatch(/<h1[^>]*>[^<]*\.<\/h1>/);
       expect(s.text).toMatchSnapshot("text");
       expect(s.html).toMatchSnapshot("html");
     });
@@ -237,7 +253,13 @@ describe("E1 customer emails", () => {
       const s = await capture(name, () => sendWelcomeEmail(welcomeEnv, "sub_123", "jane@acme-analytics.com", founding));
       expect(s.replyTo).toBe("contact@astrant.io");
       expect(s.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
-      expect(s.html).toContain(`href="https://astrant.io/api/email/unsubscribe?t=unsub-token-FIXED"`);
+      expect(s.html).toContain(`href="https://astrant.io/api/email/unsubscribe?token=unsub-token-FIXED"`);
+      expect(s.html).toMatch(/>Unsubscribe<\/a><\/div>/);
+      // HTML shows labelled links, not raw URLs; the text part keeps the URLs.
+      expect(s.html).not.toContain(">https://");
+      expect(s.text).toContain("https://astrant.io/api/email/unsubscribe?token=unsub-token-FIXED");
+      expect(s.text).not.toContain("The Astrant team");
+      expect(s.html).not.toContain("The Astrant team");
       // No raw Markdown in either part.
       for (const part of [s.text, s.html]) {
         expect(part).not.toContain("**");
@@ -251,6 +273,25 @@ describe("E1 customer emails", () => {
       }
       expect(s.text).toMatchSnapshot("text");
       expect(s.html).toMatchSnapshot("html");
+    });
+  }
+
+  for (const [name, founding] of welcomeVariants) {
+    it(`#8 ${name} with a real signed unsubscribe token (preview only)`, async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-08T12:00:00Z"));
+      tok.real = true;
+      try {
+        const s = await capture(`${name}-real-token`, () =>
+          sendWelcomeEmail({ ...welcomeEnv, EMAIL_UNSUB_SIGNING_KEY: "preview-signing-key" } as WelcomeEmailEnv, "sub_123", "jane@acme-analytics.com", founding),
+        );
+        const m = s.text.match(/unsubscribe\?token=([^\s]+)/);
+        expect(m).not.toBeNull();
+        expect(decodeURIComponent(m![1]).length).toBeGreaterThan(150);
+        expect(s.html).toMatch(/>Unsubscribe<\/a><\/div>/);
+      } finally {
+        tok.real = false;
+      }
     });
   }
 

@@ -50,12 +50,19 @@ export function emailButton(label: string, href: string): string {
   return `<a href="${escapeHtml(href)}" style="display: inline-block; padding: 12px 24px; background: ${EMAIL_PALETTE.accent}; color: #000000; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">${escapeHtml(label)}</a>`;
 }
 
+// A raw-URL label may break anywhere (long tokens); a text label wraps normally.
 export function emailLink(href: string, label: string = href, color: string = EMAIL_PALETTE.fg): string {
-  return `<a href="${escapeHtml(href)}" style="color: ${color}; word-break: break-all;">${escapeHtml(label)}</a>`;
+  const wrap = label === href ? " word-break: break-all;" : "";
+  return `<a href="${escapeHtml(href)}" style="color: ${color};${wrap}">${escapeHtml(label)}</a>`;
 }
 
 export function emailCode(s: string): string {
   return `<code style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; background: ${EMAIL_PALETTE.bg}; border: 1px solid ${EMAIL_PALETTE.border}; border-radius: 3px; padding: 1px 4px;">${escapeHtml(s)}</code>`;
+}
+
+// Block shell command: monospace, scrolls horizontally inside the block.
+export function emailPre(s: string): string {
+  return `<pre style="margin: 0; padding: 10px 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.5; background: ${EMAIL_PALETTE.bg}; border: 1px solid ${EMAIL_PALETTE.border}; border-radius: 4px; white-space: pre; overflow-x: auto;">${escapeHtml(s)}</pre>`;
 }
 
 export function emailCardHeading(title: string): string {

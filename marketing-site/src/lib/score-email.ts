@@ -31,7 +31,7 @@ import {
 
 const FROM_ADDRESS = "Astrant Score <reports@astrant.io>";
 const REPLY_TO = "contact@astrant.io";
-const COMPANY_FOOTER =
+export const COMPANY_FOOTER =
   "Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io";
 
 export type SendEnv = {
@@ -86,16 +86,24 @@ function topGapsHtml(scan: ScanResult, max = 3): string[] {
     );
 }
 
+// Large composite score + muted caption (#1, #3).
+function scoreDisplayHtml(scan: ScanResult, captionHtml: string): string {
+  const p = EMAIL_PALETTE;
+  return (
+    `<div style="font-size: 32px; font-weight: 700; line-height: 1.2;">${escapeHtml(String(scan.composite.score))} <span style="font-size: 22px; font-weight: 600; color: ${p.muted};">${escapeHtml(scan.composite.grade)}</span></div>` +
+    `<div style="color: ${p.muted}; font-size: 13px;">${captionHtml}</div>`
+  );
+}
+
 // Footer lines with the unsubscribe + delete-my-data links (#1, #3).
 function scoreFooterHtmlLines(input: {
   requestedDate: string;
   unsubUrl: string;
   deleteUrl: string;
-  deleteLabel: string;
 }): string[] {
   return [
     `You requested this report on ${escapeHtml(input.requestedDate)}.`,
-    `${emailLink(input.unsubUrl, "Unsubscribe from rescan emails", EMAIL_PALETTE.muted)} &nbsp;·&nbsp; ${emailLink(input.deleteUrl, input.deleteLabel, EMAIL_PALETTE.muted)}`,
+    `${emailLink(input.unsubUrl, "Unsubscribe from rescan emails", EMAIL_PALETTE.muted)} &nbsp;·&nbsp; ${emailLink(input.deleteUrl, "Delete all my data", EMAIL_PALETTE.muted)}`,
   ];
 }
 
@@ -167,7 +175,6 @@ export function buildGapReportReadyPayload(
     COMPANY_FOOTER,
   ].join("\n");
 
-  const p = EMAIL_PALETTE;
   const phrase = dimensionCountPhrase(input.scan.dimensions_applicable, input.scan.dimensions_scored, input.scan.dimensions_total);
   const html = renderEmailLayout({
     preheader: `Your Astrant Score gap report for ${input.scan.url} is ready.`,
@@ -175,8 +182,7 @@ export function buildGapReportReadyPayload(
     cards: [
       emailStack([
         `We just scanned ${emailCode(input.scan.url)}.`,
-        `<div style="font-size: 32px; font-weight: 700; line-height: 1.2;">${escapeHtml(String(input.scan.composite.score))} <span style="font-size: 22px; font-weight: 600; color: ${p.muted};">${escapeHtml(input.scan.composite.grade)}</span></div>` +
-          `<div style="color: ${p.muted}; font-size: 13px;">Scored on ${escapeHtml(phrase)} dimensions applicable to this site.</div>`,
+        scoreDisplayHtml(input.scan, `Scored on ${escapeHtml(phrase)} dimensions applicable to this site.`),
       ]),
       emailCardHeading("Top gaps") + emailList(topGapsHtml(input.scan)),
       emailStack([
@@ -188,7 +194,6 @@ export function buildGapReportReadyPayload(
       requestedDate,
       unsubUrl,
       deleteUrl: `${input.origin}/score/delete-me`,
-      deleteLabel: "Delete all my data",
     }),
     footerLines: [COMPANY_FOOTER],
   });
@@ -295,8 +300,10 @@ export async function sendGapReportDeferredEmail(
         `Hi —`,
         `Your Astrant Score gap report for ${escapeHtml(input.scan.url)} is queued for generation. We've reached today's PDF rendering capacity; your PDF will be ready within 24 hours, and we'll email a link the moment it's available.`,
       ]),
-      `Composite score: ${escapeHtml(String(input.scan.composite.score))} (${escapeHtml(input.scan.composite.grade)})<br />` +
+      scoreDisplayHtml(
+        input.scan,
         `Dimensions scored: ${escapeHtml(dimensionCountPhrase(input.scan.dimensions_applicable, input.scan.dimensions_scored, input.scan.dimensions_total))} applicable`,
+      ),
       emailStack([`Top gaps (preview):`, emailList(topGapsHtml(input.scan))]),
       `Results page (refresh for PDF when ready):<br />${emailLink(resultsUrl)}`,
     ],
@@ -304,7 +311,6 @@ export async function sendGapReportDeferredEmail(
       requestedDate,
       unsubUrl,
       deleteUrl: `${input.origin}/score/delete-me`,
-      deleteLabel: "Delete all your data",
     }),
     footerLines: [COMPANY_FOOTER],
   });
@@ -430,7 +436,7 @@ export async function sendAutoPilotAuditReadyEmail(
     "Your first monthly tracking digest arrives on the 1st of next month, with citation-tracking data from your subscription start onward.";
   const html = renderEmailLayout({
     preheader: "Your 6-dimension AEO audit is ready.",
-    heading: subject,
+    heading: "Your Astrant Audit is ready",
     cards: [
       emailStack([
         `Your 6-dimension AEO audit is ready.`,
@@ -439,7 +445,7 @@ export async function sendAutoPilotAuditReadyEmail(
       emailStack([`What you'll see:`, emailList(dimLines.map(escapeHtml))]),
       emailStack([escapeHtml(digestLine), `—Astrant`]),
     ],
-    footerLines: [],
+    footerLines: [COMPANY_FOOTER],
   });
 
   const resend = new Resend(env.RESEND_API_KEY);

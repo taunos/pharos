@@ -9,11 +9,13 @@ import {
   renderEmailLayout,
   escapeHtml,
   emailCode,
+  emailPre,
   emailCardHeading,
   emailStack,
   emailList,
   emailLink,
 } from "./email-layout";
+import { COMPANY_FOOTER } from "./score-email";
 
 export interface F2EmailEnv {
   RESEND_API_KEY: string;
@@ -79,9 +81,12 @@ export async function sendF2PatchDeliveryEmail(
     heading,
     cards: [
       emailStack([
-        `Apply your patch: ${emailCode("git am astrant-implementation.patch")} (run from your project root).`,
-        `Deploy your MCP server: ${emailCode("cd mcp-server && npx wrangler login && npx wrangler deploy")}<br />` +
-          `A one-command deploy wrapper (${emailCode("npx @astrant/deploy-mcp")}) is on the roadmap.`,
+        `Apply your patch:`,
+        emailPre("git am astrant-implementation.patch"),
+        `(run from your project root).`,
+        `Deploy your MCP server:`,
+        emailPre("cd mcp-server && npx wrangler login && npx wrangler deploy"),
+        `A one-command deploy wrapper (${emailCode("npx @astrant/deploy-mcp")}) is on the roadmap.`,
       ]),
       emailCardHeading("What's included") +
         emailList([
@@ -103,7 +108,7 @@ export async function sendF2PatchDeliveryEmail(
         ]),
       emailStack(["Reply to this email with any questions.", "—Astrant"]),
     ],
-    footerLines: [],
+    footerLines: [COMPANY_FOOTER],
   });
 
   const resend = new Resend(env.RESEND_API_KEY);
@@ -204,8 +209,8 @@ export async function sendF2DayNAuditEmail(
   // escapeHtml every interpolated value (recs are deterministic today, LLM-fed later).
   const heading =
     input.dayN === 90
-      ? "Your 90-day Implementation arc is complete."
-      : `Your Day ${input.dayN} Implementation audit is ready.`;
+      ? "Your 90-day Implementation arc is complete"
+      : `Your Day ${input.dayN} Implementation audit is ready`;
   const cards: string[] = [
     emailCardHeading("What changed") +
       emailStack([
@@ -227,7 +232,7 @@ export async function sendF2DayNAuditEmail(
     );
   }
   cards.push(emailStack(["Reply to this email with any questions.", "—Astrant"]));
-  const html = renderEmailLayout({ preheader: heading, heading, cards, footerLines: [] });
+  const html = renderEmailLayout({ preheader: `${heading}.`, heading, cards, footerLines: [COMPANY_FOOTER] });
 
   const resend = new Resend(env.RESEND_API_KEY);
   try {
