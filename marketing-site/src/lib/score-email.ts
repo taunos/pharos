@@ -427,7 +427,7 @@ export async function sendAutoPilotAuditReadyEmail(
   const pdfBase64 = uint8ArrayToBase64Local(pdfBytes);
 
   const auditUrl = `${input.origin}/audit-results/${input.sessionId}/pdf`;
-  const subject = "Your Astrant audit is ready";
+  const subject = "Your Astrant Audit is ready";
   const dimLines = [
     "Dim 1-5: llms.txt, MCP server, OpenAPI catalog, structured data, agent-parsable content",
     "Dim 6: how often 4 major AI models name and cite your brand (Perplexity via live web search; the others from model knowledge)",
