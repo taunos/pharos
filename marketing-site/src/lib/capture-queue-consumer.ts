@@ -86,9 +86,7 @@ function parseScanResult(json: unknown, expectedId: string): ScanResult | null {
   return o as ScanResult;
 }
 
-// EXACTLY the six immutable Resend fields, plus `replyTo` on snapshots frozen
-// after E1 (pre-E1 snapshots lack it and still pass); no other extras; flat
-// string→string headers.
+// EXACTLY the six immutable Resend fields; no extras; flat string→string headers.
 function parseSnapshot(str: unknown): GapReportPayload | null {
   if (typeof str !== "string") return null;
   let o: unknown;
@@ -99,12 +97,10 @@ function parseSnapshot(str: unknown): GapReportPayload | null {
   }
   if (typeof o !== "object" || o === null || Array.isArray(o)) return null;
   const p = o as Record<string, unknown>;
-  const allowed = "replyTo" in p
-    ? ["from", "to", "replyTo", "subject", "text", "html", "headers"]
-    : ["from", "to", "subject", "text", "html", "headers"];
+  const allowed = ["from", "to", "subject", "text", "html", "headers"];
   const keys = Object.keys(p);
   if (keys.length !== allowed.length || !allowed.every((k) => k in p)) return null;
-  for (const k of allowed) if (k !== "headers" && typeof p[k] !== "string") return null;
+  for (const k of ["from", "to", "subject", "text", "html"]) if (typeof p[k] !== "string") return null;
   const h = p.headers;
   if (typeof h !== "object" || h === null || Array.isArray(h)) return null;
   for (const v of Object.values(h as Record<string, unknown>)) if (typeof v !== "string") return null;

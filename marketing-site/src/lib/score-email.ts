@@ -119,13 +119,12 @@ function commonHeaders(input: {
 // idempotency key — so a retry is byte-identical (Resend dedups within 24h;
 // a differing payload under the same key would 409).
 //
-// E1: new payloads carry `replyTo`. Snapshots frozen before E1 have no
-// `replyTo` (six fields) and are still sent verbatim — the consumer's
-// parseSnapshot accepts both shapes. Never rewrite a stored snapshot.
+// Stays EXACTLY six fields: the scanner's /freeze-snapshot (validSnapshotShape)
+// and the consumer's parseSnapshot both reject any other shape. E1's replyTo is
+// added at SEND time in sendResendPayload, never stored in the snapshot.
 export type GapReportPayload = {
   from: string;
   to: string;
-  replyTo?: string;
   subject: string;
   text: string;
   html: string;
@@ -185,7 +184,7 @@ export function buildGapReportReadyPayload(
         `Made changes? ${emailLink(`${input.origin}/score`, "Re-run the scan")} to see your updated score.`,
       ]),
     ],
-    footerHtmlLines: scoreFooterHtmlLines({
+    footerHtmlLinesTrusted: scoreFooterHtmlLines({
       requestedDate,
       unsubUrl,
       deleteUrl: `${input.origin}/score/delete-me`,
@@ -197,7 +196,6 @@ export function buildGapReportReadyPayload(
   return {
     from: FROM_ADDRESS,
     to: input.toEmail,
-    replyTo: REPLY_TO,
     subject,
     text,
     html,
@@ -206,16 +204,20 @@ export function buildGapReportReadyPayload(
 }
 
 // Shared thin sender. A non-empty idempotencyKey enables Resend's 24h dedup.
+// replyTo (E1) is added here, at send time, so the frozen six-field payload is
+// unchanged; the request is still deterministic per payload, so a retry under
+// the same key sends identical bytes.
 async function sendResendPayload(
   env: SendEnv,
   payload: GapReportPayload,
   idempotencyKey?: string
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const resend = new Resend(env.RESEND_API_KEY);
+  const request = { ...payload, replyTo: REPLY_TO };
   try {
     const result = idempotencyKey
-      ? await resend.emails.send(payload, { idempotencyKey })
-      : await resend.emails.send(payload);
+      ? await resend.emails.send(request, { idempotencyKey })
+      : await resend.emails.send(request);
     if (result.error) {
       return { ok: false, error: result.error.message };
     }
@@ -298,7 +300,7 @@ export async function sendGapReportDeferredEmail(
       emailStack([`Top gaps (preview):`, emailList(topGapsHtml(input.scan))]),
       `Results page (refresh for PDF when ready):<br />${emailLink(resultsUrl)}`,
     ],
-    footerHtmlLines: scoreFooterHtmlLines({
+    footerHtmlLinesTrusted: scoreFooterHtmlLines({
       requestedDate,
       unsubUrl,
       deleteUrl: `${input.origin}/score/delete-me`,
@@ -425,7 +427,7 @@ export async function sendAutoPilotAuditReadyEmail(
     "Dim 6: how often 4 major AI models name and cite your brand (Perplexity via live web search; the others from model knowledge)",
   ];
   const digestLine =
-    "Your first monthly tracking digest delivers with citation-tracking data from your subscription start onward.";
+    "Your first monthly tracking digest arrives on the 1st of next month, with citation-tracking data from your subscription start onward.";
   const html = renderEmailLayout({
     preheader: "Your 6-dimension AEO audit is ready.",
     heading: subject,

@@ -160,7 +160,7 @@ ${lead} To unsubscribe from future welcome and account emails: ${args.unsubscrib
       emailStack(["A few things to know about Founding pricing:", emailList(points.map(escapeHtml))]),
       emailStack(["Questions? Reply to this email — it reaches a person.", "— The Astrant team"]),
     ],
-    footerHtmlLines: [unsubscribeFooterHtml(lead, args.unsubscribeLink)],
+    footerHtmlLinesTrusted: [unsubscribeFooterHtml(lead, args.unsubscribeLink)],
     footerLines: [],
   });
   return { text, html };
@@ -197,7 +197,7 @@ ${lead} To unsubscribe from future welcome and account emails: ${args.unsubscrib
         "— The Astrant team",
       ]),
     ],
-    footerHtmlLines: [unsubscribeFooterHtml(lead, args.unsubscribeLink)],
+    footerHtmlLinesTrusted: [unsubscribeFooterHtml(lead, args.unsubscribeLink)],
     footerLines: [],
   });
   return { text, html };
@@ -257,7 +257,7 @@ ${lead} To unsubscribe from future welcome and account emails: ${args.unsubscrib
       emailStack(["You'll choose:", emailList(choices.map(escapeHtml)), escapeHtml(expiry)]),
       emailStack([`Manage your subscription anytime: ${emailLink(args.accountLink)}`, "—Astrant"]),
     ],
-    footerHtmlLines: [unsubscribeFooterHtml(lead, args.unsubscribeLink)],
+    footerHtmlLinesTrusted: [unsubscribeFooterHtml(lead, args.unsubscribeLink)],
     footerLines: [],
   });
   return { text, html };

@@ -21,6 +21,7 @@ vi.mock("./email-suppressions", () => ({
 
 import {
   buildGapReportReadyPayload,
+  sendGapReportReadyEmail,
   sendGapReportDeferredEmail,
   sendDeletionConfirmEmail,
   sendAutoPilotAuditReadyEmail,
@@ -128,7 +129,7 @@ describe("E1 customer emails", () => {
   it("#1/#2 gap-report ready (payload builder)", () => {
     const p = buildGapReportReadyPayload({ ...scoreInput, requestedDate: "2026-10-08" });
     sent["gap-report-ready"] = p as Sent;
-    expect(p.replyTo).toBe("contact@astrant.io");
+    expect(p).not.toHaveProperty("replyTo"); // frozen payload stays six fields
     expect(p.headers).toEqual({
       "List-Unsubscribe": "<https://astrant.io/api/score/unsubscribe?t=unsub-token-FIXED>",
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
@@ -141,6 +142,12 @@ describe("E1 customer emails", () => {
     expect(p.html).not.toContain("<valid>");
     expect(p.text).toMatchSnapshot("text");
     expect(p.html).toMatchSnapshot("html");
+  });
+
+  it("#1 gap-report ready send adds replyTo at send time", async () => {
+    const s = await capture("gap-report-ready-send", () => sendGapReportReadyEmail(env, scoreInput));
+    expect(s.replyTo).toBe("contact@astrant.io");
+    delete sent["gap-report-ready-send"]; // same HTML as gap-report-ready; no extra preview
   });
 
   it("#3 gap-report deferred", async () => {
@@ -173,6 +180,9 @@ describe("E1 customer emails", () => {
     expect(s.text).not.toContain("2026-06-01");
     expect(s.html).not.toContain("2026-06-01");
     expect(s.text).toContain("- Dim 1-5: llms.txt, MCP server, OpenAPI catalog, structured data, agent-parsable content");
+    expect(s.text).toContain(
+      "Your first monthly tracking digest arrives on the 1st of next month, with citation-tracking data from your subscription start onward.",
+    );
     expect(s.text).toMatchSnapshot("text");
     expect(s.html).toMatchSnapshot("html");
   });

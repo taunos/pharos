@@ -307,7 +307,7 @@ exports[`E1 customer emails > #5 AutoPilot audit-ready (date clause removed, dim
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background: #ffffff; border: 1px solid #e4e4e7; border-radius: 6px;">
           <tr>
             <td style="padding: 20px 24px; font-size: 14px; line-height: 1.6; color: #18181b;">
-              <div style="margin: 0 0 12px 0;">Your first monthly tracking digest delivers with citation-tracking data from your subscription start onward.</div><div style="margin: 0;">—Astrant</div>
+              <div style="margin: 0 0 12px 0;">Your first monthly tracking digest arrives on the 1st of next month, with citation-tracking data from your subscription start onward.</div><div style="margin: 0;">—Astrant</div>
             </td>
           </tr>
         </table>
@@ -336,7 +336,7 @@ What you'll see:
 - Dim 1-5: llms.txt, MCP server, OpenAPI catalog, structured data, agent-parsable content
 - Dim 6: how often 4 major AI models name and cite your brand (Perplexity via live web search; the others from model knowledge)
 
-Your first monthly tracking digest delivers with citation-tracking data from your subscription start onward.
+Your first monthly tracking digest arrives on the 1st of next month, with citation-tracking data from your subscription start onward.
 
 —Astrant"
 `;

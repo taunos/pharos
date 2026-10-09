@@ -24,9 +24,13 @@ export interface EmailLayoutInput {
   subheading?: string;
   cards: string[];
   cta?: { label: string; href: string; caption?: string };
-  // Pre-rendered footer lines (escape dynamic text first), rendered before
-  // footerLines. For footers that carry links (unsubscribe, delete-my-data).
-  footerHtmlLines?: string[];
+  /**
+   * TRUSTED pre-rendered HTML, inserted as-is (NOT escaped). The caller must
+   * escape every dynamic value (escapeHtml / emailLink) before building it.
+   * Rendered before footerLines; for footers that carry links (unsubscribe,
+   * delete-my-data). footerLines, by contrast, is plain text and is escaped.
+   */
+  footerHtmlLinesTrusted?: string[];
   footerLines: string[];
 }
 
@@ -111,7 +115,7 @@ export function renderEmailLayout(input: EmailLayoutInput): string {
       </td>
     </tr>`
     : "";
-  const footer = [...(input.footerHtmlLines ?? []), ...input.footerLines.map(escapeHtml)]
+  const footer = [...(input.footerHtmlLinesTrusted ?? []), ...input.footerLines.map(escapeHtml)]
     .map((line) => `<div style="font-size: 12px; color: ${p.muted}; line-height: 1.5;">${line}</div>`)
     .join("");
 
