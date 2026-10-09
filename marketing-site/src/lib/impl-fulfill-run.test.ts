@@ -104,7 +104,7 @@ const patchEmails = () => h.sends.filter((s) => !s.subject.startsWith("[ALERT]")
 const nowSec = () => Math.floor(Date.now() / 1000);
 
 beforeEach(() => {
-  sq = createSqliteD1([readMigration("0008_implementation_sessions.sql"), PROBE_TARGETS_SQL]);
+  sq = createSqliteD1([readMigration("0008_implementation_sessions.sql"), readMigration("0016_dayn_email_sent_at.sql"), PROBE_TARGETS_SQL]);
   r2 = new Map();
   r2Puts = [];
   h.sends = [];
@@ -321,6 +321,49 @@ describe("runImplFulfillment — A3 re-run safety after the email was sent", () 
     expect(patchEmails()).toHaveLength(1);
     expect(row().status).toBe("active");
   });
+
+  it("fix round: final attempt, email sent then the marker write fails → F2_DELIVERED_STATE_UNRECORDED, NO failed write", async () => {
+    seed();
+    sq.failWhen = (sql) => sql.includes("SET patch_delivered_at");
+    expect(await runImplFulfillment(env(), SID, { finalAttempt: true })).toEqual({ kind: "failed_final" });
+    expect(patchEmails()).toHaveLength(1);
+    expect(alertCodes()).toEqual(["F2_DELIVERED_STATE_UNRECORDED"]);
+    expect(row().status).toBe("processing");
+    expect(sq.calls.some((c) => c.sql.includes("SET status = 'failed'"))).toBe(false);
+  });
+
+  it("fix round: final attempt resuming a delivered row, Step 11 fails → F2_DELIVERED_STATE_UNRECORDED, NO failed write", async () => {
+    seed("queued", { patch_delivered_at: 123 });
+    sq.failWhen = (sql) => sql.includes("SET status = 'active'");
+    expect(await runImplFulfillment(env(), SID, { finalAttempt: true })).toEqual({ kind: "failed_final" });
+    expect(alertCodes()).toEqual(["F2_DELIVERED_STATE_UNRECORDED"]);
+    expect(row().status).toBe("processing");
+    expect(patchEmails()).toHaveLength(0);
+  });
+
+  it.each([
+    ["failed_validation", () => { h.validateOk = false; }, "F2_PATCH_VALIDATION_FAILED"],
+    ["failed_ceiling", () => {
+      sq.db.exec(`INSERT INTO customer_probe_targets (customer_id, status) VALUES ('sub_other', 'active')`);
+    }, "F2_OVER_CAPACITY_ATOMIC_FAILED"],
+    ["active_email_pending", () => { h.patchEmailError = { message: "x" }; }, "F2_EMAIL_SEND_FAILED"],
+  ] as Array<[string, () => void, string]>)(
+    "fix round: %s write is fenced on the claim — a reclaimed row is not overwritten; alert says lease lost",
+    async (st, setup, code) => {
+      seed();
+      setup();
+      h.scanImpl = async () => {
+        sq.db.exec(`UPDATE implementation_sessions SET processing_started_at = 42 WHERE session_id = '${SID}'`);
+        return { composite: { score: 40, grade: "D" } };
+      };
+      const res = await runImplFulfillment(env({ MAX_PROBE_TARGETS: "1" }), SID, { finalAttempt: false });
+      expect(res).toEqual({ kind: "terminal_outcome", status: st });
+      expect(row().status).toBe("processing");
+      expect(row().processing_started_at).toBe(42);
+      expect(alertCodes()).toEqual([code]);
+      expect(h.sends.find((s) => s.subject.startsWith("[ALERT]"))!.text).toContain("lease lost");
+    },
+  );
 
   it("A4: Step 11 is keyed on the claim — a reclaimed row is left to its new holder", async () => {
     seed();

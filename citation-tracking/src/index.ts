@@ -401,6 +401,8 @@ async function runF2SweepSteps(env: Env): Promise<void> {
   // and the marketing-site claim now clears failed_at, so a set fired_at with no
   // succeeded_at is a stale claim even when an earlier attempt left failed_at set
   // (a re-claim after a failure that then crashed was never reset before).
+  // Slice Q fix round: never reset a day whose email is confirmed sent
+  // (day{N}_audit_email_sent_at, migration 0016) — that would send it twice.
   const STALE_THRESHOLD_SEC = 1800;
   for (const dayN of [30, 60, 90]) {
     await env.DB.prepare(
@@ -408,7 +410,8 @@ async function runF2SweepSteps(env: Env): Promise<void> {
        SET day${dayN}_audit_fired_at = NULL
        WHERE day${dayN}_audit_fired_at IS NOT NULL
          AND day${dayN}_audit_fired_at < ?
-         AND day${dayN}_audit_succeeded_at IS NULL`,
+         AND day${dayN}_audit_succeeded_at IS NULL
+         AND day${dayN}_audit_email_sent_at IS NULL`,
     )
       .bind(now - STALE_THRESHOLD_SEC)
       .run();

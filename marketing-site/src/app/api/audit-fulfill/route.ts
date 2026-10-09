@@ -8,7 +8,7 @@ import {
   type AuditRunEnv,
 } from "@/lib/audit-fulfill-run";
 import { updateFunnelStatus } from "@/lib/audit-funnel";
-import { errorClass } from "@/lib/audit-fulfill-queue-consumer";
+import { errorClass, releaseApAuditClaim } from "@/lib/audit-fulfill-queue-consumer";
 import type { FulfillMessage } from "@/lib/fulfill-queue-consumer";
 
 // Test C-A (A3): thin operator-replay wrapper. Paid standalone Audits are
@@ -149,6 +149,10 @@ export async function POST(req: Request) {
         error_message: message.slice(0, 500),
       }).catch(() => {});
       await updateFunnelStatus(env.SESSIONS, sessionId, "failed");
+      // Slice Q fix round (A5 on the replay path): an ap- welcome audit that
+      // ends in `error` releases subscriptions.audit_fired_at so a resubmit
+      // re-fires it. Best-effort, like the error write above.
+      await releaseApAuditClaim(env, sessionId).catch(() => {});
     }
     return NextResponse.json(
       { ok: false, error: message },

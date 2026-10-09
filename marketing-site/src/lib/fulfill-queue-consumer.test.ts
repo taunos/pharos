@@ -79,7 +79,7 @@ const status = () =>
     null) as { status: string; failed_reason: string | null } | null;
 
 beforeEach(() => {
-  sq = createSqliteD1([readMigration("0008_implementation_sessions.sql")]);
+  sq = createSqliteD1([readMigration("0008_implementation_sessions.sql"), readMigration("0016_dayn_email_sent_at.sql")]);
   sends = [];
   h.sends = [];
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -88,9 +88,12 @@ beforeEach(() => {
 
 describe("parseFulfillMessage", () => {
   it("accepts valid impl / impl_day; normalises rechecks", () => {
-    expect(parseFulfillMessage(IMPL)).toEqual({ kind: "impl", session_id: SID, rechecks: 0 });
-    expect(parseFulfillMessage({ ...IMPL, rechecks: 2 })).toEqual({ kind: "impl", session_id: SID, rechecks: 2 });
-    expect(parseFulfillMessage({ ...IMPL, rechecks: -1 })).toEqual({ kind: "impl", session_id: SID, rechecks: 0 });
+    const base = { kind: "impl", session_id: SID, rechecks: 0, dlq_requeues: 0 };
+    expect(parseFulfillMessage(IMPL)).toEqual(base);
+    expect(parseFulfillMessage({ ...IMPL, rechecks: 2 })).toEqual({ ...base, rechecks: 2 });
+    expect(parseFulfillMessage({ ...IMPL, rechecks: -1 })).toEqual(base);
+    expect(parseFulfillMessage({ ...IMPL, dlq_requeues: 1 })).toEqual({ ...base, dlq_requeues: 1 });
+    expect(parseFulfillMessage({ ...IMPL, dlq_requeues: "x" })).toEqual(base);
     expect(parseFulfillMessage(DAY)).toEqual(DAY);
   });
 
@@ -144,7 +147,7 @@ describe("fulfillQueueHandler — impl", () => {
     const m = msg(IMPL);
     await fulfillQueueHandler(batch(m), makeEnv(), deps(implReturning({ kind: "in_flight", processing_started_at: now - 100 })));
     expect(sends).toHaveLength(1);
-    expect(sends[0].body).toEqual({ kind: "impl", session_id: SID, rechecks: 1 });
+    expect(sends[0].body).toEqual({ kind: "impl", session_id: SID, rechecks: 1, dlq_requeues: 0 });
     const d = sends[0].opts!.delaySeconds!;
     expect(d).toBeGreaterThanOrEqual(1200 - 100 + 30 - 2);
     expect(d).toBeLessThanOrEqual(1200 - 100 + 30);
@@ -255,17 +258,51 @@ describe("fulfillDlqHandler", () => {
     expect(status()!.status).toBe("failed");
   });
 
-  it.each<[string, number]>([
-    ["processing", 10],
-    ["active", 0],
-    ["failed_validation", 0],
-  ])("A4: impl, %s (not reclaimable) → alert only, row unchanged, ack", async (s, ageSec) => {
-    seedImpl(s, ageSec ? Math.floor(Date.now() / 1000) - ageSec : null);
+  it.each(["active", "failed_validation"])("A4: impl, %s (not reclaimable) → alert only, row unchanged, no re-send, ack", async (s) => {
+    seedImpl(s, null);
     const m = msg(IMPL);
     await fulfillDlqHandler(batch(m, "astrant-fulfill-dlq"), makeEnv());
     expect(alertCodes()).toEqual(["F2_FULFILLMENT_DLQ"]);
     expect(status()!.status).toBe(s);
+    expect(sends).toEqual([]);
     expect(m.ack).toHaveBeenCalledTimes(1);
+  });
+
+  it("fix round: processing under a FRESH lease → alert, row unchanged, delayed re-send past the lease (dlq_requeues+1), ack", async () => {
+    const started = Math.floor(Date.now() / 1000) - 10;
+    seedImpl("processing", started);
+    const m = msg(IMPL);
+    await fulfillDlqHandler(batch(m, "astrant-fulfill-dlq"), makeEnv());
+    expect(alertCodes()).toEqual(["F2_FULFILLMENT_DLQ"]);
+    expect(status()!.status).toBe("processing");
+    expect(sends).toHaveLength(1);
+    expect(sends[0].body).toEqual({ kind: "impl", session_id: SID, rechecks: 0, dlq_requeues: 1 });
+    const d = sends[0].opts!.delaySeconds!;
+    expect(d).toBeGreaterThan(1200 - 10 - 2); // past the lease remainder
+    expect(d).toBeLessThanOrEqual(1200 - 10 + 30);
+    expect(m.ack).toHaveBeenCalledTimes(1);
+  });
+
+  it("fix round: fresh lease with dlq_requeues exhausted → F2_FULFILLMENT_DLQ_REQUEUES_EXHAUSTED, no re-send, ack", async () => {
+    seedImpl("processing", Math.floor(Date.now() / 1000) - 10);
+    const m = msg({ ...IMPL, dlq_requeues: 2 });
+    await fulfillDlqHandler(batch(m, "astrant-fulfill-dlq"), makeEnv());
+    expect(alertCodes()).toEqual(["F2_FULFILLMENT_DLQ", "F2_FULFILLMENT_DLQ_REQUEUES_EXHAUSTED"]);
+    expect(sends).toEqual([]);
+    expect(m.ack).toHaveBeenCalledTimes(1);
+  });
+
+  it("fix round: the re-send throws → rethrow, no ack (DLQ retries)", async () => {
+    seedImpl("processing", Math.floor(Date.now() / 1000) - 10);
+    const env = makeEnv();
+    (env as unknown as { FULFILL_QUEUE: { send: () => Promise<void> } }).FULFILL_QUEUE = {
+      send: async () => {
+        throw new Error("queue down");
+      },
+    };
+    const m = msg(IMPL);
+    await expect(fulfillDlqHandler(batch(m, "astrant-fulfill-dlq"), env)).rejects.toThrow("queue down");
+    expect(m.ack).not.toHaveBeenCalled();
   });
 
   it("impl, the write throws → alert already sent, rethrow, no ack", async () => {

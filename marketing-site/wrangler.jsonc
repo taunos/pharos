@@ -94,8 +94,16 @@
 	//   npx wrangler queues create astrant-fulfill-dlq
 	// Rollback: pause delivery on BOTH astrant-fulfill and astrant-fulfill-dlq
 	// BEFORE rolling back (a pre-Q version routes unknown queue names to the
-	// capture consumer, which throws), resume after. Paused messages are
-	// retained for 4 days (the default retention).
+	// capture consumer, which throws):
+	//   npx wrangler queues pause-delivery astrant-fulfill
+	//   npx wrangler queues pause-delivery astrant-fulfill-dlq
+	// Both queues STAY PAUSED until a Slice-Q-compatible consumer is deployed
+	// again; do not resume them under the rolled-back version. Paused messages
+	// are retained for 4 days (the default retention) — redeploy within that
+	// window, then resume-delivery on both. Past 4 days messages are lost:
+	// recover from D1 (implementation_sessions rows still 'queued'/'processing'
+	// → operator replay via /api/impl-fulfill; Day-N re-fires on the next
+	// citation-tracking sweep).
 	"queues": {
 		"producers": [
 			{ "binding": "AUDIT_FULFILL_QUEUE", "queue": "astrant-audit-fulfill" },

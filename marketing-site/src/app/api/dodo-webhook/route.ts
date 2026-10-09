@@ -627,6 +627,24 @@ async function handleF2ImplementationPayment(
     return NextResponse.json({ ok: true, error: "MISSING_FIELDS_REPORTED" });
   }
 
+  const sessionId = `impl-${dodoPaymentId}`;
+
+  // Slice Q fix round: a redelivery for a payment we already recorded skips the
+  // capacity gate (the order is already taken). A row still `queued` may have
+  // lost its enqueue (P1b) — re-send; any other status is an idempotent no-op.
+  // Only brand-new purchases reach the Stage-2 gate below.
+  const existing = await env.CITATION_DB.prepare(
+    `SELECT status FROM implementation_sessions WHERE session_id = ?`,
+  )
+    .bind(sessionId)
+    .first<{ status: string }>();
+  if (existing) {
+    if (existing.status !== "queued") {
+      return NextResponse.json({ ok: true, deduped: true });
+    }
+    return enqueueImplementation(env, sessionId);
+  }
+
   // D18 Stage 2 — belt-and-suspenders ceiling check (self-exclusion form per HIGH-1 lock).
   // B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded 3.
   const f2MaxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
@@ -654,7 +672,6 @@ async function handleF2ImplementationPayment(
   }
 
   // INSERT OR IGNORE on dodo_payment_id UNIQUE (idempotent against webhook retry)
-  const sessionId = `impl-${dodoPaymentId}`;
   const now = Math.floor(Date.now() / 1000);
   const paymentTime = parsed.timestamp
     ? Math.floor(new Date(parsed.timestamp).getTime() / 1000)
@@ -684,23 +701,23 @@ async function handleF2ImplementationPayment(
     .run();
 
   if (insertResult.meta.changes !== 1) {
-    // Duplicate webhook delivery. Slice Q (Q1g): a row still `queued` may have
-    // lost its enqueue (P1b) — re-send; anything else is an idempotent no-op.
-    const existing = await env.CITATION_DB.prepare(
-      `SELECT status FROM implementation_sessions WHERE session_id = ?`,
-    )
-      .bind(sessionId)
-      .first<{ status: string }>();
-    if (existing?.status !== "queued") {
-      return NextResponse.json({ ok: true, deduped: true });
-    }
+    // A concurrent delivery inserted the row between the lookup above and this
+    // INSERT; it enqueues (or 500s and Dodo retries into the lookup). No-op.
+    return NextResponse.json({ ok: true, deduped: true });
   }
 
-  // Slice Q (Q1g): durable dispatch via FULFILL_QUEUE. The row is inserted
-  // BEFORE the send (D1 is strongly consistent, so the consumer always sees
-  // it; the consumer's lease claim makes a duplicate enqueue harmless). On a
-  // send failure return 500 with NO dedupe write, so Dodo's retry re-enters,
-  // finds the row `queued` and re-sends.
+  return enqueueImplementation(env, sessionId);
+}
+
+// Slice Q (Q1g): durable dispatch via FULFILL_QUEUE. The row is inserted
+// BEFORE the send (D1 is strongly consistent, so the consumer always sees
+// it; the consumer's lease claim makes a duplicate enqueue harmless). On a
+// send failure return 500 with NO dedupe write, so Dodo's retry re-enters,
+// finds the row `queued` and re-sends.
+async function enqueueImplementation(
+  env: WebhookEnv,
+  sessionId: string,
+): Promise<NextResponse | { status: 200 }> {
   try {
     if (!env.FULFILL_QUEUE) throw new Error("FULFILL_QUEUE binding missing");
     await env.FULFILL_QUEUE.send({ kind: "impl", session_id: sessionId });

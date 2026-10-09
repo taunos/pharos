@@ -32,11 +32,12 @@ export const FULFILL_QUEUE_NAME = "astrant-fulfill";
 export const FULFILL_DLQ_NAME = "astrant-fulfill-dlq";
 
 export type FulfillMessage =
-  | { kind: "impl"; session_id: string; rechecks?: number }
+  // dlq_requeues: times the DLQ handed a crashed-with-fresh-lease message back.
+  | { kind: "impl"; session_id: string; rechecks?: number; dlq_requeues?: number }
   | { kind: "impl_day"; f2_session_id: string; day_n: 30 | 60 | 90 };
 
 type ParsedFulfillMessage =
-  | { kind: "impl"; session_id: string; rechecks: number }
+  | { kind: "impl"; session_id: string; rechecks: number; dlq_requeues: number }
   | { kind: "impl_day"; f2_session_id: string; day_n: 30 | 60 | 90 };
 
 export interface FulfillConsumerEnv extends ImplRunEnv, ImplDayRunEnv {
@@ -44,6 +45,7 @@ export interface FulfillConsumerEnv extends ImplRunEnv, ImplDayRunEnv {
 }
 
 export const MAX_IMPL_RECHECKS = 3;
+export const MAX_DLQ_REQUEUES = 2;
 // Q5: the synthetic smoke uses `impl-smoke-<uuid>` ids (real ids are impl-pay_…).
 export const IMPL_SMOKE_PREFIX = "impl-smoke-";
 
@@ -69,7 +71,12 @@ export function parseFulfillMessage(body: unknown): ParsedFulfillMessage | null 
   const b = body as Record<string, unknown>;
   if (b.kind === "impl") {
     if (typeof b.session_id !== "string" || !IMPL_ID_RE.test(b.session_id)) return null;
-    return { kind: "impl", session_id: b.session_id, rechecks: nonNegInt(b.rechecks) };
+    return {
+      kind: "impl",
+      session_id: b.session_id,
+      rechecks: nonNegInt(b.rechecks),
+      dlq_requeues: nonNegInt(b.dlq_requeues),
+    };
   }
   if (b.kind === "impl_day") {
     if (typeof b.f2_session_id !== "string" || !IMPL_ID_RE.test(b.f2_session_id)) return null;
@@ -198,8 +205,9 @@ export async function fulfillQueueHandler(
 
 // Q1f + A4/A9: DLQ consumer. impl → alert FIRST (F2 convention: customer email
 // + payment id, fetched best-effort), then `failed('dead_lettered')` only for a
-// row that is queued or whose processing lease has expired; otherwise alert
-// only. If the write throws, rethrow (no ack) and the DLQ retries (max_retries
+// row that is queued or whose processing lease has expired; a row still
+// processing under a fresh lease is re-sent (delayed, bounded); anything else is
+// alert only. If the write throws, rethrow (no ack) and the DLQ retries (max_retries
 // 10). impl_day → alert only (no state write; the daily sweep owns retries).
 export async function fulfillDlqHandler(
   batch: MessageBatch<FulfillMessage>,
@@ -248,6 +256,35 @@ export async function fulfillDlqHandler(
       .run();
     if (w.meta.changes !== 1) {
       console.error(`F2_FULFILLMENT_DLQ_WRITE_SKIPPED session_id=${sessionId} reason=not_reclaimable`);
+      // Fix round: a delivery crashed while holding a fresh lease. Hand the
+      // message back to astrant-fulfill after the lease expires (so it can
+      // reclaim), bounded by dlq_requeues; alert on exhaustion. A send failure
+      // rethrows (no ack) → the DLQ retries.
+      const cur = await env.CITATION_DB.prepare(
+        `SELECT status, processing_started_at FROM implementation_sessions WHERE session_id = ?`,
+      )
+        .bind(sessionId)
+        .first<{ status: string; processing_started_at: number | null }>();
+      if (cur?.status === "processing") {
+        if (msg.dlq_requeues < MAX_DLQ_REQUEUES) {
+          const delaySeconds = implRecheckDelaySec(cur.processing_started_at ?? 0, now);
+          await env.FULFILL_QUEUE.send(
+            { kind: "impl", session_id: sessionId, rechecks: 0, dlq_requeues: msg.dlq_requeues + 1 },
+            { delaySeconds },
+          );
+          console.error(
+            `F2_FULFILLMENT_DLQ_REQUEUED session_id=${sessionId} dlq_requeues=${msg.dlq_requeues + 1} delay=${delaySeconds}`,
+          );
+        } else {
+          console.error(`F2_FULFILLMENT_DLQ_REQUEUES_EXHAUSTED session_id=${sessionId}`);
+          await alertOperator(
+            env,
+            "F2_FULFILLMENT_DLQ_REQUEUES_EXHAUSTED",
+            sessionId,
+            `dlq_requeues=${msg.dlq_requeues}`,
+          );
+        }
+      }
     }
     message.ack();
   }

@@ -82,7 +82,7 @@ function staleCleanupSql(dayN: number): string {
 }
 
 beforeEach(() => {
-  sq = createSqliteD1([readMigration("0008_implementation_sessions.sql")]);
+  sq = createSqliteD1([readMigration("0008_implementation_sessions.sql"), readMigration("0016_dayn_email_sent_at.sql")]);
   h.sends = [];
   h.emailError = null;
   h.scanImpl = null;
@@ -158,6 +158,37 @@ describe("runImplDayAudit", () => {
     seed("active", { day30_audit_fired_at: 100, day30_audit_failed_at: 50 });
     sq.db.prepare(staleCleanupSql(30)).run(100 + 1);
     expect(row().fired).toBeNull();
+  });
+
+  it("fix round: email sent → succeeded_at write throws → alert, row stays claimed, throws; re-run + cleanup → no second send", async () => {
+    seed();
+    sq.failWhen = (sql) => sql.includes("SET day30_audit_succeeded_at");
+    await expect(runImplDayAudit(env(), { day_n: 30, f2_session_id: SID })).rejects.toThrow(/injected/);
+    expect(h.sends.filter((s) => !s.subject.startsWith("[ALERT]"))).toHaveLength(1);
+    expect(h.sends.map((s) => s.subject)).toContain("[ALERT] F2_DAYN_SENT_UNRECORDED");
+    const r = row();
+    expect(r.fired).not.toBeNull(); // NOT cleared
+    expect(r.failed).toBeNull(); // NOT set
+    const sent = sq.db
+      .prepare(`SELECT day30_audit_email_sent_at AS s FROM implementation_sessions WHERE session_id = ?`)
+      .get(SID) as { s: number | null };
+    expect(sent.s).not.toBeNull();
+
+    // citation-tracking cleanup (long after) must not reset a sent day.
+    sq.db.prepare(staleCleanupSql(30)).run((r.fired as number) + 100_000);
+    expect(row().fired).not.toBeNull();
+
+    // Queue retry: re-run skips scan + send, only writes succeeded_at.
+    sq.failWhen = null;
+    const { runScan } = await import("./audit-pipeline");
+    vi.mocked(runScan).mockClear();
+    expect(await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID })).toEqual({ kind: "done" });
+    expect(runScan).not.toHaveBeenCalled();
+    expect(h.sends.filter((s) => !s.subject.startsWith("[ALERT]"))).toHaveLength(1);
+    expect(row().succeeded).not.toBeNull();
+
+    // And a delivered day is then deduped.
+    expect(await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID })).toEqual({ kind: "deduped" });
   });
 
   it("cleanup never resets a delivered day", () => {

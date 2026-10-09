@@ -61,6 +61,45 @@ describe("POST /api/audit-fulfill — impl-day (Slice Q)", () => {
     expect((await POST(req("impl-day90-impl-pay_abc"))).status).toBe(503);
   });
 
+  it("fix round: replay of an ap- session that throws → error written + audit_fired_at released", async () => {
+    const run = await import("@/lib/audit-fulfill-run");
+    vi.mocked(run.runAuditFulfillment).mockRejectedValueOnce(new Error("scan failed"));
+    vi.mocked(run.readAuditSession).mockResolvedValueOnce({
+      session_id: "ap-sub_x-123",
+      url: "https://example.com/",
+      email: "b@example.com",
+      status: "fulfilling",
+      created_at: 1,
+    } as never);
+    const calls: Array<{ sql: string; params: unknown[] }> = [];
+    const db = {
+      prepare: (sql: string) => ({
+        bind: (...params: unknown[]) => ({
+          run: async () => {
+            calls.push({ sql, params });
+            return { meta: { changes: 1 } };
+          },
+        }),
+      }),
+    };
+    state.env = {
+      INTERNAL_FULFILL_KEY: KEY,
+      FULFILL_QUEUE: { send: state.send },
+      CITATION_DB: db,
+      SESSIONS: { get: async () => null, put: async () => undefined },
+    };
+    const { POST } = await import("./route");
+    const res = await POST(req("ap-sub_x-123"));
+    expect(res.status).toBe(500);
+    expect(vi.mocked(run.writeAuditSession)).toHaveBeenCalledWith(
+      state.env,
+      expect.objectContaining({ status: "error" }),
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0].sql).toContain("SET audit_fired_at = NULL");
+    expect(calls[0].params).toEqual(["sub_x", 123]);
+  });
+
   it("non-impl-day id → unchanged (runAuditFulfillment, onCap partial), no enqueue", async () => {
     const { POST } = await import("./route");
     const res = await POST(req("ap-sub_x-123"));

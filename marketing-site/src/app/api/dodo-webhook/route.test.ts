@@ -295,7 +295,7 @@ describe("POST /api/dodo-webhook — implementation tier (Slice Q)", () => {
       | undefined;
 
   beforeEach(() => {
-    state.sq = createSqliteD1([readMigration("0008_implementation_sessions.sql"), PROBE_TARGETS_SQL]);
+    state.sq = createSqliteD1([readMigration("0008_implementation_sessions.sql"), readMigration("0016_dayn_email_sent_at.sql"), PROBE_TARGETS_SQL]);
   });
 
   it("new insert → send {kind:impl} → 200 + dedupe; row inserted BEFORE the send", async () => {
@@ -352,6 +352,24 @@ describe("POST /api/dodo-webhook — implementation tier (Slice Q)", () => {
     expect(state.fulfillSend).not.toHaveBeenCalled();
     expect(state.store.has("webhook:wh_b")).toBe(true);
     expect(implRow()).toEqual({ status: s });
+  });
+
+  it("fix round: insert → enqueue fails → capacity fills → Dodo retry → re-send (no capacity gate for a recorded payment)", async () => {
+    state.fulfillSend = vi.fn(async () => {
+      throw new Error("queue down");
+    });
+    const { POST } = await import("./route");
+    expect((await POST(implWebhook())).status).toBe(500);
+    expect(implRow()).toEqual({ status: "queued" });
+    // Capacity fills meanwhile.
+    state.maxProbeTargets = "1";
+    state.sq!.db.exec(`INSERT INTO customer_probe_targets (customer_id, status) VALUES ('sub_other', 'active')`);
+    state.fulfillSend = vi.fn(async () => undefined);
+    const res = await POST(implWebhook());
+    expect(res.status).toBe(200);
+    expect(state.fulfillSend).toHaveBeenCalledWith({ kind: "impl", session_id: IMPL_SID });
+    expect(state.store.has("webhook:wh_i1")).toBe(true);
+    expect(alerts.subjects).toEqual([]);
   });
 
   it("AT_CAPACITY → 503 AND dedupe write (unchanged), no insert, no send", async () => {

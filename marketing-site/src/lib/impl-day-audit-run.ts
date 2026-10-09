@@ -1,4 +1,4 @@
-// Slice Q (Q4 + v1.1 A6) — F2 Day-N audit run, moved from
+// Slice Q (Q4 + v1.1 A6 + fix round) — F2 Day-N audit run, moved from
 // app/api/audit-fulfill/route.ts (handleF2DayNAudit) so the astrant-fulfill
 // Queue consumer runs it. Must NOT import Next.
 //
@@ -7,14 +7,23 @@
 //   - A6: the claim CAS clears day{N}_audit_failed_at atomically, so a
 //     claimed row never carries a stale failed_at (citation-tracking's
 //     stale-claim cleanup can then reset a crashed re-claim);
-//   - the Day-N email carries Resend idempotencyKey f2-day{N}:{f2_session_id}.
-// day{N}_audit_succeeded_at is the per-day delivered marker (A3): it is written
-// right after a confirmed send, and the claim CAS (fired_at IS NULL) never
-// re-claims a delivered day because fired_at stays set on success.
+//   - the Day-N email carries Resend idempotencyKey f2-day{N}:{f2_session_id};
+//   - fix round: day{N}_audit_email_sent_at (migration 0016) is written in its
+//     own statement right after Resend confirms the send. Once the email is
+//     sent, a later failure never clears fired_at nor sets failed_at: it alerts
+//     F2_DAYN_SENT_UNRECORDED, leaves the row claimed and throws (queue retry).
+//     The claim also takes a row whose email is sent but whose succeeded_at is
+//     missing; such a re-run skips the scan + send and only writes succeeded_at.
+//     citation-tracking's stale-claim cleanup never resets a sent day.
+//
+// Residual: if the email_sent_at write itself fails right after the send, the
+// stale-claim cleanup resets fired_at and the next daily sweep re-sends; that
+// re-send falls inside Resend's 24 h idempotency window for the same key.
 
 import { runScan, type AuditEnv } from "./audit-pipeline";
 import { sendF2DayNAuditEmail } from "./f2-email";
 import { generateAuditRecs } from "./f2-generators/audit-recs";
+import { alertOperator } from "./operator-alerts";
 
 export interface ImplDayRunEnv extends AuditEnv {
   INTERNAL_FULFILL_KEY: string;
@@ -25,8 +34,9 @@ export interface ImplDayRunEnv extends AuditEnv {
 export type ImplDayRunResult =
   | { kind: "done" }
   | { kind: "deduped" }
-  // Error after the claim: fired_at cleared + failed_at set, so the next daily
-  // citation-tracking sweep re-sends it. The queue does NOT also retry.
+  // Error after the claim and BEFORE the email was sent: fired_at cleared +
+  // failed_at set, so the next daily citation-tracking sweep re-sends it. The
+  // queue does NOT also retry.
   | { kind: "failed_reset" };
 
 interface F2ImplementationRow {
@@ -38,6 +48,7 @@ interface F2ImplementationRow {
   baseline_scan_id: string | null;
   payment_succeeded_at: number;
   status: string;
+  email_sent_at: number | null;
 }
 
 export async function runImplDayAudit(
@@ -48,14 +59,18 @@ export async function runImplDayAudit(
   const firedAtCol = `day${day_n}_audit_fired_at`;
   const succeededAtCol = `day${day_n}_audit_succeeded_at`;
   const failedAtCol = `day${day_n}_audit_failed_at`;
+  const emailSentAtCol = `day${day_n}_audit_email_sent_at`;
   const now = Math.floor(Date.now() / 1000);
 
   // CAS UPDATE to claim race-free. Column name is built from validated day_n
   // (30/60/90 only per regex) — no injection risk. A6: clears failed_at.
+  // Fix round: also claims a sent-but-unrecorded day (only succeeded_at left).
   const casResult = await env.CITATION_DB.prepare(
     `UPDATE implementation_sessions
      SET ${firedAtCol} = ?, ${failedAtCol} = NULL, updated_at = ?
-     WHERE session_id = ? AND ${firedAtCol} IS NULL AND status = 'active'`,
+     WHERE session_id = ? AND status = 'active'
+       AND (${firedAtCol} IS NULL
+            OR (${emailSentAtCol} IS NOT NULL AND ${succeededAtCol} IS NULL))`,
   )
     .bind(now, now, f2_session_id)
     .run();
@@ -65,11 +80,12 @@ export async function runImplDayAudit(
     return { kind: "deduped" };
   }
 
-  let f2: F2ImplementationRow | null = null;
+  let emailSent = false;
   try {
-    f2 = await env.CITATION_DB.prepare(
+    const f2 = await env.CITATION_DB.prepare(
       `SELECT session_id, customer_email, customer_domain, brand_name,
-              customer_id, baseline_scan_id, payment_succeeded_at, status
+              customer_id, baseline_scan_id, payment_succeeded_at, status,
+              ${emailSentAtCol} AS email_sent_at
        FROM implementation_sessions WHERE session_id = ?`,
     )
       .bind(f2_session_id)
@@ -79,56 +95,20 @@ export async function runImplDayAudit(
       throw new Error(`F2_SESSION_NOT_FOUND f2_session_id=${f2_session_id}`);
     }
 
-    // Read baseline scan
-    let baselineScore = 0;
-    if (f2.baseline_scan_id) {
-      const baselineObj = await env.AUDITS.get(`f2-baseline-scans/${f2.baseline_scan_id}.json`);
-      if (baselineObj) {
-        const baseline = JSON.parse(await baselineObj.text()) as { composite?: { score?: number } };
-        baselineScore = baseline.composite?.score ?? 0;
-      }
-    }
-
-    // Re-scan customer domain at Day-N
-    const currentScan = await runScan(f2.customer_domain, env.INTERNAL_FULFILL_KEY);
-    const currentScore = currentScan.composite.score;
-
-    // v1.0: cite-share delta values come from citation-tracking probe data; for
-    // now pass 0% placeholders. v1.1+ wires the actual cite-share aggregator.
-    const citeShareBaselinePct = 0;
-    const citeShareCurrentPct = 0;
-
-    // Generate audit-recs prose (deterministic-fallback path at v1.0)
-    const recs = await generateAuditRecs(env, {
-      brand_name: f2.brand_name,
-      domain: f2.customer_domain,
-      day_n,
-      baseline_scan_summary: `composite=${baselineScore}`,
-      current_scan_summary: `composite=${currentScore}`,
-      cite_share_baseline_pct: citeShareBaselinePct,
-      cite_share_current_pct: citeShareCurrentPct,
-    });
-
-    // Day-90 includes Standard CTA (D8 spec)
-    const autoPilotCheckoutUrl =
-      day_n === 90 ? "https://astrant.io/subscriptions" : undefined;
-
-    // Send Day-N audit email (text-only at v1.0; PDF rendering deferred to v1.1+)
-    const emailResult = await sendF2DayNAuditEmail(env, {
-      toEmail: f2.customer_email,
-      brandName: f2.brand_name,
-      dayN: day_n,
-      sessionId: f2_session_id,
-      recs,
-      baselineScore,
-      currentScore,
-      citeShareBaselinePct,
-      citeShareCurrentPct,
-      autoPilotCheckoutUrl,
-    });
-
-    if (!emailResult.ok) {
-      throw new Error(`F2_AUDIT_EMAIL_SEND_FAILED day_n=${day_n} err=${emailResult.error}`);
+    if (f2.email_sent_at != null) {
+      emailSent = true;
+      console.log(`F2_AUDIT_DAYN_RESUME_AFTER_SEND session_id=${f2_session_id} day_n=${day_n}`);
+    } else {
+      await scanAndSend(env, f2, day_n, f2_session_id);
+      emailSent = true;
+      // Delivered marker, in its own statement, right after the confirmed send.
+      const sentTime = Math.floor(Date.now() / 1000);
+      await env.CITATION_DB.prepare(
+        `UPDATE implementation_sessions SET ${emailSentAtCol} = ?, updated_at = ?
+         WHERE session_id = ?`,
+      )
+        .bind(sentTime, sentTime, f2_session_id)
+        .run();
     }
 
     // Mark succeeded
@@ -145,6 +125,13 @@ export async function runImplDayAudit(
     return { kind: "done" };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    if (emailSent) {
+      // The customer has the email: never clear fired_at / set failed_at (that
+      // would re-send it). Leave the row claimed and let the queue retry.
+      console.error(`F2_DAYN_SENT_UNRECORDED session_id=${f2_session_id} day_n=${day_n} err=${msg}`);
+      await alertOperator(env, "F2_DAYN_SENT_UNRECORDED", f2_session_id, `day_n=${day_n}`);
+      throw err;
+    }
     console.error(`F2_AUDIT_DAYN_FAILED session_id=${f2_session_id} day_n=${day_n} err=${msg}`);
     // Mark failed + clear fired_at so next sweep can retry
     const failTime = Math.floor(Date.now() / 1000);
@@ -157,5 +144,66 @@ export async function runImplDayAudit(
       .run()
       .catch(() => {});
     return { kind: "failed_reset" };
+  }
+}
+
+// Baseline read + Day-N re-scan + audit-recs + email. Throws on any failure,
+// including a failed send.
+async function scanAndSend(
+  env: ImplDayRunEnv,
+  f2: F2ImplementationRow,
+  day_n: 30 | 60 | 90,
+  f2_session_id: string,
+): Promise<void> {
+  // Read baseline scan
+  let baselineScore = 0;
+  if (f2.baseline_scan_id) {
+    const baselineObj = await env.AUDITS.get(`f2-baseline-scans/${f2.baseline_scan_id}.json`);
+    if (baselineObj) {
+      const baseline = JSON.parse(await baselineObj.text()) as { composite?: { score?: number } };
+      baselineScore = baseline.composite?.score ?? 0;
+    }
+  }
+
+  // Re-scan customer domain at Day-N
+  const currentScan = await runScan(f2.customer_domain, env.INTERNAL_FULFILL_KEY);
+  const currentScore = currentScan.composite.score;
+
+  // v1.0: cite-share delta values come from citation-tracking probe data; for
+  // now pass 0% placeholders. v1.1+ wires the actual cite-share aggregator.
+  const citeShareBaselinePct = 0;
+  const citeShareCurrentPct = 0;
+
+  // Generate audit-recs prose (deterministic-fallback path at v1.0)
+  const recs = await generateAuditRecs(env, {
+    brand_name: f2.brand_name,
+    domain: f2.customer_domain,
+    day_n,
+    baseline_scan_summary: `composite=${baselineScore}`,
+    current_scan_summary: `composite=${currentScore}`,
+    cite_share_baseline_pct: citeShareBaselinePct,
+    cite_share_current_pct: citeShareCurrentPct,
+  });
+
+  // Day-90 includes Standard CTA (D8 spec)
+  const autoPilotCheckoutUrl =
+    day_n === 90 ? "https://astrant.io/subscriptions" : undefined;
+
+  // Send Day-N audit email (text-only at v1.0; PDF rendering deferred to v1.1+)
+  const emailResult = await sendF2DayNAuditEmail(env, {
+    toEmail: f2.customer_email,
+    brandName: f2.brand_name,
+    dayN: day_n,
+    sessionId: f2_session_id,
+    recs,
+    baselineScore,
+    currentScore,
+    citeShareBaselinePct,
+    citeShareCurrentPct,
+    autoPilotCheckoutUrl,
+  });
+
+  if (!emailResult.ok) {
+    throw new Error(`F2_AUDIT_EMAIL_SEND_FAILED day_n=${day_n} err=${emailResult.error}`);
   }
 }

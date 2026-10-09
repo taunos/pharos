@@ -118,6 +118,7 @@ export async function runImplFulfillment(
   }
 
   let f2: ImplementationSessionRow | null = null;
+  const progress = { delivered: false };
   try {
     // Step 2 — Read F2 session row
     f2 = await env.CITATION_DB.prepare(
@@ -148,7 +149,7 @@ export async function runImplFulfillment(
       // threw after the send). Skip Steps 3-10; only the state write remains.
       console.log(`F2_FULFILLMENT_RESUME_AFTER_DELIVERY session_id=${sessionId}`);
     } else {
-      const outcome = await buildAndDeliver(env, f2, sessionId);
+      const outcome = await buildAndDeliver(env, f2, sessionId, claimedAt, progress);
       if (outcome !== null) return outcome;
     }
 
@@ -187,6 +188,21 @@ export async function runImplFulfillment(
       throw err;
     }
 
+    // Fix round: the patch already reached the customer (marker set, or sent in
+    // this run). Never write `failed` over a delivered order — alert only; the
+    // row keeps its claim for the operator.
+    if (progress.delivered || f2?.patch_delivered_at != null) {
+      console.error(`F2_DELIVERED_STATE_UNRECORDED session_id=${sessionId} err=${msg}`);
+      await sendOperatorAlert(env, {
+        alert_code: "F2_DELIVERED_STATE_UNRECORDED",
+        customer_email: f2?.customer_email,
+        session_id: sessionId,
+        dodo_payment_id: f2?.dodo_payment_id,
+        notes: `Patch email delivered; final state write failed: ${msg.slice(0, 400)}`,
+      });
+      return { kind: "failed_final" };
+    }
+
     // Final attempt (or A8 permanent): alert FIRST, unconditionally (A2/A9),
     // then the terminal write keyed on this claim (A4). A failed write throws.
     console.error(`F2_FULFILLMENT_FAILED session_id=${sessionId} err=${msg}`);
@@ -223,12 +239,41 @@ export async function runImplFulfillment(
   }
 }
 
+// Fix round: the failed_validation / failed_ceiling / active_email_pending
+// writes are fenced on this run's claim. Returns false (no-op) when another
+// delivery reclaimed the row; the caller's alert then says so.
+async function writeTerminalStatus(
+  env: ImplRunEnv,
+  sessionId: string,
+  claimedAt: number,
+  status: "failed_validation" | "failed_ceiling" | "active_email_pending",
+  reason: string,
+): Promise<boolean> {
+  const res = await env.CITATION_DB.prepare(
+    `UPDATE implementation_sessions
+     SET status = ?, failed_reason = ?, updated_at = ?
+     WHERE session_id = ? AND status = 'processing' AND processing_started_at = ?`,
+  )
+    .bind(status, reason, nowSec(), sessionId, claimedAt)
+    .run();
+  if (res.meta.changes !== 1) {
+    console.error(`F2_TERMINAL_WRITE_LEASE_LOST session_id=${sessionId} status=${status}`);
+    return false;
+  }
+  return true;
+}
+
+const LEASE_LOST_NOTE = " [state write skipped: lease lost to another delivery]";
+
 // Steps 3-10. Returns a terminal outcome, or null once the patch email is
-// confirmed sent and patch_delivered_at is written.
+// confirmed sent and patch_delivered_at is written. Sets progress.delivered as
+// soon as Resend confirms the send.
 async function buildAndDeliver(
   env: ImplRunEnv,
   f2: ImplementationSessionRow,
   sessionId: string,
+  claimedAt: number,
+  progress: { delivered: boolean },
 ): Promise<ImplRunResult | null> {
   const competitors = parseCompetitors(f2.competitors);
 
@@ -302,24 +347,19 @@ async function buildAndDeliver(
   // no probe-target enrollment, no email, patch retained in R2 for inspection.
   const patchValidation = validateGitAmPatch(patchContent, Object.keys(allFiles));
   if (!patchValidation.ok) {
-    const failTime = nowSec();
-    await env.CITATION_DB.prepare(
-      `UPDATE implementation_sessions
-       SET status = 'failed_validation', failed_reason = ?, updated_at = ?
-       WHERE session_id = ?`,
-    )
-      .bind(
-        `patch_validation_failed:${patchValidation.failures.join("|").slice(0, 400)}`,
-        failTime,
-        sessionId,
-      )
-      .run();
+    const written = await writeTerminalStatus(
+      env,
+      sessionId,
+      claimedAt,
+      "failed_validation",
+      `patch_validation_failed:${patchValidation.failures.join("|").slice(0, 400)}`,
+    );
     await sendOperatorAlert(env, {
       alert_code: "F2_PATCH_VALIDATION_FAILED",
       customer_email: f2.customer_email,
       session_id: sessionId,
       dodo_payment_id: f2.dodo_payment_id,
-      notes: `Patch failed structural validation; retained at ${patchR2Key}. Customer paid; needs manual refund via Dodo dashboard. Failures: ${patchValidation.failures.join("; ")}`,
+      notes: `Patch failed structural validation; retained at ${patchR2Key}. Customer paid; needs manual refund via Dodo dashboard. Failures: ${patchValidation.failures.join("; ")}${written ? "" : LEASE_LOST_NOTE}`,
     });
     return { kind: "terminal_outcome", status: "failed_validation" };
   }
@@ -360,20 +400,19 @@ async function buildAndDeliver(
   if (insertResult.meta.changes !== 1) {
     // D18 Stage 3 at-capacity at atomic time (race between Stage 1 page-gate +
     // Stage 2 webhook-gate + this Stage 3). Fail-loud + operator alert.
-    const failTime = nowSec();
-    await env.CITATION_DB.prepare(
-      `UPDATE implementation_sessions
-       SET status = 'failed_ceiling', failed_reason = ?, updated_at = ?
-       WHERE session_id = ?`,
-    )
-      .bind("F2_OVER_CAPACITY_ATOMIC_FAILED", failTime, sessionId)
-      .run();
+    const written = await writeTerminalStatus(
+      env,
+      sessionId,
+      claimedAt,
+      "failed_ceiling",
+      "F2_OVER_CAPACITY_ATOMIC_FAILED",
+    );
     await sendOperatorAlert(env, {
       alert_code: "F2_OVER_CAPACITY_ATOMIC_FAILED",
       customer_email: f2.customer_email,
       session_id: sessionId,
       dodo_payment_id: f2.dodo_payment_id,
-      notes: "Stage 3 atomic ceiling check rejected after Stage 1 + Stage 2 both passed. Customer paid; needs manual refund via Dodo dashboard.",
+      notes: "Stage 3 atomic ceiling check rejected after Stage 1 + Stage 2 both passed. Customer paid; needs manual refund via Dodo dashboard." + (written ? "" : LEASE_LOST_NOTE),
     });
     return { kind: "terminal_outcome", status: "failed_ceiling" };
   }
@@ -403,24 +442,24 @@ async function buildAndDeliver(
 
   if (!emailResult.ok) {
     // Email failed but everything else succeeded — operator can re-send from R2.
-    const failTime = nowSec();
-    await env.CITATION_DB.prepare(
-      `UPDATE implementation_sessions
-       SET status = 'active_email_pending', failed_reason = ?, updated_at = ?
-       WHERE session_id = ?`,
-    )
-      .bind(`email_send_failed:${emailResult.error}`, failTime, sessionId)
-      .run();
+    const written = await writeTerminalStatus(
+      env,
+      sessionId,
+      claimedAt,
+      "active_email_pending",
+      `email_send_failed:${emailResult.error}`,
+    );
     await sendOperatorAlert(env, {
       alert_code: "F2_EMAIL_SEND_FAILED",
       customer_email: f2.customer_email,
       session_id: sessionId,
       dodo_payment_id: f2.dodo_payment_id,
-      notes: `Pipeline succeeded; email send failed: ${emailResult.error}. Re-send patch from R2 key ${patchR2Key}.`,
+      notes: `Pipeline succeeded; email send failed: ${emailResult.error}. Re-send patch from R2 key ${patchR2Key}.${written ? "" : LEASE_LOST_NOTE}`,
     });
     return { kind: "terminal_outcome", status: "active_email_pending" };
   }
 
+  progress.delivered = true;
   // A3: delivered marker, in its own statement, immediately after the send.
   const deliveredAt = nowSec();
   await env.CITATION_DB.prepare(

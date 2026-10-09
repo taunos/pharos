@@ -110,7 +110,7 @@ async function markFailed(
 // Keyed on the claim timestamp embedded in the id (ap-{sub}-{audit_fired_at}),
 // so it never clears a newer claim. Throws if the write fails (caller must NOT
 // ack then; the alert has already been sent).
-async function releaseApAuditClaim(env: AuditRunEnv, sessionId: string): Promise<void> {
+export async function releaseApAuditClaim(env: AuditRunEnv, sessionId: string): Promise<void> {
   const m = sessionId.match(/^ap-(sub_[A-Za-z0-9_-]+)-(\d+)$/);
   if (!m) return;
   const res = await env.CITATION_DB.prepare(

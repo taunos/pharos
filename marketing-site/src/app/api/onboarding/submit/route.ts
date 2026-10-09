@@ -238,6 +238,10 @@ export async function POST(request: Request): Promise<Response> {
       // C-A consumer runs the ap- audit). The KV put AND the send share one try:
       // on any failure, alert and release the CAS (keyed on `now`, so it can't
       // clear a newer claim) so a resubmit re-fires. The user still gets the 303.
+      // Residual (accepted): a send that throws but was in fact delivered leaves
+      // a message in flight; after the release a resubmit enqueues a second ap-
+      // session (new id), so two welcome audits can run. Re-delivery of the SAME
+      // message is harmless (the consumer noops a `ready` session).
       try {
         if (!env.AUDIT_FULFILL_QUEUE) throw new Error("AUDIT_FULFILL_QUEUE binding missing");
         await env.SESSIONS.put(
