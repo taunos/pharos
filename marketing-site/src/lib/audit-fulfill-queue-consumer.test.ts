@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { AuditRunResult } from "./audit-fulfill-run";
 import type { AuditFulfillConsumerEnv, AuditFulfillMessage } from "./audit-fulfill-queue-consumer";
+import { createSqliteD1, SUBSCRIPTIONS_SQL, type SqliteD1 } from "./test-support/sqlite-d1";
 
 // Test C-A (A3 + R2-2/R2-3/R2-8 + fix round) — astrant-audit-fulfill + DLQ
 // consumers. Alerts go through the REAL lib/operator-alerts.ts; only Resend is
@@ -305,5 +306,76 @@ describe("auditFulfillDlqHandler (R2-3)", () => {
     const m = msg({ session_id: "smoke-x", origin: "o" });
     await auditFulfillDlqHandler(batch(m, "astrant-audit-fulfill-dlq"), makeEnv());
     expect(m.ack).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Slice Q (v1.1 A5): a terminal `error` on an ap- welcome audit releases the
+// onboarding CAS (subscriptions.audit_fired_at), keyed on the id's timestamp.
+describe("ap- welcome audit terminal error releases audit_fired_at (Slice Q A5)", () => {
+  const AP = "ap-sub_abc-1700000000";
+  let sq: SqliteD1;
+  function apEnv() {
+    return { ...makeEnv(), CITATION_DB: sq.d1 } as unknown as AuditFulfillConsumerEnv;
+  }
+  function seedAp(firedAt: number) {
+    store.set(
+      `audit:${AP}`,
+      JSON.stringify({ session_id: AP, url: "https://example.com/", email: "b@example.com", status: "fulfilling", created_at: 1 }),
+    );
+    sq.db
+      .prepare(
+        `INSERT INTO subscriptions (subscription_id, customer_email, status, audit_fired_at) VALUES ('sub_abc', 'b@example.com', 'active', ?)`,
+      )
+      .run(firedAt);
+  }
+  const fired = () =>
+    (sq.db.prepare(`SELECT audit_fired_at FROM subscriptions WHERE subscription_id = 'sub_abc'`).get() as {
+      audit_fired_at: number | null;
+    }).audit_fired_at;
+
+  beforeEach(() => {
+    sq = createSqliteD1([SUBSCRIPTIONS_SQL]);
+  });
+
+  it("final attempt → error + alert + audit_fired_at NULL, ack", async () => {
+    seedAp(1700000000);
+    const m = msg({ session_id: AP, origin: "https://astrant.io" }, 4);
+    await auditFulfillQueueHandler(batch(m), apEnv(), throwing(new Error("x")));
+    expect(JSON.parse(store.get(`audit:${AP}`)!).status).toBe("error");
+    expect(alertCodes()).toEqual(["AUDIT_FULFILL_FAILED_FINAL"]);
+    expect(fired()).toBeNull();
+    expect(m.ack).toHaveBeenCalledTimes(1);
+  });
+
+  it("DLQ → error + alert + audit_fired_at NULL, ack", async () => {
+    seedAp(1700000000);
+    const m = msg({ session_id: AP, origin: "https://astrant.io" });
+    await auditFulfillDlqHandler(batch(m, "astrant-audit-fulfill-dlq"), apEnv());
+    expect(alertCodes()).toEqual(["AUDIT_FULFILL_DLQ"]);
+    expect(fired()).toBeNull();
+    expect(m.ack).toHaveBeenCalledTimes(1);
+  });
+
+  it("a newer claim (different audit_fired_at) is not released", async () => {
+    seedAp(1700000500);
+    const m = msg({ session_id: AP, origin: "https://astrant.io" }, 4);
+    await auditFulfillQueueHandler(batch(m), apEnv(), throwing(new Error("x")));
+    expect(fired()).toBe(1700000500);
+  });
+
+  it("release write fails → alert already sent, throws (no ack) → DLQ", async () => {
+    seedAp(1700000000);
+    sq.failWhen = (sql) => sql.includes("audit_fired_at = NULL");
+    const m = msg({ session_id: AP, origin: "https://astrant.io" }, 4);
+    await expect(auditFulfillQueueHandler(batch(m), apEnv(), throwing(new Error("x")))).rejects.toThrow(/injected/);
+    expect(alertCodes()).toEqual(["AUDIT_FULFILL_FAILED_FINAL"]);
+    expect(m.ack).not.toHaveBeenCalled();
+  });
+
+  it("standalone session → no subscriptions write", async () => {
+    seed("fulfilling");
+    const m = msg(BODY, 4);
+    await auditFulfillQueueHandler(batch(m), apEnv(), throwing(new Error("x")));
+    expect(sq.calls).toEqual([]);
   });
 });

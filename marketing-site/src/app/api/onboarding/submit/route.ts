@@ -11,17 +11,24 @@ import { signSubscriptionId } from "@/lib/account-link";
 import { isValidCustomerCategory } from "@/lib/customer-categories";
 import { resolveTierFromProductId } from "@/lib/founding-pricing";
 import type { ProbeCadence } from "@/lib/cadence";
+import { publicOrigin } from "@/lib/origin";
+import { alertOperator } from "@/lib/operator-alerts";
+import { errorClass, type AuditFulfillMessage } from "@/lib/audit-fulfill-queue-consumer";
 
 interface SubmitEnv extends OnboardingTokenEnv {
   CITATION_DB: D1Database;
   SESSIONS: KVNamespace;
-  INTERNAL_FULFILL_KEY: string;
   ACCOUNT_LINK_SECRET: string;
   // B1.3 v1.1 — replaces hardcoded CUSTOMER_CEILING=3 (default "30").
   MAX_PROBE_TARGETS?: string;
   // F4.1: required by resolveTierFromProductId for cadence derivation.
   STANDARD_PRODUCT_ID: string;
   PRO_PRODUCT_ID: string;
+  // Slice Q (Q2): durable ap- audit dispatch + its failure alert.
+  AUDIT_FULFILL_QUEUE?: Queue<AuditFulfillMessage>;
+  PUBLIC_ORIGIN?: string;
+  OPERATOR_ALERT_EMAIL?: string;
+  RESEND_API_KEY: string;
 }
 
 // B1.3 v1.1 Locked Artifact H — endpoint validator for customer_id-accepting probe-target writes.
@@ -80,7 +87,7 @@ function validateBrandName(value: unknown):
 // B1.3 v1.1 — CUSTOMER_CEILING removed; ceiling now reads env.MAX_PROBE_TARGETS at request time.
 
 export async function POST(request: Request): Promise<Response> {
-  const { env: rawEnv, ctx } = getCloudflareContext();
+  const { env: rawEnv } = getCloudflareContext();
   const env = rawEnv as unknown as SubmitEnv;
   const form = await request.formData();
   const token = String(form.get("t") ?? "");
@@ -227,25 +234,37 @@ export async function POST(request: Request): Promise<Response> {
         status: "fulfilling",
         created_at: now,
       };
-      await env.SESSIONS.put(
-        `audit:${apSessionId}`,
-        JSON.stringify(sessionRecord),
-        { expirationTtl: 30 * 24 * 60 * 60 },
-      );
-
-      const auditFulfillUrl = new URL("/api/audit-fulfill", request.url).toString();
-      ctx.waitUntil(
-        fetch(auditFulfillUrl, {
-          method: "POST",
-          headers: {
-            "x-internal-fulfill-key": env.INTERNAL_FULFILL_KEY,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({ session_id: apSessionId }),
-        }).catch((err) =>
-          console.error(`F3_AUDIT_FULFILL_FIRE_FAILED session_id=${apSessionId}`, err),
-        ),
-      );
+      // Slice Q (Q2 + v1.1 A5): durable dispatch via AUDIT_FULFILL_QUEUE (the
+      // C-A consumer runs the ap- audit). The KV put AND the send share one try:
+      // on any failure, alert and release the CAS (keyed on `now`, so it can't
+      // clear a newer claim) so a resubmit re-fires. The user still gets the 303.
+      try {
+        if (!env.AUDIT_FULFILL_QUEUE) throw new Error("AUDIT_FULFILL_QUEUE binding missing");
+        await env.SESSIONS.put(
+          `audit:${apSessionId}`,
+          JSON.stringify(sessionRecord),
+          { expirationTtl: 30 * 24 * 60 * 60 },
+        );
+        await env.AUDIT_FULFILL_QUEUE.send({
+          session_id: apSessionId,
+          origin: publicOrigin(env, request),
+        });
+      } catch (err) {
+        const cls = errorClass(err);
+        console.error(`F3_AUDIT_ENQUEUE_FAILED session_id=${apSessionId} class=${cls}`);
+        await alertOperator(env, "F3_AUDIT_ENQUEUE_FAILED", apSessionId, `error_class=${cls}`);
+        try {
+          await env.CITATION_DB.prepare(
+            `UPDATE subscriptions SET audit_fired_at = NULL WHERE subscription_id = ? AND audit_fired_at = ?`,
+          )
+            .bind(subscriptionId, now)
+            .run();
+        } catch (relErr) {
+          console.error(
+            `F3_AUDIT_FIRED_AT_RELEASE_FAILED session_id=${apSessionId} class=${errorClass(relErr)}`,
+          );
+        }
+      }
     }
   } else {
     const existing = await env.CITATION_DB.prepare(

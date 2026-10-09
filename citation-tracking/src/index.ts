@@ -397,6 +397,10 @@ async function runF2SweepSteps(env: Env): Promise<void> {
   // If a Day-N audit was claimed (fired_at set) but didn't complete (no succeeded_at / no
   // failed_at) and fired_at is older than 30 min, the handler hard-killed mid-pipeline.
   // Reset fired_at to NULL so the due-audit query below picks it up for re-fire.
+  // Slice Q (A6): no failed_at predicate. The failure path always clears fired_at,
+  // and the marketing-site claim now clears failed_at, so a set fired_at with no
+  // succeeded_at is a stale claim even when an earlier attempt left failed_at set
+  // (a re-claim after a failure that then crashed was never reset before).
   const STALE_THRESHOLD_SEC = 1800;
   for (const dayN of [30, 60, 90]) {
     await env.DB.prepare(
@@ -404,8 +408,7 @@ async function runF2SweepSteps(env: Env): Promise<void> {
        SET day${dayN}_audit_fired_at = NULL
        WHERE day${dayN}_audit_fired_at IS NOT NULL
          AND day${dayN}_audit_fired_at < ?
-         AND day${dayN}_audit_succeeded_at IS NULL
-         AND day${dayN}_audit_failed_at IS NULL`,
+         AND day${dayN}_audit_succeeded_at IS NULL`,
     )
       .bind(now - STALE_THRESHOLD_SEC)
       .run();

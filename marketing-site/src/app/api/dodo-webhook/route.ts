@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { verifyWebhook, type DodoEnvBindings } from "@/lib/dodo";
-import { publicOrigin, requestOrigin } from "@/lib/origin";
+import { publicOrigin } from "@/lib/origin";
 import type { SessionRecord } from "@/lib/audit-types";
 import { alertOperator, sendOperatorAlert } from "@/lib/operator-alerts";
 import {
@@ -11,11 +11,11 @@ import {
 } from "@/lib/founding-pricing";
 import { computeNextProbeAt, type ProbeCadence } from "@/lib/cadence";
 import type { AuditFulfillMessage } from "@/lib/audit-fulfill-queue-consumer";
+import type { FulfillMessage } from "@/lib/fulfill-queue-consumer";
 import { updateFunnelStatus } from "@/lib/audit-funnel";
 
 interface WebhookEnv extends DodoEnvBindings {
   SESSIONS: KVNamespace;
-  INTERNAL_FULFILL_KEY: string;
   // F3 additions:
   CITATION_DB: D1Database;
   ONBOARDING_TOKEN_SECRET: string;
@@ -38,6 +38,8 @@ interface WebhookEnv extends DodoEnvBindings {
   AUDIT_FULFILL_QUEUE?: Queue<AuditFulfillMessage>;
   // Test C-B: canonical public origin for the audit enqueue (wrangler var).
   PUBLIC_ORIGIN?: string;
+  // Slice Q (Q1g): durable Implementation producer (astrant-fulfill).
+  FULFILL_QUEUE?: Queue<FulfillMessage>;
 }
 
 const F2_IMPLEMENTATION_PRODUCT_ID = "pdt_0NdQE5vccUUgOHMsF6Pzz";
@@ -241,9 +243,11 @@ export async function POST(req: Request) {
         }
       }
     } else if (tier === "implementation") {
-      // F2 v6.1 D9 — webhook-side dispatch into impl-fulfill pipeline.
-      // Within-file pattern: unawaited fetch + .catch (matches audit-tier above at lines 148-165).
-      const f2Result = await handleF2ImplementationPayment(req, env, parsed, webhookId);
+      // F2 v6.1 D9 — webhook-side dispatch into the Implementation pipeline.
+      // Slice Q (Q1g): durable enqueue onto astrant-fulfill (kind "impl").
+      const f2Result = await handleF2ImplementationPayment(env, parsed, webhookId);
+      // Enqueue failed: no dedupe write, so Dodo's retry re-enters and re-sends.
+      if (f2Result.status === 500) return f2Result;
       if (f2Result.status !== 200) {
         // Mark webhook processed before returning (so Dodo retries hit the dedupe).
         // For 503 AT_CAPACITY: Dodo retries; operator manually refunds; alert already fired.
@@ -552,7 +556,6 @@ export async function POST(req: Request) {
 // shared mark-processed footer.
 
 async function handleF2ImplementationPayment(
-  req: Request,
   env: WebhookEnv,
   parsed: DodoWebhookPayload,
   webhookId: string,
@@ -681,30 +684,31 @@ async function handleF2ImplementationPayment(
     .run();
 
   if (insertResult.meta.changes !== 1) {
-    // Duplicate webhook delivery; idempotent no-op
-    return NextResponse.json({ ok: true, deduped: true });
+    // Duplicate webhook delivery. Slice Q (Q1g): a row still `queued` may have
+    // lost its enqueue (P1b) — re-send; anything else is an idempotent no-op.
+    const existing = await env.CITATION_DB.prepare(
+      `SELECT status FROM implementation_sessions WHERE session_id = ?`,
+    )
+      .bind(sessionId)
+      .first<{ status: string }>();
+    if (existing?.status !== "queued") {
+      return NextResponse.json({ ok: true, deduped: true });
+    }
   }
 
-  // Fire-and-forget dispatch to /api/impl-fulfill (within-file unawaited fetch + .catch pattern;
-  // matches audit-tier dispatch at lines 148-165).
-  if (env.INTERNAL_FULFILL_KEY) {
-    const origin = requestOrigin(req);
-    const implFulfillUrl = `${origin}/api/impl-fulfill`;
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    fetch(implFulfillUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-internal-fulfill-key": env.INTERNAL_FULFILL_KEY,
-      },
-      body: JSON.stringify({ session_id: sessionId }),
-    }).catch((err) => {
-      console.error(
-        `F2_IMPL_FULFILL_FIRE_FAILED session_id=${sessionId} err=${err instanceof Error ? err.message : String(err)}`,
-      );
-    });
-  } else {
-    console.error(`F2_INTERNAL_FULFILL_KEY_MISSING session_id=${sessionId} — fulfillment dispatch skipped`);
+  // Slice Q (Q1g): durable dispatch via FULFILL_QUEUE. The row is inserted
+  // BEFORE the send (D1 is strongly consistent, so the consumer always sees
+  // it; the consumer's lease claim makes a duplicate enqueue harmless). On a
+  // send failure return 500 with NO dedupe write, so Dodo's retry re-enters,
+  // finds the row `queued` and re-sends.
+  try {
+    if (!env.FULFILL_QUEUE) throw new Error("FULFILL_QUEUE binding missing");
+    await env.FULFILL_QUEUE.send({ kind: "impl", session_id: sessionId });
+  } catch (err) {
+    console.error(
+      `F2_IMPL_ENQUEUE_FAILED session_id=${sessionId} err=${err instanceof Error ? err.message : String(err)}`,
+    );
+    return NextResponse.json({ ok: false, reason: "enqueue failed" }, { status: 500 });
   }
 
   // Caller falls through to shared mark-processed footer + 200 response.

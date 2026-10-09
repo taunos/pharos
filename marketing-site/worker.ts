@@ -22,7 +22,8 @@ export default {
 
   // Test C-A: routes on batch.queue (src/lib/queue-router.ts) —
   // astrant-audit-fulfill / astrant-audit-fulfill-dlq → Audit fulfillment
-  // consumers; anything else → the P0-C2 Chunk E2 deferred-capture consumer,
+  // consumers; astrant-fulfill / astrant-fulfill-dlq (Slice Q) → Implementation
+  // + F2 Day-N fulfillment consumers; anything else → the P0-C2 Chunk E2 deferred-capture consumer,
   // unchanged. Expected outcomes are acked inside the handlers; unexpected
   // failures throw so Queue automatic retry / DLQ semantics apply. Missing
   // bindings/secrets fail closed.

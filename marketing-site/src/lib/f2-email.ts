@@ -120,7 +120,7 @@ export async function sendF2PatchDeliveryEmail(
           content: patchBase64,
         },
       ],
-    });
+    }, { idempotencyKey: `f2-patch:${input.sessionId}` });
     if (result.error) {
       return { ok: false, error: result.error.message };
     }
@@ -243,7 +243,9 @@ export async function sendF2DayNAuditEmail(
         },
       ];
     }
-    const result = await resend.emails.send(sendArgs);
+    const result = await resend.emails.send(sendArgs, {
+      idempotencyKey: `f2-day${input.dayN}:${input.sessionId}`,
+    });
     if (result.error) {
       return { ok: false, error: result.error.message };
     }

@@ -88,9 +88,18 @@
 	//   npx wrangler queues create astrant-audit-fulfill
 	//   npx wrangler queues create astrant-audit-fulfill-dlq
 	// worker.ts routes the consumers on batch.queue (src/lib/queue-router.ts).
+	// Slice Q: durable Implementation + F2 Day-N fulfillment (kind "impl" /
+	// "impl_day"). Provision BOTH queues before deploy:
+	//   npx wrangler queues create astrant-fulfill
+	//   npx wrangler queues create astrant-fulfill-dlq
+	// Rollback: pause delivery on BOTH astrant-fulfill and astrant-fulfill-dlq
+	// BEFORE rolling back (a pre-Q version routes unknown queue names to the
+	// capture consumer, which throws), resume after. Paused messages are
+	// retained for 4 days (the default retention).
 	"queues": {
 		"producers": [
-			{ "binding": "AUDIT_FULFILL_QUEUE", "queue": "astrant-audit-fulfill" }
+			{ "binding": "AUDIT_FULFILL_QUEUE", "queue": "astrant-audit-fulfill" },
+			{ "binding": "FULFILL_QUEUE", "queue": "astrant-fulfill" }
 		],
 		"consumers": [
 			{
@@ -101,6 +110,17 @@
 			},
 			{
 				"queue": "astrant-audit-fulfill-dlq",
+				"max_batch_size": 1,
+				"max_retries": 10
+			},
+			{
+				"queue": "astrant-fulfill",
+				"max_batch_size": 1,
+				"max_retries": 3,
+				"dead_letter_queue": "astrant-fulfill-dlq"
+			},
+			{
+				"queue": "astrant-fulfill-dlq",
 				"max_batch_size": 1,
 				"max_retries": 10
 			}

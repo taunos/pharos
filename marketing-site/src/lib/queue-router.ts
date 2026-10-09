@@ -4,6 +4,8 @@
 //
 //   astrant-audit-fulfill      → auditFulfillQueueHandler
 //   astrant-audit-fulfill-dlq  → auditFulfillDlqHandler
+//   astrant-fulfill            → fulfillQueueHandler (Slice Q: impl, impl_day)
+//   astrant-fulfill-dlq        → fulfillDlqHandler
 //   anything else              → the existing capture consumer, unchanged
 //
 // The P0-C2 capture queue has no fixed name anywhere in the tree (it is not
@@ -21,19 +23,31 @@ import {
   type AuditFulfillConsumerEnv,
   type AuditFulfillMessage,
 } from "./audit-fulfill-queue-consumer";
+import {
+  FULFILL_DLQ_NAME,
+  FULFILL_QUEUE_NAME,
+  fulfillDlqHandler,
+  fulfillQueueHandler,
+  type FulfillConsumerEnv,
+  type FulfillMessage,
+} from "./fulfill-queue-consumer";
 
-export type WorkerQueueEnv = CaptureConsumerEnv & AuditFulfillConsumerEnv;
-export type WorkerQueueMessage = CaptureJobMessage | AuditFulfillMessage;
+export type WorkerQueueEnv = CaptureConsumerEnv & AuditFulfillConsumerEnv & FulfillConsumerEnv;
+export type WorkerQueueMessage = CaptureJobMessage | AuditFulfillMessage | FulfillMessage;
 
 export interface QueueHandlers {
   auditFulfill: (batch: MessageBatch<AuditFulfillMessage>, env: AuditFulfillConsumerEnv) => Promise<void>;
   auditFulfillDlq: (batch: MessageBatch<AuditFulfillMessage>, env: AuditFulfillConsumerEnv) => Promise<void>;
+  fulfill: (batch: MessageBatch<FulfillMessage>, env: FulfillConsumerEnv) => Promise<void>;
+  fulfillDlq: (batch: MessageBatch<FulfillMessage>, env: FulfillConsumerEnv) => Promise<void>;
   capture: (batch: MessageBatch<CaptureJobMessage>, env: CaptureConsumerEnv) => Promise<void>;
 }
 
 const DEFAULT_HANDLERS: QueueHandlers = {
   auditFulfill: (batch, env) => auditFulfillQueueHandler(batch, env),
   auditFulfillDlq: auditFulfillDlqHandler,
+  fulfill: (batch, env) => fulfillQueueHandler(batch, env),
+  fulfillDlq: fulfillDlqHandler,
   capture: captureQueueHandler,
 };
 
@@ -46,6 +60,10 @@ export async function routeQueueBatch(
     await handlers.auditFulfill(batch as MessageBatch<AuditFulfillMessage>, env);
   } else if (batch.queue === AUDIT_FULFILL_DLQ_NAME) {
     await handlers.auditFulfillDlq(batch as MessageBatch<AuditFulfillMessage>, env);
+  } else if (batch.queue === FULFILL_QUEUE_NAME) {
+    await handlers.fulfill(batch as MessageBatch<FulfillMessage>, env);
+  } else if (batch.queue === FULFILL_DLQ_NAME) {
+    await handlers.fulfillDlq(batch as MessageBatch<FulfillMessage>, env);
   } else {
     console.error(`QUEUE_ROUTER_FALLTHROUGH queue=${batch.queue} → capture consumer`);
     await handlers.capture(batch as MessageBatch<CaptureJobMessage>, env);
