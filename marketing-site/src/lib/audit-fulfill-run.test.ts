@@ -289,12 +289,16 @@ describe("runAuditFulfillment — provider completeness (A3)", async () => {
   it("a provider with zero measurable cells → still ready + operator alert naming it", async () => {
     seed(SID, "fulfilling");
     h.cells = ALL_MEASURED.map((c) =>
-      c.modelId === "google:gemini-2.5-flash" ? { ...c, result: { unmeasurable: true } } : c,
+      c.modelId === "google:gemini-2.5-flash"
+        ? { ...c, result: { unmeasurable: true, notes: "Templated fallback: HTTP 429: quota" } }
+        : c,
     );
     await runAuditFulfillment(makeEnv(), SID, "o", { emailCopy: COPY });
     expect(read(SID).status).toBe("ready");
     const alert = h.alerts.find((a) => a.alert_code === "AUDIT_DIM6_PROVIDER_ZERO_CELLS");
-    expect(alert?.notes).toBe("providers=google:gemini-2.5-flash");
+    expect(alert?.notes).toBe(
+      "providers=google:gemini-2.5-flash\nreasons: google:gemini-2.5-flash: Templated fallback: HTTP 429: quota",
+    );
     expect(alert?.session_id).toBe(SID);
   });
 

@@ -224,14 +224,22 @@ export async function runAuditFulfillment(
   // unmeasured cells) but tell the operator which provider measured nothing.
   const silentProviders = providersWithZeroMeasurableCells(dim6);
   if (silentProviders.length > 0) {
+    // First failure reason per silent provider — unmeasurable cells are not
+    // cached, so this alert/log is the only record of why.
+    const reasons = silentProviders
+      .map((m) => {
+        const cell = dim6.cells.find((c) => c.modelId === m);
+        return `${m}: ${(cell?.result.notes ?? "no cells").slice(0, 200)}`;
+      })
+      .join(" | ");
     console.error(
-      `AUDIT_DIM6_PROVIDER_ZERO_CELLS session_id=${sessionId} providers=${silentProviders.join(",")}`,
+      `AUDIT_DIM6_PROVIDER_ZERO_CELLS session_id=${sessionId} providers=${silentProviders.join(",")} reasons=${reasons}`,
     );
     await alertOperator(
       env,
       "AUDIT_DIM6_PROVIDER_ZERO_CELLS",
       sessionId,
-      `providers=${silentProviders.join(",")}`,
+      `providers=${silentProviders.join(",")}\nreasons: ${reasons}`,
     );
   }
 
