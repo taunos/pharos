@@ -24,6 +24,7 @@ export const metadata: Metadata = {
   description:
     "Automated build pipeline. Pay $1,299, answer 5 scoping questions, and we deploy the full agent-discoverability stack — llms.txt, MCP server, OpenAPI, JSON-LD, baseline monitoring — within 24 hours. For standard B2B SaaS sites.",
   alternates: {
+    canonical: "/implementation",
     types: { "text/markdown": "/implementation.md" },
   },
 };

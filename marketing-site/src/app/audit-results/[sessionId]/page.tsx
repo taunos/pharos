@@ -26,16 +26,16 @@ export default async function AuditResultsPage({
           <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl">
             Your audit
           </h1>
-          <p className="mt-6 text-lg text-[var(--color-muted)]">
-            Hold tight — we&apos;re scanning your site, generating remediation
-            guidance for each gap, and rendering your PDF. Usually about 60
-            seconds. We&apos;ll also email you the PDF.
-          </p>
-          <p className="mt-2 text-xs font-mono text-[var(--color-muted)]">
-            Session: {sessionId}
-          </p>
-
-          <AuditResultsPoller sessionId={sessionId} />
+          <AuditResultsPoller
+            sessionId={sessionId}
+            intro={
+              <p className="mt-6 text-lg text-[var(--color-muted)]">
+                Hold tight — we&apos;re scanning your site, generating remediation
+                guidance for each gap, and rendering your PDF. Usually about 60
+                seconds. We&apos;ll also email you the PDF.
+              </p>
+            }
+          />
         </section>
       </main>
       <SiteFooter />

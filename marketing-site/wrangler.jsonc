@@ -77,7 +77,7 @@
 		"IMPLEMENTATION_CHECKOUT_ENABLED": "false",
 		// Pre-launch gate for paid Audit checkout (Test C-A). Fail-closed:
 		// only the exact string "true" enables it. Flip to "true" at launch.
-		"AUDIT_CHECKOUT_ENABLED": "false",
+		"AUDIT_CHECKOUT_ENABLED": "true",
 		// /api/audit-create per-IP limit per hour.
 		"AUDIT_CHECKOUT_RATE_LIMIT": "5",
 		// Test C-B: canonical public origin for links in the Audit buyer email

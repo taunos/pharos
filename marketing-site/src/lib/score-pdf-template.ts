@@ -17,6 +17,7 @@
 import type { ScanResult, SubCheck } from "./audit-types";
 import { hashEmailForR2Key } from "./score-tokens";
 import { dimensionCountPhrase, applicableDimensionCount } from "./score-display";
+import { isAuditCheckoutEnabled } from "./audit-gate";
 
 export const PDF_TEMPLATE_VERSION = "1.0.0";
 
@@ -28,6 +29,7 @@ export type ScorePdfEnv = {
   AUDITS: R2Bucket;
   CF_ACCOUNT_ID: string;
   CF_API_TOKEN: string;
+  AUDIT_CHECKOUT_ENABLED?: string;
 };
 
 // ─── Lift bucketing — templated, no LLM ──────────────────────────────────
@@ -107,10 +109,16 @@ export interface RenderInput {
   scan: ScanResult;
   email: string;
   scoringVersion: string;
+  // Audit gate (lib/audit-gate.ts). Picks the upsell footer: C-B wording when
+  // open, C-A wording when closed. Absent → closed (fail-closed).
+  auditCheckoutEnabled?: boolean;
 }
 
 export function renderScoreReportHTML(input: RenderInput): string {
   const { scan, email, scoringVersion } = input;
+  const upsellFooter = input.auditCheckoutEnabled
+    ? "The $79 Audit is available now; other paid plans are in pre-launch — join the waitlist at astrant.io/audit#waitlist."
+    : "(Paid checkouts are in pre-launch verification — drop your email on each page to be notified when they open.)";
   const sessionShort = scan.id.slice(0, 8);
 
   const dimsHtml = scan.dimensions
@@ -264,7 +272,7 @@ export function renderScoreReportHTML(input: RenderInput): string {
       <li><strong>$1,299 Implementation</strong> (pre-launch) — Astrant builds the AEO stack for you. Patch file, MCP server deployed, baseline monitoring, &lt;24h delivery.</li>
       <li><strong>$4,999+ Custom</strong> (pre-launch) — Bespoke scoping for complex APIs, multi-region content, custom MCP tools.</li>
     </ul>
-    <p style="margin: 8pt 0 0 0; font-size: 10pt;">Compare tiers at <a href="https://astrant.io/" style="color: #0f172a;">astrant.io</a>. The $79 Audit is available now; other paid plans are in pre-launch — join the waitlist at astrant.io/audit#waitlist.</p>
+    <p style="margin: 8pt 0 0 0; font-size: 10pt;">Compare tiers at <a href="https://astrant.io/" style="color: #0f172a;">astrant.io</a>. ${upsellFooter}</p>
   </div>
 
   <footer>
@@ -345,7 +353,12 @@ export async function renderScoreReportPDF(
   email: string,
   scoringVersion: string
 ): Promise<{ pdf: ArrayBuffer; pdf_size_bytes: number }> {
-  const html = renderScoreReportHTML({ scan, email, scoringVersion });
+  const html = renderScoreReportHTML({
+    scan,
+    email,
+    scoringVersion,
+    auditCheckoutEnabled: isAuditCheckoutEnabled(env),
+  });
   const url = `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/browser-rendering/pdf`;
   const res = await fetch(url, {
     method: "POST",

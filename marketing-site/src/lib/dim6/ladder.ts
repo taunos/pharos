@@ -94,7 +94,12 @@ async function readCache(
   try {
     const raw = await kv.get(key);
     if (!raw) return null;
-    return JSON.parse(raw) as CachedCell;
+    const cached = JSON.parse(raw) as CachedCell;
+    // A cached failure is a miss: provider outages / exhausted credits must
+    // not replay into later audits of the same domain for the full TTL.
+    // Also neutralizes unmeasurable entries written before this guard.
+    if (cached.unmeasurable) return null;
+    return cached;
   } catch {
     return null;
   }
@@ -388,6 +393,8 @@ async function writeCacheCell(
   key: string,
   cell: CellResult
 ): Promise<void> {
+  // Only measured results are cacheable (see readCache).
+  if (cell.unmeasurable) return;
   await writeCache(kv, key, {
     text: cell.text,
     score: cell.score,

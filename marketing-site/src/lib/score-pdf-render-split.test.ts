@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   renderScoreReportPDF,
+  renderScoreReportHTML,
   generateScoreReportPDF,
   classifyRetryAfter,
   BrowserRenderingCapError,
@@ -183,5 +184,43 @@ describe("classifyRetryAfter — defensive parsing (injectable clock)", () => {
   it("malformed header → explicit safe fallback (daily_cap)", () => {
     expect(classifyRetryAfter("not-a-date", NOW)).toEqual({ reason: "daily_cap" });
     expect(classifyRetryAfter("soon-ish", NOW)).toEqual({ reason: "daily_cap" });
+  });
+});
+
+// Slice G: the upsell footer follows the Audit gate (C7 open, C-A closed).
+const C7_OPEN =
+  "The $79 Audit is available now; other paid plans are in pre-launch — join the waitlist at astrant.io/audit#waitlist.";
+const CA_CLOSED =
+  "(Paid checkouts are in pre-launch verification — drop your email on each page to be notified when they open.)";
+
+describe("Score PDF upsell footer follows the Audit gate", () => {
+  it("closed (absent flag) → C-A footer, no availability claim", () => {
+    const html = renderScoreReportHTML({ scan, email: "a@b.com", scoringVersion: "1.1.0" });
+    expect(html).toContain(CA_CLOSED);
+    expect(html).not.toContain("available now");
+  });
+
+  it("open → C7 footer", () => {
+    const html = renderScoreReportHTML({
+      scan,
+      email: "a@b.com",
+      scoringVersion: "1.1.0",
+      auditCheckoutEnabled: true,
+    });
+    expect(html).toContain(C7_OPEN);
+    expect(html).not.toContain(CA_CLOSED);
+  });
+
+  it.each([
+    [undefined, CA_CLOSED],
+    ["false", CA_CLOSED],
+    ["TRUE", CA_CLOSED],
+    ["true", C7_OPEN],
+  ])("renderScoreReportPDF reads env AUDIT_CHECKOUT_ENABLED=%s", async (flag, expected) => {
+    fetchMock.mockResolvedValue(new Response(PDF_BYTES, { status: 200 }));
+    const { env } = makeEnv();
+    await renderScoreReportPDF({ ...env, AUDIT_CHECKOUT_ENABLED: flag }, scan, "a@b.com", "1.1.0");
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body)) as { html: string };
+    expect(body.html).toContain(expected);
   });
 });

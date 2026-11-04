@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last updated:** 2026-10-04
+**Last updated:** 2026-11-04
 
 **Status:** v1 in good faith. [Subject to legal review pre-launch.]
 
