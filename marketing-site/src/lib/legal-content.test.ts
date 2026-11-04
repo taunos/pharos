@@ -27,10 +27,10 @@ describe("legal availability sentences (gate-independent)", () => {
     );
   });
 
-  it("privacy keeps the C-A email-collection sentence", () => {
-    expect(PRIVACY_MD).not.toContain("buy an Audit");
+  it("privacy has the open-gate (C-B) email-collection sentence", () => {
+    expect(PRIVACY_MD).toContain("receive your gap-report PDF, buy an Audit, opt into");
     expect(PRIVACY_MD).toContain(
-      "paid tiers — Audit, Implementation, Custom, Standard, Pro — open for purchase",
+      "paid tiers — Implementation, Custom, Standard, Pro — open for purchase",
     );
   });
 });

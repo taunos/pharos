@@ -17,7 +17,7 @@
     // Audit checkout gate (fail-closed: only "true" = open). Picks the
     // get_pricing notes wording. MUST be flipped together with
     // marketing-site/wrangler.jsonc AUDIT_CHECKOUT_ENABLED.
-    "AUDIT_CHECKOUT_ENABLED": "false"
+    "AUDIT_CHECKOUT_ENABLED": "true"
   }
   // NOTE: The original scaffold included a Durable Object binding for
   // `agents/mcp`'s McpAgent session state. It was removed because the
