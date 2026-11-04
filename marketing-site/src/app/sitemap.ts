@@ -14,6 +14,7 @@ const PATHS = [
   "/score/methodology",
   // /methodology itself 307s to /methodology/calibration — list the target only.
   "/methodology/calibration",
+  "/research/ai-cited-vendors-2026",
   "/privacy",
   "/terms",
 ];

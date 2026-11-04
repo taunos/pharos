@@ -1,0 +1,898 @@
+group,domain,llms_txt,llms_note,mcp,mcp_note,structured,structured_note
+cited_other,abstractapi.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,accelq.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,acquia.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,adalo.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,adapty.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,agilitycms.com,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,agora.io,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,ai-tldr.dev,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,aikido.dev,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,airwallex.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,akamai.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,albato.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,alumi.space,false,HTTP 404,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,amazonaws.cn,false,HTTP 404,false,wk=no txt=no,false,"5 ld+json block(s), none matching"
+cited_other,analyticsinsight.net,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,announcify.app,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,anrok.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,api7.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,apideck.com,true,200 non-HTML,true,wk=yes txt=no,true,1 ld+json block(s)
+cited_other,apidog.com,false,200 HTML/empty,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,apileague.com,false,200 HTML/empty,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,apis.io,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,apiscout.dev,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,apphitect.ae,error,ERR_TLS_CERT_ALTNAME_INVALID,error,wk=err:ERR_TLS_CERT_ALTNAME_INVALID txt=no,error,ERR_TLS_CERT_ALTNAME_INVALID
+cited_other,appsecsanta.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,appstackbuilder.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,apptension.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,apty.ai,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,assemblyai.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,atlan.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,atlantic.net,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,auditkit.dev,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,augmentcode.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,authgear.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,axerosolutions.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,bacancytechnology.com,false,HTTP 404,false,wk=no txt=no,error,HTTP 403
+cited_other,back4app.com,true,200 non-HTML,false,wk=no txt=no,true,3 ld+json block(s)
+cited_other,basedash.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,bdnews24.com,false,200 HTML/empty,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,bersyn.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,betterstack.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,bignewsnetwork.com,false,HTTP 404,false,wk=no txt=no,error,HTTP 429
+cited_other,board.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,boldsign.com,true,200 non-HTML,true,wk=yes txt=no,true,1 ld+json block(s)
+cited_other,braintrust.dev,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,brave.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,brevo.com,false,HTTP 404,false,wk=no txt=no,error,HTTP 404 on homepage
+cited_other,brightdata.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,browserless.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,browserstack.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,bugbug.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,buildmvpfast.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,buildwithfern.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,bunny.net,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,business-software.com,true,200 non-HTML,error,wk=err:403 txt=no,true,1 ld+json block(s)
+cited_other,businessofapps.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,bytebase.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,capterra.com,error,HTTP 403,false,wk=no txt=no,error,HTTP 403
+cited_other,cdp.com,true,200 non-HTML,true,wk=yes txt=no,true,1 ld+json block(s)
+cited_other,channelinsider.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,checkthat.ai,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,chift.eu,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,clerk.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,clevera.ai,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,cleverx.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,clickhouse.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,cloro.dev,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,cloudian.com,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,cloudtalk.io,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,cloudwars.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,cloudzero.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,coastalpay.com,false,HTTP 404,error,wk=err:403 txt=no,true,1 ld+json block(s)
+cited_other,codecudos.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,codehooks.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,codesota.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,coingape.com,true,200 non-HTML,error,wk=err:timeout txt=no,error,timeout
+cited_other,cometchat.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,cometly.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,commenda.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,companydata.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,confident-ai.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,connectpay.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,contentsquare.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,contextqa.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,contus.com,true,200 non-HTML,false,wk=no txt=no,true,3 ld+json block(s)
+cited_other,coralogix.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,costbench.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,cotera.co,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,coupler.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,courier.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,crescendo.ai,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,cribl.io,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,crn.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,cursor.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,cyberpress.org,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,cybersecuritynews.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,cycode.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,dacast.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,daily.dev,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,dash0.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,dashdevs.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,dashly.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,datacamp.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,datamation.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,dataquest.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,dealhub.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,deepsource.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,deployhq.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,descope.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,designrevision.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,designrush.com,true,200 non-HTML,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,dev.to,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,developersdigest.tech,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,devopsschool.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,devtoollab.com,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,dhakatribune.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,digitalapplied.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,dock.us,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,docsio.co,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,docuclipper.com,true,200 non-HTML,error,wk=err:403 txt=no,true,1 ld+json block(s)
+cited_other,dodopayments.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,dotcms.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,drizz.dev,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,dronahq.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,dupple.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,ebrands.com,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,edenai.co,false,HTTP 404,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,editorialge.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,einpresswire.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,elastic.io,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,elasticemail.com,false,200 HTML/empty,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,emergent.sh,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,encore.dev,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,endorlabs.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,engagelab.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,enjo.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,enr.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,enterpret.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,esecurityplanet.com,true,200 non-HTML,false,wk=no txt=no,error,HTTP 403
+cited_other,estuary.dev,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,eversign.com,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,f6s.com,false,200 HTML/empty,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,factors.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,fast.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,fastpix.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,featurebase.app,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,featureos.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,featurevote.co,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,figmentglobal.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,filebase.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,fingerprint.com,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,finix.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,fintech.global,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,fintechspecs.com,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,firecrawl.dev,true,200 non-HTML,true,wk=yes txt=no,false,"0 ld+json block(s), none matching"
+cited_other,firefly.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,flagsmith.com,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,flexprice.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,focusreactive.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,fortegrp.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,fraud.net,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,freemius.com,true,200 non-HTML,error,wk=err:403 txt=no,true,1 ld+json block(s)
+cited_other,front.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,fungies.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,futureagi.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,futurepicker.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,g2.com,true,200 non-HTML,false,wk=no txt=no,error,HTTP 403
+cited_other,gainsight.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,galileo.ai,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,gartner.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,gbg.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,gbhackers.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,geekflare.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,geeksforgeeks.org,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,geoapify.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,getapp.com,false,HTTP 404,false,wk=no txt=no,error,HTTP 403
+cited_other,getbeamer.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,getsphere.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,getvoip.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,gigazine.net,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,gitbook.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,gitguardian.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,github.blog,false,HTTP 404,false,wk=no txt=no,false,"3 ld+json block(s), none matching"
+cited_other,gitnux.org,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,gizmodo.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,gladia.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,gleap.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,globaltechcouncil.org,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,gonitro.com,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,graphite.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,gravitee.io,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,grepr.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,greptile.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,growthbook.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,guideflow.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,guptadeepak.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,habr.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,harness.io,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,hashmeta.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,hasura.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,helpdesk.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,helpnetsecurity.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,hightouch.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,hostadvice.com,true,200 non-HTML,false,wk=no txt=no,error,HTTP 403
+cited_other,hostinger.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,huggingface.co,false,HTTP 404,error,wk=err:401 txt=no,false,"0 ld+json block(s), none matching"
+cited_other,hygraph.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,hyperping.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,imageoptim.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,imagetotable.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,improvado.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,inboxcollective.com,false,HTTP 404,error,wk=err:500 txt=no,true,1 ld+json block(s)
+cited_other,incident.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,incredibuild.com,error,ENOTFOUND,error,wk=err:ENOTFOUND txt=no,true,1 ld+json block(s)
+cited_other,indiatimes.com,false,HTTP 404,false,wk=no txt=no,false,"3 ld+json block(s), none matching"
+cited_other,infisical.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,infobip.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,inngest.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,inquirer.net,false,200 HTML/empty,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,instaclustr.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,investing.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,invoicedataextraction.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,ipasis.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,iternal.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,iwoca.co.uk,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,jamdesk.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,jamstack.org,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,jetbrains.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,justcall.io,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,justdial.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,kanopylabs.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,katalon.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,kayako.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,keepersecurity.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,keploy.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,kinsta.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,klippa.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,klymentiev.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,knock.app,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,kompozy.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,kontent.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,kuberns.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,kustomer.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,kyckr.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,langchain.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,ledgerup.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,lenderkit.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,letsenhance.io,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,libhunt.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,lido.app,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,lilt.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,linkedin.com,false,200 HTML/empty,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,linqapp.com,true,200 non-HTML,error,wk=err:525 txt=no,true,1 ld+json block(s)
+cited_other,llamaindex.ai,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,lobehub.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,local-eyes.nl,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,logicmonitor.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,logmanager.com,error,HTTP 429,false,wk=no txt=no,error,HTTP 429
+cited_other,logvault.app,error,HTTP 429,error,wk=err:429 txt=no,error,HTTP 429
+cited_other,luckymedia.dev,false,200 HTML/empty,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,macobserver.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,macroscope.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,maestro.dev,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,mailercloud.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,makerkit.dev,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,manilatimes.net,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,manus.im,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,marketingscoop.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,marktechpost.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,mastra.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,medium.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,memeburn.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,merge.dev,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,messente.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,metabase.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,mezmo.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,mgsoftware.nl,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,microblink.com,false,HTTP 404,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,microgaps.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,middesk.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,middleware.io,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,mindee.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,mindstudio.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,mintlify.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,mixpeek.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,moengage.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,momentic.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,moneycontrol.com,error,HTTP 503,false,wk=no txt=no,false,"5 ld+json block(s), none matching"
+cited_other,moosend.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,motadata.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,motherduck.com,true,200 non-HTML,true,wk=yes txt=no,true,1 ld+json block(s)
+cited_other,moxo.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,n-ix.com,true,200 non-HTML,true,wk=yes txt=no,true,1 ld+json block(s)
+cited_other,nandann.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,nango.dev,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,nanonets.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,naver.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,neon.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,news24online.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,newscatcherapi.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,nextbillion.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,nextiva.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,nextjs.org,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,nih.gov,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,nimbleappgenie.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,nodejs.tech,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,nordicapis.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,northflank.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,numeral.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,nylas.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,octopus.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,olostep.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,omniconvert.com,true,200 non-HTML,true,wk=yes txt=no,true,1 ld+json block(s)
+cited_other,omr.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,ones.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,openapi.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,openlayer.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,openobserve.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,openreplay.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,opensourcealternatives.to,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,openwebninja.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,orangesoft.co,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,orca.security,error,fetch failed,error,wk=err:fetch failed txt=no,true,1 ld+json block(s)
+cited_other,ovaledge.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,ovhcloud.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,ox.security,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,oxylabs.io,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,pagecrawl.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,paloaltonetworks.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,pandastack.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,pandium.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,pantheon.io,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,parallel.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,parse.gl,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,parseable.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,paymentsrank.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,pcmag.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,peerspot.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,phoenixstrategy.group,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,pickmysoft.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,pingcap.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,pkgpulse.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,plain.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,pocus.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,portainer.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,portkey.ai,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,posthog.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,practitest.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,prisma.io,true,200 non-HTML,true,wk=yes txt=no,true,1 ld+json block(s)
+cited_other,prismatic.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,productbridge.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,producthunt.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,productlift.dev,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,productonboarding.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,productschool.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,pulsetic.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,pushengage.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,puter.com,false,200 HTML/empty,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,qlik.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,qodo.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,qovery.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,quantummetric.com,false,200 HTML/empty,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,quasa.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,queryplane.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,questdb.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,quo.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,radar.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,radview.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,railway.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,ranorex.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,reddit.com,false,200 HTML/empty,error,wk=err:403 txt=no,false,"0 ld+json block(s), none matching"
+cited_other,redocly.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,releaseglow.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,releasepad.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,requestly.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,resend.com,true,200 non-HTML,true,wk=yes txt=no,true,1 ld+json block(s)
+cited_other,rework.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,rightfeature.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,ritzherald.com,false,HTTP 404,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,rivery.io,false,HTTP 404,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,roadmap.sh,false,HTTP 404,true,wk=yes txt=no,false,"0 ld+json block(s), none matching"
+cited_other,rocket.chat,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,rocketlane.com,true,200 non-HTML,error,wk=err:403 txt=no,true,1 ld+json block(s)
+cited_other,rootly.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,rst.software,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,runframe.io,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,scalekit.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,scality.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,sciencedaily.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,scnsoft.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,secondtalent.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,semaphore.io,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,sendblue.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,sender.net,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,sendlayer.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,sendx.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,sentinelone.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,sequenzy.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,service.gov.uk,false,200 HTML/empty,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,shiplight.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,signeasy.com,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,signoz.io,true,200 non-HTML,true,wk=yes txt=no,true,1 ld+json block(s)
+cited_other,signwell.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,signzy.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,skyvia.com,true,200 non-HTML,false,wk=no txt=no,false,"2 ld+json block(s), none matching"
+cited_other,smartcat.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,smscomparison.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,smscountry.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,soapui.org,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,softr.io,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,softwareadvice.com,true,200 non-HTML,false,wk=no txt=no,error,HTTP 403
+cited_other,solutionsreview.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,sonarsource.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,sourceforge.net,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,sourcegraph.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,spacelift.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,sportando.basketball,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,sprinto.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,ssojet.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,stackhawk.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,stackify.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,stackpicker.dev,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,stacksync.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,stadiamaps.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,startupfortune.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,startwithidentity.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,stateofdigitalpublishing.com,false,HTTP 404,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,statsig.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,statusgator.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,stratnewsglobal.com,false,200 HTML/empty,false,wk=no txt=no,false,"2 ld+json block(s), none matching"
+cited_other,strongdm.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,sttinfo.fi,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,subrupt.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,suprsend.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,suptask.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,synodus.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,tabs.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,taia.io,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,taxcloud.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,taxwire.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,tech-insider.org,true,200 non-HTML,error,wk=err:timeout txt=no,true,1 ld+json block(s)
+cited_other,techbuzz.ai,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,techgenyz.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,techinterview.org,true,200 non-HTML,error,wk=err:403 txt=no,false,"3 ld+json block(s), none matching"
+cited_other,technicalwriterhq.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,techspot.com,false,HTTP 404,false,wk=no txt=no,error,HTTP 403
+cited_other,techtarget.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,techtimes.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,testgrid.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,testguild.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,testingbot.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,testingxperts.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,testmuai.com,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,testsprite.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,text.com,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,textmagic.com,true,200 non-HTML,error,wk=err:403 txt=no,true,1 ld+json block(s)
+cited_other,thebrandhopper.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,thecmo.com,error,HTTP 403,false,wk=no txt=no,error,HTTP 403
+cited_other,thectoclub.com,error,HTTP 403,false,wk=no txt=no,error,HTTP 403
+cited_other,thehackernews.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,theneo.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,therundown.ai,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,thoughtindustries.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,thousandeyes.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,tigerdata.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,tinyfish.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,toolradar.com,error,HTTP 500,true,wk=yes txt=no,true,1 ld+json block(s)
+cited_other,topbusinesssoftware.com,true,200 non-HTML,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,transactionlink.io,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,tray.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,trigger.dev,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,trivy.dev,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,troopmessenger.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,trtc.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,truefoundry.com,true,200 non-HTML,true,wk=yes txt=no,true,1 ld+json block(s)
+cited_other,truto.one,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,tryfinch.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,turbodocx.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,uibakery.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,unfoldcms.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,unified.to,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,unite.ai,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,unstract.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,uptime.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,uptrace.dev,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_other,useanvil.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,useparagon.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,usepylon.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,userorbit.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,uservoice.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,valueaddvc.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,valuecase.com,error,HTTP 403,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,vellum.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,venturebeat.com,error,HTTP 429,error,wk=err:429 txt=no,error,HTTP 429
+cited_other,veryfi.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,viasocket.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,vibereference.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,videosdk.live,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,virtuosoqa.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,vybe.build,false,200 HTML/empty,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,walletinvestor.com,false,HTTP 404,error,wk=err:403 txt=no,true,1 ld+json block(s)
+cited_other,webflow.com,error,UND_ERR_HEADERS_OVERFLOW,error,wk=err:UND_ERR_HEADERS_OVERFLOW txt=no,true,1 ld+json block(s)
+cited_other,webstacks.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,weld.app,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,weweb.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,wifitalents.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,wise.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,wisepops.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,withampersand.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_other,withorb.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,wiz.io,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,wolf-tech.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,woosmap.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,workos.com,true,200 non-HTML,true,wk=yes txt=no,false,"1 ld+json block(s), none matching"
+cited_other,worldmetrics.org,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,wrappixel.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,writethedocs.org,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,xurrent.com,true,200 non-HTML,error,wk=err:403 txt=no,false,"0 ld+json block(s), none matching"
+cited_other,yahoo.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,yalantis.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,ycombinator.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,zamp.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,zenml.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,zenskar.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,zipdo.co,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_other,zite.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,zoho.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_other,zoominfo.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_other,zuplo.com,true,200 non-HTML,true,wk=yes txt=no,true,1 ld+json block(s)
+cited_vendor,ably.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,airbyte.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,amazon.com,false,HTTP 404,false,wk=no txt=no,error,HTTP 202 on homepage
+cited_vendor,amplitude.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,apache.org,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_vendor,appcues.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_vendor,appsmith.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,arize.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_vendor,atlassian.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,auth0.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,avalara.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_vendor,bandwidth.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_vendor,canny.io,true,200 non-HTML,error,wk=err:403 txt=no,true,1 ld+json block(s)
+cited_vendor,chameleon.io,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,chargebee.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,checkmarx.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,circleci.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,cleverbridge.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,cloudinary.com,true,200 non-HTML,error,wk=err:403 txt=no,true,2 ld+json block(s)
+cited_vendor,configcat.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,contentful.com,error,HTTP 429,error,wk=err:429 txt=no,error,HTTP 429
+cited_vendor,convert.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,cyclr.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,databricks.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_vendor,deepgram.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,digitalocean.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_vendor,docusign.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,doppler.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_vendor,fastspring.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,fivetran.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_vendor,freshworks.com,true,200 non-HTML,error,wk=err:403 txt=no,error,HTTP 403
+cited_vendor,fullstory.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,getstream.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,ghostinspector.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,github.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_vendor,google.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_vendor,gumlet.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,hevodata.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,hookdeck.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_vendor,hubspot.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,ibm.com,false,HTTP 404,false,wk=no txt=no,error,HTTP 404 on homepage
+cited_vendor,imagekit.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_vendor,influxdata.com,true,200 non-HTML,error,wk=err:502 txt=no,true,1 ld+json block(s)
+cited_vendor,integrate.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,intercom.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,kameleoon.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_vendor,konghq.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,logrocket.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_vendor,lokalise.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,mailgun.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,mapquest.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_vendor,microsoft.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_vendor,mlflow.org,true,200 non-HTML,error,wk=err:403 txt=no,true,1 ld+json block(s)
+cited_vendor,mux.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,onesignal.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_vendor,paddle.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,pendo.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,phrase.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+cited_vendor,postman.com,true,200 non-HTML,true,wk=yes txt=no,true,1 ld+json block(s)
+cited_vendor,pubnub.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_vendor,pulumi.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,pushwoosh.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,quaderno.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,raygun.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_vendor,redhat.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+cited_vendor,redis.io,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_vendor,retool.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,rollbar.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,scaleway.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_vendor,sentry.io,true,200 non-HTML,true,wk=yes txt=no,true,1 ld+json block(s)
+cited_vendor,seon.io,true,200 non-HTML,error,wk=err:403 txt=no,true,1 ld+json block(s)
+cited_vendor,shortpixel.com,false,200 HTML/empty,error,wk=err:403 txt=no,false,"0 ld+json block(s), none matching"
+cited_vendor,sinch.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,site24x7.com,true,200 non-HTML,false,wk=no txt=no,false,"2 ld+json block(s), none matching"
+cited_vendor,smartling.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_vendor,snyk.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,speechmatics.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,strapi.io,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,stripe.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,superblocks.com,false,HTTP 404,false,wk=no txt=no,false,"2 ld+json block(s), none matching"
+cited_vendor,svix.com,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+cited_vendor,taxjar.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,telnyx.com,true,200 non-HTML,true,wk=yes txt=no,true,1 ld+json block(s)
+cited_vendor,twilio.com,true,200 non-HTML,error,wk=err:504 txt=no,true,1 ld+json block(s)
+cited_vendor,upstash.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,uptimerobot.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,userpilot.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,vercel.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,weglot.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,whatfix.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,workato.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+cited_vendor,wowza.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,zapier.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,zendesk.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+cited_vendor,zuora.com,error,HTTP 502,false,wk=no txt=no,error,HTTP 502
+not_observed,1password.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,2checkout.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,abbyy.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,abtesting.ai,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+not_observed,adobe.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,adyen.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,airbrake.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,airship.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,aiven.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,algolia.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,amazonaws.com,false,HTTP 404,false,wk=no txt=no,false,"2 ld+json block(s), none matching"
+not_observed,ansible.com,false,200 HTML/empty,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,apidocjs.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,apigee.com,false,200 HTML/empty,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,authenteq.com,error,ENOTFOUND,error,wk=err:ENOTFOUND txt=no,error,ENOTFOUND
+not_observed,authorize.net,false,HTTP 404,error,wk=err:403 txt=no,false,"0 ld+json block(s), none matching"
+not_observed,automate.io,false,200 HTML/empty,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,azure.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,backblaze.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,beeceptor.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,betteruptime.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,bing.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,bitbucket.org,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,bitmovin.com,true,200 non-HTML,error,wk=err:403 txt=no,error,HTTP 403
+not_observed,bitwarden.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,blazemeter.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,bluesnap.com,error,HTTP 403,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,boomi.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,braintreepayments.com,false,200 HTML/empty,false,wk=no txt=no,false,"5 ld+json block(s), none matching"
+not_observed,brightcove.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,buddy.works,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,budibase.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,bugsnag.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,bullmq.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,census.com,false,HTTP 404,false,wk=no txt=no,error,HTTP 404 on homepage
+not_observed,chargify.com,error,HTTP 403,error,wk=err:403 txt=no,true,1 ld+json block(s)
+not_observed,chef.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,cloudflare.com,true,200 non-HTML,true,wk=yes txt=no,true,1 ld+json block(s)
+not_observed,cloudformation.aws,error,ENOTFOUND,error,wk=err:ENOTFOUND txt=no,error,ENOTFOUND
+not_observed,codacy.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,codeclimate.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,cognito.com,false,HTTP 404,error,wk=err:403 txt=no,false,"0 ld+json block(s), none matching"
+not_observed,comet.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,coverity.com,error,HTTP 403,error,wk=err:403 txt=no,true,1 ld+json block(s)
+not_observed,crazyegg.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,crowdin.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,crunchydata.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,customer.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,cypress.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,dataddo.com,true,200 non-HTML,false,wk=no txt=no,true,2 ld+json block(s)
+not_observed,datadoghq.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,dependabot.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,digitalriver.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+not_observed,docusaurus.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,drift.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,drone.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,drupal.org,false,200 HTML/empty,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,elastic.co,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,elasticsearch.org,false,200 HTML/empty,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,esigngenie.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,featureflow.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,feedback.fish,false,200 HTML/empty,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,fiddler.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,flagr.io,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,forestadmin.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,forter.com,true,200 non-HTML,true,wk=yes txt=no,true,2 ld+json block(s)
+not_observed,fraudlabspro.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,freshping.io,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+not_observed,gatling.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,ghost.org,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,gitlab.com,error,HTTP 403,error,wk=err:403 txt=no,true,1 ld+json block(s)
+not_observed,googlecloud.com,error,ERR_TLS_CERT_ALTNAME_INVALID,error,wk=err:ERR_TLS_CERT_ALTNAME_INVALID txt=no,error,ERR_TLS_CERT_ALTNAME_INVALID
+not_observed,grafana.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,graylog.org,error,HTTP 403,error,wk=err:403 txt=no,true,1 ld+json block(s)
+not_observed,hashicorp.com,error,HTTP 429,error,wk=err:429 txt=no,error,HTTP 429
+not_observed,heap.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,hellonext.co,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,hellosign.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,helpscout.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,here.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,heroku.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,hightouch.io,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,honeybadger.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,hotjar.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,hoverfly.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,hypatos.ai,true,200 non-HTML,false,wk=no txt=no,true,3 ld+json block(s)
+not_observed,idology.com,false,200 HTML/empty,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,ifttt.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,imgix.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,inspectlet.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,integromat.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+not_observed,internal.io,error,ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR,error,wk=err:ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR txt=no,error,ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR
+not_observed,iovation.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+not_observed,jenkins.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,jetadmin.io,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,joomla.org,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,js.org,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,jumio.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,jwplayer.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+not_observed,k6.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,kaltura.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,kissmetrics.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+not_observed,kofax.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,kount.com,false,HTTP 404,false,wk=no txt=no,true,2 ld+json block(s)
+not_observed,kraken.io,true,200 non-HTML,error,wk=err:403 txt=no,true,1 ld+json block(s)
+not_observed,kumulos.com,false,200 HTML/empty,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,launchdarkly.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,leanplum.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,lgtm.com,false,200 HTML/empty,false,wk=no txt=no,false,"3 ld+json block(s), none matching"
+not_observed,livechat.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,loader.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,locust.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,loggly.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,logz.io,false,HTTP 404,false,wk=no txt=no,false,"2 ld+json block(s), none matching"
+not_observed,lucidworks.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+not_observed,luckyorange.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,mailjet.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,mandrill.com,false,200 HTML/empty,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,mapbox.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,matillion.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,messagebird.com,false,HTTP 404,error,wk=err:403 txt=no,true,1 ld+json block(s)
+not_observed,milvus.io,true,200 non-HTML,false,wk=no txt=no,error,fetch failed
+not_observed,mixpanel.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,mockserver.com,error,timeout,error,wk=err:timeout txt=no,error,timeout
+not_observed,mountebank.org,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,mouseflow.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,mulesoft.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,n8n.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,neon.tech,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,neotys.com,error,ENOTFOUND,error,wk=err:ENOTFOUND txt=no,error,ENOTFOUND
+not_observed,neptune.ai,error,CERT_HAS_EXPIRED,error,wk=err:CERT_HAS_EXPIRED txt=no,error,CERT_HAS_EXPIRED
+not_observed,nestjs.com,false,200 HTML/empty,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,netlify.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,netlifycms.org,false,200 HTML/empty,false,wk=no txt=no,true,3 ld+json block(s)
+not_observed,newrelic.com,true,200 non-HTML,error,wk=err:403 txt=no,true,1 ld+json block(s)
+not_observed,nexmo.com,false,200 HTML/empty,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,nginx.com,false,200 HTML/empty,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,ngrok.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,nightwatchjs.org,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,nolt.io,false,HTTP 404,error,wk=err:403 txt=no,error,HTTP 403
+not_observed,nuance.com,false,200 HTML/empty,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,okta.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,onelogin.com,false,HTTP 202,false,wk=no txt=no,error,HTTP 202 on homepage
+not_observed,oneskyapp.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,onfido.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+not_observed,openstreetmap.org,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,opentsdb.net,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,opsgenie.com,false,200 HTML/empty,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,optimizely.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,oracle.com,false,HTTP 404,error,wk=err:403 txt=no,error,HTTP 403
+not_observed,owasp.org,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,pact.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,pagerduty.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,pandadoc.com,error,HTTP 429,error,wk=err:429 txt=no,error,HTTP 429
+not_observed,panoply.io,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,papertrailapp.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,paragon.io,false,HTTP 404,false,wk=no txt=no,true,2 ld+json block(s)
+not_observed,paypal.com,true,200 non-HTML,false,wk=no txt=no,false,"4 ld+json block(s), none matching"
+not_observed,pepipost.com,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+not_observed,pinecone.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,pingdom.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,pipedream.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,planetscale.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,playwright.dev,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,plivo.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,poeditor.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,postmarkapp.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,prodpad.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,productboard.com,true,200 non-HTML,false,wk=no txt=no,true,3 ld+json block(s)
+not_observed,prometheus.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,puppet.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,puppeteer.dev,error,ENOTFOUND,error,wk=err:ENOTFOUND txt=no,error,ENOTFOUND
+not_observed,pusher.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,qdrant.tech,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,questdb.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,rabbitmq.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,readme.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,recurly.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,redislabs.com,error,ERR_TLS_CERT_ALTNAME_INVALID,error,wk=err:ERR_TLS_CERT_ALTNAME_INVALID txt=no,error,ERR_TLS_CERT_ALTNAME_INVALID
+not_observed,redoc.ly,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,redshift.aws,error,ENOTFOUND,error,wk=err:ENOTFOUND txt=no,error,ENOTFOUND
+not_observed,requestbin.com,false,200 HTML/empty,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,reshiftsecurity.com,false,200 HTML/empty,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,rev.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,rightsignature.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,riskified.com,false,HTTP 404,false,wk=no txt=no,error,HTTP 403
+not_observed,roadmap.space,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,rudderstack.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,salesforce.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,saltproject.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,sanity.io,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,segment.com,error,timeout,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,selenium.dev,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,sematext.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,sendgrid.com,false,200 HTML/empty,error,wk=err:403 txt=no,false,"0 ld+json block(s), none matching"
+not_observed,shuftipro.com,true,200 non-HTML,error,wk=err:502 txt=no,true,1 ld+json block(s)
+not_observed,sift.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,signifyd.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,signnow.com,false,HTTP 404,error,wk=err:403 txt=no,true,2 ld+json block(s)
+not_observed,signrequest.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,sirv.com,true,200 non-HTML,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,site-search.pro,error,ENOTFOUND,error,wk=err:ENOTFOUND txt=no,error,ENOTFOUND
+not_observed,slack.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,slatejs.org,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,smartlook.com,false,200 HTML/empty,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,snowflake.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,socket.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,socure.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,sonarqube.org,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,sonatype.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,sovos.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,sparkpost.com,false,200 HTML/empty,error,wk=err:403 txt=no,true,1 ld+json block(s)
+not_observed,split.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,splunk.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,squareup.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,status.io,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,statuspage.io,false,200 HTML/empty,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,stitchdata.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,stoplight.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,stormpath.com,false,HTTP 404,false,wk=no txt=no,error,HTTP 404 on homepage
+not_observed,sumologic.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,supabase.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,superwise.ai,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,swagger.io,false,HTTP 404,error,wk=no txt=err:EDESTRUCTION,false,"0 ld+json block(s), none matching"
+not_observed,swiftype.com,false,HTTP 404,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,synopsys.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,tawk.to,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,taxamo.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,taxdoo.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,telesign.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,temporal.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,terraform.io,false,200 HTML/empty,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,testcafe.io,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,timescale.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,tinypng.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,togglz.org,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,tomtom.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,tooljet.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,totango.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,transifex.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,travis-ci.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,tray.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,trulioo.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,tyk.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,unleash-hosted.com,false,200 HTML/empty,false,wk=no txt=no,true,2 ld+json block(s)
+not_observed,updown.io,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,upvoty.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,uxcam.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,vagrantup.com,false,200 HTML/empty,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,vatlayer.com,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,vaultproject.io,false,200 HTML/empty,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,veracode.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,veriff.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,vespa.ai,error,HTTP 403,error,wk=err:403 txt=no,error,HTTP 403
+not_observed,victoriametrics.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,victorops.com,false,200 HTML/empty,false,wk=no txt=no,false,"1 ld+json block(s), none matching"
+not_observed,vimeo.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,vwo.com,true,200 non-HTML,false,wk=no txt=no,false,"2 ld+json block(s), none matching"
+not_observed,walkme.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,wandb.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,wasabi.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,weaviate.io,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,webdriver.io,true,200 non-HTML,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,webhookrelay.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,whitesourcesoftware.com,true,200 non-HTML,error,wk=err:403 txt=no,true,1 ld+json block(s)
+not_observed,whylogs.com,error,ENOTFOUND,error,wk=err:ENOTFOUND txt=no,error,ENOTFOUND
+not_observed,wiremock.org,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,wordpress.org,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,xmatters.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,yandex.com,false,HTTP 404,false,wk=no txt=no,false,"0 ld+json block(s), none matching"
+not_observed,yugabyte.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,zenduty.com,false,HTTP 404,false,wk=no txt=no,true,1 ld+json block(s)
+not_observed,zilliz.com,true,200 non-HTML,false,wk=no txt=no,true,1 ld+json block(s)

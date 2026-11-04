@@ -17,6 +17,10 @@
 - [MCP Server Card](https://mcp.astrant.io/.well-known/mcp.json): SEP-1960 discovery metadata.
 - [How it works](/#how-it-works): The six dimensions of agent discoverability and what each one measures.
 
+## Research
+
+- [What do AI-cited B2B vendors have that other vendors don't? (N≈900 domains)](/research/ai-cited-vendors-2026): Benchmark of 897 domains from 60 developer and B2B SaaS prompts. Perplexity-cited vendors carried llms.txt and homepage JSON-LD more often than vendors not observed in this run; MCP discovery was near-absent in both groups. A correlation in one sample, not evidence that the files cause citations. Data and prompts: [domain results (CSV)](/research/ai-cited-vendors-2026/test-a-60-domains.csv), [prompts (CSV)](/research/ai-cited-vendors-2026/test-a-60-prompts.csv).
+
 ## Contact
 
 - Email: contact@astrant.io

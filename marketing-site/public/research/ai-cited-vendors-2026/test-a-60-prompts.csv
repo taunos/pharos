@@ -1,0 +1,61 @@
+id,pilot,prompt
+1,true,What is the best error monitoring tool for a small SaaS team?
+2,true,Which transactional email API should a startup use?
+3,true,What are the best feature flag services for a B2B SaaS product?
+4,true,Which authentication and user management API is best for a new SaaS app?
+5,true,What is the best product analytics tool for an early-stage B2B startup?
+6,true,Which payments API should a developer-focused SaaS company use for subscription billing?
+7,true,What is the best log management platform for a small engineering team?
+8,true,Which vector database should I use for a production RAG application?
+9,true,What are the best API documentation tools for a developer platform?
+10,true,Which background job and workflow orchestration service is best for a TypeScript backend?
+11,true,What is the best uptime and status page monitoring service for a SaaS company?
+12,true,Which SMS and voice messaging API is best for a startup?
+13,true,What are the best serverless Postgres database providers for a small team?
+14,true,Which customer support and in-app chat tool works best for a B2B SaaS startup?
+15,true,What is the best search API for adding site search to a web application?
+16,true,Which CI/CD platform is best for a small team shipping a SaaS product?
+17,true,What is the best open-source-friendly CMS with an API for a developer marketing site?
+18,true,Which usage-based billing and metering platform should an API-first company use?
+19,true,What are the best tools for managing secrets and environment variables across a dev team?
+20,true,Which LLM observability and evaluation platform is best for a team building AI features?
+21,false,What is the best API gateway for a small SaaS company?
+22,false,Which object storage service is best for a startup storing user uploads?
+23,false,What are the best webhook delivery services for a developer platform?
+24,false,Which session replay tool is best for debugging a B2B web app?
+25,false,Which identity verification (KYC) API should a fintech startup use?
+26,false,What is the best real-time messaging or pub/sub API for a collaborative web app?
+27,false,Which code review and static analysis tool is best for a small engineering team?
+28,false,What is the best customer data platform for an early-stage B2B SaaS?
+29,false,Which e-signature API is best to embed in a SaaS product?
+30,false,What is the best maps and geolocation API for a logistics startup?
+31,false,Which image optimization and transformation API should a web app use?
+32,false,What is the best video streaming and encoding API for a SaaS product?
+33,false,Which push notification service is best for a mobile and web app?
+34,false,"What is the best notification infrastructure for sending in-app, email and Slack alerts from one API?"
+35,false,Which fraud detection API should a SaaS company use to stop fake signups and card testing?
+36,false,What is the best sales tax and VAT calculation API for a SaaS business selling globally?
+37,false,"Should a small software company use a merchant of record, and which one is best?"
+38,false,What is the best A/B testing and experimentation platform for a product team?
+39,false,Which load testing tool is best for testing an API before launch?
+40,false,What is the best end-to-end browser testing platform for a web application?
+41,false,Which API mocking and contract testing tool should a backend team use?
+42,false,What is the best internal tools builder for creating admin panels quickly?
+43,false,Which embedded integration platform lets a SaaS product offer native integrations to customers?
+44,false,What is the best unified API for connecting to many CRMs or HR systems at once?
+45,false,Which OCR and document parsing API is most accurate for invoices and receipts?
+46,false,What is the best speech-to-text API for transcribing customer calls?
+47,false,Which translation and localization management platform is best for a SaaS app?
+48,false,What is the best cloud data warehouse for a startup's analytics?
+49,false,Which ELT data pipeline tool should a small data team use to sync SaaS data into a warehouse?
+50,false,What is the best reverse ETL tool for syncing warehouse data to sales and marketing tools?
+51,false,Which time-series database is best for storing application metrics and IoT data?
+52,false,What is the best serverless Redis-compatible cache for a web application?
+53,false,Which platform-as-a-service is best for deploying a backend API without managing servers?
+54,false,What is the best hosting platform for a Next.js frontend with edge functions?
+55,false,Which infrastructure-as-code tool should a small DevOps team use?
+56,false,What is the best incident management and on-call scheduling tool for a startup?
+57,false,Which audit logging API should a B2B SaaS use to show customers an activity log?
+58,false,What is the best user onboarding and product tour tool for a SaaS app?
+59,false,"Which changelog, roadmap and customer feedback tool is best for a SaaS product?"
+60,false,What is the best dependency vulnerability scanning tool for a software team?
