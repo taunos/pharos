@@ -1,5 +1,5 @@
 // §7.3 validator: pure function, runs on every draft (model or template).
-import { APPROVED_NON_TABLE_COPY } from "./copy";
+import { APPROVED_NON_TABLE_COPY, OPENER_VARIANTS, SUBJECT_VARIANTS, fill } from "./copy";
 import { ALL_ANCHORS, type FactSheet } from "./facts";
 
 export type DraftFields = { subject: string; opener: string; finding_1: string; finding_2: string };
@@ -37,6 +37,9 @@ export const D17_HONESTY = [
   "I personally", "personally reviewed", "I reviewed", "I looked", "I took a look", "I noticed",
   "I came across", "I was browsing", "been following", "fan of", "love your", "impressed", "congrats",
   "saw your", "read your",
+  // Codex review #1: every form of "notice", and browsing/looking-at claims.
+  "notice", "noticed", "noticing", "notices", "browse", "browsed", "browsing", "while looking", "looking at", "looked at",
+  "came across", "stumbled",
 ];
 // Filenames that look domain-like but are anchors, not domains.
 const DOMAINLIKE_ALLOW = new Set(["llms.txt"]);
@@ -144,6 +147,18 @@ export function validateFields(f: DraftFields, sheet: FactSheet, bodyWordsOf: (f
       if (!sheetAnchors.has(a.toLowerCase()) && phraseRe(a).test(stripped)) fail(`grounding:foreign_anchor:${k}:${a}`);
     }
   }
+
+  // Fact grounding (Codex review #1). Phrase rules can't prove truth, so the
+  // claims are pinned to approved text: each finding must be its gap's approved
+  // sentence verbatim (filled from scan data only), and the subject and opener
+  // must be approved variants filled with the lead's domain. Nothing free-written
+  // can reach a draft.
+  if (sheet.gaps[0] && f.finding_1 !== sheet.gaps[0].canonical) fail("grounding:finding_1_not_verbatim");
+  if (sheet.gaps[1] && f.finding_2 !== sheet.gaps[1].canonical) fail("grounding:finding_2_not_verbatim");
+  const subjects = SUBJECT_VARIANTS.map((t) => fill(t, { domain: sheet.domain }));
+  const openers = OPENER_VARIANTS.map((t) => fill(t, { domain: sheet.domain }));
+  if (!subjects.includes(f.subject)) fail("grounding:subject_not_approved");
+  if (!openers.includes(f.opener)) fail("grounding:opener_not_approved");
 
   // Grounding: findings carry their assigned gap's anchor
   const g1 = sheet.gaps[0];

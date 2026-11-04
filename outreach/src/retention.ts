@@ -8,6 +8,12 @@ export const NO_REPLY_PURGE_MS = 60 * DAY; // contact fields, after last outboun
 export const TERMINAL_REPLY_PURGE_MS = 30 * DAY; // contact fields, after a terminal reply
 export const SCAN_DELETE_AFTER_MS = 90 * DAY; // scan rows, after the last send with no reply
 export const FOLLOWUP_CLOSE_MS = 14 * DAY; // followup_sent → closed
+// Codex review #5: closed leads with no real send (draft_not_sent, i.e. unsent or
+// unknown-outcome drafts) or any other closure: contact purged and scan rows
+// deleted this long after closing.
+export const CLOSED_PURGE_MS = 30 * DAY;
+// Inbound classes that are NOT a reply from a person (don't count for retention).
+const NON_REPLY_CLASSES = "'auto_reply','bounce_soft'";
 
 export async function runRetention(env: Env, now: number): Promise<Record<string, number>> {
   const db = env.DB;
@@ -27,7 +33,8 @@ export async function runRetention(env: Env, now: number): Promise<Record<string
       .prepare(
         `UPDATE leads SET contact_email = NULL, contact_source_url = NULL, updated_at = ?
          WHERE contact_email IS NOT NULL AND last_outbound_at IS NOT NULL AND last_outbound_at < ?
-           AND state IN ('sent','followup_sent','closed') AND id NOT IN (SELECT lead_id FROM inbound WHERE lead_id IS NOT NULL)`
+           AND state IN ('sent','followup_sent','closed')
+           AND id NOT IN (SELECT lead_id FROM inbound WHERE lead_id IS NOT NULL AND class NOT IN (${NON_REPLY_CLASSES}))`
       )
       .bind(now, now - NO_REPLY_PURGE_MS)
       .run()
@@ -36,7 +43,7 @@ export async function runRetention(env: Env, now: number): Promise<Record<string
     await db
       .prepare(
         `UPDATE leads SET contact_email = NULL, contact_source_url = NULL, updated_at = ?
-         WHERE contact_email IS NOT NULL AND state IN ('replied','bounced','opted_out','disqualified','rejected') AND terminal_at < ?`
+         WHERE contact_email IS NOT NULL AND state IN ('replied','bounced','opted_out','disqualified','rejected','closed') AND terminal_at < ?`
       )
       .bind(now, now - TERMINAL_REPLY_PURGE_MS)
       .run()
@@ -50,6 +57,15 @@ export async function runRetention(env: Env, now: number): Promise<Record<string
            AND lead_id IN (SELECT id FROM leads WHERE state IN ('closed','followup_sent','sent') AND last_outbound_at < ?)`
       )
       .bind(now, now - SCAN_DELETE_AFTER_MS)
+      .run()
+  ).meta.changes;
+  out.scan_delete_requested_closed = (
+    await db
+      .prepare(
+        `UPDATE lead_scans SET delete_requested_at = ? WHERE delete_requested_at IS NULL AND deleted_at IS NULL
+           AND lead_id IN (SELECT id FROM leads WHERE state = 'closed' AND terminal_at < ?)`
+      )
+      .bind(now, now - CLOSED_PURGE_MS)
       .run()
   ).meta.changes;
   out.scans_deleted = await processScanDeletions(env, now, 50);

@@ -103,6 +103,7 @@ export async function handleAdmin(req: Request, env: Env, deps: AdminDeps): Prom
     const c = await getControl(db);
     const counts = await db.prepare("SELECT state, COUNT(*) AS n FROM leads GROUP BY state").all<{ state: string; n: number }>();
     const batches = await db.prepare("SELECT * FROM batches ORDER BY created_at DESC LIMIT 8").all<Record<string, unknown>>();
+    const alerts = await db.prepare("SELECT at, detail_json FROM events WHERE kind = 'alert' ORDER BY id DESC LIMIT 30").all<Record<string, unknown>>();
     const waiting = await db
       .prepare("SELECT ms.kind, ms.status, ms.drafted_at, l.domain FROM messages ms JOIN leads l ON l.id = ms.lead_id WHERE ms.status IN ('in_drafts','draft_unknown') ORDER BY ms.drafted_at")
       .all<Record<string, unknown>>();
@@ -116,6 +117,7 @@ export async function handleAdmin(req: Request, env: Env, deps: AdminDeps): Prom
 ${c.dns_verified_at ? "" : `<form method="post" action="/admin/dns-verified">${hidden}<button>Mark DNS verified</button></form>`}
 <h2>Leads</h2><table>${(counts.results ?? []).map((r) => `<tr><td>${esc(r.state)}</td><td>${r.n}</td></tr>`).join("")}</table><p><a href="/admin/leads">Review leads</a></p>
 <h2>Batches</h2><table>${(batches.results ?? []).map((b) => `<tr><td><a href="/admin/batch/${esc(b.id)}">${esc(b.week)}</a></td><td>${esc(b.status)}</td><td>${esc(b.draft_count)} drafts</td><td>${esc(b.fallback_count)} template</td></tr>`).join("")}</table>
+<h2>Recent alerts</h2><p>In off and dry_run, alerts appear only here. In gated/auto they also arrive as drafts addressed to you.</p><table>${(alerts.results ?? []).map((a) => { const d = JSON.parse(String(a.detail_json ?? "{}")) as { kind?: string; text?: string }; return `<tr><td>${new Date(Number(a.at)).toISOString().slice(0, 16)}</td><td><b>${esc(d.kind)}</b></td><td>${esc(d.text)}</td></tr>`; }).join("") || "<tr><td>None.</td></tr>"}</table>
 <h2>Waiting in Drafts</h2><p>Marked sent automatically when they show up in the Sent folder. Unsent drafts expire after ${esc(env.DRAFT_EXPIRE_DAYS || "14")} days.</p><table>${(waiting.results ?? []).map((w) => `<tr><td>${esc(w.domain)}</td><td>${esc(w.kind)}</td><td>${esc(w.status === "draft_unknown" ? "unknown: check Drafts" : "in Drafts")}</td><td>${w.drafted_at ? new Date(Number(w.drafted_at)).toISOString().slice(0, 10) : ""}</td></tr>`).join("") || "<tr><td>None.</td></tr>"}</table>`);
   }
 

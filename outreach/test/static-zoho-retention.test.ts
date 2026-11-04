@@ -95,19 +95,20 @@ describe("Zoho client (mocked fetch; never real credentials)", () => {
     return { f, calls };
   }
 
-  it("drains newest-first until the cursor, parses the original MIME, returns oldest-first", async () => {
+  it("drains oldest-first from the saved position, parses the original MIME, and persists progress", async () => {
     const raw = ["From: Jane <hello@acme.com>", "Subject: Re: Two fixes", "In-Reply-To: <m1@getastrant.com>", "Content-Type: text/plain", "", "no thanks", ""].join(String.fromCharCode(13, 10));
     const { f, calls } = zfetch({
       "/api/accounts/42/folders": { data: [{ folderId: "7", folderType: "Inbox", folderName: "Inbox" }, { folderId: "8", folderType: "Sent", folderName: "Sent" }] },
-      "/messages/view": { data: [{ messageId: "200", receivedTime: "2000", threadId: "t" }, { messageId: "150", receivedTime: "1500" }, { messageId: "100", receivedTime: "900" }] },
+      "/messages/view": { data: [{ messageId: "100", receivedTime: "900" }, { messageId: "150", receivedTime: "1500" }, { messageId: "200", receivedTime: "2000", threadId: "t" }] },
       "/originalmessage": { data: { content: raw } },
       "/api/accounts": { data: [{ accountId: "42", primaryEmailAddress: "bruno@getastrant.com" }] },
     });
     const z = new ZohoMailClient(cfg, f);
-    const r = await z.drainInbox("1000", 10);
+    const r = await z.drainInbox(null, 10, async (id) => id === "100");
     expect(r.caughtUp).toBe(true);
-    expect(r.cursor).toBe("2000");
-    expect(r.messages.map((m) => m.providerMessageId)).toEqual(["150", "200"]);
+    expect(r.cursor).toBe(JSON.stringify({ s: 4 }));
+    expect(r.messages.map((m) => m.providerMessageId)).toEqual(["150", "200"]); // "100" already known: not re-fetched
+    expect(calls.some((c) => c.includes("sortorder=true"))).toBe(true);
     expect(r.messages[0].headers["in-reply-to"]).toBe("<m1@getastrant.com>");
     expect(r.messages[0].from).toBe("hello@acme.com");
     expect(calls.some((c) => c.includes("Zoho-oauthtoken"))).toBe(false); // token goes in a header, not the URL
@@ -130,7 +131,7 @@ describe("Zoho client (mocked fetch; never real credentials)", () => {
     }) as typeof fetch;
     const z = new ZohoMailClient(cfg, f);
     const s = await z.listSent(null, 2);
-    expect(s.messages).toEqual([{ providerMessageId: "300", providerThreadId: "t9", sentAt: 3000, to: ["hello@acme.com"], subject: "Two fixes for acme.com", rfcMessageId: "<real-9@mx.zohomail.com>" }]);
+    expect(s.messages).toEqual([{ providerMessageId: "300", providerThreadId: "t9", sentAt: 3000, to: ["hello@acme.com"], subject: "Two fixes for acme.com", rfcMessageId: "<real-9@mx.zohomail.com>", text: expect.stringMatching(/^body\s*$/) }]);
     expect(base.calls.some((c) => c.includes("folderId=8") && c.includes("includeto=true"))).toBe(true);
     const d = await z.createDraft({ to: "hello@acme.com", subject: "Re: x", text: "t", inReplyTo: "<real-9@mx.zohomail.com>", references: "<real-9@mx.zohomail.com>" });
     expect(d.draftId).toBe("draft-1");

@@ -5,7 +5,10 @@ import {
   OPTOUT_CONFIRM_BUTTON, OPTOUT_CONFIRM_QUESTION, OPTOUT_DONE, OPTOUT_INVALID, OPTOUT_PAGE_TITLE, OPTOUT_UNAVAILABLE,
 } from "./copy";
 import { verifyOptoutToken } from "./crypto";
+import { makeAlerter } from "./alerts";
 import { eventStmt, moveLeadStmt } from "./db";
+import { alertDeleteDraft, cancelOutstandingStmt, mailboxDraftCount } from "./drafts";
+import { zohoFromEnv } from "./mail/zoho";
 import { processScanDeletions, requestScanDeletionStmt, suppressStmts } from "./suppression";
 import type { Env, LeadRow } from "./types";
 
@@ -40,18 +43,24 @@ export async function handleOptout(req: Request, env: Env, token: string, now: n
     .bind(messageId)
     .first<LeadRow>();
   if (!lead) return page(`<p>${esc(OPTOUT_DONE)}</p>`); // nothing left to stop (lead deleted)
+  let inMailbox = 0;
   try {
     const db = env.DB;
+    inMailbox = await mailboxDraftCount(db, lead.id);
     await db.batch([
       ...(await suppressStmts(env, now, { email: lead.contact_email, domain: lead.domain, reason: "opt_out_link" })),
-      db.prepare("UPDATE messages SET status = 'cancelled', updated_at = ? WHERE lead_id = ? AND status IN ('draft','queued')").bind(now, lead.id),
-      moveLeadStmt(db, now, lead.id, ["new", "scored", "contact_found", "drafted", "approved", "sent", "followup_sent", "send_unknown", "closed"], "opted_out", "opt_out_link"),
+      cancelOutstandingStmt(db, lead.id, now),
+      moveLeadStmt(db, now, lead.id, ["new", "scored", "contact_found", "drafted", "approved", "in_drafts", "sent", "followup_sent", "send_unknown", "closed"], "opted_out", "opt_out_link"),
       requestScanDeletionStmt(db, lead.id, now),
       eventStmt(db, now, "opt_out_link", lead.id),
     ]);
   } catch (e) {
     console.error("optout_failed", e instanceof Error ? e.message : String(e));
     return page(`<p>${esc(OPTOUT_UNAVAILABLE)}</p>`, 503);
+  }
+  if (inMailbox > 0) {
+    // Mailbox writes are mode-gated inside the alerter (off/dry_run: D1 + /admin only).
+    await alertDeleteDraft(makeAlerter(env, zohoFromEnv(env), () => now), lead.domain, lead.id, "They opted out through the link.");
   }
   try {
     await processScanDeletions(env, now, 5);

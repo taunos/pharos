@@ -200,6 +200,11 @@ export async function researchStep(env: Env, deps: ResearchDeps): Promise<string
 
   const scored = await db.prepare("SELECT * FROM leads WHERE state = 'scored' ORDER BY updated_at LIMIT 1").first<LeadRow>();
   if (scored) {
+    // Codex review #6: eligibility is re-checked before EVERY stage (country can be set later in /admin).
+    if (euExclusion(scored.domain, scored.country)) {
+      await disqualify(env, now, scored, "eu_eea_excluded");
+      return "eu_eea_excluded";
+    }
     const c = await discoverContact(deps.fetch, scored.domain);
     if (!c) {
       await disqualify(env, now, scored, "no_contact");
@@ -225,6 +230,10 @@ export async function researchStep(env: Env, deps: ResearchDeps): Promise<string
     .bind(now - RESCAN_AFTER_MS)
     .first<LeadRow>();
   if (stale) {
+    if (euExclusion(stale.domain, stale.country)) {
+      await disqualify(env, now, stale, "eu_eea_excluded");
+      return "eu_eea_excluded";
+    }
     if (await isSuppressed(env, { email: stale.contact_email, domain: stale.domain })) {
       await disqualify(env, now, stale, "suppressed");
       return "suppressed";

@@ -72,6 +72,14 @@ CREATE TABLE inbound (
 CREATE INDEX idx_inbound_lead ON inbound(lead_id);
 CREATE INDEX idx_inbound_received ON inbound(received_at);
 
+-- Sent-folder messages already examined by reconciliation (matched or not), so a
+-- re-read never re-fetches or re-alerts.
+CREATE TABLE sent_seen (
+  provider_message_id TEXT PRIMARY KEY,
+  matched_message_id TEXT,
+  seen_at INTEGER NOT NULL
+);
+
 CREATE TABLE suppression (
   hash TEXT PRIMARY KEY,
   kind TEXT NOT NULL CHECK (kind IN ('email','domain')),

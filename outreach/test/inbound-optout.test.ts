@@ -120,7 +120,7 @@ describe("S2 inbound actions", () => {
     const l = await sentLead(db);
     const mail = new FakeMail();
     const ai = { run: async () => ({ response: JSON.stringify({ class: "interested", confidence: 0.95 }) }) };
-    await handleInbound(env, { mail, ai, alert: noopAlert, now: () => TUE_1400 }, inboundMail({ headers: { "in-reply-to": l.rfc, "message-id": "<their-1@example.com>" }, text: "Yes, I'd like to talk." }));
+    await handleInbound(env, { mail, ai, alert: noopAlert, now: () => TUE_1400, mailboxWrites: true }, inboundMail({ headers: { "in-reply-to": l.rfc, "message-id": "<their-1@example.com>" }, text: "Yes, I'd like to talk." }));
     expect(mail.drafts.length).toBe(1);
     expect(mail.drafts[0].inReplyTo).toBe("<their-1@example.com>");
     expect(mail.drafts[0].to).toBe("hello@example.com");

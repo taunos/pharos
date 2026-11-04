@@ -247,7 +247,7 @@ describe("Sent-folder reconciliation (what Bruno actually sent)", () => {
     await draftStep(env, dd(mail, () => TUE_1400), true);
     mail.bruno_sends(0, TUE_1400 + HOUR);
     const dup = mail.sentFolder[0];
-    mail.sentFolder.push({ ...dup }, { providerMessageId: "x", providerThreadId: null, sentAt: TUE_1400 + HOUR, to: ["friend@example.org"], subject: "lunch", rfcMessageId: null });
+    mail.sentFolder.push({ ...dup }, { providerMessageId: "x", providerThreadId: null, sentAt: TUE_1400 + HOUR, to: ["friend@example.org"], subject: "lunch", rfcMessageId: null, text: "see you" });
     expect(await reconcileSent(env, { mail, now: () => TUE_1400 + 2 * HOUR })).toBe(1);
     mail.sentFolder.push({ ...dup });
     expect(await reconcileSent(env, { mail, now: () => TUE_1400 + 3 * HOUR })).toBe(0);

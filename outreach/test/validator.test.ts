@@ -64,12 +64,9 @@ describe("S1 approved copy is 100% accepted", () => {
 
 describe("S1 adversarial corpus is 100% rejected", () => {
   const s = sheet([gapFrom("1.presence", "not_found", "example.com"), gapFrom("4.json_ld_present", "none", "example.com")]);
-  const good: DraftFields = {
-    subject: "Two fixes for example.com",
-    opener: "I'm Bruno, I build Astrant. Two things on example.com are worth fixing:",
-    finding_1: "example.com/llms.txt returns a 404, so AI assistants have no llms.txt to read.",
-    finding_2: "The homepage has no JSON-LD, so it doesn't describe your company in machine-readable form.",
-  };
+  // Codex review #1: the only passing drafts are approved text filled from the scan.
+  const good: DraftFields = templateFields(s, 0);
+
   const words = (f: DraftFields) => bodyWords(f, s, ctx);
   it("the baseline draft passes", () => {
     expect(validateFields(good, s, words)).toEqual({ ok: true, fields: good });

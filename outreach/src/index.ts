@@ -8,7 +8,7 @@ import { getControl, logEvent, releaseLease, takeLease, tripStop } from "./db";
 import { drainInbox } from "./inbound";
 import type { MailClient } from "./mail/types";
 import { ZohoAuthError, zohoFromEnv } from "./mail/zoho";
-import { mayCallModel, mayResearch, modeOf } from "./mode";
+import { mayCallModel, mayCreateDrafts, mayResearch, modeOf } from "./mode";
 import { handleOptout } from "./optout";
 import { researchStep } from "./research";
 import { runRetention } from "./retention";
@@ -44,7 +44,7 @@ export function defaultDeps(env: Env): Deps {
 async function drainSafely(env: Env, deps: Deps): Promise<boolean> {
   if (!deps.mail) return false;
   try {
-    return await drainInbox(env, { mail: deps.mail, ai: deps.ai, alert: deps.alert, now: deps.now });
+    return await drainInbox(env, { mail: deps.mail, ai: deps.ai, alert: deps.alert, now: deps.now, mailboxWrites: mayCreateDrafts(modeOf(env)) });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("inbox_drain_failed", msg);
@@ -57,7 +57,7 @@ async function drainSafely(env: Env, deps: Deps): Promise<boolean> {
 async function reconcileSafely(env: Env, deps: Deps): Promise<number | string> {
   if (!deps.mail) return "no_mail_client";
   try {
-    return await reconcileSent(env, { mail: deps.mail, now: deps.now });
+    return await reconcileSent(env, { mail: deps.mail, now: deps.now, alert: deps.alert });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (e instanceof ZohoAuthError) await tripStop(env.DB, deps.now(), "provider_auth", { where: "sent" });

@@ -4,6 +4,7 @@ import { eventStmt, moveLeadStmt, tripStop } from "./db";
 import { fill, INTERESTED_DRAFT_BODY } from "./copy";
 import { stripQuoted } from "./mail/mime";
 import type { InboundMail, MailClient } from "./mail/types";
+import { alertDeleteDraft, cancelOutstandingStmt, mailboxDraftCount } from "./drafts";
 import { requestScanDeletionStmt, suppressStmts } from "./suppression";
 import type { AiBinding, Env, LeadRow, LeadState } from "./types";
 import { WRITER_MODEL } from "./writer";
@@ -48,8 +49,11 @@ export async function classify(m: InboundMail, ai: AiBinding | null): Promise<Cl
     if (st && st.startsWith("4.")) return { class: "bounce_soft", confidence: 1, method: "rule" };
     return { class: "bounce_hard", confidence: 1, method: "rule" }; // 5.x.x or unknown status: stop emailing
   }
-  if (isAutoReply(m)) return { class: "auto_reply", confidence: 1, method: "rule" };
   const body = stripQuoted(m.text);
+  // Codex review #4: explicit opt-out text in the new reply body wins over
+  // auto-reply markers (a person can type "unsubscribe" into an auto-replied thread).
+  if (OPT_OUT_RE.test(body)) return { class: "opt_out", confidence: 1, method: "rule" };
+  if (isAutoReply(m)) return { class: "auto_reply", confidence: 1, method: "rule" };
   const subj = m.subject.replace(/^\s*(re|aw|fwd?)\s*:\s*/i, "");
   const text = `${subj}\n${body}`;
   if (COMPLAINT_RE.test(text)) return { class: "complaint", confidence: 1, method: "rule" };
@@ -134,7 +138,8 @@ export async function matchLead(env: Env, m: InboundMail): Promise<LeadRow | nul
   return null;
 }
 
-export type InboundDeps = { mail: MailClient; ai: AiBinding | null; alert: Alerter; now: () => number };
+/** mailboxWrites: true only in gated/auto (Codex review #7). Default false: no mailbox writes. */
+export type InboundDeps = { mail: MailClient; ai: AiBinding | null; alert: Alerter; now: () => number; mailboxWrites?: boolean };
 
 /**
  * Drains the inbox (every mode, including off and paused). Returns true iff the
@@ -143,7 +148,8 @@ export type InboundDeps = { mail: MailClient; ai: AiBinding | null; alert: Alert
 export async function drainInbox(env: Env, deps: InboundDeps): Promise<boolean> {
   const db = env.DB;
   const ctl = await db.prepare("SELECT inbox_cursor FROM control WHERE id = 1").first<{ inbox_cursor: string | null }>();
-  const res = await deps.mail.drainInbox(ctl?.inbox_cursor ?? null, MAX_INBOX_PAGES);
+  const isKnown = async (id: string) => !!(await db.prepare("SELECT 1 AS x FROM inbound WHERE provider_message_id = ?").bind(id).first());
+  const res = await deps.mail.drainInbox(ctl?.inbox_cursor ?? null, MAX_INBOX_PAGES, isKnown);
   for (const m of res.messages) await handleInbound(env, deps, m);
   const now = deps.now();
   if (res.caughtUp) {
@@ -185,11 +191,11 @@ export async function handleInbound(env: Env, deps: InboundDeps, m: InboundMail)
     return;
   }
 
-  // §5.1 one rule: every matched inbound except auto_reply and bounce_soft cancels the queued follow-up
-  // (and any follow-up still waiting for the mailbox; a follow-up already in Drafts is Bruno's to delete).
-  const cancelFollowup = db
-    .prepare("UPDATE messages SET status = 'cancelled', updated_at = ? WHERE lead_id = ? AND kind = 'followup' AND status IN ('queued','draft')")
-    .bind(now, lead.id);
+  // §5.1 one rule: every matched inbound except auto_reply and bounce_soft cancels the queued follow-up.
+  // Codex review #3: that includes anything already being drafted or sitting in Drafts;
+  // Bruno is asked to delete those (after the batch commits).
+  const inMailbox = await mailboxDraftCount(db, lead.id);
+  const cancelFollowup = cancelOutstandingStmt(db, lead.id, now);
   const from: LeadState[] = REPLYABLE;
   let draftId: string | null = null;
   let alertAfter: { kind: string; text: string } | null = null;
@@ -237,7 +243,7 @@ export async function handleInbound(env: Env, deps: InboundDeps, m: InboundMail)
     case "interested":
     case "question": {
       const sheet = lead.fact_sheet_json ? (JSON.parse(lead.fact_sheet_json) as { score_url?: string }) : {};
-      try {
+      if (deps.mailboxWrites) try {
         const d = await deps.mail.createDraft({
           to: m.from,
           subject: /^re:/i.test(m.subject) ? m.subject : `Re: ${m.subject}`,
@@ -253,7 +259,7 @@ export async function handleInbound(env: Env, deps: InboundDeps, m: InboundMail)
       stmts.push(cancelFollowup, moveLeadStmt(db, now, lead.id, from, "replied", klass), eventStmt(db, now, `inbound_${klass}`, lead.id));
       alertAfter = {
         kind: `Interested reply from ${lead.domain}`,
-        text: `Interested reply from ${lead.domain}${draftId ? ": draft ready in the mailbox." : ". The draft could not be created; reply from the mailbox."}`,
+        text: `Interested reply from ${lead.domain}${draftId ? ": a reply draft is ready in the mailbox." : deps.mailboxWrites ? ". The reply draft could not be created; reply from the mailbox." : ". Reply from the mailbox (no draft is written in this mode)."}`,
       };
       break;
     }
@@ -265,4 +271,7 @@ export async function handleInbound(env: Env, deps: InboundDeps, m: InboundMail)
   stmts.unshift(insertInbound(klass, draftId));
   await db.batch(stmts);
   if (alertAfter) await deps.alert(alertAfter.kind, alertAfter.text, lead.id);
+  if (inMailbox > 0 && klass !== "auto_reply" && klass !== "bounce_soft") {
+    await alertDeleteDraft(deps.alert, lead.domain, lead.id, "They replied, so the pending email is cancelled.");
+  }
 }

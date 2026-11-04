@@ -126,7 +126,7 @@ export class FakeMail implements MailClient {
   /** Simulates Bruno clicking send on draft i. */
   bruno_sends(i: number, at: number, rfcMessageId = `<sent-${i}@getastrant.com>`): void {
     const d = this.drafts[i];
-    this.sentFolder.push({ providerMessageId: `sent-${i}-${at}`, providerThreadId: `thr-${d.to}`, sentAt: at, to: [d.to], subject: d.subject, rfcMessageId });
+    this.sentFolder.push({ providerMessageId: `sent-${i}-${at}`, providerThreadId: `thr-${d.to}`, sentAt: at, to: [d.to], subject: d.subject, rfcMessageId, text: d.text });
   }
 }
 

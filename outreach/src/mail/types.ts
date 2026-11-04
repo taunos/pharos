@@ -53,16 +53,21 @@ export type SentMail = {
   to: string[]; // lowercased addresses
   subject: string;
   rfcMessageId: string | null;
+  /** Decoded text/plain body (used to find the draft's opt-out token). */
+  text: string;
 };
 
 export type DrainResult = { messages: InboundMail[]; caughtUp: boolean; cursor: string | null };
 export type SentResult = { messages: SentMail[]; caughtUp: boolean; cursor: string | null };
 
+/** Returns true when a message id was already handled (skips fetching it again). */
+export type IsKnown = (providerMessageId: string) => Promise<boolean>;
+
 export interface MailClient {
-  /** Inbox messages newer than `cursor`, oldest first, up to maxPages. */
-  drainInbox(cursor: string | null, maxPages: number): Promise<DrainResult>;
-  /** Sent-folder messages newer than `cursor`, oldest first, up to maxPages. */
-  listSent(cursor: string | null, maxPages: number): Promise<SentResult>;
+  /** Inbox messages after the saved cursor, oldest first, up to maxPages; progress persists in the cursor. */
+  drainInbox(cursor: string | null, maxPages: number, isKnown?: IsKnown): Promise<DrainResult>;
+  /** Sent-folder messages after the saved cursor, oldest first, up to maxPages; progress persists in the cursor. */
+  listSent(cursor: string | null, maxPages: number, isKnown?: IsKnown): Promise<SentResult>;
   /** Saves a draft in the mailbox. Never sends. */
   createDraft(d: OutreachDraft): Promise<DraftResult>;
 }

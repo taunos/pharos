@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildFactSheet, homepageAnswered, selectGaps } from "../src/facts";
-import { draftEmail, templateFields, WRITER_MODEL } from "../src/writer";
+import { draftEmail, fieldsFor, templateFields, WRITER_MODEL } from "../src/writer";
 import { FakeAI, gappyScan } from "./helpers";
 import type { ScanResult } from "../src/types";
 
@@ -60,19 +60,25 @@ describe("gap selection (§7.1, D6)", () => {
 describe("writer (§7.2)", () => {
   const sheet = buildFactSheet(gappyScan(), "example.com", "https://astrant.io/score/");
 
-  it("uses the model output when it validates", async () => {
+  it("the model only picks approved variants by number; findings are verbatim", async () => {
     const ai = new FakeAI();
-    ai.responses.push({
-      response: JSON.stringify({
-        subject: "Two fixes for example.com",
-        opener: "I'm Bruno, I build Astrant. Two things on example.com are worth fixing:",
-        finding_1: "example.com/llms.txt returns a 404, so there's no llms.txt for AI assistants.",
-        finding_2: "The example.com homepage has no JSON-LD, so it doesn't describe your product in machine-readable form.",
-      }),
-    });
+    ai.responses.push({ response: JSON.stringify({ subject: 1, opener: 2 }) });
     const r = await draftEmail({ sheet, ctx, writerMode: "llm", ai, templateVariant: 0 });
     expect(r.ok && r.path).toBe("llm");
+    if (r.ok) {
+      expect(r.fields).toEqual(fieldsFor(sheet, 1, 2));
+      expect(r.fields.finding_1).toBe(sheet.gaps[0].canonical);
+    }
     expect(ai.calls).toBe(1);
+  });
+
+  it("free text from the model is never used (it isn't a valid pick)", async () => {
+    const ai = new FakeAI();
+    const free = { subject: "Two fixes", opener: "I have noticed your site", finding_1: "Your llms.txt exposes passwords", finding_2: "x" };
+    ai.responses.push({ response: JSON.stringify(free) }, { response: JSON.stringify({ subject: 9, opener: 0 }) });
+    const r = await draftEmail({ sheet, ctx, writerMode: "llm", ai, templateVariant: 0 });
+    expect(r.ok && r.path).toBe("template");
+    if (r.ok) expect(r.fields).toEqual(templateFields(sheet, 0));
   });
 
   it("retries once with the failed rules, then falls back to the template", async () => {

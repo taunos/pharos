@@ -7,7 +7,7 @@
 // refHeader), get-all-folder-details.html (folderType Inbox/Sent/Drafts).
 // Never called with real credentials in this repo's tests.
 import { addrOf, extractDsn, firstTextPlain, parseMime } from "./mime";
-import { MailboxError, type DrainResult, type InboundMail, type MailClient, type OutreachDraft, type SentMail, type SentResult } from "./types";
+import { MailboxError, type DrainResult, type InboundMail, type IsKnown, type MailClient, type OutreachDraft, type SentMail, type SentResult } from "./types";
 
 export type ZohoConfig = {
   accountsHost: string; // accounts.zoho.com
@@ -20,6 +20,21 @@ export type ZohoConfig = {
 
 type Fetch = typeof fetch;
 const PAGE = 50;
+/** Rows re-read before the saved position each tick, so up to this many deletions/moves between ticks can't cause a skip. */
+export const OVERLAP = 25;
+
+/** Cursor = persisted pagination progress: next 1-based start index in oldest-first order. */
+type WalkCursor = { s: number };
+export function parseCursor(c: string | null): WalkCursor {
+  if (!c) return { s: 1 };
+  try {
+    const j = JSON.parse(c) as Partial<WalkCursor>;
+    if (j && typeof j === "object" && Number.isInteger(j.s) && (j.s as number) >= 1) return { s: j.s as number };
+  } catch {
+    // legacy/garbage cursor: start over; handlers dedupe by message id
+  }
+  return { s: 1 };
+}
 
 export class ZohoAuthError extends Error {}
 
@@ -105,40 +120,44 @@ export class ZohoMailClient implements MailClient {
     return { accountId: this.accountId, folders: this.folders };
   }
 
-  /** Newest-first walk until the cursor (a ms timestamp); returns the fresh rows oldest-first. */
-  private async walk(folderId: string, cursor: string | null, maxPages: number, timeOf: (r: ListRow) => number, includeTo: boolean) {
+  /**
+   * Oldest-first walk (sortorder=true) from the saved position, re-reading OVERLAP
+   * rows before it. New mail only appends at the end, so nothing is skipped when
+   * the backlog is larger than maxPages: the next tick resumes where this one
+   * stopped. Already-handled ids (isKnown) are not fetched again.
+   */
+  private async walk(folderId: string, cursor: string | null, maxPages: number, includeTo: boolean, isKnown?: IsKnown) {
     const { accountId } = await this.ids();
-    const since = cursor ? Number(cursor) : 0;
+    let s = Math.max(1, parseCursor(cursor).s - OVERLAP);
     const fresh: ListRow[] = [];
+    const seen = new Set<string>();
     let caughtUp = false;
     for (let page = 0; page < maxPages; page++) {
       const q = new URLSearchParams({
         folderId,
-        start: String(page * PAGE + 1),
+        start: String(s),
         limit: String(PAGE),
         sortBy: "date",
-        sortorder: "false",
+        sortorder: "true",
         ...(includeTo ? { includeto: "true" } : {}),
       });
       const j = await this.api<{ data: ListRow[] }>(`/api/accounts/${accountId}/messages/view?${q}`);
       const rows = j.data ?? [];
-      let reachedOld = false;
       for (const r of rows) {
-        // `<` (not `<=`): a message at exactly the cursor time is re-read; callers dedupe by id.
-        if (timeOf(r) < since) {
-          reachedOld = true;
-          break;
-        }
+        const id = String(r.messageId);
+        if (seen.has(id)) continue;
+        seen.add(id);
+        if (isKnown && (await isKnown(id))) continue;
         fresh.push(r);
       }
-      if (reachedOld || rows.length < PAGE) {
+      if (rows.length < PAGE) {
         caughtUp = true;
+        s += rows.length;
         break;
       }
+      s += PAGE;
     }
-    fresh.sort((a, b) => timeOf(a) - timeOf(b));
-    const maxSeen = fresh.reduce((m, r) => Math.max(m, timeOf(r)), since);
-    return { accountId, fresh, caughtUp, cursor: caughtUp ? String(maxSeen) : cursor };
+    return { accountId, fresh, caughtUp, cursor: JSON.stringify({ s } satisfies WalkCursor) };
   }
 
   private async original(accountId: string, messageId: string) {
@@ -146,9 +165,9 @@ export class ZohoMailClient implements MailClient {
     return parseMime(orig.data?.content ?? "");
   }
 
-  async drainInbox(cursor: string | null, maxPages: number): Promise<DrainResult> {
+  async drainInbox(cursor: string | null, maxPages: number, isKnown?: IsKnown): Promise<DrainResult> {
     const { folders } = await this.ids();
-    const w = await this.walk(folders.Inbox, cursor, maxPages, (r) => Number(r.receivedTime ?? 0), false);
+    const w = await this.walk(folders.Inbox, cursor, maxPages, false, isKnown);
     const messages: InboundMail[] = [];
     for (const r of w.fresh) {
       const p = await this.original(w.accountId, r.messageId);
@@ -166,9 +185,9 @@ export class ZohoMailClient implements MailClient {
     return { messages, caughtUp: w.caughtUp, cursor: w.cursor };
   }
 
-  async listSent(cursor: string | null, maxPages: number): Promise<SentResult> {
+  async listSent(cursor: string | null, maxPages: number, isKnown?: IsKnown): Promise<SentResult> {
     const { folders } = await this.ids();
-    const w = await this.walk(folders.Sent, cursor, maxPages, (r) => Number(r.sentDateInGMT ?? r.receivedTime ?? 0), true);
+    const w = await this.walk(folders.Sent, cursor, maxPages, true, isKnown);
     const messages: SentMail[] = [];
     for (const r of w.fresh) {
       // The original message gives the real Message-ID (needed to thread the follow-up
@@ -181,6 +200,7 @@ export class ZohoMailClient implements MailClient {
         to: parseAddressList(p.headers["to"] ?? r.toAddress),
         subject: p.headers["subject"] ?? r.subject ?? "",
         rfcMessageId: p.headers["message-id"] ?? null,
+        text: firstTextPlain(p),
       });
     }
     return { messages, caughtUp: w.caughtUp, cursor: w.cursor };
