@@ -1,6 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AuditReportBody, AuditReportHeader } from "@/components/AuditReportView";
+import type { AuditResult } from "@/lib/audit-types";
+import {
+  buildAuditReportModel,
+  type AuditReportModel,
+} from "@/lib/audit-report-model";
 
 type StatusPayload =
   | { ok: true; status: "awaiting_payment"; message: string }
@@ -39,6 +45,23 @@ function gradeColor(grade?: string): string {
   return "text-red-400";
 }
 
+// Minimal shape check on the stored JSON before handing it to the model
+// builder. Anything else → no on-page report; the download buttons still work.
+export function parseAuditResult(data: unknown): AuditResult | null {
+  if (!data || typeof data !== "object") return null;
+  const d = data as Partial<AuditResult>;
+  const scan = d.scan as Partial<AuditResult["scan"]> | undefined;
+  if (!scan || typeof scan !== "object") return null;
+  if (!Array.isArray(scan.dimensions) || !Array.isArray(d.gaps)) return null;
+  if (!scan.composite || typeof scan.url !== "string") return null;
+  return d as AuditResult;
+}
+
+type ReportState =
+  | { state: "loading" }
+  | { state: "ready"; model: AuditReportModel }
+  | { state: "unavailable" };
+
 function isTerminal(p: StatusPayload | null): boolean {
   if (!p || !p.ok) return false;
   return p.status === "ready" || p.status === "error";
@@ -49,6 +72,31 @@ export default function AuditResultsPoller({ sessionId }: { sessionId: string })
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [softTimedOut, setSoftTimedOut] = useState(false);
   const startTsRef = useRef<number>(Date.now());
+  const [report, setReport] = useState<ReportState>({ state: "loading" });
+  const jsonUrl = payload?.ok && payload.status === "ready" ? payload.json_url : null;
+
+  // Once ready, pull the stored audit JSON (the same object the PDF was
+  // rendered from) and shape it with the PDF's own model builder.
+  useEffect(() => {
+    if (!jsonUrl) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(jsonUrl);
+        if (!res.ok) throw new Error(`json ${res.status}`);
+        const audit = parseAuditResult(await res.json());
+        if (!audit) throw new Error("json shape");
+        if (!cancelled) {
+          setReport({ state: "ready", model: buildAuditReportModel(audit, sessionId) });
+        }
+      } catch {
+        if (!cancelled) setReport({ state: "unavailable" });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [jsonUrl, sessionId]);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -126,7 +174,9 @@ export default function AuditResultsPoller({ sessionId }: { sessionId: string })
           <p className="text-sm font-mono uppercase tracking-wider text-emerald-300">
             Audit ready
           </p>
-          {typeof payload.composite_score === "number" ? (
+          {report.state === "ready" ? (
+            <AuditReportHeader model={report.model} />
+          ) : typeof payload.composite_score === "number" ? (
             <div className="mt-3 flex items-baseline gap-4">
               <span className="text-5xl font-bold text-[var(--color-fg)]">
                 {payload.composite_score}
@@ -161,6 +211,20 @@ export default function AuditResultsPoller({ sessionId }: { sessionId: string })
           keep working, and the PDF is in your inbox. Forward to teammates or
           your dev team as-is.
         </p>
+
+        {report.state === "ready" ? (
+          <div className="mt-4">
+            <AuditReportBody model={report.model} />
+          </div>
+        ) : report.state === "loading" ? (
+          // Same spinner as the in-progress state; no visible copy.
+          // rounded-full retained (functional shape — radius-free allowlist).
+          <div
+            role="status"
+            aria-label="Loading report"
+            className="size-5 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-fg)] motion-reduce:animate-[spin_3s_linear_infinite]"
+          />
+        ) : null}
       </div>
     );
   }

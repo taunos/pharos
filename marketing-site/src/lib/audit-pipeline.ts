@@ -17,7 +17,11 @@ import type {
   ScanResult,
   SubCheck,
 } from "./audit-types";
-import { dimensionCountPhrase, applicableDimensionCount } from "./score-display";
+import {
+  AUDIT_REPORT_COPY,
+  buildAuditReportModel,
+  type ScoreBand,
+} from "./audit-report-model";
 
 const SCANNER_URL =
   "https://pharos-scanner.pharos-dev.workers.dev/api/scan";
@@ -638,43 +642,39 @@ function gradeColor(grade: string): string {
   return "#f87171";
 }
 
-function scoreBarColor(score: number): string {
-  if (score >= 70) return "#34d399";
-  if (score >= 60) return "#facc15";
-  if (score >= 40) return "#fb923c";
+function scoreBarColor(band: ScoreBand): string {
+  if (band === "high") return "#34d399";
+  if (band === "mid") return "#facc15";
+  if (band === "low") return "#fb923c";
   return "#f87171";
 }
 
-function formatTimestamp(ms: number): string {
-  return new Date(ms).toISOString().replace("T", " ").replace(/\..+$/, " UTC");
-}
-
+// Content + ordering come from buildAuditReportModel, shared with the
+// on-page report (components/AuditReportView.tsx). Only markup lives here.
 export function renderAuditHtml(audit: AuditResult, sessionId: string): string {
-  const { scan, gaps } = audit;
-  const dimsHtml = scan.dimensions
+  const C = AUDIT_REPORT_COPY;
+  const m = buildAuditReportModel(audit, sessionId);
+  const dimsHtml = m.dimensions
     .map((d) => {
-      // Slice 3a: whole-dimension N/A renders as a single explanatory paragraph
-      // rather than a sub-check table.
-      if (d.na) {
-        const naNote = d.sub_checks[0]?.notes ?? "Dimension did not apply to this site; dropped from composite.";
+      if (d.kind === "na") {
         return `
       <section class="dim">
         <div class="dim-head">
-          <h3>${escapeHtml(d.dimension_name)} <span style="font-size:9pt;font-family:ui-monospace,monospace;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">N/A</span></h3>
+          <h3>${escapeHtml(d.name)} <span style="font-size:9pt;font-family:ui-monospace,monospace;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">${C.naLabel}</span></h3>
           <div class="dim-score">
-            <span class="dim-grade" style="color:#64748b;font-style:italic;">not applicable</span>
+            <span class="dim-grade" style="color:#64748b;font-style:italic;">${C.naGrade}</span>
           </div>
         </div>
-        <p style="font-size:10pt;color:#64748b;margin:6pt 0;">${escapeHtml(naNote)}</p>
+        <p style="font-size:10pt;color:#64748b;margin:6pt 0;">${escapeHtml(d.note)}</p>
       </section>`;
       }
-      const subs = d.sub_checks
+      const subs = d.checks
         .map(
           (s) => `
         <tr>
-          <td class="check-name">${escapeHtml(s.name)}${s.na ? " · N/A" : ""}</td>
-          <td class="check-score">${s.na ? "—" : `${s.score}/100`}</td>
-          <td class="check-weight">${s.weight}%</td>
+          <td class="check-name">${escapeHtml(s.name)}</td>
+          <td class="check-score">${s.scoreLabel}</td>
+          <td class="check-weight">${s.weightLabel}</td>
           <td class="check-notes">${escapeHtml(s.notes)}</td>
         </tr>`
         )
@@ -682,15 +682,15 @@ export function renderAuditHtml(audit: AuditResult, sessionId: string): string {
       return `
       <section class="dim">
         <div class="dim-head">
-          <h3>${escapeHtml(d.dimension_name)}</h3>
+          <h3>${escapeHtml(d.name)}</h3>
           <div class="dim-score">
             <span class="dim-num">${d.score}</span>
             <span class="dim-grade" style="color:${gradeColor(d.grade)}">${escapeHtml(d.grade)}</span>
           </div>
         </div>
-        <div class="bar"><div class="bar-fill" style="width:${Math.max(0, Math.min(100, d.score))}%;background:${scoreBarColor(d.score)}"></div></div>
+        <div class="bar"><div class="bar-fill" style="width:${d.barPct}%;background:${scoreBarColor(d.band)}"></div></div>
         <table class="checks">
-          <thead><tr><th>Check</th><th>Score</th><th>Weight</th><th>Notes</th></tr></thead>
+          <thead><tr>${C.checkColumns.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
           <tbody>${subs}</tbody>
         </table>
       </section>`;
@@ -698,33 +698,32 @@ export function renderAuditHtml(audit: AuditResult, sessionId: string): string {
     .join("");
 
   const gapsHtml =
-    gaps.length === 0
-      ? `<p class="empty">No gaps found — every sub-check scored 100. Clean pass.</p>`
-      : gaps
+    m.gaps.length === 0
+      ? `<p class="empty">${C.gapsEmpty}</p>`
+      : m.gaps
           .map(
             (g) => `
         <article class="gap">
           <header>
-            <h3>${escapeHtml(g.check_name)}</h3>
+            <h3>${escapeHtml(g.checkName)}</h3>
             <div class="gap-meta">
-              <span class="gap-dim">${escapeHtml(g.dimension_name)}</span>
-              <span class="gap-score">${g.score}/100 · weight ${g.weight}%</span>
+              <span class="gap-dim">${escapeHtml(g.dimensionName)}</span>
+              <span class="gap-score">${g.metaLabel}</span>
             </div>
           </header>
-          <p class="gap-finding"><strong>Finding:</strong> ${escapeHtml(g.notes)}</p>
-          <p class="gap-remediation"><strong>Remediation:</strong> ${escapeHtml(g.remediation)}</p>
+          <p class="gap-finding"><strong>${C.findingLabel}</strong> ${escapeHtml(g.finding)}</p>
+          <p class="gap-remediation"><strong>${C.remediationLabel}</strong> ${escapeHtml(g.remediation)}</p>
         </article>`
           )
           .join("");
 
-  const jsonExport = JSON.stringify(audit, null, 2);
-  const sessionShort = sessionId.slice(0, 8);
+  const [f1, f2] = C.footer;
 
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Astrant Audit — ${escapeHtml(scan.url)}</title>
+<title>Astrant Audit — ${escapeHtml(m.url)}</title>
 <style>
   @page { size: A4; margin: 16mm 14mm; }
   * { box-sizing: border-box; }
@@ -769,32 +768,32 @@ export function renderAuditHtml(audit: AuditResult, sessionId: string): string {
 </head>
 <body>
   <div class="header">
-    <span class="brand">Astrant · AEO Audit</span>
-    <span class="timestamp">Generated ${formatTimestamp(scan.created_at)} · session ${escapeHtml(sessionShort)}</span>
+    <span class="brand">${C.brand}</span>
+    <span class="timestamp">${escapeHtml(m.generatedLabel)}</span>
   </div>
 
-  <div class="url-row">${escapeHtml(scan.url)}</div>
+  <div class="url-row">${escapeHtml(m.url)}</div>
 
   <div class="composite">
-    <span class="composite-num">${scan.composite.score}</span>
-    <span class="composite-grade" style="color:${gradeColor(scan.composite.grade)}">${escapeHtml(scan.composite.grade)}</span>
+    <span class="composite-num">${m.composite.score}</span>
+    <span class="composite-grade" style="color:${gradeColor(m.composite.grade)}">${escapeHtml(m.composite.grade)}</span>
   </div>
-  <p class="scope">Scored on ${dimensionCountPhrase(scan.dimensions_applicable, scan.dimensions_scored, scan.dimensions_total)} dimensions applicable to this site. The remaining dimensions ship in upcoming scanner releases — re-running this audit later will pick them up automatically.${applicableDimensionCount(scan.dimensions_applicable, scan.dimensions_scored) < scan.dimensions_scored ? " Some dimensions did not apply to your site (e.g. no API surface for the OpenAPI dimension) and were dropped from the composite." : ""}</p>
+  <p class="scope">${m.scopeNote}</p>
 
-  <h2>Dimension breakdown</h2>
+  <h2>${C.dimensionsHeading}</h2>
   ${dimsHtml}
 
-  <h2>Prioritized gaps + remediation</h2>
-  <p>Sub-checks scoring below 100, ordered by lowest score first. Each gap includes specific remediation guidance generated for your site by our analysis engine.</p>
+  <h2>${C.gapsHeading}</h2>
+  <p>${C.gapsIntro}</p>
   ${gapsHtml}
 
-  <h2>Machine-readable export</h2>
-  <p>The full scan + remediation payload as JSON. The same JSON is also available as a separate download from your audit results page.</p>
-  <pre class="json">${escapeHtml(jsonExport)}</pre>
+  <h2>${C.jsonHeading}</h2>
+  <p>${C.jsonIntro}</p>
+  <pre class="json">${escapeHtml(m.jsonExport)}</pre>
 
   <footer>
-    Generated by Astrant. Re-scan anytime at <a href="https://astrant.io/score">astrant.io/score</a>.
-    Re-run the full audit at <a href="https://astrant.io/audit">astrant.io/audit</a>.
+    ${f1.before}<a href="${f1.href}">${f1.label}</a>.
+    ${f2.before}<a href="${f2.href}">${f2.label}</a>.
   </footer>
 </body>
 </html>`;
