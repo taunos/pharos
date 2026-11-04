@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   description:
     "Astrant's terms of service. As-is service, acceptable use, rate limits, liability cap. Plain English.",
   alternates: {
+    canonical: "/terms",
     types: { "text/markdown": "/terms.md" },
   },
 };

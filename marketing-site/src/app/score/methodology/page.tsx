@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   title: "Scoring methodology — Astrant",
   description:
     "How Astrant scores Agent Discoverability across 6 dimensions. Full methodology for Dim 6 (Citation Visibility). Stub anchors for Dims 1-5.",
+  alternates: { canonical: "/score/methodology" },
 };
 
 export default function MethodologyPage() {

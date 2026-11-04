@@ -19,6 +19,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  // Canonical host. Each indexable page sets its own alternates.canonical
+  // (a canonical here would be inherited by every page that sets none).
+  metadataBase: new URL("https://astrant.io"),
   title: "Astrant — Agent Discoverability, Implemented",
   description:
     "Astrant makes B2B SaaS structurally discoverable and invokable by AI agents. We implement llms.txt, MCP servers, OpenAPI specs, structured capability data, and agent-parsable content — and monitor the results.",

@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   description:
     "Astrant's privacy policy. What we collect, what we don't, what we do with it. Plain English.",
   alternates: {
+    canonical: "/privacy",
     types: { "text/markdown": "/privacy.md" },
   },
 };

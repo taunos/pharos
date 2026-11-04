@@ -3,7 +3,12 @@ import ScanForm from "@/components/ScanForm";
 import ScorePanel from "@/components/ScorePanel";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import type { Metadata } from "next";
 import SixDimensions from "@/components/SixDimensions";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 const STATS = [
   {

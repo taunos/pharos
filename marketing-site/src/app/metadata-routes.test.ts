@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import { GET as robotsGET } from "./robots.txt/route";
 import sitemap from "./sitemap";
 import { GET as mcpJsonGET } from "./.well-known/mcp.json/route";
@@ -54,5 +55,27 @@ describe("sitemap", () => {
       { url: "https://astrant.io/privacy" },
       { url: "https://astrant.io/terms" },
     ]);
+  });
+});
+
+describe("canonical tags", () => {
+  // Every sitemap URL must declare itself canonical (www/http duplicates in
+  // Search Console). Pages set their own alternates.canonical; the layout
+  // only sets metadataBase so a canonical is never inherited by mistake.
+  // Source-level check: page modules don't import cleanly under vitest.
+  const src = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
+  const fileFor = (path: string) => (path === "/" ? "./page.tsx" : `.${path}/page.tsx`);
+
+  for (const { url } of sitemap()) {
+    const path = new URL(url).pathname;
+    it(`${path} declares itself canonical`, () => {
+      expect(src(fileFor(path))).toContain(`canonical: "${path}"`);
+    });
+  }
+
+  it("layout pins the canonical host and sets no inheritable canonical", () => {
+    const layout = src("./layout.tsx");
+    expect(layout).toContain('metadataBase: new URL("https://astrant.io")');
+    expect(layout).not.toMatch(/canonical:/);
   });
 });

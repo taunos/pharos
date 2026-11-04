@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   description:
     "Custom Implementation is for B2B SaaS sites that exceed our standard scope — complex APIs, multi-region content, bespoke MCP tools. Take the 2-minute fit check; an LLM triage agent will recommend Standard, Custom, or a different path.",
   alternates: {
+    canonical: "/custom",
     types: { "text/markdown": "/custom.md" },
   },
 };
