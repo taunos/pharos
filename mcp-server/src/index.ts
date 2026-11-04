@@ -18,8 +18,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
 import { HUMAN_PAGE_HTML } from "./human-page";
+import { pricingNotes } from "./audit-gate";
 
-interface Env {}
+interface Env {
+  AUDIT_CHECKOUT_ENABLED?: string;
+}
 
 const SERVICE_CATALOG = {
   services: [
@@ -71,7 +74,7 @@ const SERVICE_CATALOG = {
   ],
 };
 
-function buildMcpServer(): McpServer {
+function buildMcpServer(env: Env): McpServer {
   const server = new McpServer({ name: "Astrant", version: "0.0.1" });
 
   // ─── Tool 1: get_capabilities ────────────────────────────────────────
@@ -106,8 +109,7 @@ function buildMcpServer(): McpServer {
                 })
               ),
               currency: "USD",
-              notes:
-                "The Score is free. The Audit is purchasable now via Dodo Payments checkout at https://astrant.io/audit. Implementation, Custom Implementation, and both subscription tiers are pre-launch — join the waitlist at https://astrant.io/audit#waitlist.",
+              notes: pricingNotes(env),
             },
             null,
             2
@@ -426,11 +428,11 @@ function buildMcpServer(): McpServer {
   return server;
 }
 
-async function handleMcpRequest(request: Request): Promise<Response> {
+async function handleMcpRequest(request: Request, env: Env): Promise<Response> {
   // Stateless Streamable HTTP: fresh server + transport per request.
   // This trades session state for simplicity — fine for our tools, which are
   // all stateless RPC-style calls.
-  const server = buildMcpServer();
+  const server = buildMcpServer(env);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
@@ -507,7 +509,7 @@ const SERVER_CARD = {
 };
 
 export default {
-  async fetch(request: Request, _env: Env, _ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
     // Discovery endpoints (per SEP-1649 / SEP-1960). Both URLs return the same card.
@@ -541,7 +543,7 @@ export default {
     // /mcp — the Streamable HTTP transport serves its own SSE stream on GET,
     // so a single handler covers both advertised transports.
     if (url.pathname === "/mcp" || url.pathname === "/sse") {
-      return handleMcpRequest(request);
+      return handleMcpRequest(request, env);
     }
 
     // Friendly landing for browsers

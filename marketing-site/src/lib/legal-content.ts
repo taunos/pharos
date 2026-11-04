@@ -25,7 +25,7 @@ When you use Astrant's free Score tool or any paid tier:
 - **The URL you scan.** That's the whole point — we can't compute a discoverability score without it.
 - **Your IP address.** Used for rate-limiting (preventing abuse) and aggregate traffic analytics. It is **not** stored in your scan record; it may appear in server tail logs (~7 days). Rate-limit counters use an HMAC-derived key rather than the raw IP and expire within approximately 25 hours.
 - **Your User-Agent string.** Same uses as IP — rate-limiting and aggregate analytics. Stored in tail logs for ~7 days.
-- **Your email address, if you submit one.** You'll only submit an email if you choose to: receive your gap-report PDF, buy an Audit, opt into monthly auto-rescan emails, contact support, or join the pre-launch waitlist (we'll notify you when paid tiers — Implementation, Custom, Standard, Pro — open for purchase). We don't email you for any reason you didn't explicitly ask for.
+- **Your email address, if you submit one.** You'll only submit an email if you choose to: receive your gap-report PDF, opt into monthly auto-rescan emails, contact support, or join the pre-launch waitlist (we'll notify you when paid tiers — Audit, Implementation, Custom, Standard, Pro — open for purchase). We don't email you for any reason you didn't explicitly ask for.
 - **Sub-check results from the scan.** The structured data Astrant computes about your site — llms.txt presence, MCP server discoverability, JSON-LD schema completeness, etc. This is not your content; it's our analysis of your public technical surface.
 
 ## What we don't collect
@@ -120,7 +120,7 @@ Astrant provides agent-discoverability tooling for B2B SaaS websites:
 - **Custom** (from $4,999): bespoke human-led builds for complex APIs, multi-region content, or unusual MCP tool needs.
 - **Subscriptions** (Standard $149/mo, Pro $899/mo): ongoing rescan + reporting.
 
-The Audit is available now. Implementation, Custom and the subscriptions are still in pre-launch; active checkout availability is shown on each tier's page. Payments are processed by Dodo Payments, our merchant of record, and your purchase is also subject to Dodo's checkout terms.
+Some of these tiers are still in pre-launch verification at the time you're reading this. Active checkout availability is shown on each tier's page. Payments are processed by Dodo Payments, our merchant of record, and your purchase is also subject to Dodo's checkout terms.
 
 ## "As-is" service
 
