@@ -38,6 +38,9 @@ export default function SiteFooter() {
           <a href="/methodology" className="hover:text-[var(--color-fg)]">
             Methodology
           </a>
+          <a href="/research/ai-cited-vendors-2026" className="hover:text-[var(--color-fg)]">
+            Research
+          </a>
           <a href="/privacy" className="hover:text-[var(--color-fg)]">
             Privacy
           </a>
