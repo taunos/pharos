@@ -7,9 +7,9 @@ export function isAuditCheckoutEnabled(env: { AUDIT_CHECKOUT_ENABLED?: string })
   return env.AUDIT_CHECKOUT_ENABLED === "true";
 }
 
-// get_pricing `notes`: Test C-B wording when open, Test C-A wording (8ebbdaa) when closed.
+// get_pricing `notes`: Test C-B wording when open; closed wording approved by Bruno 2026-11-04.
 export function pricingNotes(env: { AUDIT_CHECKOUT_ENABLED?: string }): string {
   return isAuditCheckoutEnabled(env)
     ? "The Score is free. The Audit is purchasable now via Dodo Payments checkout at https://astrant.io/audit. Implementation, Custom Implementation, and both subscription tiers are pre-launch — join the waitlist at https://astrant.io/audit#waitlist."
-    : "Score, Audit, Implementation, and both subscription tiers are self-serve via Dodo Payments checkout. Custom Implementation requires a scoping call.";
+    : "The Score is free. The Audit, Implementation, Custom Implementation and both subscription tiers are pre-launch — join the waitlist at https://astrant.io/audit#waitlist.";
 }

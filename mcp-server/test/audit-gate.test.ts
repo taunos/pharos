@@ -5,7 +5,7 @@ import { isAuditCheckoutEnabled, pricingNotes } from "../src/audit-gate.ts";
 const OPEN =
   "The Score is free. The Audit is purchasable now via Dodo Payments checkout at https://astrant.io/audit. Implementation, Custom Implementation, and both subscription tiers are pre-launch — join the waitlist at https://astrant.io/audit#waitlist.";
 const CLOSED =
-  "Score, Audit, Implementation, and both subscription tiers are self-serve via Dodo Payments checkout. Custom Implementation requires a scoping call.";
+  "The Score is free. The Audit, Implementation, Custom Implementation and both subscription tiers are pre-launch — join the waitlist at https://astrant.io/audit#waitlist.";
 
 test('gate is fail-closed: only the exact string "true" opens it', () => {
   assert.equal(isAuditCheckoutEnabled({ AUDIT_CHECKOUT_ENABLED: "true" }), true);
@@ -18,7 +18,7 @@ test("get_pricing notes: open → Test C-B wording", () => {
   assert.equal(pricingNotes({ AUDIT_CHECKOUT_ENABLED: "true" }), OPEN);
 });
 
-test("get_pricing notes: closed → Test C-A wording (8ebbdaa)", () => {
+test("get_pricing notes: closed → pre-launch waitlist wording", () => {
   assert.equal(pricingNotes({ AUDIT_CHECKOUT_ENABLED: "false" }), CLOSED);
   assert.equal(pricingNotes({}), CLOSED);
 });
