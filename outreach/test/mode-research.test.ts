@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { euExclusion, isDenylisted, normalizeDomain } from "../src/eligibility";
 import { runScheduled, runTick, CRON_TICK, CRON_WEEKLY } from "../src/index";
-import { mayResearch, maySend, parseMode } from "../src/mode";
+import { mayCreateDrafts, mayResearch, parseMode } from "../src/mode";
 import { pickRoleAddress, extractEmails, researchStep, robotsDisallowsAll } from "../src/research";
 import { FakeMail, TUE_1400, deps, freshDb, gappyScan, inboundMail, insertLead, makeEnv, makeFetch } from "./helpers";
 
@@ -12,14 +12,16 @@ describe("parseMode is fail-closed", () => {
     expect(parseMode("dry_run")).toBe("dry_run");
     expect(parseMode("gated")).toBe("gated");
     expect(parseMode("auto")).toBe("auto");
-    expect(maySend("dry_run")).toBe(false);
+    expect(mayCreateDrafts("dry_run")).toBe(false);
+    expect(mayCreateDrafts("off")).toBe(false);
+    expect(mayCreateDrafts("gated")).toBe(true);
     expect(mayResearch("off")).toBe(false);
   });
 });
 
-describe("S2b: under off (or unset), nothing third-party and no send", () => {
+describe("S2b: under off (or unset), nothing third-party and no draft", () => {
   for (const mode of ["off", undefined, "garbage"]) {
-    it(`mode=${String(mode)}: no scan, no fetch, no model call, no send — inbox + opt-outs still handled`, async () => {
+    it(`mode=${String(mode)}: no scan, no fetch, no model call, no draft — inbox + opt-outs still handled`, async () => {
       const { db } = freshDb();
       const env = makeEnv(db, { OUTREACH_MODE: mode as string });
       await insertLead(db, { domain: "example.com" });
@@ -33,11 +35,11 @@ describe("S2b: under off (or unset), nothing third-party and no send", () => {
       const d = deps(env, { now: () => TUE_1400, mail, fetch: fx.f, ai: null });
       const r = await runScheduled(CRON_TICK, env, d);
       expect(r.research).toBe("skipped");
-      expect(String(r.send)).toBe("gate:mode");
+      expect(String(r.draft)).toBe("gate:mode");
       expect(env.SCANNER.calls).toEqual([]);
       expect(fx.calls).toEqual([]);
       expect(env.AI.calls).toBe(0);
-      expect(mail.sent).toEqual([]);
+      expect(mail.drafts).toEqual([]);
       // inbox handling still ran: opt-out processed, follow-up cancelled
       expect(mail.drainCalls).toBe(1);
       expect((await db.prepare("SELECT state FROM leads WHERE id = ?").bind(sent).first<{ state: string }>())?.state).toBe("opted_out");

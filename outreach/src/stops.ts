@@ -4,7 +4,6 @@ import type { Alerter } from "./alerts";
 import { DAY, startOfUtcDay } from "./clock";
 import { getControl, tripStop } from "./db";
 import type { Env } from "./types";
-import { rampElapsedMs } from "./warmup";
 
 type SentRow = { lead_id: string; sent_at: number };
 
@@ -31,11 +30,10 @@ export type StopVerdict = { reason: string; detail: Record<string, unknown> } | 
 
 export async function evaluateStops(env: Env, now: number): Promise<StopVerdict> {
   const db = env.DB;
-  const c = await getControl(db);
-
-  // Hard bounces: ≥2 in one day during ramp weeks 1–2; ≥3% of the last 100 sends after.
-  const elapsed = rampElapsedMs(c, now);
-  const inEarlyRamp = elapsed == null || elapsed < 14 * DAY;
+  // Hard bounces: ≥2 in one day during the first 2 weeks of real sends; ≥3% of the last 100 sends after.
+  // "Sends" are messages Bruno actually sent (status 'sent', learned from the Sent folder).
+  const first = (await db.prepare("SELECT MIN(sent_at) AS t FROM messages WHERE status = 'sent'").first<{ t: number | null }>())?.t ?? null;
+  const inEarlyRamp = first == null || now - first < 14 * DAY;
   if (inEarlyRamp) {
     const r = await db
       .prepare("SELECT COUNT(*) AS n FROM inbound WHERE class = 'bounce_hard' AND lead_id IS NOT NULL AND handled_at >= ?")
@@ -75,9 +73,7 @@ export async function evaluateStops(env: Env, now: number): Promise<StopVerdict>
     return { reason: "silent_failure", detail: { n: 40 } };
   }
 
-  // send_unknown: any.
-  const su = (await db.prepare("SELECT COUNT(*) AS n FROM messages WHERE status = 'send_unknown'").first<{ n: number }>())?.n ?? 0;
-  if (su > 0) return { reason: "send_unknown", detail: { n: su } };
+  // (send_unknown is gone: the agent never sends. A draft_unknown only alerts; see drafts.ts.)
 
   // Program kill criterion: after 100 initial sends, or when the pool is exhausted, 0 interested/question ⇒ review.
   const initials = (await db.prepare("SELECT COUNT(*) AS n FROM messages WHERE kind = 'initial' AND status = 'sent'").first<{ n: number }>())?.n ?? 0;

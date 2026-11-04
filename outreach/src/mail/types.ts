@@ -1,34 +1,32 @@
-// Provider-neutral mailbox client. The ONLY caller of `send` is
-// sendQueuedMessage() in src/send.ts (D9 / S7, enforced by a static test).
+// Provider-neutral mailbox client: DRAFTS ONLY (Bruno decision, 2026-11-04).
+//
+// Zoho Mail's usage policy excludes automated email, so the agent never
+// sends. It saves each email as a draft in the mailbox, and Bruno sends it
+// himself from his mail client. There is deliberately NO send method on this
+// interface: no code path in this Worker can send an email.
+//
+// Drafts can't carry custom headers, so List-Unsubscribe / List-Unsubscribe-Post
+// (RFC 8058, spec §8.1) are impossible; the opt-out is a link + a reply
+// instruction in the body. Threading IS possible: Zoho's save-draft API takes
+// inReplyTo + refHeader.
 
-export type OutboundMail = {
-  fromAddress: string;
-  fromName: string;
+export type OutreachDraft = {
   to: string;
   subject: string;
   text: string;
-  /** Caller-chosen RFC 5322 Message-ID, e.g. "<uuid@getastrant.com>". */
-  messageId: string;
+  /** RFC 5322 Message-ID of the message this replies to, e.g. "<abc@x>". */
   inReplyTo?: string;
+  /** Space-separated Message-IDs, oldest first. */
   references?: string;
-  /** RFC 8058: List-Unsubscribe + List-Unsubscribe-Post: List-Unsubscribe=One-Click. */
-  listUnsubscribe: string;
-  listUnsubscribePost: "List-Unsubscribe=One-Click";
-  /** Provider thread / message ids of the message this replies to (follow-up). */
-  replyToProviderMessageId?: string;
 };
 
-export type SendResult = {
-  rfcMessageId: string;
-  providerMessageId: string | null;
-  providerThreadId: string | null;
-};
+export type DraftResult = { draftId: string | null };
 
-export class MailSendError extends Error {
+export class MailboxError extends Error {
   constructor(
     message: string,
-    /** True only when the provider definitely did NOT send (4xx validation). */
-    readonly definiteNotSent: boolean,
+    /** True only when the provider definitely did NOT create the draft (4xx validation). */
+    readonly definiteNotCreated: boolean,
     /** Auth/token failure: immediate stop (§9.3). */
     readonly auth: boolean
   ) {
@@ -47,14 +45,24 @@ export type InboundMail = {
   dsn: { status: string | null; finalRecipient: string | null; originalMessageId: string | null } | null;
 };
 
+/** A message Bruno sent from the mailbox (read from the Sent folder). */
+export type SentMail = {
+  providerMessageId: string;
+  providerThreadId: string | null;
+  sentAt: number;
+  to: string[]; // lowercased addresses
+  subject: string;
+  rfcMessageId: string | null;
+};
+
 export type DrainResult = { messages: InboundMail[]; caughtUp: boolean; cursor: string | null };
+export type SentResult = { messages: SentMail[]; caughtUp: boolean; cursor: string | null };
 
 export interface MailClient {
-  /** False until a send transport that can set the RFC 8058 headers exists; the send gate refuses. */
-  readonly sendSupported: boolean;
-  send(m: OutboundMail): Promise<SendResult>;
-  /** Drains inbox messages newer than `cursor`, newest-last, up to maxPages. */
+  /** Inbox messages newer than `cursor`, oldest first, up to maxPages. */
   drainInbox(cursor: string | null, maxPages: number): Promise<DrainResult>;
-  /** Saves a draft in the mailbox (never sends). */
-  createDraft(d: { to: string; subject: string; text: string; inReplyToProviderMessageId?: string }): Promise<{ draftId: string | null }>;
+  /** Sent-folder messages newer than `cursor`, oldest first, up to maxPages. */
+  listSent(cursor: string | null, maxPages: number): Promise<SentResult>;
+  /** Saves a draft in the mailbox. Never sends. */
+  createDraft(d: OutreachDraft): Promise<DraftResult>;
 }

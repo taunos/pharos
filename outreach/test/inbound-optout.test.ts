@@ -114,15 +114,15 @@ describe("S2 inbound actions", () => {
     expect((await db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind = 'inbound_opt_out'").first<{ n: number }>())!.n).toBe(1);
   });
 
-  it("interested reply: a mailbox DRAFT for Bruno (never a send) + alert", async () => {
+  it("interested reply: a threaded mailbox DRAFT for Bruno (nothing can send) + alert", async () => {
     const { db } = freshDb();
     const env = makeEnv(db);
     const l = await sentLead(db);
     const mail = new FakeMail();
     const ai = { run: async () => ({ response: JSON.stringify({ class: "interested", confidence: 0.95 }) }) };
-    await handleInbound(env, { mail, ai, alert: noopAlert, now: () => TUE_1400 }, inboundMail({ headers: { "in-reply-to": l.rfc }, text: "Yes, I'd like to talk." }));
-    expect(mail.sent).toEqual([]);
+    await handleInbound(env, { mail, ai, alert: noopAlert, now: () => TUE_1400 }, inboundMail({ headers: { "in-reply-to": l.rfc, "message-id": "<their-1@example.com>" }, text: "Yes, I'd like to talk." }));
     expect(mail.drafts.length).toBe(1);
+    expect(mail.drafts[0].inReplyTo).toBe("<their-1@example.com>");
     expect(mail.drafts[0].to).toBe("hello@example.com");
     expect(await leadState(db, l.id)).toBe("replied");
     expect((await db.prepare("SELECT draft_id FROM inbound").first<{ draft_id: string }>())!.draft_id).toBe("d-1");

@@ -1,6 +1,8 @@
 // pharos-outreach — cold-outreach agent (spec: reports/outreach-agent-spec-v1-2026-11-04.md).
+// DRAFTS ONLY (Bruno, 2026-11-04): the agent never sends. It saves emails as
+// drafts in the Zoho mailbox; Bruno sends each one himself.
 // Fail-closed: OUTREACH_MODE absent or any non-exact value resolves to "off"
-// (no scans, fetches, model calls, batches or sends; inbox + opt-outs still run).
+// (no scans, fetches, model calls, batches or drafts; inbox + opt-outs still run).
 // Secrets (set by Bruno with `wrangler secret put`, never committed):
 //   POSTAL_ADDRESS, OPTOUT_HMAC_SECRET, SUPPRESSION_HMAC_SECRET,
 //   MAIL_OAUTH_CLIENT_ID, MAIL_OAUTH_CLIENT_SECRET, MAIL_OAUTH_REFRESH_TOKEN
@@ -38,7 +40,12 @@
   "vars": {
     "OUTREACH_MODE": "off",
     "DAILY_CAP_MAX": "30",
-    "STEADY_CAP": "15",
+    // Mailbox drafts per UTC day (follow-ups included). ~10 real sends a week is the plan.
+    "DRAFTS_PER_DAY": "10",
+    // Optional wait after "Mark DNS verified" before the first draft (formal warm-up optional at this volume).
+    "WARMUP_DAYS": "0",
+    // Drafts not sent within this many days expire and the lead closes.
+    "DRAFT_EXPIRE_DAYS": "14",
     "PROSPECT_SCANS_PER_DAY": "40",
     "BENCHMARK_URL": "",
     "OPERATOR_ALERT_TO": "taunos@gmail.com",

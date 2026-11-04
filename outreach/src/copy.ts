@@ -24,7 +24,9 @@ export const SIGNATURE = "Bruno, founder, Astrant · astrant.io";
 export const FOOTER_SEPARATOR = "--";
 // §10.1 commercial-message identification. Not "one-time": a follow-up exists.
 export const COMMERCIAL_LINE = "This is a commercial message from Astrant.";
-export const OPTOUT_LINE = "Don't want these? {optout_url} or reply \"no thanks\".";
+// Opt-out lives in the body: drafts can't carry List-Unsubscribe headers (spec §8.1 deviation).
+export const OPTOUT_LINE = "Don't want these? {optout_url}";
+export const OPTOUT_REPLY_LINE = "Or reply \"unsubscribe\" and I'll stop.";
 export const PRIVACY_LINE = "Why you got this and how we handle your data: {privacy_url}";
 
 // §7.2 follow-up: fixed template, same thread, no model call.
@@ -39,9 +41,9 @@ export const OPTOUT_CONFIRM_QUESTION = "Stop emails from Astrant to this address
 export const OPTOUT_CONFIRM_BUTTON = "Stop emails";
 export const OPTOUT_DONE = "Done. You won't hear from us again.";
 export const OPTOUT_INVALID =
-  "This link isn't valid. Reply \"no thanks\" to any email from us and we'll stop.";
+  "This link isn't valid. Reply \"unsubscribe\" to any email from us and we'll stop.";
 export const OPTOUT_UNAVAILABLE =
-  "Something went wrong on our side. Reply \"no thanks\" to any email from us and we'll stop.";
+  "Something went wrong on our side. Reply \"unsubscribe\" to any email from us and we'll stop.";
 
 // §9.4 interested-reply mailbox draft (for Bruno to edit and send himself).
 // v1 is a code-owned skeleton; the model-drafted answer needs the approved FAQ.
@@ -69,6 +71,7 @@ export const APPROVED_NON_TABLE_COPY: readonly string[] = [
   SIGNATURE,
   COMMERCIAL_LINE,
   OPTOUT_LINE,
+  OPTOUT_REPLY_LINE,
   PRIVACY_LINE,
   FOLLOWUP_BODY,
 ];

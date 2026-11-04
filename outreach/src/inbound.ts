@@ -87,7 +87,8 @@ function msgIdTokens(v: string | undefined): string[] {
   return (v ?? "").match(/<[^<>\s]+>/g) ?? [];
 }
 
-const REPLYABLE: LeadState[] = ["sent", "followup_sent", "send_unknown"];
+// in_drafts included: Bruno may have sent before the Sent folder was reconciled.
+const REPLYABLE: LeadState[] = ["in_drafts", "sent", "followup_sent", "send_unknown"];
 
 export async function matchLead(env: Env, m: InboundMail): Promise<LeadRow | null> {
   const db = env.DB;
@@ -184,9 +185,10 @@ export async function handleInbound(env: Env, deps: InboundDeps, m: InboundMail)
     return;
   }
 
-  // §5.1 one rule: every matched inbound except auto_reply and bounce_soft cancels the queued follow-up.
+  // §5.1 one rule: every matched inbound except auto_reply and bounce_soft cancels the queued follow-up
+  // (and any follow-up still waiting for the mailbox; a follow-up already in Drafts is Bruno's to delete).
   const cancelFollowup = db
-    .prepare("UPDATE messages SET status = 'cancelled', updated_at = ? WHERE lead_id = ? AND kind = 'followup' AND status = 'queued'")
+    .prepare("UPDATE messages SET status = 'cancelled', updated_at = ? WHERE lead_id = ? AND kind = 'followup' AND status IN ('queued','draft')")
     .bind(now, lead.id);
   const from: LeadState[] = REPLYABLE;
   let draftId: string | null = null;
@@ -240,7 +242,9 @@ export async function handleInbound(env: Env, deps: InboundDeps, m: InboundMail)
           to: m.from,
           subject: /^re:/i.test(m.subject) ? m.subject : `Re: ${m.subject}`,
           text: fill(INTERESTED_DRAFT_BODY, { score_url: sheet.score_url ?? "" }),
-          inReplyToProviderMessageId: m.providerMessageId,
+          // Threads Bruno's reply draft under their message.
+          inReplyTo: m.headers["message-id"] || undefined,
+          references: [m.headers["references"], m.headers["message-id"]].filter(Boolean).join(" ") || undefined,
         });
         draftId = d.draftId;
       } catch (e) {

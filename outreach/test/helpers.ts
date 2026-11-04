@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import type { Alerter } from "../src/alerts";
 import type { Deps } from "../src/index";
-import type { DrainResult, InboundMail, MailClient, OutboundMail, SendResult } from "../src/mail/types";
+import type { DrainResult, InboundMail, MailClient, OutreachDraft, SentMail, SentResult } from "../src/mail/types";
 import type { DimensionResult, Env, ScanResult, SubCheck } from "../src/types";
 
 const MIGRATION = readFileSync(new URL("../migrations/0001_init.sql", import.meta.url), "utf8");
@@ -99,28 +99,34 @@ export class FakeAI {
   }
 }
 
+/** Drafts-only fake mailbox: no send method exists. `sentFolder` simulates what Bruno sent by hand. */
 export class FakeMail implements MailClient {
-  sendSupported = true;
-  sent: OutboundMail[] = [];
-  drafts: { to: string; subject: string; text: string }[] = [];
+  drafts: OutreachDraft[] = [];
   inbox: InboundMail[] = [];
+  sentFolder: SentMail[] = [];
   drainCalls = 0;
   caughtUp = true;
-  sendImpl: ((m: OutboundMail) => Promise<SendResult>) | null = null;
-  async send(m: OutboundMail): Promise<SendResult> {
-    if (this.sendImpl) return this.sendImpl(m);
-    this.sent.push(m);
-    return { rfcMessageId: m.messageId, providerMessageId: "p-" + this.sent.length, providerThreadId: "t-" + this.sent.length };
-  }
+  draftImpl: ((d: OutreachDraft) => Promise<{ draftId: string | null }>) | null = null;
   async drainInbox(_cursor: string | null, _maxPages: number): Promise<DrainResult> {
     this.drainCalls++;
     const messages = this.inbox;
     this.inbox = [];
     return { messages, caughtUp: this.caughtUp, cursor: String(Date.now()) };
   }
-  async createDraft(d: { to: string; subject: string; text: string }) {
+  async listSent(_cursor: string | null, _maxPages: number): Promise<SentResult> {
+    const messages = this.sentFolder;
+    this.sentFolder = [];
+    return { messages, caughtUp: true, cursor: "c" };
+  }
+  async createDraft(d: OutreachDraft) {
+    if (this.draftImpl) return this.draftImpl(d);
     this.drafts.push(d);
     return { draftId: "d-" + this.drafts.length };
+  }
+  /** Simulates Bruno clicking send on draft i. */
+  bruno_sends(i: number, at: number, rfcMessageId = `<sent-${i}@getastrant.com>`): void {
+    const d = this.drafts[i];
+    this.sentFolder.push({ providerMessageId: `sent-${i}-${at}`, providerThreadId: `thr-${d.to}`, sentAt: at, to: [d.to], subject: d.subject, rfcMessageId });
   }
 }
 
@@ -143,7 +149,7 @@ export function makeEnv(db: D1Database, over: Partial<Env> = {}): Env & { SCANNE
     AI: new FakeAI(),
     OUTREACH_MODE: "gated",
     DAILY_CAP_MAX: "30",
-    STEADY_CAP: "15",
+    DRAFTS_PER_DAY: "10",
     PROSPECT_SCANS_PER_DAY: "40",
     WRITER_MODE: "llm",
     MAIL_FROM: "bruno@getastrant.com",

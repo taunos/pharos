@@ -1,5 +1,6 @@
 // §9.2 opt-out: GET shows a confirm page and never changes state (link scanners
-// prefetch GETs); POST (button or RFC 8058 one-click) suppresses email + domain.
+// prefetch GETs); POST (the button) suppresses email + domain. The link is in the email body:
+// drafts cannot carry List-Unsubscribe headers. The POST handler also accepts an RFC 8058-style body.
 import {
   OPTOUT_CONFIRM_BUTTON, OPTOUT_CONFIRM_QUESTION, OPTOUT_DONE, OPTOUT_INVALID, OPTOUT_PAGE_TITLE, OPTOUT_UNAVAILABLE,
 } from "./copy";

@@ -19,27 +19,42 @@ function files(dir: string): string[] {
 const SRC = files(join(ROOT, "src")).filter((f) => f.endsWith(".ts"));
 const read = (f: string) => readFileSync(f, "utf8");
 
-describe("S7 no-conversation guarantee (static)", () => {
-  it("MailClient.send is called from exactly one place: sendQueuedMessage() in src/send.ts", () => {
+describe("S7 / drafts-only guarantee (static): nothing in this Worker can send", () => {
+  it("the MailClient interface has no send method and no source calls .send(", () => {
+    const types = read(join(ROOT, "src", "mail", "types.ts"));
+    const iface = types.slice(types.indexOf("export interface MailClient"));
+    expect(iface).not.toMatch(/\bsend\s*\(/);
+    expect(iface).toMatch(/createDraft\(/);
+    for (const f of SRC) {
+      const code = read(f).split("\n").filter((l) => !/^\s*(\/\/|\*)/.test(l)).join("\n");
+      expect(code, f).not.toMatch(/\.send\s*\(/);
+      expect(code, f).not.toMatch(/cloudflare:sockets|smtp/i);
+    }
+  });
+  it("every Zoho POST is either the OAuth token refresh or a save-draft with mode=\"draft\"", () => {
+    const z = read(join(ROOT, "src", "mail", "zoho.ts"));
+    const posts = [...z.matchAll(/method:\s*"POST"/g)].length;
+    expect(posts).toBe(2);
+    expect(z).toMatch(/oauth\/v2\/token`, \{ method: "POST"/);
+    const fn = z.slice(z.indexOf("async createDraft("), z.indexOf("export function zohoFromEnv"));
+    expect(fn).toMatch(/mode: "draft"/);
+    expect(fn).toMatch(/method: "POST"/);
+    expect(z).not.toMatch(/mode: "(?!draft")/);
+  });
+  it("outreach drafts are created only by createMailboxDraft(); other createDraft callers write to Bruno or reply drafts", () => {
     const sites: string[] = [];
     for (const f of SRC) {
-      const lines = read(f).split("\n");
-      lines.forEach((l, i) => {
-        if (/\.send\s*\(/.test(l) && !/^\s*\/\//.test(l)) sites.push(`${f.replace(ROOT, "")}:${i + 1}`);
+      read(f).split("\n").forEach((l, i) => {
+        if (/\.createDraft\s*\(/.test(l)) sites.push(`${f.replace(ROOT, "").replace(/\\/g, "/")}:${i + 1}`);
       });
     }
-    expect(sites.length).toBe(1);
-    expect(sites[0]).toMatch(/src[\\/]send\.ts:/);
-    const src = read(join(ROOT, "src", "send.ts"));
-    const fnStart = src.indexOf("export async function sendQueuedMessage(");
-    const callAt = src.indexOf("deps.mail.send(");
-    const nextFn = src.indexOf("\nexport ", fnStart + 10);
-    expect(fnStart).toBeGreaterThan(0);
-    expect(callAt).toBeGreaterThan(fnStart);
-    expect(nextFn === -1 || callAt < nextFn).toBe(true);
-  });
-  it("the inbound/draft paths never reference a send", () => {
-    for (const f of ["inbound.ts", "alerts.ts", "admin.ts", "optout.ts"]) expect(read(join(ROOT, "src", f))).not.toMatch(/\.send\s*\(/);
+    const files = sites.map((x) => x.split(":")[0]).sort();
+    expect(files).toEqual(["src/alerts.ts", "src/drafts.ts", "src/inbound.ts"]);
+    const d = read(join(ROOT, "src", "drafts.ts"));
+    const start = d.indexOf("export async function createMailboxDraft(");
+    const call = d.indexOf("deps.mail.createDraft(");
+    const next = d.indexOf("\nexport ", start + 10);
+    expect(call > start && (next === -1 || call < next)).toBe(true);
   });
 });
 
@@ -80,16 +95,10 @@ describe("Zoho client (mocked fetch; never real credentials)", () => {
     return { f, calls };
   }
 
-  it("send() refuses: the REST API can't set List-Unsubscribe; sendSupported is false", async () => {
-    const z = new ZohoMailClient(cfg, zfetch({}).f);
-    expect(z.sendSupported).toBe(false);
-    await expect(z.send({} as never)).rejects.toThrow("SEND_TRANSPORT_UNDECIDED");
-  });
-
   it("drains newest-first until the cursor, parses the original MIME, returns oldest-first", async () => {
     const raw = ["From: Jane <hello@acme.com>", "Subject: Re: Two fixes", "In-Reply-To: <m1@getastrant.com>", "Content-Type: text/plain", "", "no thanks", ""].join(String.fromCharCode(13, 10));
     const { f, calls } = zfetch({
-      "/api/accounts/42/folders": { data: [{ folderId: "7", folderType: "Inbox" }] },
+      "/api/accounts/42/folders": { data: [{ folderId: "7", folderType: "Inbox", folderName: "Inbox" }, { folderId: "8", folderType: "Sent", folderName: "Sent" }] },
       "/messages/view": { data: [{ messageId: "200", receivedTime: "2000", threadId: "t" }, { messageId: "150", receivedTime: "1500" }, { messageId: "100", receivedTime: "900" }] },
       "/originalmessage": { data: { content: raw } },
       "/api/accounts": { data: [{ accountId: "42", primaryEmailAddress: "bruno@getastrant.com" }] },
@@ -103,6 +112,30 @@ describe("Zoho client (mocked fetch; never real credentials)", () => {
     expect(r.messages[0].from).toBe("hello@acme.com");
     expect(calls.some((c) => c.includes("Zoho-oauthtoken"))).toBe(false); // token goes in a header, not the URL
     expect(calls.filter((c) => c.startsWith("POST https://accounts.zoho.test/oauth/v2/token")).length).toBe(1);
+  });
+
+  it("listSent reads the Sent folder with recipients and the real Message-ID; createDraft posts mode=draft with threading", async () => {
+    const raw = ["From: Bruno <bruno@getastrant.com>", "To: \"Acme\" <Hello@Acme.com>", "Subject: Two fixes for acme.com", "Message-ID: <real-9@mx.zohomail.com>", "", "body", ""].join(String.fromCharCode(13, 10));
+    const posts: string[] = [];
+    const base = zfetch({
+      "/api/accounts/42/folders": { data: [{ folderId: "7", folderType: "Inbox", folderName: "Inbox" }, { folderId: "8", folderType: "Sent", folderName: "Sent" }] },
+      "/messages/view": { data: [{ messageId: "300", sentDateInGMT: "3000", threadId: "t9", toAddress: "&quot;Acme&quot;&lt;hello@acme.com&gt;" }] },
+      "/originalmessage": { data: { content: raw } },
+      "/api/accounts/42/messages": { data: { messageId: "draft-1" } },
+      "/api/accounts": { data: [{ accountId: "42", primaryEmailAddress: "bruno@getastrant.com" }] },
+    });
+    const f = (async (u: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "POST" && String(u).includes("/messages")) posts.push(String(init.body));
+      return base.f(u, init);
+    }) as typeof fetch;
+    const z = new ZohoMailClient(cfg, f);
+    const s = await z.listSent(null, 2);
+    expect(s.messages).toEqual([{ providerMessageId: "300", providerThreadId: "t9", sentAt: 3000, to: ["hello@acme.com"], subject: "Two fixes for acme.com", rfcMessageId: "<real-9@mx.zohomail.com>" }]);
+    expect(base.calls.some((c) => c.includes("folderId=8") && c.includes("includeto=true"))).toBe(true);
+    const d = await z.createDraft({ to: "hello@acme.com", subject: "Re: x", text: "t", inReplyTo: "<real-9@mx.zohomail.com>", references: "<real-9@mx.zohomail.com>" });
+    expect(d.draftId).toBe("draft-1");
+    const body = JSON.parse(posts[0]);
+    expect(body).toMatchObject({ mode: "draft", mailFormat: "plaintext", toAddress: "hello@acme.com", inReplyTo: "<real-9@mx.zohomail.com>", refHeader: "<real-9@mx.zohomail.com>" });
   });
 
   it("token refresh failure is an auth error (pauses via the tick)", async () => {

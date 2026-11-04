@@ -1,5 +1,6 @@
 // pharos-outreach entrypoint. Scheduled handlers AWAIT everything (never
 // ctx.waitUntil) and every handler takes the same D1 lease first (D11).
+// DRAFTS ONLY: nothing here can send an email; Bruno sends drafts himself.
 import { handleAdmin } from "./admin";
 import { makeAlerter, type Alerter } from "./alerts";
 import { buildWeeklyBatch, expireBatches } from "./batch";
@@ -11,7 +12,7 @@ import { mayCallModel, mayResearch, modeOf } from "./mode";
 import { handleOptout } from "./optout";
 import { researchStep } from "./research";
 import { runRetention } from "./retention";
-import { sendStep, sweepStuckSending } from "./send";
+import { draftStep, expireStaleDrafts, reconcileSent, sweepStuckDrafting } from "./drafts";
 import { checkStops } from "./stops";
 import { processScanDeletions } from "./suppression";
 import type { AiBinding, Env } from "./types";
@@ -53,17 +54,31 @@ async function drainSafely(env: Env, deps: Deps): Promise<boolean> {
   }
 }
 
+async function reconcileSafely(env: Env, deps: Deps): Promise<number | string> {
+  if (!deps.mail) return "no_mail_client";
+  try {
+    return await reconcileSent(env, { mail: deps.mail, now: deps.now });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (e instanceof ZohoAuthError) await tripStop(env.DB, deps.now(), "provider_auth", { where: "sent" });
+    else await logEvent(env.DB, deps.now(), "sent_reconcile_failed", null, { message: msg.slice(0, 200) });
+    return "error";
+  }
+}
+
 export async function runTick(env: Env, deps: Deps): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {};
   // 1. Inbox drain + reply handling: every mode, including off and paused.
   const caughtUp = await drainSafely(env, deps);
   out.inbox_caught_up = caughtUp;
-  // 2. Scan-row deletions: every mode.
+  // 2. Sent-folder reconciliation (what Bruno actually sent): every mode, read-only on the mailbox.
+  out.reconciled = await reconcileSafely(env, deps);
+  // 3. Scan-row deletions: every mode.
   out.scans_deleted = await processScanDeletions(env, deps.now(), 5).catch(() => 0);
-  // 3. Crash recovery + stops.
-  out.send_unknown = await sweepStuckSending(env, { mail: deps.mail ?? nullMail, now: deps.now, alert: deps.alert });
+  // 4. Crash recovery + stops.
+  out.draft_unknown = await sweepStuckDrafting(env, { mail: deps.mail ?? nullMail, now: deps.now, alert: deps.alert });
   out.stop = (await checkStops(env, deps.now(), deps.alert))?.reason ?? null;
-  // 4. At most one research step (third-party traffic: not under off, not while paused).
+  // 5. At most one research step (third-party traffic: not under off, not while paused).
   const mode = modeOf(env);
   const c = await getControl(env.DB);
   if (mayResearch(mode) && !c.paused) {
@@ -74,17 +89,14 @@ export async function runTick(env: Env, deps: Deps): Promise<Record<string, unkn
       await logEvent(env.DB, deps.now(), "research_error", null, { message: (e instanceof Error ? e.message : String(e)).slice(0, 200) });
     }
   } else out.research = "skipped";
-  // 5. At most one send, only if the inbox drained to empty in THIS tick.
-  out.send = deps.mail ? await sendStep(env, { mail: deps.mail, now: deps.now, alert: deps.alert }, caughtUp) : "gate:no_mail_client";
+  // 6. At most one mailbox draft, only if the inbox drained to empty in THIS tick.
+  out.draft = deps.mail ? await draftStep(env, { mail: deps.mail, now: deps.now, alert: deps.alert }, caughtUp) : "gate:no_mail_client";
   return out;
 }
 
 const nullMail: MailClient = {
-  sendSupported: false,
-  send: async () => {
-    throw new Error("NO_MAIL_CLIENT");
-  },
   drainInbox: async () => ({ messages: [], caughtUp: false, cursor: null }),
+  listSent: async () => ({ messages: [], caughtUp: false, cursor: null }),
   createDraft: async () => ({ draftId: null }),
 };
 
@@ -98,6 +110,7 @@ export async function runDaily(env: Env, deps: Deps): Promise<Record<string, unk
   const now = deps.now();
   const out: Record<string, unknown> = {};
   out.expired = await expireBatches(env, now);
+  out.drafts_expired = await expireStaleDrafts(env, now);
   out.retention = await runRetention(env, now);
   out.stop = (await checkStops(env, now, deps.alert))?.reason ?? null;
   return out;

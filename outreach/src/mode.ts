@@ -1,4 +1,10 @@
 // D10 fail-closed mode switch + the §4 per-mode gating table, as pure functions.
+//
+// Drafts-only mapping (Bruno, 2026-11-04). No mode ever sends; Bruno sends by hand.
+//   off      inbox + opt-outs + Sent reconciliation + retention only
+//   dry_run  + research, model calls, weekly batch in D1 (visible in /admin); no mailbox drafts (log only)
+//   gated    + mailbox drafts (batches are approved automatically: Bruno's own send click is the human gate)
+//   auto     same as gated (kept as a value so a deploy with "auto" isn't silently off)
 import type { Env } from "./types";
 
 export type OutreachMode = "off" | "dry_run" | "gated" | "auto";
@@ -27,12 +33,13 @@ export function mayBuildBatch(mode: OutreachMode): boolean {
   return mode !== "off";
 }
 
-/** Approving a batch queues real sends, so it is refused outside gated/auto. */
+/** Approving a batch queues mailbox drafts, so it is refused outside gated/auto. */
 export function mayApprove(mode: OutreachMode): boolean {
   return mode === "gated" || mode === "auto";
 }
 
-export function maySend(mode: OutreachMode): boolean {
+/** Saving drafts in the mailbox. Nothing in this Worker can send. */
+export function mayCreateDrafts(mode: OutreachMode): boolean {
   return mode === "gated" || mode === "auto";
 }
 

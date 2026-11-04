@@ -1,13 +1,13 @@
-// Zoho Mail REST client (inbox drain, original-message fetch, drafts).
+// Zoho Mail REST client: inbox drain, Sent-folder reconciliation, drafts.
+// DraftsTransport: there is no send method (see ./types.ts). Every POST this
+// client makes is a save-draft call with mode="draft" (enforced by a static test).
 //
-// SEND IS NOT IMPLEMENTED. Zoho's REST send/reply APIs (2026-11-04 docs:
-// /mail/help/api/post-send-an-email.html, post-reply-to-an-email.html) take
-// no custom headers and no raw MIME, so they cannot set List-Unsubscribe /
-// List-Unsubscribe-Post (RFC 8058), Message-ID, In-Reply-To or References.
-// The send transport is a decision for Bruno (see the build report); until it
-// is made, send() refuses. Never called with real credentials in this repo's tests.
+// Docs used (2026-11-04): /mail/help/api/get-emails-list.html,
+// get-original-message.html, post-save-draft-template.html (mode, inReplyTo,
+// refHeader), get-all-folder-details.html (folderType Inbox/Sent/Drafts).
+// Never called with real credentials in this repo's tests.
 import { addrOf, extractDsn, firstTextPlain, parseMime } from "./mime";
-import { MailSendError, type DrainResult, type InboundMail, type MailClient, type OutboundMail, type SendResult } from "./types";
+import { MailboxError, type DrainResult, type InboundMail, type MailClient, type OutreachDraft, type SentMail, type SentResult } from "./types";
 
 export type ZohoConfig = {
   accountsHost: string; // accounts.zoho.com
@@ -23,18 +23,35 @@ const PAGE = 50;
 
 export class ZohoAuthError extends Error {}
 
+type ListRow = {
+  messageId: string;
+  threadId?: string;
+  receivedTime?: string;
+  sentDateInGMT?: string;
+  fromAddress?: string;
+  toAddress?: string;
+  subject?: string;
+};
+
+function decodeEntities(s: string): string {
+  return s.replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+}
+
+/** Zoho returns toAddress like `"rebecca"<rebecca@zylker.com>`, possibly several, comma-separated and HTML-escaped. */
+export function parseAddressList(v: string | undefined): string[] {
+  if (!v) return [];
+  const s = decodeEntities(v);
+  const out = new Set<string>();
+  for (const m of s.matchAll(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g)) out.add(m[0].toLowerCase());
+  return [...out];
+}
+
 export class ZohoMailClient implements MailClient {
   private token: { value: string; exp: number } | null = null;
   private accountId: string | null = null;
-  private inboxFolderId: string | null = null;
+  private folders: Record<string, string> | null = null;
 
   constructor(private cfg: ZohoConfig, private f: Fetch = fetch, private now: () => number = Date.now) {}
-
-  readonly sendSupported = false;
-
-  async send(_m: OutboundMail): Promise<SendResult> {
-    throw new MailSendError("SEND_TRANSPORT_UNDECIDED", true, false);
-  }
 
   private async accessToken(): Promise<string> {
     if (this.token && this.token.exp > this.now() + 60_000) return this.token.value;
@@ -58,11 +75,11 @@ export class ZohoMailClient implements MailClient {
       headers: { ...(init.headers ?? {}), Authorization: `Zoho-oauthtoken ${tok}`, Accept: "application/json" },
     });
     if (res.status === 401) throw new ZohoAuthError(`ZOHO_401:${path.split("?")[0]}`);
-    if (!res.ok) throw new Error(`ZOHO_HTTP_${res.status}`);
+    if (!res.ok) throw new MailboxError(`ZOHO_HTTP_${res.status}`, res.status >= 400 && res.status < 500, false);
     return (await res.json()) as T;
   }
 
-  private async ids(): Promise<{ accountId: string; inboxFolderId: string }> {
+  private async ids(): Promise<{ accountId: string; folders: Record<string, string> }> {
     if (!this.accountId) {
       const j = await this.api<{ data: { accountId: string; primaryEmailAddress?: string; emailAddress?: { mailId: string }[] }[] }>("/api/accounts");
       const want = this.cfg.fromAddress.toLowerCase();
@@ -72,38 +89,43 @@ export class ZohoMailClient implements MailClient {
       if (!acct) throw new Error("ZOHO_ACCOUNT_NOT_FOUND");
       this.accountId = String(acct.accountId);
     }
-    if (!this.inboxFolderId) {
+    if (!this.folders) {
       const j = await this.api<{ data: { folderId: string; folderType?: string; folderName?: string }[] }>(`/api/accounts/${this.accountId}/folders`);
-      const inbox = j.data.find((x) => x.folderType === "Inbox") ?? j.data.find((x) => (x.folderName ?? "").toLowerCase() === "inbox");
-      if (!inbox) throw new Error("ZOHO_INBOX_NOT_FOUND");
-      this.inboxFolderId = String(inbox.folderId);
+      const byType: Record<string, string> = {};
+      // Prefer the system folder whose name equals its type (custom folders can also carry type "Inbox").
+      for (const x of j.data) {
+        const t = x.folderType ?? "";
+        if (t && !(t in byType) && (x.folderName ?? "").toLowerCase() === t.toLowerCase()) byType[t] = String(x.folderId);
+      }
+      for (const x of j.data) if (x.folderType && !(x.folderType in byType)) byType[x.folderType] = String(x.folderId);
+      if (!byType.Inbox) throw new Error("ZOHO_INBOX_NOT_FOUND");
+      if (!byType.Sent) throw new Error("ZOHO_SENT_NOT_FOUND");
+      this.folders = byType;
     }
-    return { accountId: this.accountId, inboxFolderId: this.inboxFolderId };
+    return { accountId: this.accountId, folders: this.folders };
   }
 
-  /**
-   * Lists newest-first and walks pages until it reaches a message at or before
-   * the cursor (receivedTime ms). caughtUp=false when maxPages ran out first.
-   */
-  async drainInbox(cursor: string | null, maxPages: number): Promise<DrainResult> {
-    const { accountId, inboxFolderId } = await this.ids();
+  /** Newest-first walk until the cursor (a ms timestamp); returns the fresh rows oldest-first. */
+  private async walk(folderId: string, cursor: string | null, maxPages: number, timeOf: (r: ListRow) => number, includeTo: boolean) {
+    const { accountId } = await this.ids();
     const since = cursor ? Number(cursor) : 0;
-    type Row = { messageId: string; threadId?: string; receivedTime: string; fromAddress?: string; subject?: string };
-    const fresh: Row[] = [];
+    const fresh: ListRow[] = [];
     let caughtUp = false;
     for (let page = 0; page < maxPages; page++) {
       const q = new URLSearchParams({
-        folderId: inboxFolderId,
+        folderId,
         start: String(page * PAGE + 1),
         limit: String(PAGE),
         sortBy: "date",
         sortorder: "false",
+        ...(includeTo ? { includeto: "true" } : {}),
       });
-      const j = await this.api<{ data: Row[] }>(`/api/accounts/${accountId}/messages/view?${q}`);
+      const j = await this.api<{ data: ListRow[] }>(`/api/accounts/${accountId}/messages/view?${q}`);
       const rows = j.data ?? [];
       let reachedOld = false;
       for (const r of rows) {
-        if (Number(r.receivedTime) < since) {
+        // `<` (not `<=`): a message at exactly the cursor time is re-read; callers dedupe by id.
+        if (timeOf(r) < since) {
           reachedOld = true;
           break;
         }
@@ -114,15 +136,26 @@ export class ZohoMailClient implements MailClient {
         break;
       }
     }
-    fresh.sort((a, b) => Number(a.receivedTime) - Number(b.receivedTime));
+    fresh.sort((a, b) => timeOf(a) - timeOf(b));
+    const maxSeen = fresh.reduce((m, r) => Math.max(m, timeOf(r)), since);
+    return { accountId, fresh, caughtUp, cursor: caughtUp ? String(maxSeen) : cursor };
+  }
+
+  private async original(accountId: string, messageId: string) {
+    const orig = await this.api<{ data: { content: string } }>(`/api/accounts/${accountId}/messages/${messageId}/originalmessage`);
+    return parseMime(orig.data?.content ?? "");
+  }
+
+  async drainInbox(cursor: string | null, maxPages: number): Promise<DrainResult> {
+    const { folders } = await this.ids();
+    const w = await this.walk(folders.Inbox, cursor, maxPages, (r) => Number(r.receivedTime ?? 0), false);
     const messages: InboundMail[] = [];
-    for (const r of fresh) {
-      const orig = await this.api<{ data: { content: string } }>(`/api/accounts/${accountId}/messages/${r.messageId}/originalmessage`);
-      const p = parseMime(orig.data?.content ?? "");
+    for (const r of w.fresh) {
+      const p = await this.original(w.accountId, r.messageId);
       messages.push({
         providerMessageId: String(r.messageId),
         providerThreadId: r.threadId ? String(r.threadId) : null,
-        receivedAt: Number(r.receivedTime),
+        receivedAt: Number(r.receivedTime ?? 0),
         from: addrOf(p.headers["from"] ?? r.fromAddress),
         subject: p.headers["subject"] ?? r.subject ?? "",
         headers: p.headers,
@@ -130,27 +163,49 @@ export class ZohoMailClient implements MailClient {
         dsn: extractDsn(p),
       });
     }
-    // Cursor only advances over what was fully fetched; if not caught up the
-    // newest-first walk restarts next tick and INSERT OR IGNORE dedupes.
-    const maxSeen = fresh.reduce((m, r) => Math.max(m, Number(r.receivedTime)), since);
-    return { messages, caughtUp, cursor: caughtUp ? String(maxSeen) : cursor };
+    return { messages, caughtUp: w.caughtUp, cursor: w.cursor };
   }
 
-  /** Zoho "save draft": same POST as send with mode=draft [verify against the live API before relying on it]. */
-  async createDraft(d: { to: string; subject: string; text: string }): Promise<{ draftId: string | null }> {
+  async listSent(cursor: string | null, maxPages: number): Promise<SentResult> {
+    const { folders } = await this.ids();
+    const w = await this.walk(folders.Sent, cursor, maxPages, (r) => Number(r.sentDateInGMT ?? r.receivedTime ?? 0), true);
+    const messages: SentMail[] = [];
+    for (const r of w.fresh) {
+      // The original message gives the real Message-ID (needed to thread the follow-up
+      // and to match replies via In-Reply-To) and the authoritative To header.
+      const p = await this.original(w.accountId, r.messageId);
+      messages.push({
+        providerMessageId: String(r.messageId),
+        providerThreadId: r.threadId ? String(r.threadId) : null,
+        sentAt: Number(r.sentDateInGMT ?? r.receivedTime ?? 0),
+        to: parseAddressList(p.headers["to"] ?? r.toAddress),
+        subject: p.headers["subject"] ?? r.subject ?? "",
+        rfcMessageId: p.headers["message-id"] ?? null,
+      });
+    }
+    return { messages, caughtUp: w.caughtUp, cursor: w.cursor };
+  }
+
+  /** Zoho save-draft: POST .../messages with mode="draft" (+ inReplyTo/refHeader to thread it). */
+  async createDraft(d: OutreachDraft): Promise<{ draftId: string | null }> {
     const { accountId } = await this.ids();
+    const body: Record<string, string> = {
+      fromAddress: this.cfg.fromAddress,
+      toAddress: d.to,
+      subject: d.subject,
+      content: d.text,
+      mailFormat: "plaintext",
+      encoding: "UTF-8",
+      mode: "draft",
+    };
+    if (d.inReplyTo) body.inReplyTo = d.inReplyTo;
+    if (d.references) body.refHeader = d.references;
     const j = await this.api<{ data?: { messageId?: string } }>(`/api/accounts/${accountId}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        fromAddress: this.cfg.fromAddress,
-        toAddress: d.to,
-        subject: d.subject,
-        content: d.text,
-        mailFormat: "plaintext",
-        mode: "draft",
-      }),
+      body: JSON.stringify(body),
     });
+    // The response shape isn't documented; keep the id when present.
     return { draftId: j.data?.messageId ? String(j.data.messageId) : null };
   }
 }

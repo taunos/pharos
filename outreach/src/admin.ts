@@ -1,14 +1,11 @@
 // /admin/* (Bruno only: Cloudflare Access + JWT check). Internal pages, not prospect-facing.
 import { verifyAccessJwt } from "./access";
 import { approveBatch } from "./batch";
-import { addBusinessDays } from "./clock";
 import { csrfToken, verifyCsrf } from "./crypto";
-import { eventStmt, getControl, logEvent, resume, tripStop } from "./db";
+import { getControl, logEvent, resume, tripStop } from "./db";
 import { normalizeCountry } from "./eligibility";
 import type { FactSheet } from "./facts";
 import { modeOf } from "./mode";
-import { renderFollowup } from "./render";
-import { FOLLOWUP_BUSINESS_DAYS } from "./send";
 import { isSuppressed } from "./suppression";
 import type { Env, LeadRow, MessageRow } from "./types";
 import { dailyCap, dnsWarmupDone } from "./warmup";
@@ -70,8 +67,6 @@ export async function handleAdmin(req: Request, env: Env, deps: AdminDeps): Prom
       if (!r.ok) return html(`<p>Not approved: ${esc(r.reason)}</p><p><a href="/admin/batch/${esc(m[1])}">Back</a></p>`, 409);
       return back(`/admin/batch/${m[1]}`);
     }
-    m = /^\/admin\/send-unknown\/([0-9a-f-]{36})$/.exec(path);
-    if (m) return resolveSendUnknown(env, m[1], String(form.get("outcome")), now, back);
     if (path === "/admin/leads") {
       for (const [k, v] of form as unknown as Iterable<[string, string]>) {
         const lm = /^icp_([0-9a-f-]{36})$/.exec(k);
@@ -108,19 +103,20 @@ export async function handleAdmin(req: Request, env: Env, deps: AdminDeps): Prom
     const c = await getControl(db);
     const counts = await db.prepare("SELECT state, COUNT(*) AS n FROM leads GROUP BY state").all<{ state: string; n: number }>();
     const batches = await db.prepare("SELECT * FROM batches ORDER BY created_at DESC LIMIT 8").all<Record<string, unknown>>();
-    const unknown = await db.prepare("SELECT id, lead_id, kind, claimed_at FROM messages WHERE status = 'send_unknown'").all<Record<string, unknown>>();
-    return html(`<h1>Outreach</h1>
+    const waiting = await db
+      .prepare("SELECT ms.kind, ms.status, ms.drafted_at, l.domain FROM messages ms JOIN leads l ON l.id = ms.lead_id WHERE ms.status IN ('in_drafts','draft_unknown') ORDER BY ms.drafted_at")
+      .all<Record<string, unknown>>();
+    return html(`<h1>Outreach</h1><p><b>Drafts only:</b> this agent never sends. Emails appear in the mailbox's Drafts; you send or delete each one.</p>
 <p>Mode: <b>${esc(modeOf(env))}</b> · Paused: <b>${c.paused ? "yes (" + esc(c.pause_reason) + ")" : "no"}</b> · Drafting paused: ${c.drafting_paused ? "yes" : "no"}
- · Today's cap: ${dailyCap(env, c, now)} · DNS verified: ${c.dns_verified_at ? new Date(c.dns_verified_at).toISOString() : "not set"} (warm-up done: ${dnsWarmupDone(c, now) ? "yes" : "no"})
+ · Drafts per day: ${dailyCap(env)} · DNS verified: ${c.dns_verified_at ? new Date(c.dns_verified_at).toISOString() : "not set"} (wait done: ${dnsWarmupDone(env, c, now) ? "yes" : "no"})
  · Approved batches: ${c.approved_batches} · POSTAL_ADDRESS set: ${(env.POSTAL_ADDRESS ?? "").trim() ? "yes" : "NO"}</p>
 <form method="post" action="/admin/resume">${hidden}<button>Resume</button></form>
 <form method="post" action="/admin/pause">${hidden}<input name="reason" placeholder="reason (e.g. postmaster)"><button>Pause</button></form>
 <form method="post" action="/admin/drafting-resume">${hidden}<button>Resume drafting</button></form>
-${c.dns_verified_at ? "" : `<form method="post" action="/admin/dns-verified">${hidden}<button>Mark DNS verified (starts 14-day wait)</button></form>`}
+${c.dns_verified_at ? "" : `<form method="post" action="/admin/dns-verified">${hidden}<button>Mark DNS verified</button></form>`}
 <h2>Leads</h2><table>${(counts.results ?? []).map((r) => `<tr><td>${esc(r.state)}</td><td>${r.n}</td></tr>`).join("")}</table><p><a href="/admin/leads">Review leads</a></p>
 <h2>Batches</h2><table>${(batches.results ?? []).map((b) => `<tr><td><a href="/admin/batch/${esc(b.id)}">${esc(b.week)}</a></td><td>${esc(b.status)}</td><td>${esc(b.draft_count)} drafts</td><td>${esc(b.fallback_count)} template</td></tr>`).join("")}</table>
-<h2>Send outcome unknown</h2>${(unknown.results ?? []).map((u) => `<p>${esc(u.kind)} ${esc(u.id)} (lead ${esc(u.lead_id)}): check the Sent folder, then
-<form method="post" action="/admin/send-unknown/${esc(u.id)}">${hidden}<button name="outcome" value="sent">It was sent</button><button name="outcome" value="not_sent">It was not sent (close lead)</button></form></p>`).join("") || "<p>None.</p>"}`);
+<h2>Waiting in Drafts</h2><p>Marked sent automatically when they show up in the Sent folder. Unsent drafts expire after ${esc(env.DRAFT_EXPIRE_DAYS || "14")} days.</p><table>${(waiting.results ?? []).map((w) => `<tr><td>${esc(w.domain)}</td><td>${esc(w.kind)}</td><td>${esc(w.status === "draft_unknown" ? "unknown: check Drafts" : "in Drafts")}</td><td>${w.drafted_at ? new Date(Number(w.drafted_at)).toISOString().slice(0, 10) : ""}</td></tr>`).join("") || "<tr><td>None.</td></tr>"}</table>`);
   }
 
   if (path === "/admin/leads") {
@@ -146,7 +142,7 @@ ${(rows.results ?? [])
       .bind(bm[1])
       .all<MessageRow & { domain: string; contact_email: string; contact_source_url: string; fact_sheet_json: string; lead_state: string }>();
     const canApprove = b.status === "pending_approval";
-    return html(`<h1>Batch ${esc(b.week)} — ${esc(b.status)}</h1><p>Mode: ${esc(modeOf(env))}. The opt-out link and postal address are filled in at send time.</p>
+    return html(`<h1>Batch ${esc(b.week)} — ${esc(b.status)}</h1><p>Mode: ${esc(modeOf(env))}. The opt-out link and postal address are filled in when the mailbox draft is created.</p>
 <form method="post" action="/admin/batch/${esc(b.id)}/approve">${hidden}
 ${(msgs.results ?? [])
   .map((m) => {
@@ -160,43 +156,4 @@ ${canApprove ? `<label><input type="checkbox" name="reject" value="${esc(m.lead_
 ${canApprove ? `<p><button>Approve batch</button></p>` : ""}</form>`);
   }
   return new Response("Not found", { status: 404 });
-}
-
-async function resolveSendUnknown(env: Env, id: string, outcome: string, now: number, back: () => Response): Promise<Response> {
-  const db = env.DB;
-  const m = await db.prepare("SELECT * FROM messages WHERE id = ? AND status = 'send_unknown'").bind(id).first<MessageRow>();
-  if (!m) return back();
-  if (outcome === "sent") {
-    const stmts: D1PreparedStatement[] = [
-      db.prepare("UPDATE messages SET status = 'sent', sent_at = claimed_at, updated_at = ? WHERE id = ? AND status = 'send_unknown'").bind(now, id),
-      db
-        .prepare("UPDATE leads SET state = ?, last_outbound_at = ?, updated_at = ? WHERE id = ? AND state = 'send_unknown'")
-        .bind(m.kind === "initial" ? "sent" : "followup_sent", m.claimed_at ?? now, now, m.lead_id),
-      eventStmt(db, now, "send_unknown_resolved", m.lead_id, { outcome: "sent" }),
-    ];
-    if (m.kind === "initial") {
-      const lead = await db.prepare("SELECT fact_sheet_json FROM leads WHERE id = ?").bind(m.lead_id).first<{ fact_sheet_json: string | null }>();
-      const sheet = JSON.parse(lead?.fact_sheet_json ?? "null") as FactSheet | null;
-      if (sheet) {
-        const f = renderFollowup(m.subject, sheet, { benchmarkUrl: null, privacyUrl: env.PRIVACY_URL || "https://astrant.io/privacy#prospecting" });
-        stmts.push(
-          db
-            .prepare(
-              `INSERT OR IGNORE INTO messages (id, lead_id, kind, batch_id, subject, body_text, validator_report_json, status, not_before, created_at, updated_at)
-               VALUES (?, ?, 'followup', ?, ?, ?, ?, 'queued', ?, ?, ?)`
-            )
-            .bind(crypto.randomUUID(), m.lead_id, m.batch_id, f.subject, f.body, JSON.stringify({ path: "fixed_followup" }), addBusinessDays(m.claimed_at ?? now, FOLLOWUP_BUSINESS_DAYS), now, now)
-        );
-      }
-    }
-    await db.batch(stmts);
-  } else if (outcome === "not_sent") {
-    // Not resent: the lead is closed. A duplicate cold email is worse than a missing one.
-    await db.batch([
-      db.prepare("UPDATE messages SET status = 'cancelled', updated_at = ? WHERE id = ? AND status = 'send_unknown'").bind(now, id),
-      db.prepare("UPDATE leads SET state = 'closed', state_reason = 'send_unknown_not_sent', terminal_at = ?, updated_at = ? WHERE id = ? AND state = 'send_unknown'").bind(now, now, m.lead_id),
-      eventStmt(db, now, "send_unknown_resolved", m.lead_id, { outcome: "not_sent" }),
-    ]);
-  }
-  return back();
 }

@@ -44,7 +44,9 @@ export interface Env {
   // vars
   OUTREACH_MODE?: string;
   DAILY_CAP_MAX?: string;
-  STEADY_CAP?: string;
+  DRAFTS_PER_DAY?: string;
+  WARMUP_DAYS?: string;
+  DRAFT_EXPIRE_DAYS?: string;
   PROSPECT_SCANS_PER_DAY?: string;
   BENCHMARK_URL?: string;
   OPERATOR_ALERT_TO?: string;
@@ -75,6 +77,7 @@ export type LeadState =
   | "contact_found"
   | "drafted"
   | "approved"
+  | "in_drafts"
   | "sent"
   | "followup_sent"
   | "replied"
@@ -115,9 +118,11 @@ export type MessageRow = {
   subject: string;
   body_text: string;
   validator_report_json: string;
-  status: "draft" | "queued" | "sending" | "sent" | "send_unknown" | "cancelled";
+  status: "draft" | "queued" | "drafting" | "in_drafts" | "sent" | "draft_unknown" | "expired" | "cancelled";
   claim_id: string | null;
   claimed_at: number | null;
+  mailbox_draft_id: string | null;
+  drafted_at: number | null;
   provider_message_id: string | null;
   provider_thread_id: string | null;
   rfc_message_id: string | null;
@@ -143,6 +148,7 @@ export type ControlRow = {
   consecutive_send_errors: number;
   inbox_cursor: string | null;
   inbox_caught_up_at: number | null;
+  sent_cursor: string | null;
   tick_lease_until: number;
   tick_lease_id: string | null;
 };

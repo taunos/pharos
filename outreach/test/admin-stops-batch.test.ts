@@ -116,7 +116,8 @@ describe("S5 automatic stops", () => {
     const { db } = freshDb();
     const env = makeEnv(db);
     await db.prepare("UPDATE control SET paused = 0, ramp_start_at = ?").bind(TUE_1400 - 30 * DAY).run();
-    await sends(db, 100, (i) => TUE_1400 - i * HOUR, (i) => (i < 3 ? "bounce_hard" : i < 20 ? "auto_reply" : null));
+    // first real send > 14 days ago ⇒ rate rule, not the daily rule
+    await sends(db, 100, (i) => TUE_1400 - 20 * DAY + i * HOUR, (i) => (i < 3 ? "bounce_hard" : i < 20 ? "auto_reply" : null));
     expect((await trip(db, env, TUE_1400)).reason).toBe("hard_bounce_rate");
   });
   it("any complaint in the first 200 sends", async () => {
@@ -138,13 +139,6 @@ describe("S5 automatic stops", () => {
     await db.prepare("UPDATE control SET ramp_start_at = ?").bind(TUE_1400 - 30 * DAY).run();
     await sends(db, 40, (i) => TUE_1400 - 4 * DAY - i * HOUR);
     expect((await trip(db, env, TUE_1400)).reason).toBe("silent_failure");
-  });
-  it("send_unknown: any", async () => {
-    const { db } = freshDb();
-    const env = makeEnv(db);
-    const id = await insertLead(db, { domain: "x.com", state: "send_unknown" });
-    await db.prepare("INSERT INTO messages (id, lead_id, kind, subject, body_text, validator_report_json, status, not_before, created_at, updated_at) VALUES ('u', ?, 'initial', 's', 'b', '{}', 'send_unknown', 0, 0, 0)").bind(id).run();
-    expect((await trip(db, env, TUE_1400)).reason).toBe("send_unknown");
   });
   it("program kill: 100 initial sends, 0 interested/question ⇒ program_review", async () => {
     const { db } = freshDb();
@@ -217,21 +211,16 @@ describe("§9.5 batches", () => {
     expect(await approveBatch(env, { batchId: r.batchId!, rejectedLeadIds: [], now: MON_0905, by: "admin" })).toEqual({ ok: false, reason: "mode" });
   });
 
-  it("gated: approval refused before the 14-day DNS wait; then queues in-window not_before within caps; rejects become terminal", async () => {
+  it("gated: the batch is approved on build (Bruno's send click is the gate); not_before is in-window and ≤ the daily cap", async () => {
     const { db } = freshDb();
-    const env = makeEnv(db, { OUTREACH_MODE: "gated", WRITER_MODE: "template" });
-    await db.prepare("UPDATE control SET paused = 0, dns_verified_at = ?").bind(MON_0905 - 10 * DAY).run();
-    const ids = await contactLeads(db, 8, MON_0905 - DAY);
+    const env = makeEnv(db, { OUTREACH_MODE: "gated", WRITER_MODE: "template", DRAFTS_PER_DAY: "3" });
+    await db.prepare("UPDATE control SET paused = 0").run();
+    await contactLeads(db, 8, MON_0905 - DAY);
     const r = await buildWeeklyBatch(env, bd(env, MON_0905));
+    expect(r.status).toBe("auto_approved");
     expect(r.drafted).toBe(8);
-    expect(await approveBatch(env, { batchId: r.batchId!, rejectedLeadIds: [], now: MON_0905, by: "admin" })).toEqual({ ok: false, reason: "dns_warmup" });
-    await db.prepare("UPDATE control SET dns_verified_at = ?").bind(MON_0905 - 15 * DAY).run();
-    const a = await approveBatch(env, { batchId: r.batchId!, rejectedLeadIds: [ids[0]], now: MON_0905 + HOUR, by: "admin", random: () => 0.5 });
-    expect(a).toEqual({ ok: true, queued: 7, rejected: 1 });
-    const c = await getControl(db);
-    expect(c.approved_batches).toBe(1);
-    expect(c.ramp_start_at).toBe(Date.UTC(2026, 10, 9));
     const rows = (await db.prepare("SELECT not_before FROM messages WHERE status = 'queued'").all<{ not_before: number }>()).results!;
+    expect(rows.length).toBe(8);
     const perDay = new Map<number, number>();
     for (const { not_before } of rows) {
       const h = new Date(not_before).getUTCHours();
@@ -239,15 +228,25 @@ describe("§9.5 batches", () => {
       const d = Math.floor(not_before / DAY);
       perDay.set(d, (perDay.get(d) ?? 0) + 1);
     }
-    for (const n of perDay.values()) expect(n).toBeLessThanOrEqual(5); // ramp week 1
+    for (const n of perDay.values()) expect(n).toBeLessThanOrEqual(3);
+    expect((await getControl(db)).approved_batches).toBe(1);
+    expect(await approveBatch(env, { batchId: r.batchId!, rejectedLeadIds: [], now: MON_0905 + HOUR, by: "admin" })).toEqual({ ok: false, reason: "not_pending" });
+  });
+
+  it("admin reject still works on a pending batch (approval needs gated/auto)", async () => {
+    const { db } = freshDb();
+    const env = makeEnv(db, { OUTREACH_MODE: "dry_run", WRITER_MODE: "template" });
+    await db.prepare("UPDATE control SET paused = 0").run();
+    const ids = await contactLeads(db, 2, MON_0905 - DAY);
+    const r = await buildWeeklyBatch(env, bd(env, MON_0905));
+    const gated = makeEnv(db, { OUTREACH_MODE: "gated" });
+    expect(await approveBatch(gated, { batchId: r.batchId!, rejectedLeadIds: [ids[0]], now: MON_0905 + HOUR, by: "admin", random: () => 0.5 })).toEqual({ ok: true, queued: 1, rejected: 1 });
     expect((await db.prepare("SELECT state FROM leads WHERE id = ?").bind(ids[0]).first<{ state: string }>())!.state).toBe("rejected");
-    // approving twice is a no-op
-    expect(await approveBatch(env, { batchId: r.batchId!, rejectedLeadIds: [], now: MON_0905 + 2 * HOUR, by: "admin" })).toEqual({ ok: false, reason: "not_pending" });
   });
 
   it("expired batch: leads return to contact_found; the redraft updates the same message row in place", async () => {
     const { db } = freshDb();
-    const env = makeEnv(db, { OUTREACH_MODE: "gated", WRITER_MODE: "template" });
+    const env = makeEnv(db, { OUTREACH_MODE: "dry_run", WRITER_MODE: "template" });
     await db.prepare("UPDATE control SET paused = 0").run();
     const [id] = await contactLeads(db, 1, MON_0905 - DAY);
     const r1 = await buildWeeklyBatch(env, bd(env, MON_0905));
@@ -274,15 +273,12 @@ describe("§9.5 batches", () => {
     expect((await db.prepare("SELECT state, state_reason FROM leads WHERE id = ?").bind(eu).first())).toEqual({ state: "disqualified", state_reason: "eu_eea_excluded" });
   });
 
-  it("D8: auto-approval only with mode=auto, 2 approvals, and no stop trip since the 2nd", async () => {
+  it("auto-approval on build happens in gated and auto only (dry_run is log only)", async () => {
     const { db } = freshDb();
-    const base = await getControl(db);
-    const c = { ...base, approved_batches: 2, second_approval_at: 1000, last_stop_trip_at: null };
-    expect(autoApprovalAllowed(makeEnv(db, { OUTREACH_MODE: "auto" }), c)).toBe(true);
-    expect(autoApprovalAllowed(makeEnv(db, { OUTREACH_MODE: "gated" }), c)).toBe(false);
-    expect(autoApprovalAllowed(makeEnv(db, { OUTREACH_MODE: "auto" }), { ...c, approved_batches: 1 })).toBe(false);
-    expect(autoApprovalAllowed(makeEnv(db, { OUTREACH_MODE: "auto" }), { ...c, last_stop_trip_at: 2000 })).toBe(false);
-    expect(autoApprovalAllowed(makeEnv(db, { OUTREACH_MODE: "auto" }), { ...c, last_stop_trip_at: 500 })).toBe(true);
+    expect(autoApprovalAllowed(makeEnv(db, { OUTREACH_MODE: "gated" }))).toBe(true);
+    expect(autoApprovalAllowed(makeEnv(db, { OUTREACH_MODE: "auto" }))).toBe(true);
+    expect(autoApprovalAllowed(makeEnv(db, { OUTREACH_MODE: "dry_run" }))).toBe(false);
+    expect(autoApprovalAllowed(makeEnv(db, { OUTREACH_MODE: undefined }))).toBe(false);
   });
 
   it("validator fallback > 50% of a batch pauses drafting only", async () => {

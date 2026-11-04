@@ -1,4 +1,6 @@
 -- pharos-outreach D1 schema (spec §5, finalised in the build slice).
+-- DRAFTS ONLY (Bruno, 2026-11-04): the agent saves emails as mailbox drafts and
+-- Bruno sends them himself. Real sends are learned by reading the Sent folder.
 -- Every state change in code is a compare-and-set (UPDATE ... WHERE id=? AND state=?).
 -- No reply bodies are stored. events.detail_json never holds an email address.
 
@@ -7,7 +9,9 @@ CREATE TABLE leads (
   domain TEXT NOT NULL UNIQUE,            -- registrable domain, lowercase
   source TEXT NOT NULL,
   country TEXT,                           -- ISO-3166 alpha-2 when known (EU/EEA exclusion, §10.2)
-  state TEXT NOT NULL CHECK (state IN ('new','scored','contact_found','drafted','approved','sent',
+  -- drafted = D1 draft passed the validator; approved = queued for the mailbox;
+  -- in_drafts = saved as a mailbox draft, waiting for Bruno; sent = seen in the Sent folder.
+  state TEXT NOT NULL CHECK (state IN ('new','scored','contact_found','drafted','approved','in_drafts','sent',
     'followup_sent','replied','bounced','opted_out','disqualified','rejected','send_unknown','closed')),
   state_reason TEXT,
   icp_ok INTEGER,                         -- NULL = not reviewed; 1/0 after Bruno's review
@@ -34,9 +38,13 @@ CREATE TABLE messages (
   subject TEXT NOT NULL,
   body_text TEXT NOT NULL,
   validator_report_json TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('draft','queued','sending','sent','send_unknown','cancelled')),
+  -- draft (D1 only) → queued → drafting (claimed) → in_drafts (mailbox draft exists)
+  -- → sent (seen in Sent folder) | expired (never sent) ; draft_unknown = draft call outcome unknown
+  status TEXT NOT NULL CHECK (status IN ('draft','queued','drafting','in_drafts','sent','draft_unknown','expired','cancelled')),
   claim_id TEXT,
   claimed_at INTEGER,
+  mailbox_draft_id TEXT,
+  drafted_at INTEGER,
   provider_message_id TEXT,
   provider_thread_id TEXT,
   rfc_message_id TEXT,
@@ -108,6 +116,7 @@ CREATE TABLE control (
   consecutive_send_errors INTEGER NOT NULL DEFAULT 0,
   inbox_cursor TEXT,
   inbox_caught_up_at INTEGER,
+  sent_cursor TEXT,                       -- Sent-folder reconciliation cursor
   tick_lease_until INTEGER NOT NULL DEFAULT 0,
   tick_lease_id TEXT
 );

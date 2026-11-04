@@ -1,5 +1,10 @@
-// §9.5 weekly batch build, approval (gated / auto per D8), expiry, and
-// not_before spreading (§8.2: spacing comes from not_before, never a sleep).
+// §9.5 weekly batch build, approval, expiry, and not_before spreading.
+//
+// Drafts-only (Bruno, 2026-11-04): in gated/auto the batch is approved as soon
+// as it is built. Bruno reviews every email in the mailbox's Drafts and sends
+// or deletes each one himself, so that click is the human gate (D8's two-batch
+// /admin approval would be a second, redundant gate). In dry_run the batch
+// stays pending (approval refused) and expires: log only.
 import type { Alerter } from "./alerts";
 import { DAY, HOUR, SEND_WINDOW_END_HOUR, SEND_WINDOW_START_HOUR, isWeekday, isoWeek, startOfUtcDay } from "./clock";
 import { eventStmt, getControl, logEvent, moveLead, moveLeadStmt } from "./db";
@@ -9,8 +14,8 @@ import { mayApprove, mayBuildBatch, modeOf } from "./mode";
 import { renderInitialBody, type RenderCtx } from "./render";
 import { RESCAN_AFTER_MS } from "./research";
 import { isSuppressed } from "./suppression";
-import type { AiBinding, ControlRow, Env, LeadRow } from "./types";
-import { capForWeekStartingAt, dailyCap, dnsWarmupDone } from "./warmup";
+import type { AiBinding, Env, LeadRow } from "./types";
+import { dailyCap } from "./warmup";
 import { draftEmail } from "./writer";
 
 export const BATCH_TTL_MS = 72 * HOUR;
@@ -18,11 +23,9 @@ export const SEND_DAYS_PER_WEEK = 5;
 
 export type BatchDeps = { ai: AiBinding | null; fetch: typeof fetch; now: () => number; alert: Alerter; random?: () => number };
 
-/** D8: auto-approve only in auto mode, after 2 approved batches, with no stop trip since the 2nd approval. */
-export function autoApprovalAllowed(env: Env, c: ControlRow): boolean {
-  if (modeOf(env) !== "auto") return false;
-  if (c.approved_batches < 2 || c.second_approval_at == null) return false;
-  return c.last_stop_trip_at == null || c.last_stop_trip_at < c.second_approval_at;
+/** Drafts-only: batches are approved on build in gated/auto (see header). */
+export function autoApprovalAllowed(env: Env): boolean {
+  return mayApprove(modeOf(env));
 }
 
 /** D14: the benchmark sentence is used only when BENCHMARK_URL is set and returns 200 now. */
@@ -73,7 +76,7 @@ export async function buildWeeklyBatch(env: Env, deps: BatchDeps): Promise<{ sta
   const existing = await db.prepare("SELECT id FROM batches WHERE week = ?").bind(week).first<{ id: string }>();
   if (existing) return { status: "exists", batchId: existing.id };
 
-  const size = capForWeekStartingAt(env, c, now) * SEND_DAYS_PER_WEEK;
+  const size = dailyCap(env) * SEND_DAYS_PER_WEEK;
   if (size <= 0) return { status: "zero_cap" };
   const candidates = await db
     .prepare(
@@ -144,9 +147,12 @@ export async function buildWeeklyBatch(env: Env, deps: BatchDeps): Promise<{ sta
     await deps.alert("Drafting paused: model drift", `${fallback} of ${drafted} drafts in this batch needed the template fallback. Drafting is paused.`);
   }
 
-  if (drafted > 0 && autoApprovalAllowed(env, c)) {
+  if (drafted > 0 && autoApprovalAllowed(env)) {
     const r = await approveBatch(env, { batchId, rejectedLeadIds: [], now, by: "auto", random: deps.random });
-    await deps.alert("Weekly batch auto-approved", `Batch ${week}: ${drafted} emails queued. Pause in /admin if needed.`);
+    await deps.alert(
+      "Weekly batch: drafts on the way",
+      `Batch ${week}: ${drafted} emails will appear in Drafts over the week (at most ${dailyCap(env)} a day). Send or delete each one yourself.`
+    );
     return { status: r.ok ? "auto_approved" : `auto_approve_failed:${r.reason}`, batchId, drafted };
   }
   await deps.alert(
@@ -156,18 +162,18 @@ export async function buildWeeklyBatch(env: Env, deps: BatchDeps): Promise<{ sta
   return { status: "pending_approval", batchId, drafted };
 }
 
-/** Spreads n sends over the coming weekday windows, within each day's cap. */
-export async function scheduleSlots(env: Env, c: ControlRow, start: number, n: number, random: () => number): Promise<number[]> {
+/** Spreads n drafts over the coming weekdays (13:00–21:00 UTC), within each day's cap. */
+export async function scheduleSlots(env: Env, start: number, n: number, random: () => number): Promise<number[]> {
   const db = env.DB;
   const out: number[] = [];
   let day = startOfUtcDay(start);
   for (let guard = 0; out.length < n && guard < 60; guard++, day += DAY) {
     if (!isWeekday(day)) continue;
-    const cap = dailyCap(env, c, day + SEND_WINDOW_START_HOUR * HOUR);
+    const cap = dailyCap(env);
     const already =
       (
         await db
-          .prepare("SELECT COUNT(*) AS n FROM messages WHERE status IN ('queued','sending','sent','send_unknown') AND not_before >= ? AND not_before < ?")
+          .prepare("SELECT COUNT(*) AS n FROM messages WHERE status IN ('queued','drafting','in_drafts','sent','draft_unknown') AND not_before >= ? AND not_before < ?")
           .bind(day, day + DAY)
           .first<{ n: number }>()
       )?.n ?? 0;
@@ -192,8 +198,6 @@ export async function approveBatch(
   const db = env.DB;
   const { now } = a;
   if (!mayApprove(modeOf(env))) return { ok: false, reason: "mode" };
-  const c0 = await getControl(db);
-  if (!dnsWarmupDone(c0, now)) return { ok: false, reason: "dns_warmup" };
   const newStatus = a.by === "auto" ? "auto_approved" : "approved";
   const cas = await db
     .prepare("UPDATE batches SET status = ?, approved_at = ? WHERE id = ? AND status = 'pending_approval' AND expires_at >= ?")
@@ -210,12 +214,10 @@ export async function approveBatch(
     )
     .bind(now, startOfUtcDay(now))
     .run();
-  const c = await getControl(db);
-
   const leads = await db.prepare("SELECT id FROM leads WHERE batch_id = ? AND state = 'drafted' ORDER BY created_at").bind(a.batchId).all<{ id: string }>();
   const rejected = new Set(a.rejectedLeadIds);
   const keep = (leads.results ?? []).filter((l) => !rejected.has(l.id));
-  const slots = await scheduleSlots(env, c, now, keep.length, a.random ?? Math.random);
+  const slots = await scheduleSlots(env, now, keep.length, a.random ?? Math.random);
   let queued = 0;
   let nRejected = 0;
   for (const l of leads.results ?? []) {
