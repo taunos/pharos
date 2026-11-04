@@ -132,7 +132,7 @@ export default function AiCitedVendorsResearchPage() {
             structured data, MCP discovery and so on). Before telling anyone those checks matter, we wanted to know
             whether they line up with being cited by an AI search engine at all. We wrote the test so that it could
             fail: the rule, set before the run, was that a check &ldquo;fails&rdquo; if cited sites do not carry the
-            artifact at least 10 percentage points more often than uncited ones, with at least 50 sites per group and
+            artifact at least 10 percentage points more often than sites not observed in this run, with at least 50 sites per group and
             a two-proportion z-test. One of the three checks did fail.
           </p>
 
@@ -154,20 +154,21 @@ export default function AiCitedVendorsResearchPage() {
             are blogs, review sites, publishers and forums.
           </p>
           <p>
-            <strong>Uncited set (closed-book list).</strong> The same 60 prompts went to OpenAI <code>gpt-4o</code>{" "}
+            <strong>Not-observed set (closed-book list).</strong> The same 60 prompts went to OpenAI <code>gpt-4o</code>{" "}
             at temperature 0, with an instruction to answer from its own knowledge only and to list the 8 products
             most commonly recommended, as domains. No web search. Any named domain that Perplexity never cited, for
-            any prompt, joined the uncited set: <strong>273 domains</strong>. These are vendors the model knows well
+            any prompt, joined the not-observed set: <strong>273 domains</strong>. These are vendors the model knows well
             enough to name, but that did not show up in Perplexity&rsquo;s sources for our questions.
           </p>
           <p>
             <strong>Vendor-only cut (our primary comparison).</strong> Because the cited set is publisher-heavy and
-            the uncited set is vendors by construction, comparing them directly mixes &ldquo;cited vs uncited&rdquo;
+            the not-observed set is vendors by construction, comparing them directly mixes &ldquo;cited vs not
+            observed&rdquo;
             with &ldquo;publisher vs vendor&rdquo;. So the headline compares the{" "}
             <strong>
               95 cited domains that <code>gpt-4o</code> also named as products
             </strong>{" "}
-            against the uncited vendors. That restriction was added after the pilot run showed the publisher problem.
+            against the vendors not observed in this run. That restriction was added after the pilot run showed the publisher problem.
             We report the pre-registered all-cited comparison too.
           </p>
           <p>
@@ -210,11 +211,11 @@ export default function AiCitedVendorsResearchPage() {
           </p>
 
           <h2>Results</h2>
-          <h3>Primary: cited vendors vs uncited vendors</h3>
+          <h3>Primary: cited vendors vs vendors not observed in this run</h3>
           <Table
             minWidth="min-w-[44rem]"
             nowrap
-            head={["Artifact", "Cited vendors", "Uncited vendors", "Difference", "p (two-sided)", "Verdict vs. pre-set rule"]}
+            head={["Artifact", "Cited vendors", "Not observed", "Difference", "p (two-sided)", "Verdict vs. pre-set rule"]}
             rows={[
               ["llms.txt", "69.7% (62 / 89)", "44.6% (108 / 242)", "+25.0 pts", "0.00005", "holds"],
               ["JSON-LD (Organization/Product/…)", "72.1% (62 / 86)", "52.1% (125 / 240)", "+20.0 pts", "0.001", "holds"],
@@ -223,11 +224,11 @@ export default function AiCitedVendorsResearchPage() {
             ]}
           />
 
-          <h3>As pre-registered: all cited domains (publishers included) vs uncited vendors</h3>
+          <h3>As pre-registered: all cited domains (publishers included) vs vendors not observed in this run</h3>
           <Table
             minWidth="min-w-[34rem]"
             nowrap
-            head={["Artifact", "All cited", "Uncited vendors", "Difference", "p"]}
+            head={["Artifact", "All cited", "Not observed", "Difference", "p"]}
             rows={[
               ["llms.txt", "69.5% (406 / 584)", "44.6% (108 / 242)", "+24.9 pts", "<0.001"],
               ["JSON-LD", "76.0% (437 / 575)", "52.1% (125 / 240)", "+23.9 pts", "<0.001"],
@@ -283,8 +284,8 @@ export default function AiCitedVendorsResearchPage() {
               vendors are, not what made them cited.
             </li>
             <li>
-              <strong>Different population.</strong> 44.6% of our <em>uncited</em> developer-tool vendors have
-              llms.txt, far above the 10% (SE Ranking) or 28% (Ahrefs) base rates. This is a narrow, early-adopter
+              <strong>Different population.</strong> 44.6% of the developer-tool vendors <em>not observed in this run</em>{" "}
+              have llms.txt, far above the 10% (SE Ranking) or 28% (Ahrefs) base rates. This is a narrow, early-adopter
               slice of the web, and the gap we see may not exist elsewhere.
             </li>
           </ol>
@@ -298,7 +299,7 @@ export default function AiCitedVendorsResearchPage() {
             </li>
             <li>
               MCP discovery metadata (<code>/.well-known/mcp.json</code> or <code>_mcp</code> TXT) is close to absent
-              everywhere: 5 sites out of 312 checked vendors. It doesn&rsquo;t separate cited from uncited today. If
+              everywhere: 5 sites out of 312 checked vendors. It doesn&rsquo;t separate cited vendors from those not observed in this run today. If
               you&rsquo;re deciding what to ship this quarter for AI visibility, a discovery file for your MCP server
               should not be near the top.
             </li>
@@ -342,7 +343,7 @@ export default function AiCitedVendorsResearchPage() {
             </li>
             <li>
               <strong>
-                The uncited set depends on <code>gpt-4o</code>&rsquo;s memory.
+                The not-observed set depends on <code>gpt-4o</code>&rsquo;s memory.
               </strong>{" "}
               The vendors it recalls skew toward established brands. That partly controls for fame (both groups are
               vendors a model can name), but cited vendors may still be bigger or more active.
@@ -390,7 +391,7 @@ export default function AiCitedVendorsResearchPage() {
             <a href={`${DATA_DIR}/test-a-60-prompts.csv`} download>
               the 60 prompts (CSV)
             </a>
-            . A domain marked &ldquo;uncited&rdquo; only means it was not in Perplexity&rsquo;s citations or search
+            . A domain marked &ldquo;not observed&rdquo; (<code>not_observed</code> in the CSV) only means it was not in Perplexity&rsquo;s citations or search
             results for these 60 prompts on 2026-09-24.
           </p>
 
