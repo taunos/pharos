@@ -31,11 +31,20 @@ export function systemPrompt(): string {
   ].join(NL);
 }
 
+/**
+ * The model never sees outside-world data: no site text, no domain, no email
+ * content. Only enumerated finding codes (from the code-owned copy table) and
+ * the approved option texts with the {domain} slot left unfilled.
+ */
 export function userPrompt(sheet: FactSheet, retry = false): string {
-  const subjects = SUBJECT_VARIANTS.map((t, i) => `${i}: ${fill(t, { domain: sheet.domain })}`).join(NL);
-  const openers = OPENER_VARIANTS.map((t, i) => `${i}: ${fill(t, { domain: sheet.domain })}`).join(NL);
-  const findings = sheet.gaps.slice(0, 2).map((g) => `- ${g.canonical}`).join(NL);
-  let p = ["The email's two findings:", findings, "", "Subject options:", subjects, "", "Opener options:", openers].join(NL);
+  const subjects = SUBJECT_VARIANTS.map((t, i) => `${i}: ${t}`).join(NL);
+  const openers = OPENER_VARIANTS.map((t, i) => `${i}: ${t}`).join(NL);
+  const findings = sheet.gaps
+    .slice(0, 2)
+    .map((g) => `- ${g.id}`)
+    .filter((l) => /^- [0-9]\.[a-z_]+\.[a-z_]+$/.test(l))
+    .join(NL);
+  let p = ["The email's two finding codes:", findings, "", "Subject options:", subjects, "", "Opener options:", openers].join(NL);
   if (retry) p += NL + NL + "Answer with only the JSON object, using option numbers from the lists.";
   return p;
 }

@@ -69,6 +69,11 @@ describe("Phase 1 code inspection", () => {
       expect(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(s), f).toBe(false);
     }
   });
+  it("no invisible format characters (zero-width, bidi, BOM, tags) anywhere in source or tests", () => {
+    // \p{Cf} = format characters; Zl/Zp = line/paragraph separators.
+    const re = new RegExp(String.raw`[\p{Cf}\p{Zl}\p{Zp}]`, "u");
+    for (const f of [...SRC, ...files(join(ROOT, "test"))]) expect(re.test(read(f)), f).toBe(false);
+  });
   it("wrangler.jsonc declares no secret values and defaults to off", () => {
     const w = read(join(ROOT, "wrangler.jsonc"));
     for (const name of ["POSTAL_ADDRESS", "OPTOUT_HMAC_SECRET", "SUPPRESSION_HMAC_SECRET", "MAIL_OAUTH_CLIENT_ID", "MAIL_OAUTH_CLIENT_SECRET", "MAIL_OAUTH_REFRESH_TOKEN"]) {

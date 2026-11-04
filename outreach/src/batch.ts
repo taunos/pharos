@@ -11,7 +11,8 @@ import { eventStmt, getControl, logEvent, moveLead, moveLeadStmt } from "./db";
 import { euExclusion } from "./eligibility";
 import type { FactSheet } from "./facts";
 import { mayApprove, mayBuildBatch, modeOf } from "./mode";
-import { renderInitialBody, type RenderCtx } from "./render";
+import { finalizeBody, renderInitialBody, type RenderCtx } from "./render";
+import { checkOutboundDraft, isAstrantUrl } from "./safety";
 import { RESCAN_AFTER_MS } from "./research";
 import { isSuppressed } from "./suppression";
 import type { AiBinding, Env, LeadRow } from "./types";
@@ -31,7 +32,7 @@ export function autoApprovalAllowed(env: Env): boolean {
 /** D14: the benchmark sentence is used only when BENCHMARK_URL is set and returns 200 now. */
 export async function benchmarkUrlIfLive(env: Env, f: typeof fetch): Promise<string | null> {
   const u = (env.BENCHMARK_URL ?? "").trim();
-  if (!/^https:\/\//.test(u)) return null;
+  if (!isAstrantUrl(u)) return null; // allowlist: astrant.io only
   try {
     const r = await f(u, { method: "GET", redirect: "manual" });
     return r.status === 200 ? u : null;
@@ -93,7 +94,7 @@ export async function buildWeeklyBatch(env: Env, deps: BatchDeps): Promise<{ sta
 
   const ctx: RenderCtx = {
     benchmarkUrl: await benchmarkUrlIfLive(env, deps.fetch),
-    privacyUrl: env.PRIVACY_URL || "https://astrant.io/privacy#prospecting",
+    privacyUrl: isAstrantUrl(env.PRIVACY_URL) ? env.PRIVACY_URL! : "https://astrant.io/privacy#prospecting",
   };
   const writerMode = env.WRITER_MODE === "template" ? "template" : "llm";
   const variantBase = (await db.prepare("SELECT COUNT(*) AS n FROM messages").first<{ n: number }>())?.n ?? 0;
@@ -119,6 +120,20 @@ export async function buildWeeklyBatch(env: Env, deps: BatchDeps): Promise<{ sta
     }
     if (out.path === "template" && writerMode === "llm") fallback++;
     const body = renderInitialBody(out.fields, sheet, ctx);
+    // Same safety gate the mailbox draft passes, with placeholder opt-out link and postal line.
+    const probe = checkOutboundDraft({
+      to: lead.contact_email ?? "",
+      subject: out.fields.subject,
+      text: finalizeBody(body, "https://go.getastrant.com/u/PROBE", "Postal address line"),
+      domain: lead.domain,
+      postal: "Postal address line",
+      optoutUrl: "https://go.getastrant.com/u/PROBE",
+    });
+    if (!probe.ok) {
+      await moveLead(db, now, lead.id, "contact_found", "disqualified", "draft_unsafe");
+      await logEvent(db, now, "draft_unsafe", lead.id, { reason: probe.reason.slice(0, 60) });
+      continue;
+    }
     const report = JSON.stringify({ ...out.report, fact_sheet_scan_id: sheet.scan_id });
     const msgId = crypto.randomUUID();
     const res = await db.batch([

@@ -22,6 +22,7 @@ type Fetch = typeof fetch;
 const PAGE = 50;
 /** Rows re-read before the saved position each tick, so up to this many deletions/moves between ticks can't cause a skip. */
 export const OVERLAP = 25;
+export const MAX_RAW_CHARS = 1_000_000;
 
 /** Cursor = persisted pagination progress: next 1-based start index in oldest-first order. */
 type WalkCursor = { s: number };
@@ -162,7 +163,8 @@ export class ZohoMailClient implements MailClient {
 
   private async original(accountId: string, messageId: string) {
     const orig = await this.api<{ data: { content: string } }>(`/api/accounts/${accountId}/messages/${messageId}/originalmessage`);
-    return parseMime(orig.data?.content ?? "");
+    // Hostile mail can be huge: parse at most MAX_RAW_CHARS (headers and the first text part fit easily).
+    return parseMime(String(orig.data?.content ?? "").slice(0, MAX_RAW_CHARS));
   }
 
   async drainInbox(cursor: string | null, maxPages: number, isKnown?: IsKnown): Promise<DrainResult> {

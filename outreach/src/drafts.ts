@@ -16,6 +16,7 @@ import type { FactSheet } from "./facts";
 import { MailboxError, type MailClient, type SentMail } from "./mail/types";
 import { intEnv, mayCreateDrafts, modeOf } from "./mode";
 import { finalizeBody, renderFollowup } from "./render";
+import { checkOutboundDraft } from "./safety";
 import { isSuppressed } from "./suppression";
 import type { Env, LeadRow, MessageRow } from "./types";
 import { dailyCap, dnsWarmupDone } from "./warmup";
@@ -185,6 +186,15 @@ export async function createMailboxDraft(env: Env, deps: DraftDeps, messageId: s
   } catch {
     await cancel("unfilled_placeholder");
     return "cancelled:placeholder";
+  }
+
+  // Final hostile-input gate (Bruno's security priority): recipient, subject and every
+  // character, URL and domain in the body are checked before anything reaches the mailbox.
+  const safe = checkOutboundDraft({ to: lead.contact_email, subject: msg.subject, text, domain: lead.domain, postal, optoutUrl });
+  if (!safe.ok) {
+    await cancel(`unsafe:${safe.reason}`);
+    await deps.alert("Draft blocked by the safety check", `The email for ${lead.domain} failed the safety check (${safe.reason.slice(0, 40)}) and was not drafted.`, lead.id);
+    return `cancelled:unsafe:${safe.reason}`;
   }
 
   let result;

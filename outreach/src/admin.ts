@@ -4,6 +4,7 @@ import { approveBatch } from "./batch";
 import { csrfToken, verifyCsrf } from "./crypto";
 import { getControl, logEvent, resume, tripStop } from "./db";
 import { normalizeCountry } from "./eligibility";
+import { isPublicHostname, safeHttpsUrl } from "./safety";
 import type { FactSheet } from "./facts";
 import { modeOf } from "./mode";
 import { isSuppressed } from "./suppression";
@@ -17,10 +18,26 @@ function html(body: string, status = 200): Response {
   return new Response(
     `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
 <title>Outreach admin</title><style>body{font-family:system-ui,sans-serif;margin:1.5rem;max-width:70rem}pre{white-space:pre-wrap;background:#f4f4f4;padding:.75rem}td,th{padding:.25rem .5rem;border-bottom:1px solid #ddd;text-align:left}form{display:inline}</style></head><body>${body}</body></html>`,
-    { status, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } }
+    {
+      status,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+        // Defence in depth on top of escaping: no scripts, no external loads, forms post only to this origin.
+        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer",
+      },
+    }
   );
 }
 const forbidden = () => new Response("Forbidden", { status: 403 });
+
+/** A link only for a validated public https URL; anything else is shown as escaped text. */
+function link(url: unknown): string {
+  const u = safeHttpsUrl(url);
+  return u ? `<a href="${esc(u.toString())}" rel="noreferrer noopener">${esc(u.toString())}</a>` : esc(url);
+}
 
 export type AdminDeps = { fetch: typeof fetch; now: () => number };
 
@@ -128,7 +145,7 @@ ${c.dns_verified_at ? "" : `<form method="post" action="/admin/dns-verified">${h
     return html(`<h1>Lead review</h1><form method="post" action="/admin/leads">${hidden}<table><tr><th>Domain</th><th>Source</th><th>State</th><th>ICP</th><th>Country</th></tr>
 ${(rows.results ?? [])
   .map(
-    (l) => `<tr><td><a href="https://${esc(l.domain)}" rel="noreferrer">${esc(l.domain)}</a></td><td>${esc(l.source)}</td><td>${esc(l.state)} ${esc(l.state_reason ?? "")}</td>
+    (l) => `<tr><td>${isPublicHostname(l.domain) ? link(`https://${l.domain}/`) : esc(l.domain)}</td><td>${esc(l.source)}</td><td>${esc(l.state)} ${esc(l.state_reason ?? "")}</td>
 <td><label><input type="radio" name="icp_${esc(l.id)}" value="1"${l.icp_ok === 1 ? " checked" : ""}>yes</label> <label><input type="radio" name="icp_${esc(l.id)}" value="0"${l.icp_ok === 0 ? " checked" : ""}>no</label></td>
 <td><input name="country_${esc(l.id)}" value="${esc(l.country ?? "")}" size="3"></td></tr>`
   )
@@ -150,7 +167,7 @@ ${(msgs.results ?? [])
   .map((m) => {
     const sheet = JSON.parse(m.fact_sheet_json || "{}") as Partial<FactSheet>;
     const report = JSON.parse(m.validator_report_json || "{}") as { path?: string };
-    return `<hr><p><b>${esc(m.domain)}</b> → ${esc(m.contact_email)} (found on <a href="${esc(m.contact_source_url)}" rel="noreferrer">${esc(m.contact_source_url)}</a>) · Score page: <a href="${esc(sheet.score_url)}">${esc(sheet.score_url)}</a> · writer: ${esc(report.path)} · lead: ${esc(m.lead_state)}
+    return `<hr><p><b>${esc(m.domain)}</b> → ${esc(m.contact_email)} (found on ${link(m.contact_source_url)}) · Score page: ${link(sheet.score_url)} · writer: ${esc(report.path)} · lead: ${esc(m.lead_state)}
 ${canApprove ? `<label><input type="checkbox" name="reject" value="${esc(m.lead_id)}"> reject</label>` : ""}</p>
 <p>Subject: <b>${esc(m.subject)}</b></p><pre>${esc(m.body_text)}</pre>`;
   })

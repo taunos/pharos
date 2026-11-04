@@ -92,10 +92,16 @@ describe("ProspectScan RPC path", () => {
     await expect(prospectScan(env, "https://example.com/")).rejects.toThrow(/SCAN_INSERT_FAILED/);
   });
 
-  it("rejects non-http URLs", async () => {
+  it("rejects non-https and SSRF targets (IPs, localhost, private suffixes, ports, credentials, punycode)", async () => {
     const { env } = makeEnv(sqlite());
-    await expect(prospectScan(env, "javascript:alert(1)")).rejects.toThrow("INVALID_URL");
-    await expect(prospectScan(env, 42)).rejects.toThrow("INVALID_URL");
+    for (const u of [
+      "javascript:alert(1)", 42, "http://example.com/", "https://127.0.0.1/", "https://[::1]/", "https://10.0.0.1/",
+      "https://169.254.169.254/latest/meta-data/", "https://localhost/", "https://db.internal/", "https://printer.local/",
+      "https://example.com:8443/", "https://user:pass@example.com/", "https://2130706433/", "https://xn--pypal-4ve.com/",
+      "file:///etc/passwd",
+    ]) {
+      await expect(prospectScan(env, u), String(u)).rejects.toThrow("INVALID_URL");
+    }
   });
 
   it("deleteScan deletes only outreach rows", async () => {

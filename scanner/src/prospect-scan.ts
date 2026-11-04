@@ -11,6 +11,12 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 import type { Env, ScanResult } from "./types";
 import { runScan } from "./run-scan";
 
+// SSRF guard for the RPC path: public https hosts on 443 only. No IP literals,
+// no localhost/private-use suffixes, no punycode, no credentials, no ports.
+const LABEL = "[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?";
+const HOSTNAME_RE = new RegExp(`^(?:${LABEL}\\.)+[a-z]{2,63}$`);
+const BLOCKED_SUFFIXES = ["localhost", "local", "localdomain", "internal", "intranet", "lan", "home", "corp", "private", "test", "example", "invalid", "onion", "arpa"];
+
 export function assertProspectUrl(url: unknown): string {
   if (typeof url !== "string" || url.length > 2048) throw new Error("INVALID_URL");
   let u: URL;
@@ -19,7 +25,12 @@ export function assertProspectUrl(url: unknown): string {
   } catch {
     throw new Error("INVALID_URL");
   }
-  if (u.protocol !== "https:" && u.protocol !== "http:") throw new Error("INVALID_URL");
+  if (u.protocol !== "https:") throw new Error("INVALID_URL");
+  if (u.username || u.password) throw new Error("INVALID_URL");
+  if (u.port !== "" && u.port !== "443") throw new Error("INVALID_URL");
+  const h = u.hostname;
+  if (!HOSTNAME_RE.test(h) || h.split(".").some((l) => l.startsWith("xn--"))) throw new Error("INVALID_URL");
+  if (BLOCKED_SUFFIXES.some((s) => h === s || h.endsWith("." + s))) throw new Error("INVALID_URL");
   return u.toString();
 }
 

@@ -2,6 +2,7 @@
 import { DAY, startOfUtcDay } from "./clock";
 import { eventStmt, logEvent, moveLead } from "./db";
 import { euExclusion, isDenylisted } from "./eligibility";
+import { isPublicHostname, safeHttpsUrl, sameSite } from "./safety";
 import { buildFactSheet, MIN_GAPS } from "./facts";
 import { intEnv } from "./mode";
 import { isSuppressed, requestScanDeletionStmt } from "./suppression";
@@ -9,21 +10,84 @@ import type { Env, LeadRow } from "./types";
 
 export const OUTREACH_UA = "AstrantOutreach/1.0 (+https://astrant.io)";
 export const FETCH_TIMEOUT_MS = 5000;
+export const MAX_REDIRECTS = 3;
+export const MAX_RESPONSE_BYTES = 1_000_000;
 export const MAX_SCAN_ATTEMPTS = 2;
 export const RESCAN_AFTER_MS = 7 * DAY;
 
 type Fetch = typeof fetch;
 
-async function timedFetch(f: Fetch, url: string): Promise<Response | null> {
+export type SafeResponse = { status: number; contentType: string; body: string; url: string };
+
+/**
+ * SSRF-safe GET (Bruno's security priority):
+ *  - public https hosts on port 443 only, no IPs/localhost/private/.internal/.local
+ *    (safeHttpsUrl), and the Worker runs with global_fetch_strictly_public;
+ *  - redirects followed by hand (max MAX_REDIRECTS), each target re-validated and
+ *    required to stay on the lead's own site (domain or www.domain);
+ *  - one overall deadline (FETCH_TIMEOUT_MS) and a body cap (MAX_RESPONSE_BYTES).
+ * Returns null on any violation or error: callers treat that as "nothing found".
+ */
+export async function safeFetch(f: Fetch, url: string, siteDomain: string, timeoutMs = FETCH_TIMEOUT_MS): Promise<SafeResponse | null> {
   const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
+  const t = setTimeout(() => ctl.abort(), timeoutMs);
   try {
-    return await f(url, { headers: { "User-Agent": OUTREACH_UA }, redirect: "follow", signal: ctl.signal });
+    let current = safeHttpsUrl(url);
+    for (let hop = 0; current && hop <= MAX_REDIRECTS; hop++) {
+      if (!sameSite(current.hostname, siteDomain)) return null;
+      const res = await f(current.toString(), { headers: { "User-Agent": OUTREACH_UA }, redirect: "manual", signal: ctl.signal });
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get("location");
+        await res.body?.cancel().catch(() => undefined);
+        if (!loc) return null;
+        let next: string;
+        try {
+          next = new URL(loc, current).toString();
+        } catch {
+          return null;
+        }
+        current = safeHttpsUrl(next);
+        continue;
+      }
+      const body = await readCapped(res, MAX_RESPONSE_BYTES);
+      if (body === null) return null;
+      return { status: res.status, contentType: res.headers.get("content-type") ?? "", body, url: current.toString() };
+    }
+    return null; // invalid URL, or too many redirects
   } catch {
     return null;
   } finally {
     clearTimeout(t);
   }
+}
+
+async function readCapped(res: Response, max: number): Promise<string | null> {
+  const len = Number(res.headers.get("content-length") ?? "0");
+  if (len > max) {
+    await res.body?.cancel().catch(() => undefined);
+    return null;
+  }
+  if (!res.body) return "";
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const all = new Uint8Array(total);
+  let o = 0;
+  for (const c of chunks) {
+    all.set(c, o);
+    o += c.byteLength;
+  }
+  return new TextDecoder().decode(all);
 }
 
 /** D12: true iff robots.txt disallows "/" for user-agent "*". */
@@ -60,13 +124,9 @@ export function robotsDisallowsAll(txt: string): boolean {
 }
 
 export async function checkRobots(f: Fetch, domain: string): Promise<"ok" | "disallow"> {
-  const res = await timedFetch(f, `https://${domain}/robots.txt`);
+  const res = await safeFetch(f, `https://${domain}/robots.txt`, domain);
   if (!res || res.status !== 200) return "ok"; // a fetch error does not disqualify
-  try {
-    return robotsDisallowsAll(await res.text()) ? "disallow" : "ok";
-  } catch {
-    return "ok";
-  }
+  return robotsDisallowsAll(res.body) ? "disallow" : "ok";
 }
 
 // §6.3 contact discovery.
@@ -115,17 +175,11 @@ export async function discoverContact(f: Fetch, domain: string): Promise<{ email
   const found: { email: string; sourceUrl: string }[] = [];
   for (const p of CONTACT_PATHS) {
     const url = `https://${domain}${p}`;
-    const res = await timedFetch(f, url);
+    const res = await safeFetch(f, url, domain);
     if (!res || res.status !== 200) continue;
-    const ct = res.headers.get("content-type") ?? "";
-    if (!/text\/html|text\/plain/i.test(ct)) continue;
-    let body = "";
-    try {
-      body = (await res.text()).slice(0, 2_000_000);
-    } catch {
-      continue;
-    }
-    for (const e of extractEmails(body)) found.push({ email: e, sourceUrl: url });
+    if (!/text\/html|text\/plain/i.test(res.contentType)) continue;
+    // Page text is only ever regex-scanned for addresses; it never reaches a model or a draft.
+    for (const e of extractEmails(res.body)) found.push({ email: e, sourceUrl: url });
   }
   const best = pickRoleAddress(
     found.map((x) => x.email),
@@ -161,7 +215,17 @@ async function scanLead(env: Env, now: number, lead: LeadRow): Promise<"scored" 
     if (lead.scan_attempts + 1 >= MAX_SCAN_ATTEMPTS) await disqualify(env, now, lead, "scan_error");
     return "error";
   }
-  const sheet = buildFactSheet(scan, lead.domain, env.SCORE_BASE_URL || "https://astrant.io/score/");
+  let sheet;
+  try {
+    sheet = buildFactSheet(scan, lead.domain, env.SCORE_BASE_URL || "https://astrant.io/score/");
+  } catch (e) {
+    await logEvent(env.DB, now, "scan_invalid", lead.id, { message: e instanceof Error ? e.message.slice(0, 80) : "invalid" });
+    if (typeof scan?.id === "string") {
+      await env.DB.prepare("INSERT OR IGNORE INTO lead_scans (scan_id, lead_id, created_at, delete_requested_at) VALUES (?, ?, ?, ?)").bind(scan.id, lead.id, now, now).run();
+    }
+    await disqualify(env, now, lead, "scan_invalid");
+    return "lt_2_gaps";
+  }
   const stmts: D1PreparedStatement[] = [
     env.DB.prepare("INSERT OR IGNORE INTO lead_scans (scan_id, lead_id, created_at) VALUES (?, ?, ?)").bind(scan.id, lead.id, now),
   ];
@@ -200,6 +264,10 @@ export async function researchStep(env: Env, deps: ResearchDeps): Promise<string
 
   const scored = await db.prepare("SELECT * FROM leads WHERE state = 'scored' ORDER BY updated_at LIMIT 1").first<LeadRow>();
   if (scored) {
+    if (!isPublicHostname(scored.domain)) {
+      await disqualify(env, now, scored, "invalid_host");
+      return "invalid_host";
+    }
     // Codex review #6: eligibility is re-checked before EVERY stage (country can be set later in /admin).
     if (euExclusion(scored.domain, scored.country)) {
       await disqualify(env, now, scored, "eu_eea_excluded");
@@ -230,6 +298,10 @@ export async function researchStep(env: Env, deps: ResearchDeps): Promise<string
     .bind(now - RESCAN_AFTER_MS)
     .first<LeadRow>();
   if (stale) {
+    if (!isPublicHostname(stale.domain)) {
+      await disqualify(env, now, stale, "invalid_host");
+      return "invalid_host";
+    }
     if (euExclusion(stale.domain, stale.country)) {
       await disqualify(env, now, stale, "eu_eea_excluded");
       return "eu_eea_excluded";
@@ -248,6 +320,10 @@ export async function researchStep(env: Env, deps: ResearchDeps): Promise<string
     .prepare("SELECT * FROM leads WHERE state = 'new' AND icp_ok = 1 ORDER BY created_at LIMIT 1")
     .first<LeadRow>();
   if (!lead) return "idle";
+  if (!isPublicHostname(lead.domain)) {
+    await disqualify(env, now, lead, "invalid_host");
+    return "invalid_host";
+  }
   if (euExclusion(lead.domain, lead.country)) {
     await disqualify(env, now, lead, "eu_eea_excluded");
     return "eu_eea_excluded";

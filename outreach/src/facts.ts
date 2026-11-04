@@ -20,6 +20,7 @@
 // that the homepage answered: Dim 5 markdown_negotiation either passed or
 // reached its HTML fallback ("No markdown variant ...", which only happens
 // after a 2xx HTML response).
+import { UUID_RE, isAstrantUrl, isPublicHostname } from "./safety";
 import type { DimensionResult, ScanResult, SubCheck } from "./types";
 
 export type Gap = {
@@ -196,12 +197,24 @@ export function selectGaps(scan: ScanResult, domain: string): Gap[] {
   return out;
 }
 
+/**
+ * The scan result is untrusted input too (it describes a hostile site). Only
+ * typed, validated values leave this function: a strict public hostname, an
+ * integer score 0..100, a known grade, a UUID scan id, and copy-table gaps.
+ */
 export function buildFactSheet(scan: ScanResult, domain: string, scoreBaseUrl: string): FactSheet {
+  if (!isPublicHostname(domain)) throw new Error("FACTS_INVALID:domain");
+  if (typeof scan?.id !== "string" || !UUID_RE.test(scan.id)) throw new Error("FACTS_INVALID:scan_id");
+  const score = scan.composite?.score;
+  if (!Number.isInteger(score) || score < 0 || score > 100) throw new Error("FACTS_INVALID:score");
+  if (!/^[A-F][+-]?$/.test(String(scan.composite?.grade ?? ""))) throw new Error("FACTS_INVALID:grade");
+  if (!Array.isArray(scan.dimensions)) throw new Error("FACTS_INVALID:dimensions");
+  if (!isAstrantUrl(scoreBaseUrl) || !scoreBaseUrl.endsWith("/score/")) throw new Error("FACTS_INVALID:score_base_url");
   return {
     domain,
     score: scan.composite.score,
     grade: scan.composite.grade,
-    dimensions_applicable: scan.dimensions_applicable,
+    dimensions_applicable: Number.isInteger(scan.dimensions_applicable) ? scan.dimensions_applicable : 0,
     score_url: `${scoreBaseUrl}${scan.id}`,
     scan_id: scan.id,
     gaps: selectGaps(scan, domain),
