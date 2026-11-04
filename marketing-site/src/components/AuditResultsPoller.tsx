@@ -195,9 +195,14 @@ export default function AuditResultsPoller({ sessionId }: { sessionId: string })
   return (
     <div className="mt-8 border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
       <div className="flex items-center gap-3">
-        {/* Logo + Foundation slice: progress dot demoted accent → muted.
-            rounded-full retained (functional shape — radius-free allowlist). */}
-        <div className="size-3 animate-pulse rounded-full bg-[var(--color-muted)]" />
+        {/* Spinner (was a muted pulsing dot — too subtle to read as "working").
+            Neutral fg, not accent. rounded-full retained (functional shape —
+            radius-free allowlist). */}
+        <div
+          role="status"
+          aria-label="In progress"
+          className="size-5 shrink-0 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-fg)] motion-reduce:animate-[spin_3s_linear_infinite]"
+        />
         <p className="font-semibold text-[var(--color-fg)]">
           {payload.status === "awaiting_payment"
             ? "Waiting on payment confirmation"
