@@ -1,0 +1,264 @@
+// §9.1 inbox drain, lead matching, classification and same-transaction actions.
+import type { Alerter } from "./alerts";
+import { eventStmt, moveLeadStmt, tripStop } from "./db";
+import { fill, INTERESTED_DRAFT_BODY } from "./copy";
+import { stripQuoted } from "./mail/mime";
+import type { InboundMail, MailClient } from "./mail/types";
+import { requestScanDeletionStmt, suppressStmts } from "./suppression";
+import type { AiBinding, Env, LeadRow, LeadState } from "./types";
+import { WRITER_MODEL } from "./writer";
+
+export const MAX_INBOX_PAGES = 10;
+export type InboundClass =
+  | "bounce_hard"
+  | "bounce_soft"
+  | "auto_reply"
+  | "opt_out"
+  | "complaint"
+  | "not_interested"
+  | "interested"
+  | "question"
+  | "needs_human";
+
+const MODEL_CLASSES: InboundClass[] = ["opt_out", "complaint", "not_interested", "interested", "question", "needs_human"];
+export const CLASSIFIER_MIN_CONFIDENCE = 0.7;
+
+export function isDsn(m: InboundMail): boolean {
+  return m.dsn !== null || /^(mailer-daemon|postmaster)@/i.test(m.from);
+}
+
+export function isAutoReply(m: InboundMail): boolean {
+  const as = (m.headers["auto-submitted"] ?? "").toLowerCase();
+  if (as && as !== "no") return true;
+  if (m.headers["x-autoreply"] || m.headers["x-autorespond"] || m.headers["x-auto-response-suppress"]) return true;
+  if (/^(auto_reply|auto-reply)$/i.test(m.headers["precedence"] ?? "")) return true;
+  return /\b(out of (the )?office|automatic reply|auto(matic)?[- ]?reply|autoreply|away from (the )?office|on vacation|on leave)\b/i.test(m.subject);
+}
+
+const COMPLAINT_RE = /\b(spam|spamming|spammer|reported|report(ing)? you|abuse|harass\w*|scam|f+u+c+k\w*|piss off|go away)\b/i;
+const OPT_OUT_RE = /\b(unsubscribe|remove me|take me off|opt[- ]?out|stop emailing|stop sending|don'?t (email|contact|message) (me|us)|do not (email|contact) (me|us)|no thanks|no,? thank you|stop)\b/i;
+const NOT_INTERESTED_RE = /\b(not interested|no interest|we'?re (all )?set|we are (all )?set|not a fit|not for us|pass on this|not right now)\b/i;
+
+export type Classification = { class: InboundClass; confidence: number | null; method: "rule" | "llm" | "default" };
+
+/** Rules first; the model only when allowed (ai != null). When unsure: the safer branch. */
+export async function classify(m: InboundMail, ai: AiBinding | null): Promise<Classification> {
+  if (isDsn(m)) {
+    const st = m.dsn?.status ?? null;
+    if (st && st.startsWith("4.")) return { class: "bounce_soft", confidence: 1, method: "rule" };
+    return { class: "bounce_hard", confidence: 1, method: "rule" }; // 5.x.x or unknown status: stop emailing
+  }
+  if (isAutoReply(m)) return { class: "auto_reply", confidence: 1, method: "rule" };
+  const body = stripQuoted(m.text);
+  const subj = m.subject.replace(/^\s*(re|aw|fwd?)\s*:\s*/i, "");
+  const text = `${subj}\n${body}`;
+  if (COMPLAINT_RE.test(text)) return { class: "complaint", confidence: 1, method: "rule" };
+  if (OPT_OUT_RE.test(text)) return { class: "opt_out", confidence: 1, method: "rule" };
+  if (NOT_INTERESTED_RE.test(text)) return { class: "not_interested", confidence: 1, method: "rule" };
+  if (!ai) return { class: "needs_human", confidence: null, method: "default" };
+  try {
+    const res = await ai.run(WRITER_MODEL, {
+      messages: [
+        {
+          role: "system",
+          content:
+            "Classify a reply to a short cold email. Return ONLY JSON {\"class\": one of " +
+            JSON.stringify(MODEL_CLASSES) +
+            ", \"confidence\": number 0..1}. opt_out = asks to stop. complaint = hostile or calls it spam. " +
+            "not_interested = declines. interested = wants to talk or buy. question = asks something. needs_human = anything else.",
+        },
+        { role: "user", content: body.slice(0, 2000) },
+      ],
+      temperature: 0,
+      max_tokens: 60,
+    });
+    const r = (res as { response?: unknown })?.response ?? res;
+    const j = (typeof r === "string" ? JSON.parse(r.trim()) : r) as { class?: string; confidence?: number };
+    const c = j?.class as InboundClass;
+    const conf = typeof j?.confidence === "number" ? j.confidence : 0;
+    if (!MODEL_CLASSES.includes(c) || conf < CLASSIFIER_MIN_CONFIDENCE) return { class: "needs_human", confidence: conf, method: "llm" };
+    return { class: c, confidence: conf, method: "llm" };
+  } catch {
+    return { class: "needs_human", confidence: null, method: "default" };
+  }
+}
+
+function msgIdTokens(v: string | undefined): string[] {
+  return (v ?? "").match(/<[^<>\s]+>/g) ?? [];
+}
+
+const REPLYABLE: LeadState[] = ["sent", "followup_sent", "send_unknown"];
+
+export async function matchLead(env: Env, m: InboundMail): Promise<LeadRow | null> {
+  const db = env.DB;
+  const byRfc = async (ids: string[]) => {
+    for (const id of ids) {
+      const row = await db
+        .prepare("SELECT l.* FROM messages ms JOIN leads l ON l.id = ms.lead_id WHERE ms.rfc_message_id = ? LIMIT 1")
+        .bind(id)
+        .first<LeadRow>();
+      if (row) return row;
+    }
+    return null;
+  };
+  if (isDsn(m)) {
+    if (m.dsn?.originalMessageId) {
+      const r = await byRfc(msgIdTokens(m.dsn.originalMessageId));
+      if (r) return r;
+    }
+    if (m.dsn?.finalRecipient) {
+      const r = await db.prepare("SELECT * FROM leads WHERE contact_email = ? LIMIT 1").bind(m.dsn.finalRecipient).first<LeadRow>();
+      if (r) return r;
+    }
+    return null;
+  }
+  if (m.providerThreadId) {
+    const r = await db
+      .prepare("SELECT l.* FROM messages ms JOIN leads l ON l.id = ms.lead_id WHERE ms.provider_thread_id = ? LIMIT 1")
+      .bind(m.providerThreadId)
+      .first<LeadRow>();
+    if (r) return r;
+  }
+  const r2 = await byRfc([...msgIdTokens(m.headers["in-reply-to"]), ...msgIdTokens(m.headers["references"])]);
+  if (r2) return r2;
+  const at = m.from.lastIndexOf("@");
+  if (at > 0) {
+    const host = m.from.slice(at + 1).toLowerCase();
+    const leads = await db
+      .prepare(`SELECT * FROM leads WHERE (? = domain OR ? LIKE '%.' || domain) AND state IN (${REPLYABLE.map(() => "?").join(",")}) LIMIT 1`)
+      .bind(host, host, ...REPLYABLE)
+      .first<LeadRow>();
+    if (leads) return leads;
+  }
+  return null;
+}
+
+export type InboundDeps = { mail: MailClient; ai: AiBinding | null; alert: Alerter; now: () => number };
+
+/**
+ * Drains the inbox (every mode, including off and paused). Returns true iff the
+ * inbox was drained to empty in this call; the send step requires that (§8.3 step 1).
+ */
+export async function drainInbox(env: Env, deps: InboundDeps): Promise<boolean> {
+  const db = env.DB;
+  const ctl = await db.prepare("SELECT inbox_cursor FROM control WHERE id = 1").first<{ inbox_cursor: string | null }>();
+  const res = await deps.mail.drainInbox(ctl?.inbox_cursor ?? null, MAX_INBOX_PAGES);
+  for (const m of res.messages) await handleInbound(env, deps, m);
+  const now = deps.now();
+  if (res.caughtUp) {
+    await db.prepare("UPDATE control SET inbox_cursor = ?, inbox_caught_up_at = ? WHERE id = 1").bind(res.cursor, now).run();
+  } else {
+    await db.prepare("UPDATE control SET inbox_cursor = ? WHERE id = 1").bind(res.cursor).run();
+  }
+  return res.caughtUp;
+}
+
+export async function handleInbound(env: Env, deps: InboundDeps, m: InboundMail): Promise<void> {
+  const db = env.DB;
+  const seen = await db.prepare("SELECT 1 AS x FROM inbound WHERE provider_message_id = ?").bind(m.providerMessageId).first();
+  if (seen) return; // re-poll never double-handles
+  const now = deps.now();
+  const lead = await matchLead(env, m);
+  const cls = await classify(m, deps.ai);
+  let klass = cls.class;
+  const stmts: D1PreparedStatement[] = [];
+  const insertInbound = (k: string, draftId: string | null = null) =>
+    // Plain INSERT (not OR IGNORE): a duplicate aborts the whole batch, so actions never run twice.
+    db
+      .prepare("INSERT INTO inbound (provider_message_id, lead_id, class, confidence, method, draft_id, received_at, handled_at) VALUES (?,?,?,?,?,?,?,?)")
+      .bind(m.providerMessageId, lead?.id ?? null, k, cls.confidence, cls.method, draftId, m.receivedAt, now);
+
+  if (!lead) {
+    if (isDsn(m)) {
+      // An unmatched bounce could mean a follow-up to a dead address: hand to Bruno and pause sending.
+      stmts.push(insertInbound("needs_human"), eventStmt(db, now, "inbound_unmatched_dsn", null, { class: klass }));
+      await db.batch(stmts);
+      await tripStop(db, now, "unmatched_dsn");
+      await deps.alert("Unmatched bounce: sending paused", "A delivery failure arrived that matches no lead. Sending is paused until you resolve it in /admin.");
+      return;
+    }
+    // Unmatched non-bounce mail: still honour an opt-out/complaint from that sender.
+    if (klass === "opt_out" || klass === "complaint") stmts.push(...(await suppressStmts(env, now, { email: m.from, reason: klass === "opt_out" ? "opt_out_reply" : "complaint" })));
+    stmts.push(insertInbound(klass), eventStmt(db, now, "inbound_unmatched", null, { class: klass }));
+    await db.batch(stmts);
+    return;
+  }
+
+  // §5.1 one rule: every matched inbound except auto_reply and bounce_soft cancels the queued follow-up.
+  const cancelFollowup = db
+    .prepare("UPDATE messages SET status = 'cancelled', updated_at = ? WHERE lead_id = ? AND kind = 'followup' AND status = 'queued'")
+    .bind(now, lead.id);
+  const from: LeadState[] = REPLYABLE;
+  let draftId: string | null = null;
+  let alertAfter: { kind: string; text: string } | null = null;
+
+  switch (klass) {
+    case "auto_reply":
+    case "bounce_soft":
+      stmts.push(eventStmt(db, now, `inbound_${klass}`, lead.id));
+      break;
+    case "bounce_hard":
+      stmts.push(
+        cancelFollowup,
+        moveLeadStmt(db, now, lead.id, [...from, "approved"], "bounced", "hard_bounce"),
+        ...(await suppressStmts(env, now, { email: lead.contact_email ?? m.dsn?.finalRecipient ?? null, reason: "hard_bounce" })),
+        eventStmt(db, now, "inbound_bounce_hard", lead.id)
+      );
+      break;
+    case "opt_out":
+      stmts.push(
+        cancelFollowup,
+        moveLeadStmt(db, now, lead.id, from, "opted_out", "opt_out_reply"),
+        ...(await suppressStmts(env, now, { email: lead.contact_email ?? m.from, domain: lead.domain, reason: "opt_out_reply" })),
+        requestScanDeletionStmt(db, lead.id, now),
+        eventStmt(db, now, "inbound_opt_out", lead.id)
+      );
+      break;
+    case "complaint":
+      stmts.push(
+        cancelFollowup,
+        moveLeadStmt(db, now, lead.id, from, "opted_out", "complaint"),
+        ...(await suppressStmts(env, now, { email: lead.contact_email ?? m.from, domain: lead.domain, reason: "complaint" })),
+        requestScanDeletionStmt(db, lead.id, now),
+        eventStmt(db, now, "inbound_complaint", lead.id)
+      );
+      break;
+    case "not_interested":
+      stmts.push(
+        cancelFollowup,
+        moveLeadStmt(db, now, lead.id, from, "replied", "not_interested"),
+        ...(await suppressStmts(env, now, { domain: lead.domain, reason: "not_interested" })),
+        requestScanDeletionStmt(db, lead.id, now),
+        eventStmt(db, now, "inbound_not_interested", lead.id)
+      );
+      break;
+    case "interested":
+    case "question": {
+      const sheet = lead.fact_sheet_json ? (JSON.parse(lead.fact_sheet_json) as { score_url?: string }) : {};
+      try {
+        const d = await deps.mail.createDraft({
+          to: m.from,
+          subject: /^re:/i.test(m.subject) ? m.subject : `Re: ${m.subject}`,
+          text: fill(INTERESTED_DRAFT_BODY, { score_url: sheet.score_url ?? "" }),
+          inReplyToProviderMessageId: m.providerMessageId,
+        });
+        draftId = d.draftId;
+      } catch (e) {
+        console.error("draft_failed", e instanceof Error ? e.message : String(e));
+      }
+      stmts.push(cancelFollowup, moveLeadStmt(db, now, lead.id, from, "replied", klass), eventStmt(db, now, `inbound_${klass}`, lead.id));
+      alertAfter = {
+        kind: `Interested reply from ${lead.domain}`,
+        text: `Interested reply from ${lead.domain}${draftId ? ": draft ready in the mailbox." : ". The draft could not be created; reply from the mailbox."}`,
+      };
+      break;
+    }
+    default:
+      klass = "needs_human";
+      stmts.push(cancelFollowup, moveLeadStmt(db, now, lead.id, from, "replied", "needs_human"), eventStmt(db, now, "inbound_needs_human", lead.id));
+      alertAfter = { kind: `Reply from ${lead.domain} needs you`, text: `A reply from ${lead.domain} needs a human. Nothing was sent.` };
+  }
+  stmts.unshift(insertInbound(klass, draftId));
+  await db.batch(stmts);
+  if (alertAfter) await deps.alert(alertAfter.kind, alertAfter.text, lead.id);
+}
