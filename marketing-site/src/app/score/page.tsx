@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   description:
     "Free Astrant Score: six dimensions of AI-agent discoverability — five scored live, plus a Citation Visibility demo preview. Citation Visibility runs live across 4 AI models with the $79 Audit.",
   alternates: {
+    canonical: "/score",
     types: { "text/markdown": "/score.md" },
   },
 };

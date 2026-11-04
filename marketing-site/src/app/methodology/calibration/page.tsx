@@ -20,6 +20,7 @@ export const metadata: Metadata = {
   title: "Calibration Methodology — Astrant",
   description:
     "How Astrant's Dim 6 (Citation Audit) is calibrated. Multi-pass methodology against a corpus of control domains, with operational discipline practices and known limits at engine version dim6:v3.",
+  alternates: { canonical: "/methodology/calibration" },
 };
 
 export default function MethodologyCalibrationPage() {

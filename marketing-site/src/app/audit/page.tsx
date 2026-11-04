@@ -17,6 +17,7 @@ export const metadata: Metadata = {
   description:
     "Pay $79, paste your URL, get a rich PDF in about 60 seconds. Six-dimension deep analysis with developer-ready remediation guidance for each gap, plus a machine-readable JSON export.",
   alternates: {
+    canonical: "/audit",
     types: { "text/markdown": "/audit.md" },
   },
 };

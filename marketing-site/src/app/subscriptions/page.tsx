@@ -40,6 +40,7 @@ export const metadata: Metadata = {
   description:
     "Keep your agent-discoverability stack healthy and measure its impact. Two tiers: Standard ($149/month, fully automated) and Pro ($899/month, daily probe cadence). Month-to-month, cancel anytime.",
   alternates: {
+    canonical: "/subscriptions",
     types: { "text/markdown": "/subscriptions.md" },
   },
 };
