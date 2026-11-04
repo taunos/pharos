@@ -5,10 +5,11 @@
 // cannot drift. This file is markup + design-system styling only; do not add
 // buyer-facing strings here, add them to AUDIT_REPORT_COPY.
 //
-// Split in two because the composite block sits above the download buttons
+// Split in three because the composite block sits above the download buttons
 // (in the "Audit ready" card) and the rest of the report sits below them:
-//   AuditReportHeader → generated line, URL, composite, scope (PDF top block)
-//   AuditReportBody   → dimensions, gaps, JSON export, footer
+//   AuditReportHeader  → generated line, URL, composite, scope (PDF top block)
+//   AuditReportSummary → executive summary (right after the card, as in the PDF)
+//   AuditReportBody    → dimensions, gaps, JSON export, footer
 
 import {
   AUDIT_REPORT_COPY as C,
@@ -50,6 +51,19 @@ export function AuditReportHeader({ model }: { model: AuditReportModel }) {
         {model.scopeNote}
       </p>
     </div>
+  );
+}
+
+export function AuditReportSummary({ model }: { model: AuditReportModel }) {
+  return (
+    <section data-testid="audit-report-summary" className="flex flex-col gap-3">
+      <h2 className="text-2xl font-bold tracking-tight">{C.summaryHeading}</h2>
+      {model.executiveSummary.map((s, i) => (
+        <p key={i} className="text-lg leading-relaxed text-[var(--color-fg)]">
+          {s}
+        </p>
+      ))}
+    </section>
   );
 }
 

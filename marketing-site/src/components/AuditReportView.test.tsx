@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AuditReportBody, AuditReportHeader } from "./AuditReportView";
+import { AuditReportBody, AuditReportHeader, AuditReportSummary } from "./AuditReportView";
 import { parseAuditResult } from "./AuditResultsPoller";
 import { renderAuditHtml } from "@/lib/audit-pipeline";
 import {
@@ -84,6 +84,7 @@ function webText(audit: AuditResult): string {
     renderToStaticMarkup(
       <>
         <AuditReportHeader model={model} />
+        <AuditReportSummary model={model} />
         <AuditReportBody model={model} />
       </>,
     ),
@@ -103,7 +104,7 @@ function expectInOrder(hay: string, needles: string[]) {
 // The buyer-visible sequence the PDF and the page must share.
 function reportSequence(audit: AuditResult): string[] {
   const m = buildAuditReportModel(audit, SESSION);
-  const seq: string[] = [m.generatedLabel, m.url, String(m.composite.score), m.composite.grade, m.scopeNote, AUDIT_REPORT_COPY.dimensionsHeading];
+  const seq: string[] = [m.generatedLabel, m.url, String(m.composite.score), m.composite.grade, m.scopeNote, AUDIT_REPORT_COPY.summaryHeading, ...m.executiveSummary, AUDIT_REPORT_COPY.dimensionsHeading];
   for (const d of m.dimensions) {
     seq.push(d.name);
     if (d.kind === "na") {
@@ -138,10 +139,28 @@ describe("buildAuditReportModel", () => {
     expect(m.gaps[0].metaLabel).toBe("0/100 · weight 30%");
   });
 
-  it("keeps dimension and gap order from the payload", () => {
+  it("keeps dimension order from the payload", () => {
     const m = buildAuditReportModel(fixture(), SESSION);
     expect(m.dimensions.map((d) => d.id)).toEqual([1, 3, 4]);
-    expect(m.gaps.map((g) => g.checkName)).toEqual(["JSON-LD Organization", "Blockquote <pitch> & quality"]);
+  });
+
+  it("sorts gaps lowest score first; equal scores keep the payload (dimension) order", () => {
+    const a = fixture();
+    const g = (dimension_id: number, check_id: string, score: number) => ({
+      ...a.gaps[0], dimension_id, check_id, check_name: check_id, score,
+    });
+    // Stored order = dimension order, as llmEnrichGaps writes it.
+    a.gaps = [g(1, "d1-64", 64), g(1, "d1-75", 75), g(4, "d4-0", 0), g(4, "d4-60a", 60), g(4, "d4-60b", 60), g(5, "d5-60", 60)];
+    const m = buildAuditReportModel(a, SESSION);
+    expect(m.gaps.map((x) => x.checkName)).toEqual(["d4-0", "d4-60a", "d4-60b", "d5-60", "d1-64", "d1-75"]);
+    expect(a.gaps[0].check_id).toBe("d1-64"); // input not mutated
+    expect(JSON.parse(m.jsonExport).gaps[0].check_id).toBe("d1-64"); // export stays the stored payload
+  });
+
+  it("carries the executive summary", () => {
+    const m = buildAuditReportModel(fixture(), SESSION);
+    expect(m.executiveSummary.length).toBeGreaterThanOrEqual(3);
+    expect(m.executiveSummary[0]).toMatch(/^Your site scored 72\/100 \(grade B\)/);
   });
 
   it("uses the N/A note from the first sub-check, with the PDF fallback", () => {
@@ -181,6 +200,21 @@ describe("page ↔ PDF parity", () => {
     const a = { ...fixture(), gaps: [] };
     const seq = reportSequence(a);
     expect(seq).toContain(AUDIT_REPORT_COPY.gapsEmpty);
+    expectInOrder(textOf(renderAuditHtml(a, SESSION)), seq);
+    expectInOrder(webText(a), seq);
+  });
+
+  it("the JSON download sentence is in the PDF only", () => {
+    const a = fixture();
+    const pdf = textOf(renderAuditHtml(a, SESSION));
+    expect(pdf).toContain(`${AUDIT_REPORT_COPY.jsonIntro}${AUDIT_REPORT_COPY.jsonIntroPdfOnly}`);
+    expect(webText(a)).not.toContain(AUDIT_REPORT_COPY.jsonIntroPdfOnly.trim());
+  });
+
+  it("gaps render lowest score first in both the PDF and the page", () => {
+    const a = fixture();
+    a.gaps.reverse(); // 64 first, 0 second in the payload
+    const seq = ["Dimension breakdown", AUDIT_REPORT_COPY.gapsHeading, "JSON-LD Organization", "Blockquote <pitch> & quality", AUDIT_REPORT_COPY.jsonHeading];
     expectInOrder(textOf(renderAuditHtml(a, SESSION)), seq);
     expectInOrder(webText(a), seq);
   });

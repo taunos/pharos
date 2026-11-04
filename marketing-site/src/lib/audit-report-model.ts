@@ -12,19 +12,24 @@
 
 import type { AuditResult } from "./audit-types";
 import { applicableDimensionCount, dimensionCountPhrase } from "./score-display";
+import { buildExecutiveSummary, EXEC_SUMMARY_COPY } from "./audit-executive-summary";
 
 // Section headings + fixed copy, verbatim from the PDF. Change here and both
 // surfaces change together.
 export const AUDIT_REPORT_COPY = {
   brand: "Astrant · AEO Audit",
+  summaryHeading: EXEC_SUMMARY_COPY.heading,
   dimensionsHeading: "Dimension breakdown",
   gapsHeading: "Prioritized gaps + remediation",
   gapsIntro:
     "Sub-checks scoring below 100, ordered by lowest score first. Each gap includes specific remediation guidance generated for your site by our analysis engine.",
   gapsEmpty: "No gaps found — every sub-check scored 100. Clean pass.",
   jsonHeading: "Machine-readable export",
-  jsonIntro:
-    "The full scan + remediation payload as JSON. The same JSON is also available as a separate download from your audit results page.",
+  jsonIntro: "The full scan + remediation payload as JSON.",
+  // PDF only: on the results page itself this sentence points at the page
+  // the reader is already on (Bruno, 2026-11-04).
+  jsonIntroPdfOnly:
+    " The same JSON is also available as a separate download from your audit results page.",
   naLabel: "N/A",
   naGrade: "not applicable",
   naFallbackNote:
@@ -98,6 +103,7 @@ export type AuditReportModel = {
   url: string;
   composite: { score: number; grade: string };
   scopeNote: string;
+  executiveSummary: string[]; // sentences, one paragraph each
   dimensions: ReportDimension[];
   gaps: ReportGap[];
   jsonExport: string;
@@ -157,10 +163,14 @@ export function buildAuditReportModel(
     url: scan.url,
     composite: { score: scan.composite.score, grade: scan.composite.grade },
     scopeNote: scopeNote(scan),
+    executiveSummary: buildExecutiveSummary(audit, AUDIT_REPORT_COPY.gapsHeading),
     dimensions,
-    // Order preserved from the stored payload (llmEnrichGaps sorts it) — the
-    // PDF renders in this exact order too.
-    gaps: gaps.map((g, i) => ({
+    // Lowest score first, as the gaps intro promises. The stored payload is in
+    // dimension order (llmEnrichGaps); Array.prototype.sort is stable, so equal
+    // scores keep that dimension order.
+    gaps: [...gaps]
+      .sort((a, b) => a.score - b.score)
+      .map((g, i) => ({
       key: `${g.dimension_id}:${g.check_id}:${i}`,
       checkName: g.check_name,
       dimensionName: g.dimension_name,

@@ -1,7 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AuditReportBody, AuditReportHeader } from "@/components/AuditReportView";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  AuditReportBody,
+  AuditReportHeader,
+  AuditReportSummary,
+} from "@/components/AuditReportView";
 import type { AuditResult } from "@/lib/audit-types";
 import {
   buildAuditReportModel,
@@ -67,7 +71,14 @@ function isTerminal(p: StatusPayload | null): boolean {
   return p.status === "ready" || p.status === "error";
 }
 
-export default function AuditResultsPoller({ sessionId }: { sessionId: string }) {
+export default function AuditResultsPoller({
+  sessionId,
+  intro,
+}: {
+  sessionId: string;
+  // The page's "Hold tight…" paragraph: shown until the audit is ready.
+  intro?: ReactNode;
+}) {
   const [payload, setPayload] = useState<StatusPayload | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [softTimedOut, setSoftTimedOut] = useState(false);
@@ -132,8 +143,19 @@ export default function AuditResultsPoller({ sessionId }: { sessionId: string })
     await fetchStatus();
   }
 
+  const isReady = !!payload && payload.ok && payload.status === "ready";
+  const frame = (body: ReactNode) => (
+    <>
+      {isReady ? null : intro}
+      <p className="mt-2 text-xs font-mono text-[var(--color-muted)]">
+        Session: {sessionId}
+      </p>
+      {body}
+    </>
+  );
+
   if (networkError && !payload) {
-    return (
+    return frame(
       <div className="mt-8 border border-red-400/40 bg-red-500/10 p-6">
         <p className="text-red-300">{networkError}</p>
       </div>
@@ -141,7 +163,7 @@ export default function AuditResultsPoller({ sessionId }: { sessionId: string })
   }
 
   if (!payload) {
-    return (
+    return frame(
       <div className="mt-8 border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
         <p className="text-[var(--color-muted)]">Loading status…</p>
       </div>
@@ -149,7 +171,7 @@ export default function AuditResultsPoller({ sessionId }: { sessionId: string })
   }
 
   if (!payload.ok) {
-    return (
+    return frame(
       <div className="mt-8 border border-red-400/40 bg-red-500/10 p-6">
         <p className="text-red-300">{payload.error}</p>
         <p className="mt-3 text-sm text-[var(--color-muted)]">
@@ -168,7 +190,7 @@ export default function AuditResultsPoller({ sessionId }: { sessionId: string })
   }
 
   if (payload.status === "ready") {
-    return (
+    return frame(
       <div className="mt-8 flex flex-col gap-6">
         <div className="border border-emerald-500/40 bg-emerald-500/10 p-6">
           <p className="text-sm font-mono uppercase tracking-wider text-emerald-300">
@@ -187,6 +209,10 @@ export default function AuditResultsPoller({ sessionId }: { sessionId: string })
             </div>
           ) : null}
         </div>
+
+        {report.state === "ready" ? (
+          <AuditReportSummary model={report.model} />
+        ) : null}
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {/* Logo + Foundation slice: primary download CTA — amber retained
@@ -230,7 +256,7 @@ export default function AuditResultsPoller({ sessionId }: { sessionId: string })
   }
 
   if (payload.status === "error") {
-    return (
+    return frame(
       <div className="mt-8 border border-red-400/40 bg-red-500/10 p-6">
         <p className="font-semibold text-red-300">Something went wrong.</p>
         <p className="mt-2 text-sm text-red-200">{payload.error_message}</p>
@@ -256,7 +282,7 @@ export default function AuditResultsPoller({ sessionId }: { sessionId: string })
   }
 
   // awaiting_payment / fulfilling
-  return (
+  return frame(
     <div className="mt-8 border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
       <div className="flex items-center gap-3">
         {/* Spinner (was a muted pulsing dot — too subtle to read as "working").

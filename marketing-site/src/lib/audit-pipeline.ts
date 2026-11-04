@@ -742,6 +742,7 @@ export function renderAuditHtml(audit: AuditResult, sessionId: string): string {
   .composite-num { font-size: 56pt; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
   .composite-grade { font-size: 28pt; font-weight: 600; font-family: ui-monospace, "SF Mono", monospace; }
   .scope { margin-top: 8pt; font-size: 10pt; color: #64748b; font-style: italic; }
+  .summary { font-size: 11.5pt; color: #0f172a; margin: 6pt 0; }
   .dim { margin-top: 18pt; page-break-inside: avoid; }
   .dim-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12pt; }
   .dim-score { display: flex; align-items: baseline; gap: 8pt; }
@@ -780,6 +781,9 @@ export function renderAuditHtml(audit: AuditResult, sessionId: string): string {
   </div>
   <p class="scope">${m.scopeNote}</p>
 
+  <h2>${C.summaryHeading}</h2>
+  ${m.executiveSummary.map((s) => `<p class="summary">${escapeHtml(s)}</p>`).join("")}
+
   <h2>${C.dimensionsHeading}</h2>
   ${dimsHtml}
 
@@ -788,7 +792,7 @@ export function renderAuditHtml(audit: AuditResult, sessionId: string): string {
   ${gapsHtml}
 
   <h2>${C.jsonHeading}</h2>
-  <p>${C.jsonIntro}</p>
+  <p>${C.jsonIntro}${C.jsonIntroPdfOnly}</p>
   <pre class="json">${escapeHtml(m.jsonExport)}</pre>
 
   <footer>
