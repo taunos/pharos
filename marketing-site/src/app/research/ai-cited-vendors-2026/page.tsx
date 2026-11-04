@@ -244,19 +244,29 @@ export default function AiCitedVendorsResearchPage() {
           <p>Two larger studies point the other way, and we think they are right about the thing they measured:</p>
           <ul>
             <li>
-              <strong>Ahrefs</strong> looked at 137,000 domains: about 28% publish an llms.txt, and{" "}
+              {/* Figures verified against the originals 2026-11-04. */}
+              <strong>
+                <a href="https://ahrefs.com/blog/llmstxt-study/">Ahrefs</a>
+              </strong>{" "}
+              looked at 137,000 domains: about 28% publish an llms.txt, and{" "}
               <strong>97% of roughly 38,000 valid files got zero requests</strong> in May 2026. AI retrieval bots
               were a tiny share of the requests the files did get.
             </li>
             <li>
-              <strong>SE Ranking</strong> looked at about 300,000 domains (Nov 2025): 10.13% had an llms.txt, and they
-              found <strong>no correlation</strong> between having one and being cited. Dropping the variable from
-              their model made it more accurate.
+              <strong>
+                <a href="https://seranking.com/blog/llms-txt/">SE Ranking</a>
+              </strong>{" "}
+              looked at about 300,000 domains: 10.13% had an llms.txt, and they found{" "}
+              <strong>no correlation</strong> between having one and being cited. Dropping the variable from their
+              model made it more accurate.
             </li>
             <li>
-              <strong>Ahrefs</strong> also tested schema on 1,885 pages against 4,000 controls and found citation
-              changes inside the noise (+2.4% AI Mode, +2.2% ChatGPT, −4.6% AI Overviews), as reported by secondary
-              coverage.
+              <strong>
+                <a href="https://ahrefs.com/blog/schema-ai-citations/">Ahrefs</a>
+              </strong>{" "}
+              also tested schema on 1,885 pages against 4,000 controls. Citation changes in AI Mode (+2.4%) and
+              ChatGPT (+2.2%) were inside the noise; AI Overviews showed a small decline (−4.6%) that Ahrefs reports
+              as statistically significant against the controls.
             </li>
           </ul>
           <p>Our result does not contradict these. Three things reconcile them:</p>
