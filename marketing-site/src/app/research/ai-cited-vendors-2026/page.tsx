@@ -312,7 +312,7 @@ export default function AiCitedVendorsResearchPage() {
           <ul>
             <li>
               That adding llms.txt or JSON-LD will get you cited. Nothing here tests that, and the best intervention
-              study we know of found no effect for schema.
+              study we know of found no positive effect for schema.
             </li>
             <li>
               That these files explain more than a small part of citation. Other research points at off-site factors:
