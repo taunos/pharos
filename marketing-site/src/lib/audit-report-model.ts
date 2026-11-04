@@ -114,7 +114,7 @@ export function formatReportTimestamp(ms: number): string {
 }
 
 function scopeNote(scan: AuditResult["scan"]): string {
-  const base = `Scored on ${dimensionCountPhrase(scan.dimensions_applicable, scan.dimensions_scored, scan.dimensions_total)} dimensions applicable to this site. The remaining dimensions ship in upcoming scanner releases — re-running this audit later will pick them up automatically.`;
+  const base = `Scored on ${dimensionCountPhrase(scan.dimensions_applicable, scan.dimensions_scored, scan.dimensions_total)} dimensions applicable to this site.`;
   const dropped =
     applicableDimensionCount(scan.dimensions_applicable, scan.dimensions_scored) <
     scan.dimensions_scored
