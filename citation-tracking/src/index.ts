@@ -29,6 +29,14 @@ export interface Env {
   // F-Fnd D3 case 7: gated test-endpoint guard. Set only in [env.dev] block of wrangler.jsonc;
   // undefined in production (top-level config) so /__test/founding-insert returns 404.
   ENV?: string;
+  // Scheduled probe spend switch. Only the exact string "on" runs the daily probe
+  // enqueue, the drain ticks and the monthly digest; anything else (incl. unset)
+  // pauses them. Manual probes via /api/internal/probe-trigger are unaffected.
+  PROBES_MODE?: string;
+}
+
+function scheduledProbesOn(env: Env): boolean {
+  return env.PROBES_MODE === 'on';
 }
 
 function constantTimeEqual(a: string, b: string): boolean {
@@ -87,14 +95,23 @@ export default {
       // B1.3 v1.1 cron-fix (was: await runProbeCycle(env)) — enqueue today's probe targets
       // to D1; drain handler (10,30,50 * * * *) processes one target per tick to avoid
       // scheduled-handler wall-time exhaustion (silent-truncation incident root cause).
+      if (!scheduledProbesOn(env)) {
+        console.log('PROBES_PAUSED skip=daily_enqueue');
+        return;
+      }
       const jobDate = new Date(event.scheduledTime).toISOString().slice(0, 10);
       await enqueueDailyProbeJobs(env, jobDate);
     } else if (event.cron === '10,30,50 * * * *') {
       // B1.3 v1.1 cron-fix — drain dispatcher: claims one pending probe_jobs row + runs the
       // full probe (45 batches × 4 providers = 180 rows). Stale-claim recovery + alert
       // dispatch + enqueue-lag check live inside drainProbeJobsTick.
+      if (!scheduledProbesOn(env)) return;
       await drainProbeJobsTick(env);
     } else if (event.cron === '0 14 1 * *') {
+      if (!scheduledProbesOn(env)) {
+        console.log('PROBES_PAUSED skip=monthly_digest');
+        return;
+      }
       const fireTime = new Date(event.scheduledTime);
       const periodMonthIndex = fireTime.getUTCMonth() - 1;
       const periodYear = fireTime.getUTCFullYear();

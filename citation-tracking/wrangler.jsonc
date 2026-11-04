@@ -26,7 +26,10 @@
     // SYNC WITH citation-tracking/wrangler.jsonc :MAX_PROBE_TARGETS
     "MAX_PROBE_TARGETS": "30",
     // B1.3 v1.1 — operator alert recipient (vars per N2-v3; email is not a credential).
-    "OPERATOR_ALERT_TO": "taunos@gmail.com"
+    "OPERATOR_ALERT_TO": "taunos@gmail.com",
+    // Scheduled probe spend switch (2026-11-04: paused pre-launch — tests only via
+    // /api/internal/probe-trigger). Set to "on" to resume daily probes + monthly digest.
+    "PROBES_MODE": "off"
   },
   // F-Fnd: [env.dev] is for Case 7 smoke test ONLY. Production wrangler deploy uses
   // top-level config (no ENV; no [env.dev]); test endpoint returns 404. If other handlers
