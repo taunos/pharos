@@ -20,7 +20,7 @@ import SiteFooter from "@/components/SiteFooter";
 const PATH = "/research/ai-cited-vendors-2026";
 const URL_ABS = `https://astrant.io${PATH}`;
 const DATA_DIR = "/research/ai-cited-vendors-2026";
-const TITLE = "What do AI-cited B2B vendors have that uncited ones don't? (N≈900 domains)";
+const TITLE = "What do AI-cited B2B vendors have that other vendors don't? (N≈900 domains)";
 const DESCRIPTION =
   "We asked Perplexity 60 “which tool should I use” questions about developer and B2B SaaS products and checked every domain for llms.txt, JSON-LD and MCP discovery. Cited vendors carried llms.txt and JSON-LD more often. This is a correlation in one sample.";
 // Set to the actual publish (deploy) date before going live.
@@ -335,11 +335,6 @@ export default function AiCitedVendorsResearchPage() {
             <li>
               <strong>One engine, one sample.</strong> One Perplexity <code>sonar</code> call per prompt at
               temperature 0. Citation sets vary from run to run.
-            </li>
-            <li>
-              <strong>&ldquo;Cited&rdquo; is broad.</strong> It includes domains in <code>search_results</code> as
-              well as <code>citations</code>, so some &ldquo;cited&rdquo; domains were retrieved but may not have been
-              shown to a user as a source.
             </li>
             <li>
               <strong>
