@@ -18,8 +18,10 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { verifyDeletionToken, hashEmailForR2Key, hashEmailForLog } from "@/lib/score-tokens";
 import { DELETE_PII_TIMEOUT_MS, deletePiiForScan, getScansByEmail } from "@/lib/score-scanner-client";
+import { hashEmailSha256 } from "@/lib/email-suppressions";
 
 interface ConfirmEnv {
+  CITATION_DB: D1Database;
   AUDITS: R2Bucket;
   UNSUBSCRIBE_SECRET: string;
   INTERNAL_SCANNER_ADMIN_KEY: string;
@@ -147,6 +149,22 @@ export async function POST(req: Request) {
   const email = verified.email;
   const emailLogHash = await hashEmailForLog(email, env.UNSUBSCRIBE_SECRET);
 
+  // E5: record the address (SHA-256 hash only, same as email_suppressions) on the
+  // outreach do-not-contact list, which the outreach Worker checks before any draft.
+  // It never blocks the deletion itself: if this write fails, deletion still runs
+  // but the page never claims success, so the same link is used again to retry.
+  let dncOk = true;
+  try {
+    await env.CITATION_DB.prepare(
+      "INSERT OR IGNORE INTO outreach_do_not_contact (email_hash, created_at, source) VALUES (?, ?, 'score-delete-me')"
+    )
+      .bind(await hashEmailSha256(email), Date.now())
+      .run();
+  } catch (err) {
+    dncOk = false;
+    console.error(`[delete-confirm] do-not-contact write failed email_hash=${emailLogHash}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   const scansRes = await getScansByEmail(env, email);
   if (!scansRes.ok) {
     console.error(`[delete-confirm] scans-by-email failed email_hash=${emailLogHash}: ${scansRes.error}`);
@@ -155,6 +173,7 @@ export async function POST(req: Request) {
   const scanIds = scansRes.scan_ids;
 
   if (scanIds.length === 0) {
+    if (!dncOk) return errorPage();
     return htmlPage(
       "Astrant — nothing to remove",
       `<h1>No records found for this email.</h1>
@@ -221,6 +240,7 @@ export async function POST(req: Request) {
       500
     );
   }
+  if (!dncOk) return errorPage();
 
   return htmlPage(
     "Astrant — data removed",

@@ -7,11 +7,24 @@ const h = vi.hoisted(() => ({
   hashEmailForLog: vi.fn(),
   deletePiiForScan: vi.fn(),
   getScansByEmail: vi.fn(),
+  dncRun: vi.fn(),
+  dncBind: vi.fn(),
+  dncSql: [] as string[],
 }));
 
 vi.mock("@opennextjs/cloudflare", () => ({
   getCloudflareContext: () => ({
-    env: { AUDITS: { delete: h.auditsDelete }, UNSUBSCRIBE_SECRET: "s", INTERNAL_SCANNER_ADMIN_KEY: "k" },
+    env: {
+      AUDITS: { delete: h.auditsDelete },
+      UNSUBSCRIBE_SECRET: "s",
+      INTERNAL_SCANNER_ADMIN_KEY: "k",
+      CITATION_DB: {
+        prepare: (sql: string) => {
+          h.dncSql.push(sql);
+          return { bind: (...a: unknown[]) => (h.dncBind(...a), { run: h.dncRun }) };
+        },
+      },
+    },
   }),
 }));
 vi.mock("@/lib/score-tokens", () => ({
@@ -42,6 +55,46 @@ beforeEach(() => {
   h.getScansByEmail.mockResolvedValue({ ok: true, scan_ids: ["s1"] });
   h.deletePiiForScan.mockResolvedValue({ ok: true });
   h.auditsDelete.mockResolvedValue(undefined);
+  h.dncRun.mockResolvedValue({ success: true });
+  h.dncSql.length = 0;
+});
+
+describe("E5: confirmed deletion puts the address on the outreach do-not-contact list", () => {
+  const sha256 = async (s: string) =>
+    Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s))))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+  it("writes SHA-256(email) to outreach_do_not_contact (no plaintext) and still deletes", async () => {
+    const res = await POST(postReq());
+    expect(res.status).toBe(200);
+    expect(h.dncSql).toHaveLength(1);
+    expect(h.dncSql[0]).toMatch(/^INSERT OR IGNORE INTO outreach_do_not_contact \(email_hash, created_at, source\)/);
+    expect(h.dncBind.mock.calls[0][0]).toBe(await sha256("x@y.com"));
+    expect(JSON.stringify(h.dncBind.mock.calls)).not.toContain("x@y.com");
+    expect(h.deletePiiForScan).toHaveBeenCalledWith(expect.anything(), "s1");
+  });
+
+  it("a failed list write never blocks deletion, but the page never claims success (retry with the same link)", async () => {
+    h.dncRun.mockRejectedValue(new Error("no such table: outreach_do_not_contact"));
+    const res = await POST(postReq());
+    expect(h.auditsDelete).toHaveBeenCalled();
+    expect(h.deletePiiForScan).toHaveBeenCalled();
+    expect(res.status).toBe(502);
+    expect(await res.text()).not.toContain("has been removed");
+  });
+
+  it("no scans + failed list write ⇒ error page, not 'nothing to remove'", async () => {
+    h.getScansByEmail.mockResolvedValue({ ok: true, scan_ids: [] });
+    h.dncRun.mockRejectedValue(new Error("D1 down"));
+    const res = await POST(postReq());
+    expect(res.status).toBe(502);
+  });
+
+  it("GET (prefetchers) never writes the list", async () => {
+    await GET(getReq());
+    expect(h.dncSql).toHaveLength(0);
+  });
 });
 
 describe("GET — confirmation page only, never mutates", () => {
