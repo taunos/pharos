@@ -350,11 +350,12 @@ export function mountScoreAdmin(app: Hono<{ Bindings: Env }>): void {
     }
   });
 
-  // ── GET /api/scan/:id/scans-by-email-internal ───────────────────────────
+  // ── POST /api/scan/by-email-internal ────────────────────────────────────
   // Used by /api/score/delete-me/confirm. Given an email, returns the list of
-  // scan_ids that match. Authenticated; rate-limited the same way the email
-  // read-back endpoint is. This is the only place scanner returns scan_ids
-  // by email; never exposed publicly.
+  // scan_ids that match. Admin-key authenticated only: NOT rate-limited (unlike
+  // the email read-back endpoint). Deliberately no LIMIT: the caller deletes
+  // every returned scan, so truncating would leave PII behind. This is the only
+  // place scanner returns scan_ids by email; never exposed publicly.
   app.post("/api/scan/by-email-internal", async (c) => {
     if (!requireAdminAuth(c).ok) {
       return c.json({ ok: false, error: "unauthorized" }, 401);
