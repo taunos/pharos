@@ -72,7 +72,7 @@ export async function GET(req: Request) {
 
   if (!token || !env.UNSUBSCRIBE_SECRET) return invalidPage();
 
-  const verified = await verifyScanToken(token, env.UNSUBSCRIBE_SECRET);
+  const verified = await verifyScanToken(token, env.UNSUBSCRIBE_SECRET, "unsub");
   if (!verified) return invalidPage();
 
   // Confirmation page. Single visible button POSTs back to the same URL.
@@ -102,7 +102,7 @@ async function performUnsubscribe(req: Request): Promise<Response> {
   if (!token || !env.UNSUBSCRIBE_SECRET || !env.INTERNAL_SCANNER_ADMIN_KEY) {
     return invalidPage();
   }
-  const verified = await verifyScanToken(token, env.UNSUBSCRIBE_SECRET);
+  const verified = await verifyScanToken(token, env.UNSUBSCRIBE_SECRET, "unsub");
   if (!verified) return invalidPage();
 
   const res = await unsubscribeScan(env, verified.scanId);

@@ -42,7 +42,7 @@ export async function GET(
   if (!scanId || !token) return reject();
   if (!env.UNSUBSCRIBE_SECRET || !env.INTERNAL_SCANNER_ADMIN_KEY) return reject();
 
-  const verified = await verifyScanToken(token, env.UNSUBSCRIBE_SECRET);
+  const verified = await verifyScanToken(token, env.UNSUBSCRIBE_SECRET, "report");
   if (!verified || verified.scanId !== scanId) return reject();
 
   // Pre-flight state check — refuse if unsubscribed or deletion-requested.

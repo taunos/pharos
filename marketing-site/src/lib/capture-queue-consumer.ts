@@ -167,8 +167,8 @@ async function deliverFresh(
 ): Promise<void> {
   const scanResult = parseScanResult(scan.results_json, scan.id);
   if (!scanResult || !job.email) fail("poison_deliver_inputs");
-  const scanToken = await issueScanToken(scan.id, PDF_TOKEN_TTL_SECONDS, env.UNSUBSCRIBE_SECRET);
-  const unsubToken = await issueScanToken(scan.id, UNSUB_TOKEN_TTL_SECONDS, env.UNSUBSCRIBE_SECRET);
+  const scanToken = await issueScanToken(scan.id, PDF_TOKEN_TTL_SECONDS, env.UNSUBSCRIBE_SECRET, "report");
+  const unsubToken = await issueScanToken(scan.id, UNSUB_TOKEN_TTL_SECONDS, env.UNSUBSCRIBE_SECRET, "unsub");
   const requestedDate = new Date(job.created_at).toISOString().slice(0, 10); // deterministic, from created_at
   const candidate = buildGapReportReadyPayload({
     toEmail: job.email!, scan: scanResult!, scanToken, unsubscribeToken: unsubToken, origin: env.ASTRANT_BASE_URL, requestedDate,

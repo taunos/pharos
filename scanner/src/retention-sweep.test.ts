@@ -1222,7 +1222,7 @@ describe("F2 t33–t35 — boundary silence, legacy canary, handler deadline", (
     const id = uuid();
     seedScan(sqlite, {
       id,
-      email: "orig@x.com",
+      email: null, // E1: a different captured address is now refused; this canary is about tombstone-blindness
       retention_locked_at: OLD,
       retention_job_id: "J",
       op_lease_id: "retention-cid",

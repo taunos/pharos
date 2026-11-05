@@ -4,9 +4,12 @@
 // /score/[id] when no email is captured yet. Posts to /api/score/capture-email,
 // which:
 //   - server-enforces opt-in via strict equality (TF-05 / TP-3)
-//   - issues a v1.<scan_id>.<expiry>.<hmac> token (no email in URL)
 //   - triggers PDF generation (synchronously; defers if BR daily cap is hit)
 //   - sends a Resend transactional email with the PDF + results-page links
+//
+// E1 (code-quality audit 2026-11-05): the response carries NO link or token.
+// The report link reaches the visitor only through the email, so a stranger
+// holding a /score/<id> link cannot open someone else's report.
 //
 // Honeypot: JSON payload key is `referral_code`; HTML input `name` is
 // `website_url_2` for an extra layer of bot misdirection. Same pattern
@@ -18,9 +21,6 @@ type Status = "idle" | "submitting" | "success" | "error";
 
 interface CaptureResponse {
   success: boolean;
-  results_url?: string;
-  pdf_url?: string;
-  pdf_deferred?: boolean;
   error?: string;
 }
 
@@ -38,8 +38,6 @@ export default function EmailGate({
   const [referralCode, setReferralCode] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [resultsUrl, setResultsUrl] = useState<string | null>(null);
-  const [pdfDeferred, setPdfDeferred] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -68,8 +66,6 @@ export default function EmailGate({
         return;
       }
       setStatus("success");
-      setResultsUrl(data.results_url ?? null);
-      setPdfDeferred(!!data.pdf_deferred);
     } catch {
       setStatus("error");
       setErrorMsg("Network error. Try again in a moment.");
@@ -79,28 +75,9 @@ export default function EmailGate({
   if (status === "success") {
     return (
       <div className="border border-emerald-500/40 bg-emerald-500/5 p-6 text-base text-[var(--color-fg)]">
-        <p className="font-semibold text-emerald-400">
-          {pdfDeferred
-            ? "Your gap report is queued."
-            : "Your gap report is generating."}
-        </p>
+        <p className="font-semibold text-emerald-400">Check your inbox.</p>
         <p className="mt-2 text-[var(--color-muted)]">
-          {pdfDeferred
-            ? `We've queued generation due to capacity limits — it'll be ready within 24 hours and we'll email it to ${email}.`
-            : `We'll email it to ${email}.`}{" "}
-          {resultsUrl ? (
-            <>
-              If you don&apos;t see an email in 5 minutes, view it directly at{" "}
-              {/* Logo + Foundation slice: link demoted accent → fg. */}
-              <a
-                href={resultsUrl}
-                className="text-[var(--color-fg)] underline-offset-4 hover:underline"
-              >
-                {resultsUrl}
-              </a>
-              .
-            </>
-          ) : null}
+          {`We're emailing your gap report to ${email}. It usually arrives within a few minutes. If you don't see it, check your spam folder or email contact@astrant.io.`}
         </p>
       </div>
     );

@@ -26,7 +26,7 @@ export async function GET(
   if (!token || !env.UNSUBSCRIBE_SECRET || !env.INTERNAL_SCANNER_ADMIN_KEY) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
-  const verified = await verifyScanToken(token, env.UNSUBSCRIBE_SECRET);
+  const verified = await verifyScanToken(token, env.UNSUBSCRIBE_SECRET, "report");
   if (!verified || verified.scanId !== scanId) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }

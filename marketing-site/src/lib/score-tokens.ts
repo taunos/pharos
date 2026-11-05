@@ -10,12 +10,20 @@
 // leak). Workers' subtle.verify takes raw signature bytes and returns a
 // boolean.
 //
-// Token #1: scan-bound. Used for PDF download links, /score/[id]?t= entries
-// from the email, and unsubscribe (same token, three uses, with a longer
-// expiry on the unsubscribe link via UNSUB_TOKEN_TTL_SECONDS).
-//   Format: v1.<b64u(scan_id)>.<b64u(expiry)>.<hex_hmac>
-//   HMAC over: "<scan_id>:<expiry>:<UNSUBSCRIBE_SECRET>"
+// Token #1: scan-bound, with a PURPOSE (E1, code-quality audit 2026-11-05).
+//   "report" — PDF download links + /score/[id]?t= entries (30-day TTL).
+//   "unsub"  — the rescan-email unsubscribe link (365-day TTL).
+// A report token can no longer unsubscribe, and an unsubscribe token can no
+// longer open the report.
+//   Format: v2.<purpose>.<b64u(scan_id)>.<b64u(expiry)>.<hex_hmac>
+//   HMAC over: "v2:<purpose>:<scan_id>:<expiry>:<UNSUBSCRIBE_SECRET>"
 //   Email NEVER in URL — recovered from scanner D1 by scan_id.
+// Legacy v1 (no purpose; "<scan_id>:<expiry>:<secret>") is no longer issued
+// but is still honored for links already in inboxes:
+//   - as "report": any valid v1 token (the 30-day PDF links).
+//   - as "unsub": only a v1 token with MORE than PDF_TOKEN_TTL_SECONDS + 1 day
+//     of life left. Every v1 report token was minted with a 30-day TTL, so none
+//     can pass; only the 365-day v1 unsubscribe tokens can.
 //
 // Token #2: deletion-confirm. Sent to the user's own inbox after they request
 // deletion. Email IS in URL because the link goes to that user's own inbox
@@ -33,7 +41,12 @@ export const PDF_TOKEN_TTL_SECONDS = 30 * 86400;     // 30 days
 export const UNSUB_TOKEN_TTL_SECONDS = 365 * 86400;  // 365 days
 export const DELETION_TOKEN_TTL_SECONDS = 24 * 3600; // 24 hours
 
-const TOKEN_VERSION = "v1";
+const TOKEN_VERSION = "v1"; // deletion-confirm tokens + legacy scan tokens
+const SCAN_TOKEN_VERSION = "v2";
+
+export type ScanTokenPurpose = "report" | "unsub";
+const SCAN_TOKEN_PURPOSES: ReadonlySet<string> = new Set(["report", "unsub"]);
+const LEGACY_UNSUB_MIN_REMAINING_S = PDF_TOKEN_TTL_SECONDS + 86400;
 
 // ─── base64url helpers ────────────────────────────────────────────────────
 
@@ -118,25 +131,45 @@ async function verifyHmac(
   );
 }
 
-// ─── Scan-bound token (PDF / /score/[id]?t / unsubscribe) ────────────────
+// ─── Scan-bound token (report: PDF + /score/[id]?t ; unsub: unsubscribe) ──
 
 export async function issueScanToken(
   scanId: string,
   expirySeconds: number,
-  secret: string
+  secret: string,
+  purpose: ScanTokenPurpose
 ): Promise<string> {
   const expiry = Math.floor(Date.now() / 1000) + expirySeconds;
   const key = await importHmacKey(secret);
-  const data = `${scanId}:${expiry}:${secret}`;
+  const data = `${SCAN_TOKEN_VERSION}:${purpose}:${scanId}:${expiry}:${secret}`;
   const hmac = await signHmac(key, data);
-  return `${TOKEN_VERSION}.${b64uEncode(scanId)}.${b64uEncode(String(expiry))}.${hmac}`;
+  return `${SCAN_TOKEN_VERSION}.${purpose}.${b64uEncode(scanId)}.${b64uEncode(String(expiry))}.${hmac}`;
 }
 
 export async function verifyScanToken(
   token: string,
-  secret: string
+  secret: string,
+  purpose: ScanTokenPurpose
 ): Promise<{ scanId: string; expiry: number } | null> {
   const parts = token.split(".");
+  const now = Math.floor(Date.now() / 1000);
+
+  if (parts.length === 5 && parts[0] === SCAN_TOKEN_VERSION) {
+    const [, tokPurpose, b64ScanId, b64Expiry, hexHmac] = parts;
+    if (!SCAN_TOKEN_PURPOSES.has(tokPurpose) || tokPurpose !== purpose) return null;
+    const scanId = b64uDecode(b64ScanId);
+    const expiryStr = b64uDecode(b64Expiry);
+    if (scanId === null || expiryStr === null) return null;
+    const expiry = parseInt(expiryStr, 10);
+    if (!Number.isFinite(expiry)) return null;
+    if (now > expiry) return null;
+    const key = await importHmacKey(secret);
+    const data = `${SCAN_TOKEN_VERSION}:${tokPurpose}:${scanId}:${expiry}:${secret}`;
+    const ok = await verifyHmac(key, data, hexHmac);
+    return ok ? { scanId, expiry } : null;
+  }
+
+  // Legacy v1 (see header for the per-purpose acceptance rule).
   if (parts.length !== 4) return null;
   const [version, b64ScanId, b64Expiry, hexHmac] = parts;
   if (version !== TOKEN_VERSION) return null;
@@ -148,8 +181,8 @@ export async function verifyScanToken(
   if (!Number.isFinite(expiry)) return null;
 
   // Expiry check first — cheaper than a constant-time verify.
-  const now = Math.floor(Date.now() / 1000);
   if (now > expiry) return null;
+  if (purpose === "unsub" && expiry - now <= LEGACY_UNSUB_MIN_REMAINING_S) return null;
 
   const key = await importHmacKey(secret);
   const data = `${scanId}:${expiry}:${secret}`;

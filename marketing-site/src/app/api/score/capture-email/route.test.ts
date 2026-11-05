@@ -20,6 +20,7 @@ const h = vi.hoisted(() => ({
   sendDeferred: vi.fn(),
   issueScanToken: vi.fn(),
   hashEmailForLog: vi.fn(),
+  getEmailForScan: vi.fn(),
   sessions: new Map<string, string>(),
   burst: new Map<string, number>(),
   burstLimit: 1000,
@@ -46,12 +47,14 @@ vi.mock("@/lib/score-scanner-client", () => ({
   getScanState: h.getScanState,
   markPdfGenerated: h.markPdfGenerated,
   captureOutbox: h.captureOutbox,
+  getEmailForScan: h.getEmailForScan,
 }));
 
 import { POST } from "./route";
 
 const SCAN = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
-const A1 = "Another email address is already receiving this scan's report. Use that address, or try again once it's delivered.";
+// E1 (Codex r2): the in-flight conflict now uses the permanent-binding refusal.
+const A1 = "This scan's report has already been sent to a different address. To get a report at this address, run a new scan.";
 const A2 = "We couldn't queue your report just now. Please try again in a minute.";
 const LEGACY_KEY_RE = /^score-reports\/[^/]+\/[0-9a-f]{16}\.pdf$/;
 
@@ -111,7 +114,10 @@ beforeEach(() => {
   h.burst.clear();
   h.burstLimit = 1000;
   for (const fn of [h.kvGet, h.kvPut, h.auditsPut, h.getScanState, h.captureEmail, h.getPublicScan, h.markPdfGenerated, h.captureOutbox, h.generateScoreReportPDF, h.sendReady, h.sendDeferred, h.issueScanToken, h.hashEmailForLog]) fn.mockReset();
-  h.issueScanToken.mockResolvedValue("tok");
+  h.issueScanToken.mockReset();
+  h.issueScanToken.mockImplementation(async (_id: string, _ttl: number, _sec: string, purpose: string) => `tok-${purpose}`);
+  h.getEmailForScan.mockReset();
+  rec("getEmailForScan", h.getEmailForScan, () => ({ ok: true, email: "alice@example.com" }));
   h.hashEmailForLog.mockResolvedValue("lhash");
   h.kvGet.mockResolvedValue(null);
   h.kvPut.mockResolvedValue(undefined);
@@ -138,7 +144,7 @@ describe("tC1m (capture leg) — gate absent/case-variant/unknown: byte-identica
     setMode(undefined);
     const base = await dispatch();
     expect(base.status).toBe(200);
-    expect(base.json).toEqual({ success: true, deferred: false, results_url: expect.stringContaining(`/score/${SCAN}?t=tok`), pdf_url: expect.stringContaining(`/api/score/${SCAN}/pdf?t=tok`) });
+    expect(base.json).toEqual({ success: true, deferred: false });
     expect(base.calls).toEqual(["getScanState", "captureEmail", "getPublicScan", "generateScoreReportPDF", "markPdfGenerated", "sendReady"]);
     expect(h.kvPut).toHaveBeenCalledTimes(1);
     for (const v of ["ON", "on ", "bogus"]) {
@@ -159,17 +165,15 @@ describe("tC1m (capture leg) — gate absent/case-variant/unknown: byte-identica
 describe("gate ON — deferred pipeline (CD3 outcome mapping)", () => {
   beforeEach(() => setMode("on"));
 
-  it("tC2: fresh capture → exactly ONE captureOutbox call; ZERO generate/mark/captureEmail/getPublicScan/send; 200 {success, deferred:true, results_url, pdf_url}", async () => {
+  it("tC2: fresh capture → exactly ONE captureOutbox call; ZERO generate/mark/captureEmail/getPublicScan/send; 200 {success, deferred:true} (E1: no token URLs)", async () => {
     const r = await dispatch();
     expect(r.status).toBe(200);
-    expect(Object.keys(r.json)).toEqual(["success", "deferred", "results_url", "pdf_url"]);
+    expect(Object.keys(r.json)).toEqual(["success", "deferred"]);
     expect(r.json.success).toBe(true);
     expect(r.json.deferred).toBe(true);
-    expect(r.json.results_url).toMatch(new RegExp(`/score/${SCAN}\\?t=tok$`));
-    expect(r.json.pdf_url).toMatch(new RegExp(`/api/score/${SCAN}/pdf\\?t=tok$`));
     expect(h.captureOutbox).toHaveBeenCalledTimes(1);
     expect(h.captureOutbox.mock.calls[0][1]).toBe(SCAN);
-    expect(h.captureOutbox.mock.calls[0][2]).toEqual({ email: "alice@example.com", email_opted_in_rescan: true, unsubscribe_token: "tok" });
+    expect(h.captureOutbox.mock.calls[0][2]).toEqual({ email: "alice@example.com", email_opted_in_rescan: true, unsubscribe_token: "tok-report" });
     expect(h.generateScoreReportPDF).not.toHaveBeenCalled();
     expect(h.markPdfGenerated).not.toHaveBeenCalled();
     expect(h.captureEmail).not.toHaveBeenCalled();
@@ -184,7 +188,7 @@ describe("gate ON — deferred pipeline (CD3 outcome mapping)", () => {
     h.kvGet.mockResolvedValue(String(nowSec - 100));
     const inside = await dispatch();
     expect(inside.status).toBe(200);
-    expect(inside.json).toEqual({ success: true, deferred: true, results_url: expect.any(String), pdf_url: expect.any(String) });
+    expect(inside.json).toEqual({ success: true, deferred: true });
     expect(h.captureOutbox).not.toHaveBeenCalled();
     expect(h.kvPut).not.toHaveBeenCalled();
 
@@ -337,5 +341,124 @@ describe("E2 — capture-email send limits (rate-limit-kv)", () => {
     const r = await send("a@example.com");
     expect(r.status).toBe(503);
     expect(h.calls).toEqual([]);
+  });
+});
+
+// ── E1: no token URLs in JSON; the stored address is the only recipient ─────
+describe("E1 — capture-email never returns tokens; a scan only ever mails its captured address", () => {
+  const readyState = () => ({ ...freshState(), has_email_captured: true, pdf_ready: true });
+  const post = (email: string, extra: Record<string, unknown> = {}) =>
+    POST(
+      new Request("https://astrant.io/api/score/capture-email", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ scan_id: SCAN, email, opt_in_rescan: false, ...extra }),
+      })
+    );
+  const noTokens = (text: string) => {
+    expect(text).not.toContain("tok-");
+    expect(text).not.toContain("?t=");
+    expect(text).not.toContain("results_url");
+    expect(text).not.toContain("pdf_url");
+  };
+
+  it("ATTACK (legacy, PDF ready): a stranger's email on someone else's scan → 409, nothing sent, no token, stored email untouched", async () => {
+    rec("getScanState", h.getScanState, () => readyState());
+    const r = await post("attacker@evil.test");
+    const text = await r.text();
+    expect(r.status).toBe(409);
+    expect(JSON.parse(text)).toEqual({
+      success: false,
+      error: "This scan's report has already been sent to a different address. To get a report at this address, run a new scan.",
+    });
+    noTokens(text);
+    expect(h.sendReady).not.toHaveBeenCalled();
+    expect(h.captureEmail).not.toHaveBeenCalled();
+    expect(h.generateScoreReportPDF).not.toHaveBeenCalled();
+  });
+
+  it("ATTACK (legacy, email captured but PDF not ready): different email → 409, no overwrite, no render", async () => {
+    rec("getScanState", h.getScanState, () => ({ ...freshState(), has_email_captured: true }));
+    const r = await post("attacker@evil.test");
+    expect(r.status).toBe(409);
+    expect(h.captureEmail).not.toHaveBeenCalled();
+    expect(h.generateScoreReportPDF).not.toHaveBeenCalled();
+  });
+
+  it("ATTACK (gate ON, report delivered): different email → 409 before any outbox call", async () => {
+    setMode("on");
+    rec("getScanState", h.getScanState, () => readyState());
+    const r = await post("attacker@evil.test");
+    expect(r.status).toBe(409);
+    noTokens(await r.text());
+    expect(h.captureOutbox).not.toHaveBeenCalled();
+  });
+
+  it("ATTACK (within the 5-minute cool-down): different email still refused, and the cool-down reply carries no token", async () => {
+    rec("getScanState", h.getScanState, () => readyState());
+    h.kvGet.mockResolvedValue(String(Math.floor(Date.now() / 1000) - 10));
+    const r = await post("attacker@evil.test");
+    expect(r.status).toBe(409);
+    const same = await post("alice@example.com");
+    expect(same.status).toBe(200);
+    noTokens(await same.text());
+    expect(h.sendReady).not.toHaveBeenCalled();
+  });
+
+  it("repeat request with the stored address (any casing) re-sends to the STORED address; JSON has no tokens", async () => {
+    rec("getScanState", h.getScanState, () => readyState());
+    const r = await post("  ALICE@Example.com ");
+    const text = await r.text();
+    expect(r.status).toBe(200);
+    noTokens(text);
+    expect(h.sendReady).toHaveBeenCalledTimes(1);
+    const input = h.sendReady.mock.calls[0][1] as { toEmail: string; scanToken: string; unsubscribeToken: string };
+    expect(input.toEmail).toBe("alice@example.com");
+    // Purpose-bound tokens go into the email only.
+    expect(input.scanToken).toBe("tok-report");
+    expect(input.unsubscribeToken).toBe("tok-unsub");
+  });
+
+  it("RACE: both requests saw no captured email, but the scanner's atomic write bound the scan to the other address → 409, nothing rendered or sent", async () => {
+    rec("captureEmail", h.captureEmail, () => ({ ok: false, error: "409: email_bound", emailBound: true }));
+    const r = await post("attacker@evil.test");
+    expect(r.status).toBe(409);
+    expect(((await r.json()) as { error: string }).error).toContain("already been sent to a different address");
+    expect(h.generateScoreReportPDF).not.toHaveBeenCalled();
+    expect(h.sendReady).not.toHaveBeenCalled();
+    expect(h.sendDeferred).not.toHaveBeenCalled();
+  });
+
+  it("stored-email read failure → 502, nothing sent (fail closed)", async () => {
+    rec("getScanState", h.getScanState, () => readyState());
+    rec("getEmailForScan", h.getEmailForScan, () => ({ ok: false, error: "timeout" }));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const r = await post("alice@example.com");
+    expect(r.status).toBe(502);
+    expect(h.sendReady).not.toHaveBeenCalled();
+  });
+
+  it("every success shape (fresh, deferred BR-cap both windows, PDF failure, gate-ON deferred + cool-down) carries no token", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    noTokens(await (await post("alice@example.com")).text());
+    rec("getScanState", h.getScanState, () => ({ ...freshState(), pdf_deferred_until_tomorrow: true }));
+    noTokens(await (await post("alice@example.com")).text());
+    h.kvGet.mockResolvedValue(String(Math.floor(Date.now() / 1000) - 10));
+    noTokens(await (await post("alice@example.com")).text());
+    h.kvGet.mockResolvedValue(null);
+    rec("getScanState", h.getScanState, () => freshState());
+    rec("generateScoreReportPDF", h.generateScoreReportPDF, () => { throw new Error("boom"); });
+    noTokens(await (await post("alice@example.com")).text());
+    setMode("on");
+    noTokens(await (await post("alice@example.com")).text());
+    h.kvGet.mockResolvedValue(String(Math.floor(Date.now() / 1000) - 10));
+    noTokens(await (await post("alice@example.com")).text());
+  });
+
+  it("honeypot response is byte-identical to a real fresh success", async () => {
+    const real = await (await post("alice@example.com")).text();
+    const pot = await (await post("alice@example.com", { referral_code: "x" })).text();
+    expect(pot).toBe(real);
   });
 });

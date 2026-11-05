@@ -86,7 +86,7 @@ export default async function ScoreResultsPage({
 
   // Validate token (if present).
   const validToken = tokenInput
-    ? await verifyScanToken(tokenInput, env.UNSUBSCRIBE_SECRET ?? "")
+    ? await verifyScanToken(tokenInput, env.UNSUBSCRIBE_SECRET ?? "", "report")
     : null;
   const tokenIsValid = !!validToken && validToken.scanId === scanId;
   const tokenWasProvided = tokenInput.length > 0;

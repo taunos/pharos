@@ -191,3 +191,14 @@ describe("gate ON — pointer-first download (CD5 fallback rule)", () => {
     }
   });
 });
+
+// E1 (2026-11-05): the PDF route only accepts report-purpose tokens.
+describe("E1 — PDF download verifies the token for the 'report' purpose", () => {
+  it("verifyScanToken is called with purpose 'report'; a token that fails that check is a 404", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    await dispatch();
+    expect(h.verifyScanToken).toHaveBeenCalledWith(expect.any(String), expect.any(String), "report");
+    h.verifyScanToken.mockResolvedValue(null);
+    expect((await dispatch()).status).toBe(404);
+  });
+});

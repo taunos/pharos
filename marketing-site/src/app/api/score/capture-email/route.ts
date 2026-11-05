@@ -2,7 +2,17 @@
 //
 // Captures an email + opt-in flag for a Score scan, persists to scanner D1
 // (via INTERNAL_SCANNER_ADMIN_KEY internal endpoint), generates the gap-report
-// PDF, sends Resend email, returns token-bearing URLs the user can refresh on.
+// PDF, sends Resend email.
+//
+// E1 (code-quality audit 2026-11-05): the JSON response NEVER carries a
+// token or token-bearing URL. The PDF/results links go only to the inbox.
+// The scan's captured address is the only address that ever receives its
+// report: a repeat request re-sends to the STORED address, and a different
+// address for a scan that already has one is REFUSED (409). Refusing (rather
+// than treating it as a new capture) keeps a stranger with the /score/<id>
+// link from re-pointing the victim's scan — its rescan emails, unsubscribe
+// state and report — at their own inbox, and from using any public scan id
+// to mail arbitrary addresses. A user who mistyped can run a new scan.
 //
 // Multi-state idempotency:
 //   - pdf_ready === true: re-issue token (fresh expiry), re-send email,
@@ -37,6 +47,7 @@ import {
 import {
   captureEmail,
   captureOutbox,
+  getEmailForScan,
   getPublicScan,
   getScanState,
   markPdfGenerated,
@@ -64,17 +75,16 @@ interface CaptureEnv {
   CAPTURE_RATE_LIMITER?: RateLimitBinding;
 }
 
-// Honeypot success — same JSON shape as a real success, plausible
-// token-shaped values that 404 when followed. Bots keep a 200 response
-// in their "success" bucket; humans never see this branch.
-function honeypotResponse(scanId: string, origin: string) {
-  const fakeToken = "v1.X.X.deadbeefdeadbeefdeadbeefdeadbeef";
-  return NextResponse.json({
-    success: true,
-    results_url: `${origin}/score/${scanId}?t=${fakeToken}`,
-    pdf_url: `${origin}/api/score/${scanId}/pdf?t=${fakeToken}`,
-  });
+// Honeypot success — byte-identical to a real fresh-capture success. Bots
+// keep a 200 response in their "success" bucket; humans never see this branch.
+function honeypotResponse() {
+  return NextResponse.json({ success: true, deferred: false });
 }
+
+// E1: the visitor-facing refusal when the scan already has a different
+// captured address.
+const DIFFERENT_EMAIL_ERROR =
+  "This scan's report has already been sent to a different address. To get a report at this address, run a new scan.";
 
 export const maxDuration = 120;
 
@@ -102,8 +112,7 @@ export async function POST(req: Request) {
 
   // Honeypot check FIRST — before any DB lookup or expensive work.
   if (typeof b.referral_code === "string" && b.referral_code.trim().length > 0) {
-    const sid = typeof b.scan_id === "string" ? b.scan_id : "00000000";
-    return honeypotResponse(sid, origin);
+    return honeypotResponse();
   }
 
   if (typeof b.scan_id !== "string" || b.scan_id.length === 0) {
@@ -179,6 +188,31 @@ export async function POST(req: Request) {
   }
   const state = stateRes;
 
+  // ── E1: bind the scan to its captured address ──────────────────────────
+  // A scan that already has an address only ever mails THAT address.
+  let recipient = email;
+  if (state.has_email_captured) {
+    const stored = await getEmailForScan(env, scanId);
+    if (!stored.ok) {
+      console.error(
+        `[capture-email] stored-email read failed scan=${scanId} email_hash=${emailLogHash}: ${stored.error}`
+      );
+      return NextResponse.json(
+        { success: false, error: "Could not load scan." },
+        { status: 502 }
+      );
+    }
+    if (stored.email) {
+      if (normalizeEmail(stored.email) !== email) {
+        return NextResponse.json(
+          { success: false, error: DIFFERENT_EMAIL_ERROR },
+          { status: 409 }
+        );
+      }
+      recipient = normalizeEmail(stored.email);
+    }
+  }
+
   // Idempotency keys live in TRIAGE_CACHE under the existing pattern. Bound
   // resubmission frequency to prevent re-send abuse + capacity-event self-DoS.
   const idemKey = `idem:capture:${scanId}:${emailLogHash}`;
@@ -186,15 +220,19 @@ export async function POST(req: Request) {
   const nowSec = Math.floor(Date.now() / 1000);
 
   // ── Token issuance (always re-issue with fresh expiry on re-submit) ────
+  // Purpose-bound (E1): the report token cannot unsubscribe and vice versa.
+  // Neither ever appears in this route's response; both go only by email.
   const scanToken = await issueScanToken(
     scanId,
     PDF_TOKEN_TTL_SECONDS,
-    env.UNSUBSCRIBE_SECRET
+    env.UNSUBSCRIBE_SECRET,
+    "report"
   );
   const unsubToken = await issueScanToken(
     scanId,
     UNSUB_TOKEN_TTL_SECONDS,
-    env.UNSUBSCRIBE_SECRET
+    env.UNSUBSCRIBE_SECRET,
+    "unsub"
   );
 
   // ── P0-C2 capture cutover (CD1/CD3): gate ON → deferred pipeline; ALWAYS returns.
@@ -208,13 +246,11 @@ export async function POST(req: Request) {
         return NextResponse.json({
           success: true,
           deferred: true,
-          results_url: `${origin}/score/${scanId}?t=${scanToken}`,
-          pdf_url: `${origin}/api/score/${scanId}/pdf?t=${scanToken}`,
         });
       }
     }
     const outcome = await captureOutbox(env, scanId, {
-      email,
+      email: recipient,
       email_opted_in_rescan: optInRescan,
       unsubscribe_token: scanToken,
     });
@@ -226,13 +262,12 @@ export async function POST(req: Request) {
         return NextResponse.json({
           success: true,
           deferred: true,
-          results_url: `${origin}/score/${scanId}?t=${scanToken}`,
-          pdf_url: `${origin}/api/score/${scanId}/pdf?t=${scanToken}`,
         });
       case "conflict":
         console.error("[capture-email] outbox_conflict");
         return NextResponse.json(
-          { success: false, error: "Another email address is already receiving this scan's report. Use that address, or try again once it's delivered." },
+          // E1: a different address is in flight and will stay bound to the scan.
+          { success: false, error: DIFFERENT_EMAIL_ERROR },
           { status: 409 }
         );
       case "not_found":
@@ -271,8 +306,6 @@ export async function POST(req: Request) {
         return NextResponse.json({
           success: true,
           deferred: true,
-          results_url: `${origin}/score/${scanId}?t=${scanToken}`,
-          pdf_url: `${origin}/api/score/${scanId}/pdf?t=${scanToken}`,
           message:
             "Your gap report is still queued for generation. We'll email it when ready — usually within 24 hours.",
         });
@@ -286,8 +319,6 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       deferred: true,
-      results_url: `${origin}/score/${scanId}?t=${scanToken}`,
-      pdf_url: `${origin}/api/score/${scanId}/pdf?t=${scanToken}`,
       message:
         "Your gap report is queued for generation. We'll email it within 24 hours.",
     });
@@ -305,8 +336,6 @@ export async function POST(req: Request) {
     if (!cooldownOk) {
       return NextResponse.json({
         success: true,
-        results_url: `${origin}/score/${scanId}?t=${scanToken}`,
-        pdf_url: `${origin}/api/score/${scanId}/pdf?t=${scanToken}`,
         message: "Your gap report is ready — check your inbox.",
       });
     }
@@ -323,7 +352,7 @@ export async function POST(req: Request) {
     }
     const scan = scanFetch.data as ScanResult;
     const sendRes = await sendGapReportReadyEmail(env, {
-      toEmail: email,
+      toEmail: recipient,
       scan,
       scanToken,
       unsubscribeToken: unsubToken,
@@ -339,8 +368,6 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({
       success: true,
-      results_url: `${origin}/score/${scanId}?t=${scanToken}`,
-      pdf_url: `${origin}/api/score/${scanId}/pdf?t=${scanToken}`,
     });
   }
 
@@ -351,10 +378,18 @@ export async function POST(req: Request) {
   // (scanner treats it as opaque hex; never relied on for authority — every
   // request recomputes from secret + URL claim).
   const persist = await captureEmail(env, scanId, {
-    email,
+    email: recipient,
     email_opted_in_rescan: optInRescan,
     unsubscribe_token: scanToken,
   });
+  if (!persist.ok && persist.emailBound) {
+    // E1: lost a concurrent first-capture race to a different address. The
+    // scanner write is atomic; nothing was stored, rendered or sent.
+    return NextResponse.json(
+      { success: false, error: DIFFERENT_EMAIL_ERROR },
+      { status: 409 }
+    );
+  }
   if (!persist.ok) {
     console.error(
       `[capture-email] persist failed scan=${scanId} email_hash=${emailLogHash}: ${persist.error}`
@@ -384,7 +419,7 @@ export async function POST(req: Request) {
     await generateScoreReportPDF(
       env,
       scan,
-      email,
+      recipient,
       scan.scoring_version ?? "unknown"
     );
     await markPdfGenerated(env, scanId, {
@@ -406,12 +441,9 @@ export async function POST(req: Request) {
         `[capture-email] PDF gen failed scan=${scanId} email_hash=${emailLogHash}: ${err instanceof Error ? err.message : String(err)}`
       );
       // Email captured, PDF failed — surface a friendly retry. Don't error
-      // out the whole request because the row is now in a useful state for
-      // the user to /score/[id] back into.
+      // out the whole request: the row is saved and a resubmit regenerates.
       return NextResponse.json({
         success: true,
-        results_url: `${origin}/score/${scanId}?t=${scanToken}`,
-        pdf_url: `${origin}/api/score/${scanId}/pdf?t=${scanToken}`,
         message:
           "We saved your email but couldn't generate the PDF right now. Refresh the results page in a few minutes or email contact@astrant.io for help.",
       });
@@ -420,7 +452,7 @@ export async function POST(req: Request) {
 
   // Send the appropriate email variant.
   const sendInput = {
-    toEmail: email,
+    toEmail: recipient,
     scan,
     scanToken,
     unsubscribeToken: unsubToken,
@@ -433,8 +465,8 @@ export async function POST(req: Request) {
     console.error(
       `[capture-email] resend failed scan=${scanId} email_hash=${emailLogHash} deferred=${deferred}: ${sendRes.error}`
     );
-    // Still return success — EmailGate's "if you don't see an email in
-    // 5 minutes, view it directly at <link>" fallback covers silent failures.
+    // Still return success — the address is saved and a repeat submit
+    // re-sends (5-minute cool-down); EmailGate points to contact@astrant.io.
   }
 
   await env.TRIAGE_CACHE.put(idemKey, String(nowSec), {
@@ -444,7 +476,5 @@ export async function POST(req: Request) {
   return NextResponse.json({
     success: true,
     deferred,
-    results_url: `${origin}/score/${scanId}?t=${scanToken}`,
-    pdf_url: `${origin}/api/score/${scanId}/pdf?t=${scanToken}`,
   });
 }

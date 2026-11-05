@@ -292,7 +292,7 @@ export async function runPrivacyDelete(
 // catch-all: live foreign lease, TOCTOU release-between-UPDATE-and-read,
 // malformed lease pair). D1 byte-unchanged in every rejection case. Any throw
 // propagates to the route adapter's pd_internal arm.
-export type CaptureGuardOutcome = "captured" | "not_found" | "tombstoned" | "pd_busy";
+export type CaptureGuardOutcome = "captured" | "not_found" | "tombstoned" | "pd_busy" | "email_bound";
 export async function runGuardedCaptureEmail(
   env: Env,
   scanId: string,
@@ -301,7 +301,7 @@ export async function runGuardedCaptureEmail(
   unsubscribeToken: string
 ): Promise<CaptureGuardOutcome> {
   const res = await env.DB.prepare(CAPTURE_SET_EMAIL_GUARDED_SQL)
-    .bind(email, optedIn, unsubscribeToken, scanId, Date.now())
+    .bind(email, optedIn, unsubscribeToken, scanId, Date.now(), email)
     .run();
   if (res.success && (res.meta.changes ?? 0) > 0) return "captured";
   const row = await firstNamed<A4Row>(env.DB, PRIVACY_SQL.a4Read, { id: scanId });
@@ -309,6 +309,14 @@ export async function runGuardedCaptureEmail(
   if (row.retention_locked_at != null) {
     console.log(`[capture-email] tombstoned`);
     return "tombstoned";
+  }
+  // E1: bound to a different captured address (identifier-free class).
+  const bound = await env.DB.prepare("SELECT email FROM scans WHERE id = ?")
+    .bind(scanId)
+    .first<{ email: string | null }>();
+  if (bound?.email && bound.email.trim().toLowerCase() !== email) {
+    console.log(`[capture-email] email_bound`);
+    return "email_bound";
   }
   console.log(`[capture-email] pd_busy`);
   return "pd_busy";
