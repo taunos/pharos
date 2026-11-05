@@ -147,34 +147,6 @@ function buildSubChecks(result: Dim6Result): Dim6SubCheck[] {
 }
 
 /**
- * Build the FREE-TIER demo-preview Dim 6 dimension. na:true; static demo
- * content; never invokes any external model. This is what the marketing-site
- * Worker emits when called in free-tier context. The SCANNER's standalone
- * dim6-citation.ts emits an EQUIVALENT shape independently — they must
- * stay parity-aligned (different module trees by capability-separation rule).
- */
-export function buildFreeTierDim6(): Dim6Dimension {
-  return {
-    dimension_id: 6,
-    dimension_name: "Citation Visibility",
-    score: 0,
-    grade: gradeFor(0),
-    na: true,
-    sub_checks: [
-      {
-        id: "free_tier_dim6_preview",
-        name: "Citation Visibility (free-tier preview)",
-        weight: 1,
-        score: 0,
-        passed: false,
-        notes: DIM6_DISCLOSURE.short + " " + DIM6_DISCLOSURE.freeTierPreview,
-        na: true,
-      },
-    ],
-  };
-}
-
-/**
  * Build the DAILY-CAP-EXCEEDED dimension. Distinct note from free-tier so
  * audit-fulfill can flag the customer (and re-queue for tomorrow) cleanly.
  */

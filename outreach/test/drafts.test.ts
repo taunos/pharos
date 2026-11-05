@@ -151,6 +151,20 @@ describe("draft step", () => {
     expect(mail.drafts).toEqual([]);
   });
 
+  it("a Zoho timeout (AbortSignal.timeout → TimeoutError) is an unknown outcome ⇒ draft_unknown, never recreated", async () => {
+    const { db } = freshDb();
+    const env = makeEnv(db);
+    await seed(db, 1, 0);
+    const mail = new FakeMail();
+    let calls = 0;
+    mail.draftImpl = async () => {
+      calls++;
+      throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+    };
+    expect(await draftStep(env, dd(mail, () => TUE_1400), true)).toBe("draft_unknown");
+    await draftStep(env, dd(mail, () => TUE_1400 + 3600_000), true);
+    expect(calls).toBe(1);
+  });
   it("unknown provider outcome ⇒ draft_unknown; definite 4xx retries once then cancels; 3 in a row pause; auth pauses", async () => {
     const { db } = freshDb();
     const env = makeEnv(db);

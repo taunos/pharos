@@ -22,7 +22,9 @@ export async function sendDigestEmail(
   const htmlBody = htmlEmailFromMarkdown(digestMarkdown);
   const pdfBase64 = uint8ArrayToBase64(pdfBytes);
   const resend = new Resend(env.RESEND_API_KEY);
-  await resend.emails.send({
+  // Resend v6 resolves to { data, error } on API failure instead of throwing;
+  // surface it so callers' try/catch (and the preview endpoint) see the failure.
+  const { error } = await resend.emails.send({
     from: "Astrant <reports@astrant.io>",
     to: customerEmail,
     subject: `Your Astrant citation digest — ${formatMonth(periodStart)}`,
@@ -34,6 +36,7 @@ export async function sendDigestEmail(
       },
     ],
   });
+  if (error) throw new Error(`Resend digest send failed: ${error.name}: ${error.message}`);
 }
 
 function htmlEmailFromMarkdown(markdown: string): string {

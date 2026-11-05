@@ -43,10 +43,6 @@ export async function getDailyBrCount(kv: KVNamespace): Promise<number> {
   }
 }
 
-export async function isOverDailyBrCap(kv: KVNamespace): Promise<boolean> {
-  return (await getDailyBrCount(kv)) >= DAILY_BR_INVOCATION_CAP;
-}
-
 /**
  * Increment the daily BR counter. Best-effort: a KV failure here does NOT
  * block the BR call itself — the budget is for telemetry, not for blocking.

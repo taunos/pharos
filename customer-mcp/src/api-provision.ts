@@ -50,6 +50,11 @@ export async function handleProvision(req: Request, env: Env): Promise<Response>
   if (body.paid_tier !== 'implementation' && (body.period_end === undefined || body.period_end === null)) {
     return jsonError(400, 'PERIOD_END_REQUIRED_FOR_SUBSCRIPTION');
   }
+  // Must be integer epoch seconds: SQLite orders TEXT above every INTEGER, so a
+  // string period_end would never satisfy the sweep's `period_end < now`.
+  if (body.paid_tier !== 'implementation' && !Number.isInteger(body.period_end)) {
+    return jsonError(400, 'INVALID_PERIOD_END');
+  }
   if (!body.config || typeof body.config !== 'object') {
     return jsonError(400, 'MISSING_CONFIG');
   }

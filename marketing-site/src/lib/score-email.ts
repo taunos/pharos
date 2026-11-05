@@ -397,15 +397,6 @@ export async function sendDeletionConfirmEmail(
   }
 }
 
-// ─── Log-redacted email identifier ───────────────────────────────────────
-
-export async function logRedactedEmail(
-  email: string,
-  secret: string
-): Promise<string> {
-  return hashEmailForLog(email, secret);
-}
-
 // ─── F3.1 AutoPilot welcome audit-ready email ────────────────────────────
 
 export type AutoPilotAuditReadyInput = {

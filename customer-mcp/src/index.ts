@@ -50,8 +50,9 @@ export default {
     if (!customer) return mcpNotFound();
     if (customer.status === 'expired') return mcpNotFound();
     // status='cancelled' still serves while period_end > now (end-of-period sunset).
-    // The sweep cron flips cancelled → expired post-period_end; the period_end check
-    // below handles the window between period_end and the next sweep run.
+    // The sweep cron flips active subscriptions → expired after period_end and
+    // hard-deletes cancelled rows 30 days after period_end; the period_end check
+    // below covers cancelled rows and the window before the next sweep run.
     if (customer.period_end !== null && customer.period_end < Math.floor(Date.now() / 1000)) {
       return mcpNotFound();
     }

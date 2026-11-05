@@ -148,3 +148,31 @@ describe("tC11 — DELETE_PII_TIMEOUT_MS single source of truth", () => {
     expect(DELETE_PII_TIMEOUT_MS).toBeGreaterThan(PD_REQUEST_BUDGET_MS);
   });
 });
+
+describe("scan id is a single encoded path segment (admin-key requests can't be retargeted)", () => {
+  const HOSTILE = "../internal/scan/victim/email?x=#";
+  const calls: Array<() => Promise<unknown>> = [
+    () => captureEmail(env, HOSTILE, { email: "a@b.co", email_opted_in_rescan: true, unsubscribe_token: "t" }),
+    () => markPdfGenerated(env, HOSTILE, { pdf_template_version: "v" }),
+    () => unsubscribeScan(env, HOSTILE),
+    () => deletePiiForScan(env, HOSTILE),
+    () => getEmailForScan(env, HOSTILE),
+    () => getScanState(env, HOSTILE),
+    () => getPublicScan(HOSTILE),
+    () => captureOutbox(env, HOSTILE, { email: "a@b.co", email_opted_in_rescan: false, unsubscribe_token: "t" }),
+    () => getPdfKey(env, HOSTILE),
+  ];
+  it("every helper keeps the hostile id inside one segment", async () => {
+    for (const call of calls) {
+      fetchMock.mockResolvedValueOnce(json({}, 404));
+      await call().catch(() => undefined);
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(calls.length);
+    for (const [u] of fetchMock.mock.calls) {
+      const url = new URL(String(u));
+      expect(url.pathname).toContain(encodeURIComponent(HOSTILE));
+      expect(url.pathname).not.toContain("/internal/scan/victim");
+      expect(url.search).toBe("");
+    }
+  });
+});

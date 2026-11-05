@@ -60,7 +60,7 @@ export async function captureEmail(
     unsubscribe_token: string;
   }
 ): Promise<{ ok: boolean; error?: string }> {
-  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${scanId}/capture-email`, {
+  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/capture-email`, {
     method: "POST",
     headers: authHeaders(env),
     body: JSON.stringify(payload),
@@ -78,7 +78,7 @@ export async function markPdfGenerated(
   scanId: string,
   payload: { pdf_template_version: string; pdf_deferred_until_tomorrow?: boolean }
 ): Promise<{ ok: boolean; error?: string }> {
-  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${scanId}/pdf-generated`, {
+  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/pdf-generated`, {
     method: "POST",
     headers: authHeaders(env),
     body: JSON.stringify(payload),
@@ -95,7 +95,7 @@ export async function unsubscribeScan(
   env: ScannerEnv,
   scanId: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${scanId}/unsubscribe`, {
+  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/unsubscribe`, {
     method: "POST",
     headers: authHeaders(env),
   }, SCANNER_CLIENT_TIMEOUT_MS);
@@ -111,7 +111,7 @@ export async function deletePiiForScan(
   env: ScannerEnv,
   scanId: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${scanId}/delete-pii`, {
+  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/delete-pii`, {
     method: "POST",
     headers: authHeaders(env),
   }, DELETE_PII_TIMEOUT_MS);
@@ -127,7 +127,7 @@ export async function getEmailForScan(
   env: ScannerEnv,
   scanId: string
 ): Promise<{ ok: true; email: string | null } | { ok: false; error: string }> {
-  const res = await boundedFetch(`${SCANNER_BASE}/api/internal/scan/${scanId}/email`, {
+  const res = await boundedFetch(`${SCANNER_BASE}/api/internal/scan/${encodeURIComponent(scanId)}/email`, {
     method: "GET",
     headers: authHeaders(env),
   }, SCANNER_CLIENT_TIMEOUT_MS);
@@ -176,7 +176,7 @@ export async function getScanState(
     }
   | { ok: false; error: string }
 > {
-  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${scanId}/state`, {
+  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/state`, {
     method: "GET",
     headers: authHeaders(env),
   }, SCANNER_CLIENT_TIMEOUT_MS);
@@ -208,7 +208,7 @@ export async function getScanState(
 export async function getPublicScan(
   scanId: string
 ): Promise<{ ok: true; data: unknown } | { ok: false; error: string }> {
-  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${scanId}`, {
+  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}`, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
   }, SCANNER_CLIENT_TIMEOUT_MS);
@@ -241,7 +241,7 @@ export async function captureOutbox(
 ): Promise<CaptureOutboxOutcome> {
   let res: Response;
   try {
-    res = await fetch(`${SCANNER_BASE}/api/scan/${scanId}/capture-outbox`, {
+    res = await fetch(`${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/capture-outbox`, {
       method: "POST",
       headers: authHeaders(env),
       body: JSON.stringify(payload),
@@ -273,7 +273,7 @@ export async function getPdfKey(
 ): Promise<{ ok: true; pdf_r2_key: string | null } | { ok: false }> {
   let res: Response;
   try {
-    res = await fetch(`${SCANNER_BASE}/api/internal/scan/${scanId}/pdf-key`, {
+    res = await fetch(`${SCANNER_BASE}/api/internal/scan/${encodeURIComponent(scanId)}/pdf-key`, {
       method: "GET",
       headers: authHeaders(env),
       signal: AbortSignal.timeout(SCANNER_CLIENT_TIMEOUT_MS),

@@ -78,12 +78,16 @@ describe("Phase 1 code inspection", () => {
     const re = new RegExp(String.raw`[\p{Cf}\p{Zl}\p{Zp}]`, "u");
     for (const f of [...SRC, ...files(join(ROOT, "test"))]) expect(re.test(read(f)), f).toBe(false);
   });
-  it("wrangler.jsonc declares no secret values and defaults to off", () => {
+  it("wrangler.jsonc declares no secret values and OUTREACH_MODE is an exact known mode", () => {
     const w = read(join(ROOT, "wrangler.jsonc"));
     for (const name of ["POSTAL_ADDRESS", "OPTOUT_HMAC_SECRET", "SUPPRESSION_HMAC_SECRET", "MAIL_OAUTH_CLIENT_ID", "MAIL_OAUTH_CLIENT_SECRET", "MAIL_OAUTH_REFRESH_TOKEN"]) {
       expect(new RegExp(`"${name}"\\s*:`).test(w), name).toBe(false);
     }
-    expect(w).toMatch(/"OUTREACH_MODE":\s*"off"/);
+    // The runbook advances the mode by editing this file (off → dry_run → gated),
+    // so pin validity, not a rollout stage: a typo here would silently parse to
+    // "off" (parseMode is fail-closed; covered in mode-research.test.ts).
+    const mode = w.match(/"OUTREACH_MODE":\s*"([^"]*)"/)?.[1];
+    expect(["off", "dry_run", "gated", "auto"]).toContain(mode);
     expect(w).toMatch(/"entrypoint":\s*"ProspectScan"/);
   });
 });
@@ -122,6 +126,52 @@ describe("Zoho client (mocked fetch; never real credentials)", () => {
     expect(r.messages[0].from).toBe("hello@acme.com");
     expect(calls.some((c) => c.includes("Zoho-oauthtoken"))).toBe(false); // token goes in a header, not the URL
     expect(calls.filter((c) => c.startsWith("POST https://accounts.zoho.test/oauth/v2/token")).length).toBe(1);
+  });
+
+  it("every Zoho request carries a timeout signal (token refresh, API reads, draft creation)", async () => {
+    const signals: Array<AbortSignal | null | undefined> = [];
+    const f = (async (u: RequestInfo | URL, init?: RequestInit) => {
+      signals.push(init?.signal);
+      const url = String(u);
+      if (url.includes("/oauth/v2/token")) return Response.json({ access_token: "at", expires_in: 3600 });
+      if (url.includes("/folders")) return Response.json({ data: [{ folderId: "7", folderType: "Inbox" }, { folderId: "8", folderType: "Sent" }] });
+      if (url.includes("/messages/view")) return Response.json({ data: [] });
+      if (url.includes("/api/accounts/42/messages")) return Response.json({ data: { messageId: "d1" } });
+      if (url.includes("/api/accounts")) return Response.json({ data: [{ accountId: "42", primaryEmailAddress: "bruno@getastrant.com" }] });
+      return new Response("{}", { status: 404 });
+    }) as typeof fetch;
+    const z = new ZohoMailClient(cfg, f);
+    await z.drainInbox(null, 1);
+    await z.createDraft({ to: "a@acme.com", subject: "s", text: "t" });
+    expect(signals.length).toBeGreaterThanOrEqual(5);
+    for (const s of signals) expect(s).toBeInstanceOf(AbortSignal);
+  });
+
+  it("a folder that shrank below the saved position (bulk archive) restarts from the top instead of stalling", async () => {
+    // 100 messages were read (cursor s=101); Bruno archived 60, then 1 new reply arrived → folder holds 41.
+    const folder = Array.from({ length: 41 }, (_, i) => ({ messageId: String(i + 1), receivedTime: String(i) }));
+    const raw = ["From: x@acme.com", "Subject: hi", "Content-Type: text/plain", "", "unsubscribe", ""].join(String.fromCharCode(13, 10));
+    const calls: string[] = [];
+    const f = (async (u: RequestInfo | URL) => {
+      const url = String(u);
+      calls.push(url);
+      if (url.startsWith("https://accounts.zoho.test/oauth/v2/token")) return Response.json({ access_token: "at", expires_in: 3600 });
+      if (url.includes("/folders")) return Response.json({ data: [{ folderId: "7", folderType: "Inbox" }, { folderId: "8", folderType: "Sent" }] });
+      if (url.includes("/messages/view")) {
+        const q = new URL(url).searchParams;
+        const start = Number(q.get("start"));
+        return Response.json({ data: folder.slice(start - 1, start - 1 + Number(q.get("limit"))) });
+      }
+      if (url.includes("/originalmessage")) return Response.json({ data: { content: raw } });
+      if (url.includes("/api/accounts")) return Response.json({ data: [{ accountId: "42", primaryEmailAddress: "bruno@getastrant.com" }] });
+      return new Response("{}", { status: 404 });
+    }) as typeof fetch;
+    const z = new ZohoMailClient(cfg, f);
+    const r = await z.drainInbox(JSON.stringify({ s: 101 }), 3, async (id) => Number(id) <= 40);
+    expect(r.messages.map((m) => m.providerMessageId)).toEqual(["41"]);
+    expect(r.caughtUp).toBe(true);
+    expect(r.cursor).toBe(JSON.stringify({ s: 42 }));
+    expect(calls.filter((c) => c.includes("/messages/view")).map((c) => new URL(c).searchParams.get("start"))).toEqual(["76", "1"]);
   });
 
   it("listSent reads the Sent folder with recipients and the real Message-ID; createDraft posts mode=draft with threading", async () => {

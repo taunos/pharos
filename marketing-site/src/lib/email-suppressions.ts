@@ -21,18 +21,6 @@ export async function isEmailSuppressed(
   return row !== null;
 }
 
-export async function recordSuppression(
-  env: { CITATION_DB: D1Database },
-  email: string,
-  reason: string,
-): Promise<void> {
-  const hash = await hashEmailSha256(email);
-  const nowSec = Math.floor(Date.now() / 1000);
-  await env.CITATION_DB.prepare(
-    'INSERT OR IGNORE INTO email_suppressions (email_hash, suppressed_at, reason) VALUES (?, ?, ?)'
-  ).bind(hash, nowSec, reason).run();
-}
-
 export async function mintUnsubscribeToken(
   env: { EMAIL_UNSUB_SIGNING_KEY: string },
   email: string,

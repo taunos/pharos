@@ -132,7 +132,14 @@ export default {
 
       // Astrant digest (customer_id=NULL; subscribedAt=null — no subscriptions row by design,
       // per B1.3 D5 artifact split. First-month-note short-circuits on null.)
-      await runMonthlyDigest(env, periodStart, periodEnd, null, 'Astrant', null);
+      // Each digest is isolated: one failure must not abort the remaining customers'.
+      const failed: string[] = [];
+      try {
+        await runMonthlyDigest(env, periodStart, periodEnd, null, 'Astrant', null);
+      } catch (err) {
+        console.error('DIGEST_FAILED customer_id=ASTRANT', err);
+        failed.push('ASTRANT');
+      }
 
       // Per-customer digests (active targets only).
       // F3 §3.11: LEFT JOIN subscriptions for customer_email + current_period_start.
@@ -145,14 +152,21 @@ export default {
          WHERE cpt.status='active'`
       ).all<{ customer_id: string; brand_name: string; customer_email: string | null; current_period_start: number | null; subscription_id: string | null }>();
       for (const target of activeTargets.results ?? []) {
-        const result = await runMonthlyDigest(
-          env,
-          periodStart,
-          periodEnd,
-          target.customer_id,
-          target.brand_name,
-          target.current_period_start,
-        );
+        let result: Awaited<ReturnType<typeof runMonthlyDigest>>;
+        try {
+          result = await runMonthlyDigest(
+            env,
+            periodStart,
+            periodEnd,
+            target.customer_id,
+            target.brand_name,
+            target.current_period_start,
+          );
+        } catch (err) {
+          console.error(`DIGEST_FAILED customer_id=${target.customer_id}`, err);
+          failed.push(target.customer_id);
+          continue;
+        }
         // F3: render PDF + send email if subscriptions row exists.
         // F3.2: include account-link footer when subscription_id is available (preserves
         //   unconditional send for the edge case of customer_email-without-subscription_id
@@ -170,9 +184,18 @@ export default {
             await sendDigestEmail(env, target.customer_id, target.customer_email, markdownToSend, pdfBytes, periodStart);
           } catch (err) {
             console.error(`F3_DIGEST_DELIVERY_FAILED customer_id=${target.customer_id}`, err);
+            failed.push(target.customer_id);
           }
         } else {
           console.warn(`F3_DIGEST_NO_EMAIL customer_id=${target.customer_id} — probe target exists but no subscriptions row`);
+        }
+      }
+      if (failed.length > 0) {
+        // Persisted logs are sampled; tell the operator directly.
+        try {
+          await sendOperatorAlert(env, `DIGEST_FAILURES count=${failed.length} customer_ids=${failed.join(',')}`);
+        } catch (err) {
+          console.error('DIGEST_FAILURE_ALERT_FAILED', err);
         }
       }
     } else {
@@ -341,7 +364,9 @@ export default {
         }
 
         // CUSTOMER_CEILING_REACHED check (B1.3 v1.1: MAX_PROBE_TARGETS env binding replaces hardcoded 3)
-        const maxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? '30', 10);
+        // Non-numeric → default 30 (a NaN ceiling would compare false and remove the cap); "0" is honoured.
+        const parsedCeiling = parseInt(env.MAX_PROBE_TARGETS ?? '', 10);
+        const maxProbeTargets = Number.isInteger(parsedCeiling) && parsedCeiling >= 0 ? parsedCeiling : 30;
         const countRow = await env.DB.prepare(
           `SELECT COUNT(*) AS c FROM customer_probe_targets WHERE status='active'`
         ).first<{ c: number }>();
@@ -386,6 +411,10 @@ export default {
         }
         if (typeof body.customer_id !== 'string' || body.customer_id === '') {
           return jsonError(400, 'CUSTOMER_ID_REQUIRED', 'customer_id must be a non-empty string');
+        }
+        // Same transport-safe NUL guard as probe-target-add (repo endpoint-validation rule).
+        if (body.customer_id.includes(String.fromCharCode(0))) {
+          return jsonError(400, 'CUSTOMER_ID_NUL_BYTE', 'customer_id must not contain NUL bytes');
         }
 
         const now = Math.floor(Date.now() / 1000);

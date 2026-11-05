@@ -32,17 +32,6 @@ export const SPEC_WEIGHTS: Record<number, number> = {
   6: 20,
 };
 
-// Backwards-compat alias for any tooling that imported the Slice 2a name.
-// New code should reference SPEC_WEIGHTS directly. Same proportions as the
-// pre-Slice-3a presentation transform for the four shipped dimensions, so
-// content-only sites land at the same composite as v1.1.0 (parity invariant).
-export const SLICE2A_WEIGHTS: Record<number, number> = {
-  1: 15 / 70,
-  2: 20 / 70,
-  4: 20 / 70,
-  5: 15 / 70,
-};
-
 export function gradeFor(score: number): string {
   if (score >= 90) return "A";
   if (score >= 80) return "A-";

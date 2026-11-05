@@ -13,6 +13,7 @@ import { dodoApiBase } from "@/lib/dodo";
 import { CUSTOMER_CATEGORIES } from "@/lib/customer-categories";
 import { checkF2CheckoutCreateRateLimit } from "@/lib/rate-limit-kv";
 import { isImplementationCheckoutEnabled } from "@/lib/implementation-gate";
+import { parseMaxProbeTargets } from "@/lib/probe-ceiling";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
 
   // 3. D18 Stage 1 — server-side authoritative ceiling check
   // B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded CUSTOMER_CEILING=3.
-  const maxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
+  const maxProbeTargets = parseMaxProbeTargets(env.MAX_PROBE_TARGETS);
   const ceilingCheck = await env.CITATION_DB.prepare(
     `SELECT COUNT(*) AS count FROM customer_probe_targets WHERE status='active'`,
   ).first<{ count: number }>();
@@ -135,6 +136,7 @@ export async function POST(req: Request) {
   try {
     const resp = await fetch(`${dodoApiBase(env)}/checkouts`, {
       method: "POST",
+      signal: AbortSignal.timeout(15_000),
       headers: {
         Authorization: `Bearer ${env.DODO_API_KEY}`,
         "Content-Type": "application/json",
