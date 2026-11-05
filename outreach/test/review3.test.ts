@@ -49,7 +49,7 @@ describe("only the three observation findings exist", () => {
     const all = Object.fromEntries(COPY_RULES.flatMap((r) => Object.entries(r.variants).map(([v, t]) => [`${r.key}.${v}`, t])));
     expect(all).toEqual({
       "1.presence.not_found": "When we requested {domain}/llms.txt, the server answered with a 404 (not found).",
-      "1.presence.html": "When we requested {domain}/llms.txt, the server answered with a page declared as HTML (content type text/html), not a plain-text file.",
+      "1.presence.html": "When we requested {domain}/llms.txt, the server declared its response as HTML (content type text/html).",
       "4.json_ld_present.none": "When we requested the {domain} homepage, its HTML had no JSON-LD block (no script of type application/ld+json).",
     });
   });
