@@ -147,13 +147,13 @@ Astrant has three engagement options:
 
 DECISION RULE (apply strictly):
 - not_fit is ONLY for the four patterns above. If a prospect is a B2B SaaS, B2C SaaS, e-commerce, or marketplace with genuine implementation needs — no matter how complex or how much "discussion" the project might warrant — they route to either standard or custom, never to not_fit.
-- "Needs a conversation," "needs to discuss specifics," or "exceeds Standard capabilities" all mean custom, not not_fit.
+- "Needs a conversation," "needs to discuss specifics," or "exceeds Implementation capabilities" all mean custom, not not_fit.
 - When uncertain between standard and custom, prefer custom. Surfacing a $250-deposit scoping call is always better than undersizing a complex project into a $1,299 standard build.
 
 PROSPECT SUBMISSION:
 - Site URL: ${s.site_url}
 - Site type: ${s.site_type}
-- What they need beyond Standard: ${s.custom_needs}
+- What they need beyond Implementation: ${s.custom_needs}
 - Complexity factors checked: ${factors}
 - Budget range: ${s.budget_range}
 - Timeline: ${s.timeline}
@@ -162,7 +162,7 @@ EXAMPLES (study these — your output should match this pattern):
 
 Example 1:
 Submission: B2B SaaS site, "Just want to be findable by AI agents, nothing fancy," no complexity factors checked, budget under $5K, flexible timeline.
-Output: {"recommendation": "standard", "explanation": "Your situation matches the 80% case our Standard Implementation is built for — typical B2B SaaS without special complexity. The $1,299 build covers everything you described and ships within 24 hours."}
+Output: {"recommendation": "standard", "explanation": "Your situation matches the 80% case our Implementation is built for — typical B2B SaaS without special complexity. The $1,299 build covers everything you described and ships within 24 hours."}
 
 Example 2:
 Submission: B2B SaaS fintech, "Public API with 60+ operations across payments and accounts, MCP tools to expose customer-specific account state, content in 9 languages, legal sign-off required," complexity factors checked: multi-region, public API, custom MCP tools, multi-stakeholder, tight deadline; budget $25K+; timeline within a month.
