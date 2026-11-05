@@ -236,6 +236,26 @@ describe("POST /api/dodo-webhook — audit tier", () => {
     expect(state.store.get(`rights:audit:${SID}`)).toBe(existing);
   });
 
+  it("dataset: rights write fails on first delivery → a later delivery (no enqueue) heals it", async () => {
+    seed("awaiting_payment", { consent_sellable: 1, consent_text_version: "v", consent_at: 7 });
+    const orig = kv.put.getMockImplementation()!;
+    kv.put.mockImplementation(async (k: string, v: string) => {
+      if (k.startsWith("rights:")) throw new Error("kv blip");
+      return orig(k, v);
+    });
+    const { POST } = await import("./route");
+    try {
+      expect((await POST(webhook("wh_r1"))).status).toBe(200);
+    } finally {
+      kv.put.mockImplementation(orig);
+    }
+    expect(state.store.has(`rights:audit:${SID}`)).toBe(false);
+    expect(session().status).toBe("fulfilling");
+    expect((await POST(webhook("wh_r2"))).status).toBe(200);
+    expect(state.send).toHaveBeenCalledTimes(1); // replay does not re-enqueue
+    expect(JSON.parse(state.store.get(`rights:audit:${SID}`)!)).toMatchObject({ consent_sellable: 1, consent_at: 7 });
+  });
+
   it("dataset: pre-consent-UI session → no rights record", async () => {
     seed("awaiting_payment");
     const { POST } = await import("./route");

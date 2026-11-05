@@ -11,6 +11,8 @@ import {
   INTAKE_NOTE_CODES,
   INTAKE_QUESTIONS,
   applyNoteCoding,
+  hasWritableTtl,
+  intakeUnchanged,
   nextIntakeRecord,
   parseNoteCodes,
   terminalSafe,
@@ -130,6 +132,21 @@ describe("intake note coding (operator script helpers)", () => {
       write_count: 3,
     });
     expect(nextIntakeRecord(null, { answers: {}, notes: "n" }, 1).write_count).toBe(1);
+  });
+
+  it("intakeUnchanged: skip when notes, answers or write_count moved, or the record is gone", () => {
+    expect(intakeUnchanged(rec, { ...rec })).toBe(true);
+    expect(intakeUnchanged(rec, null)).toBe(false);
+    expect(intakeUnchanged(rec, { ...rec, notes: "edited" })).toBe(false);
+    expect(intakeUnchanged(rec, { ...rec, answers: { owner: "marketing" } })).toBe(false);
+    expect(intakeUnchanged(rec, { ...rec, write_count: 3 })).toBe(false);
+  });
+
+  it("hasWritableTtl: needs a numeric expiration more than 60 s ahead", () => {
+    expect(hasWritableTtl(1061, 1000)).toBe(true);
+    expect(hasWritableTtl(1060, 1000)).toBe(false);
+    expect(hasWritableTtl(undefined, 1000)).toBe(false);
+    expect(hasWritableTtl("2000", 1000)).toBe(false);
   });
 
   it("terminalSafe neutralizes escape sequences, keeps newlines and tabs", () => {

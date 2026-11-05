@@ -148,6 +148,22 @@ export function terminalSafe(text: string): string {
   return out;
 }
 
+// Operator script: true when the record re-read just before writing still
+// holds what the coder was shown (else the buyer resubmitted; skip).
+export function intakeUnchanged(shown: IntakeRecord, current: IntakeRecord | null): boolean {
+  return (
+    !!current &&
+    current.notes === shown.notes &&
+    current.write_count === shown.write_count &&
+    JSON.stringify(current.answers ?? {}) === JSON.stringify(shown.answers ?? {})
+  );
+}
+
+// KV refuses an expiration less than 60 s ahead.
+export function hasWritableTtl(expiration: unknown, nowSec: number): expiration is number {
+  return typeof expiration === "number" && expiration - nowSec > 60;
+}
+
 // The coded record: raw notes removed, codes merged with any earlier ones.
 export function applyNoteCoding(record: IntakeRecord, codes: string[]): IntakeRecord {
   const { notes: _removed, ...rest } = record;

@@ -6,7 +6,8 @@
 // - The consent fields are stamped on the order's session record at checkout
 //   creation (30-day TTL), so an abandoned checkout leaves no lasting record.
 // - `rights:{tier}:{session_id}` holds the permission evidence with NO TTL,
-//   written only once payment is confirmed (dodo-webhook), so a later
+//   written only once payment is confirmed (every paid dodo-webhook delivery,
+//   plus a second chance when fulfillment marks the order ready), so a later
 //   withdrawal can still be honored after the order record expires (§4.1
 //   rights registry). It never stores the buyer email, the URL or any free
 //   text — only flags, the text version shown, timestamps and method.

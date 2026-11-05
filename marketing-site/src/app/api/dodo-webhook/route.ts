@@ -436,11 +436,13 @@ export async function POST(req: Request) {
               );
             }
             await updateFunnelStatus(env.SESSIONS, sessionId, "paid");
-            // Dataset rights registry: durable (no TTL) only for a paid order;
-            // abandoned checkouts leave nothing behind. Best-effort.
-            const rights = buildRightsRecord("audit", record);
-            if (rights) await writeRightsRecord(env.SESSIONS, sessionId, rights);
           }
+          // Dataset rights registry: durable (no TTL) only for a paid order, so
+          // abandoned checkouts leave nothing behind. Runs on EVERY delivery of
+          // this verified payment, enqueue or not, so a Dodo retry/replay heals
+          // a failed earlier write. Write-if-absent; never throws.
+          const rights = buildRightsRecord("audit", record);
+          if (rights) await writeRightsRecord(env.SESSIONS, sessionId, rights);
         }
       }
     } else if (tier === "implementation") {
