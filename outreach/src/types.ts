@@ -51,6 +51,8 @@ export interface AiBinding {
 
 export interface Env {
   DB: D1Database;
+  /** E5: marketing's opt-out lists (pharos-citation-tracking). Read-only, only via cross-list.ts. */
+  OPTOUT_LISTS_DB?: D1Database;
   SCANNER: ProspectScanBinding;
   AI: AiBinding;
   // vars

@@ -250,6 +250,28 @@ describe("§9.5 batches", () => {
     expect(await approveBatch(env, { batchId: r.batchId!, rejectedLeadIds: [], now: MON_0905 + HOUR, by: "admin" })).toEqual({ ok: false, reason: "not_pending" });
   });
 
+  it("E5: a lead on the marketing opt-out list is disqualified; unreadable lists skip the lead (not disqualified)", async () => {
+    const { hashEmailSha256 } = await import("../../marketing-site/src/lib/email-suppressions");
+    const { freshOptoutListsDb } = await import("./helpers");
+    const { db } = freshDb();
+    const lists = freshOptoutListsDb();
+    const env = makeEnv(db, { OUTREACH_MODE: "dry_run", OPTOUT_LISTS_DB: lists.db });
+    await db.prepare("UPDATE control SET paused = 0, dns_verified_at = 0").run();
+    const [a] = await contactLeads(db, 2, MON_0905 - DAY);
+    await lists.db.prepare("INSERT INTO email_suppressions (email_hash, suppressed_at) VALUES (?, 1)").bind(await hashEmailSha256("hello@c0.com")).run();
+    const r = await buildWeeklyBatch(env, bd(env, MON_0905));
+    expect(r.drafted).toBe(1);
+    expect(await db.prepare("SELECT state, state_reason FROM leads WHERE id = ?").bind(a).first()).toEqual({ state: "disqualified", state_reason: "suppressed" });
+
+    const { db: db2 } = freshDb();
+    const env2 = makeEnv(db2, { OUTREACH_MODE: "dry_run", OPTOUT_LISTS_DB: undefined });
+    await db2.prepare("UPDATE control SET paused = 0, dns_verified_at = 0").run();
+    await contactLeads(db2, 2, MON_0905 - DAY);
+    const r2 = await buildWeeklyBatch(env2, bd(env2, MON_0905));
+    expect(r2.drafted ?? 0).toBe(0);
+    expect((await db2.prepare("SELECT COUNT(*) AS n FROM leads WHERE state = 'contact_found'").first<{ n: number }>())!.n).toBe(2);
+  });
+
   it("admin reject still works on a pending batch (approval needs gated/auto)", async () => {
     const { db } = freshDb();
     const env = makeEnv(db, { OUTREACH_MODE: "dry_run" });

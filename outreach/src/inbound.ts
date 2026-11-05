@@ -6,6 +6,7 @@ import { stripQuoted } from "./mail/mime";
 import type { InboundMail, MailClient } from "./mail/types";
 import { alertDeleteDraft, cancelOutstandingStmt, mailboxDraftCount } from "./drafts";
 import { requestScanDeletionStmt, suppressStmts } from "./suppression";
+import { crossListStatus } from "./cross-list";
 import type { AiBinding, Env, LeadRow, LeadState } from "./types";
 /** Workers AI model for reply classification only (enum output). Nothing model-written reaches a draft. */
 export const CLASSIFIER_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
@@ -317,7 +318,9 @@ export async function handleInbound(env: Env, deps: InboundDeps, m: InboundMail)
       // only if it is a well-formed id (the gate checks it). Then the reply policy runs.
       const initial = await db.prepare("SELECT subject FROM messages WHERE lead_id = ? AND kind = 'initial' AND status = 'sent'").bind(lead.id).first<{ subject: string }>();
       const scoreUrl = isAstrantUrl(sheet.score_url) ? (sheet.score_url as string) : "";
-      if (deps.mailboxWrites && replyable && initial && lead.contact_email) try {
+      // E5: no reply draft to an address on Astrant's other opt-out lists (or when they can't be read).
+      const crossClear = deps.mailboxWrites && lead.contact_email ? (await crossListStatus(env, lead.contact_email)) === "clear" : false;
+      if (deps.mailboxWrites && replyable && initial && lead.contact_email && crossClear) try {
         const theirId = m.headers["message-id"];
         const d = await gatedCreateDraft(
           deps.mail,

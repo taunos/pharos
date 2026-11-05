@@ -24,6 +24,15 @@
       // Created 2026-11-05 (runbook step 2).
       "database_id": "f6850564-b879-45db-acc7-268f588eafef",
       "migrations_dir": "migrations"
+    },
+    {
+      // E5: Astrant's other opt-out lists (marketing email_suppressions and the
+      // /score/delete-me outreach_do_not_contact table), checked before every draft.
+      // READ-ONLY by code: only src/cross-list.ts uses it, SELECT only (static test).
+      // Fail-closed: without it no outreach draft is created.
+      "binding": "OPTOUT_LISTS_DB",
+      "database_name": "pharos-citation-tracking",
+      "database_id": "2fff74f3-857b-47c9-917f-d03cfb93f063"
     }
   ],
   "services": [

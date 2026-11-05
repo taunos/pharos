@@ -18,7 +18,8 @@ import { intEnv, mayCreateDrafts, modeOf } from "./mode";
 import { finalizeBody, renderFollowup } from "./render";
 import { checkOutboundDraft } from "./safety";
 import { DraftRefused, gatedCreateDraft } from "./draft-gate";
-import { isSuppressed } from "./suppression";
+import { isSuppressed, suppressStmts } from "./suppression";
+import { crossListStatus, noteOptoutListsUnavailable } from "./cross-list";
 import type { Env, LeadRow, MessageRow } from "./types";
 import { dailyCap, dnsWarmupDone } from "./warmup";
 
@@ -94,6 +95,7 @@ export async function draftGate(env: Env, now: number, inboxCaughtUpThisTick: bo
   if (!mayCreateDrafts(modeOf(env))) return { ok: false, reason: "mode" };
   if (!(env.POSTAL_ADDRESS ?? "").trim()) return { ok: false, reason: "postal_address_missing" };
   if (!env.OPTOUT_HMAC_SECRET || !env.SUPPRESSION_HMAC_SECRET) return { ok: false, reason: "secrets_missing" };
+  if (!env.OPTOUT_LISTS_DB) return { ok: false, reason: "optout_lists_missing" }; // E5: fail closed
   if (!inboxCaughtUpThisTick) return { ok: false, reason: "inbox_not_drained" };
   const c = await getControl(env.DB);
   if (c.paused) return { ok: false, reason: "paused" };
@@ -155,6 +157,19 @@ export async function createMailboxDraft(env: Env, deps: DraftDeps, messageId: s
   }
   if (await isSuppressed(env, { email: lead.contact_email, domain: lead.domain })) {
     await cancel("suppressed");
+    return "cancelled:suppressed";
+  }
+  // E5: Astrant's other opt-out lists (marketing unsubscribe, /score/delete-me). Fail closed.
+  const cross = await crossListStatus(env, lead.contact_email);
+  if (cross === "unavailable") {
+    await backToQueued();
+    await noteOptoutListsUnavailable(env, deps.now(), deps.alert);
+    return "requeued:optout_lists_unavailable";
+  }
+  if (cross === "suppressed") {
+    // Copy it to our own list too, so research and batches skip the address from now on.
+    await db.batch(await suppressStmts(env, deps.now(), { email: lead.contact_email, reason: "astrant_optout" }));
+    await cancel("suppressed_astrant_optout");
     return "cancelled:suppressed";
   }
   if ((await getControl(db)).paused) {
@@ -251,7 +266,12 @@ export async function createMailboxDraft(env: Env, deps: DraftDeps, messageId: s
   // Codex review #3: an opt-out can land while the provider call is in flight.
   // Re-check after it returns; if blocked, cancel and ask Bruno to delete the draft.
   const after = await db.prepare("SELECT state FROM leads WHERE id = ?").bind(lead.id).first<{ state: string }>();
-  if ((await isSuppressed(env, { email: lead.contact_email, domain: lead.domain })) || after?.state !== wantState) {
+  if (
+    (await isSuppressed(env, { email: lead.contact_email, domain: lead.domain })) ||
+    after?.state !== wantState ||
+    // E5: re-checked too; "unavailable" counts as blocked (fail closed).
+    (await crossListStatus(env, lead.contact_email)) !== "clear"
+  ) {
     await db.batch([
       db
         .prepare("UPDATE messages SET status = 'cancelled', mailbox_draft_id = ?, updated_at = ? WHERE id = ? AND claim_id = ? AND status IN ('drafting','cancelled')")
