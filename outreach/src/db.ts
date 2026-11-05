@@ -63,13 +63,17 @@ export async function resume(db: D1Database, now: number, by: string): Promise<v
   // transaction), not by time: a complaint whose handling began before the resume
   // but committed after it has a higher rowid and still counts. inbound rows are
   // never deleted, so rowids only grow.
+  // Only for the pause instance this resume read: the insert runs BEFORE the UPDATE
+  // in the same transaction and requires that pause to still be in place, so a
+  // second, delayed resume (outreach already running) acknowledges nothing.
   if (c.pause_reason) {
-    stmts.push(
+    stmts.unshift(
       db
         .prepare(
-          "INSERT INTO events (at, lead_id, kind, detail_json) SELECT ?, NULL, 'stop_acknowledged', json_object('reason', ?, 'inbound_rowid', (SELECT COALESCE(MAX(rowid), 0) FROM inbound))"
+          "INSERT INTO events (at, lead_id, kind, detail_json) SELECT ?, NULL, 'stop_acknowledged', json_object('reason', ?, 'inbound_rowid', (SELECT COALESCE(MAX(rowid), 0) FROM inbound)) " +
+            "WHERE EXISTS (SELECT 1 FROM control WHERE id = 1 AND paused = 1 AND pause_reason = ? AND paused_at IS ?)"
         )
-        .bind(now, c.pause_reason)
+        .bind(now, c.pause_reason, c.pause_reason, c.paused_at)
     );
   }
   await db.batch(stmts);

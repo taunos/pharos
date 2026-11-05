@@ -208,3 +208,25 @@ describe("E5 (Codex r1): reply drafts re-check right before and after the provid
     expect((await db.prepare("SELECT draft_id FROM inbound").first<{ draft_id: string | null }>())!.draft_id).toBeNull();
   });
 });
+
+describe("E5 (Codex r2): no 'reply from the mailbox' prompt for an opted-out address", () => {
+  it("interested reply from an address on the marketing list ⇒ the 'needs you' alert, not 'Interested reply'", async () => {
+    for (const mailboxWrites of [true, false]) {
+      const { db } = freshDb();
+      const lists = freshOptoutListsDb();
+      const env = makeEnv(db, { OPTOUT_LISTS_DB: lists.db });
+      const id = await insertLead(db, { domain: "example.com", state: "sent", contact_email: "hello@example.com", fact_sheet_json: JSON.stringify({ score_url: "https://astrant.io/score/x" }) });
+      await db
+        .prepare("INSERT INTO messages (id, lead_id, kind, subject, body_text, validator_report_json, status, not_before, provider_thread_id, sent_at, created_at, updated_at) VALUES (?, ?, 'initial', 's', 'b', '{}', 'sent', 0, 'thr', 1, 0, 0)")
+        .bind(crypto.randomUUID(), id)
+        .run();
+      await lists.db.prepare("INSERT INTO email_suppressions (email_hash, suppressed_at) VALUES (?, 1)").bind(await hashEmailSha256("hello@example.com")).run();
+      const texts: string[] = [];
+      const ai = { run: async () => ({ response: JSON.stringify({ class: "interested", confidence: 0.95 }) }) };
+      await handleInbound(env, { mail: new FakeMail(), ai, alert: async (k: string, t: string) => void texts.push(`${k} | ${t}`), now: () => TUE_1400, mailboxWrites }, inboundMail({ providerThreadId: "thr", text: "Yes, let's talk." }));
+      expect(texts.some((t) => t.startsWith("Interested reply"))).toBe(false);
+      expect(texts.some((t) => t.includes("opt-out list"))).toBe(true);
+      expect(texts.join(" ")).not.toContain("reply from the mailbox");
+    }
+  });
+});

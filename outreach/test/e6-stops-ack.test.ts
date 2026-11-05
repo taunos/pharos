@@ -137,3 +137,41 @@ describe("E7 (Codex r1): an unparsed delivery report is never an auto_reply", ()
     expect((await classify(m, null)).class).toBe("needs_human");
   });
 });
+
+describe("E6 (Codex r2): a delayed second resume acknowledges nothing", () => {
+  it("two overlapping resumes: a complaint between them still trips", async () => {
+    const { db } = freshDb();
+    const env = makeEnv(db);
+    await db.prepare("UPDATE control SET paused = 0, ramp_start_at = ?").bind(TUE_1400 - 3 * DAY).run();
+    await sends(db, 3, () => TUE_1400 - 2 * HOUR, (i) => (i === 0 ? "complaint" : null));
+    expect((await checkStops(env, TUE_1400 - HOUR, noopAlert))?.reason).toBe("complaints");
+    // Both requests read the paused control row before either commits.
+    const { getControl: gc } = await import("../src/db");
+    const snapshot = await gc(db);
+    await resume(db, TUE_1400, "bruno@example.com"); // request 1 commits
+    const id = await insertLead(db, { domain: "new.com", state: "sent" });
+    await db.prepare("INSERT INTO inbound (provider_message_id, lead_id, class, received_at, handled_at) VALUES ('new-c', ?, 'complaint', ?, ?)").bind(id, TUE_1400 + 10, TUE_1400 + 10).run();
+    // request 2 commits later, acting on its stale read of the same pause (served by the proxy)
+    const db2 = new Proxy(db, {
+      get(t, k) {
+        if (k === "prepare") {
+          return (sql: string) => {
+            const st = (t as D1Database).prepare(sql);
+            if (/^SELECT \* FROM control/.test(sql)) return { ...st, first: async () => snapshot, bind: st.bind.bind(st) } as unknown as D1PreparedStatement;
+            return st;
+          };
+        }
+        const v = (t as unknown as Record<string | symbol, unknown>)[k];
+        return typeof v === "function" ? (v as Function).bind(t) : v;
+      },
+    });
+    await resume(db2 as D1Database, TUE_1400 + 20, "bruno@example.com");
+    expect((await evaluateStops(env, TUE_1400 + 30))?.reason).toBe("complaints");
+  });
+});
+
+describe("E7 (Codex r2): explicit opt-out text wins over the bounce-sender fallback", () => {
+  it("a human 'unsubscribe' from postmaster@ is an opt_out", async () => {
+    expect((await classify(inboundMail({ from: "postmaster@example.com", text: "Please unsubscribe me." }), null)).class).toBe("opt_out");
+  });
+});

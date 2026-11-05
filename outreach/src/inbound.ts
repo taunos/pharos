@@ -97,13 +97,14 @@ export async function classify(m: InboundMail, ai: AiBinding | null): Promise<Cl
     if (st && st.startsWith("4.")) return { class: "bounce_soft", confidence: 1, method: "rule" };
     return { class: "bounce_hard", confidence: 1, method: "rule" }; // 5.x.x or unknown status: stop emailing
   }
-  // An unparsed delivery report or a bounce address: never auto_reply, never the model.
-  if (isBounceSender(m) || m.deliveryReport) return { class: "needs_human", confidence: null, method: "rule" };
   const body = stripQuoted(m.text);
   const subj = m.subject.replace(/^\s*(re|aw|fwd?)\s*:\s*/i, "");
   // Explicit opt-out text in the new reply's SUBJECT or BODY wins over auto-reply
   // markers (Codex #4, security round 2 #4): never let an auto-reply header hide it.
   if (OPT_OUT_RE.test(subj) || OPT_OUT_RE.test(body)) return { class: "opt_out", confidence: 1, method: "rule" };
+  // An unparsed delivery report or a bounce address (after explicit opt-out text, which
+  // is always honoured): never auto_reply, never the model.
+  if (isBounceSender(m) || m.deliveryReport) return { class: "needs_human", confidence: null, method: "rule" };
   if (isAutoReply(m)) return { class: "auto_reply", confidence: 1, method: "rule" };
   const text = `${subj}\n${body}`;
   if (COMPLAINT_RE.test(text)) return { class: "complaint", confidence: 1, method: "rule" };
@@ -323,19 +324,24 @@ export async function handleInbound(env: Env, deps: InboundDeps, m: InboundMail)
       // may have landed while we classified), not suppressed here, and not on Astrant's
       // other opt-out lists. Checked before AND after the provider call; any error = no.
       const contact = lead.contact_email;
-      const replyAllowed = async (): Promise<boolean> => {
-        if (!contact) return false;
+      // "blocked" = opted out / suppressed / lists unreadable: Bruno must not be told to reply.
+      // "not_waiting" = e.g. a repeat reply: no draft, but the ordinary alert stands.
+      const replyCheck = async (): Promise<"ok" | "not_waiting" | "blocked"> => {
+        if (!contact) return "not_waiting";
         try {
           const cur = await db.prepare("SELECT state FROM leads WHERE id = ?").bind(lead.id).first<{ state: LeadState }>();
-          if (!cur || !REPLYABLE.includes(cur.state)) return false;
-          if (await isSuppressed(env, { email: contact, domain: lead.domain })) return false;
-          return (await crossListStatus(env, contact)) === "clear";
+          if (cur && (cur.state === "opted_out" || cur.state === "bounced")) return "blocked";
+          if (await isSuppressed(env, { email: contact, domain: lead.domain })) return "blocked";
+          if ((await crossListStatus(env, contact)) !== "clear") return "blocked";
+          return cur && REPLYABLE.includes(cur.state) ? "ok" : "not_waiting";
         } catch {
-          return false;
+          return "blocked";
         }
       };
       let blockedAfterCreate = false;
-      if (deps.mailboxWrites && replyable && initial && contact && (await replyAllowed())) try {
+      // Checked in every mode: also decides whether Bruno is told to reply at all.
+      const check = await replyCheck();
+      if (deps.mailboxWrites && replyable && initial && contact && check === "ok") try {
         const theirId = m.headers["message-id"];
         const d = await gatedCreateDraft(
           deps.mail,
@@ -349,7 +355,7 @@ export async function handleInbound(env: Env, deps: InboundDeps, m: InboundMail)
           { kind: "reply", domain: lead.domain, contactEmail: contact }
         );
         draftId = d.draftId;
-        if (!(await replyAllowed())) blockedAfterCreate = true;
+        if ((await replyCheck()) !== "ok") blockedAfterCreate = true;
       } catch (e) {
         console.error("draft_failed", e instanceof Error ? e.message : String(e));
       }
@@ -358,6 +364,13 @@ export async function handleInbound(env: Env, deps: InboundDeps, m: InboundMail)
         // The lead opted out (here or on another Astrant list) while the draft was saved.
         await alertDeleteDraft(deps.alert, lead.domain, lead.id, "They opted out while the reply draft was being saved.");
         draftId = null;
+        break;
+      }
+      if (check === "blocked") {
+        alertAfter = {
+          kind: `Reply from ${lead.domain} needs you`,
+          text: `A reply from ${lead.domain} was classed as interested, but the address is on an opt-out list (or the lists could not be read). No reply draft was created. Check /admin before contacting them.`,
+        };
         break;
       }
       alertAfter = {
