@@ -532,8 +532,20 @@ async function checkOpenApi(ctx: Ctx, exp: ExpectedOpenApi): Promise<ArtifactChe
   // working = the delivered file itself (line endings, trailing whitespace and
   // final newlines normalized). The bounded YAML parser below only adds
   // diagnostic detail; it never awards working.
-  const identical = normalizeSpecText(f.text) === normalizeSpecText(exp.content);
   const DIFFERS = "live file differs from the delivered spec";
+  // Cheap guard: far longer than the delivered file cannot be it after
+  // normalization; no comparison and no diagnostic parse on such a body.
+  if (f.text.length > exp.content.length * 2 + 4096) {
+    return applyRobots(
+      ctx,
+      result(ctx, "openapi", f.url, "mismatch", {
+        ...ev,
+        note: `${DIFFERS}; ${f.text.length} chars served, ${exp.content.length} delivered (not compared)`,
+      }),
+      exp.path,
+    );
+  }
+  const identical = specTextEqual(f.text, exp.content);
   const spec = parseOpenApi(f.text);
   if (!spec) {
     return applyRobots(
@@ -1433,18 +1445,48 @@ const CRLF = String.fromCharCode(13, 10);
 const LF = String.fromCharCode(10);
 
 /** Equal up to CRLF line endings (a Windows checkout may serve CRLF). */
-/** CRLF -> LF, trailing spaces/tabs dropped per line, final newlines dropped. Linear (no regex backtracking). */
-function normalizeSpecText(s: string): string {
-  const lines = s.split(CRLF).join(LF).split(LF);
-  for (let i = 0; i < lines.length; i++) {
-    const l = lines[i];
-    let end = l.length;
-    while (end > 0 && (l.charCodeAt(end - 1) === 32 || l.charCodeAt(end - 1) === 9)) end--;
-    if (end !== l.length) lines[i] = l.slice(0, end);
+/**
+ * Equality after normalization: CRs ignored, trailing spaces/tabs on each line
+ * ignored, trailing (blank) lines ignored. A two-pointer, line-by-line scan:
+ * linear time, and it allocates nothing in proportion to the input.
+ */
+export function specTextEqual(a: string, b: string): boolean {
+  let i = 0;
+  let j = 0;
+  while (i <= a.length && j <= b.length) {
+    const la = a.indexOf(LF, i);
+    const lb = b.indexOf(LF, j);
+    const ea = la < 0 ? a.length : la;
+    const eb = lb < 0 ? b.length : lb;
+    if (!sameLine(a, i, ea, b, j, eb)) return false;
+    i = ea + 1;
+    j = eb + 1;
   }
-  let n = lines.length;
-  while (n > 0 && lines[n - 1] === "") n--;
-  return lines.slice(0, n).join(LF);
+  return blankFrom(a, i) && blankFrom(b, j);
+}
+
+const isLineSpace = (c: number) => c === 32 || c === 9 || c === 13;
+
+function sameLine(a: string, i: number, ea: number, b: string, j: number, eb: number): boolean {
+  while (ea > i && isLineSpace(a.charCodeAt(ea - 1))) ea--;
+  while (eb > j && isLineSpace(b.charCodeAt(eb - 1))) eb--;
+  for (;;) {
+    while (i < ea && a.charCodeAt(i) === 13) i++;
+    while (j < eb && b.charCodeAt(j) === 13) j++;
+    if (i >= ea || j >= eb) return i >= ea && j >= eb;
+    if (a.charCodeAt(i) !== b.charCodeAt(j)) return false;
+    i++;
+    j++;
+  }
+}
+
+/** Only newlines, spaces, tabs and CRs from s[p] on (true past the end). */
+function blankFrom(s: string, p: number): boolean {
+  for (let k = p; k < s.length; k++) {
+    const c = s.charCodeAt(k);
+    if (c !== 10 && !isLineSpace(c)) return false;
+  }
+  return true;
 }
 
 function sameBytes(served: string, delivered: string): boolean {

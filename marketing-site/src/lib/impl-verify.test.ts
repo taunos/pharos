@@ -11,6 +11,7 @@ import {
   parseOpenApi,
   parseRobots,
   robotsAllows,
+  specTextEqual,
   verifyArtifacts,
   type ArtifactCheck,
   type ExpectedArtifacts,
@@ -424,6 +425,49 @@ describe("openapi states", () => {
     expect(r.openapi.state).toBe("mismatch");
     expect(r.openapi.evidence.missing ?? []).toEqual([]); // the parser sees every delivered operation
     expect(r.openapi.evidence.note).toMatch(/^live file differs from the delivered spec/);
+  });
+  it("mismatch: a body that differs only in its last byte", async () => {
+    const served = OPENAPI_SPEC.replace(/.\n*$/, (m) => "#" + m.slice(1));
+    expect(served).not.toBe(OPENAPI_SPEC);
+    expect(served.length).toBe(OPENAPI_SPEC.length);
+    expect((await run(goodSite({ [path]: served }).fetchImpl, { expected: ex })).openapi.state).toBe("mismatch");
+  });
+  it("hostile body: 10M newlines + 'a' is mismatch, fast, and never split into a huge array", async () => {
+    const huge = "\n".repeat(10_000_000) + "a";
+    const split = String.prototype.split;
+    let biggestSplit = 0;
+    const spy = vi.spyOn(String.prototype, "split").mockImplementation(function (this: string, ...args: unknown[]) {
+      biggestSplit = Math.max(biggestSplit, this.length);
+      return (split as (...a: unknown[]) => string[]).apply(this, args);
+    });
+    try {
+      const t0 = Date.now();
+      const r = await run(goodSite({ [path]: huge }).fetchImpl, { expected: ex });
+      expect(Date.now() - t0).toBeLessThan(2000);
+      expect(r.openapi.state).toBe("mismatch");
+      expect(r.openapi.evidence.note).toMatch(/^live file differs from the delivered spec/);
+      // Pathological inputs inside the length guard: the scan itself allocates nothing per line.
+      const a = "\n".repeat(5_000_000) + "a";
+      const b = "\n".repeat(5_000_000) + "b";
+      expect(specTextEqual(a, b)).toBe(false);
+      expect(specTextEqual(a + "\n\n  \r\n", a)).toBe(true);
+      expect(specTextEqual(" ".repeat(5_000_000) + "x", " ".repeat(5_000_000) + "y")).toBe(false);
+      expect(Date.now() - t0).toBeLessThan(4000);
+      expect(biggestSplit).toBeLessThan(1_000_000);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+  it("specTextEqual: the normalization rules", () => {
+    expect(specTextEqual("a\r\nb\r\n", "a\nb")).toBe(true);
+    expect(specTextEqual("a \t\nb\t", "a\nb")).toBe(true);
+    expect(specTextEqual("a\n\n\n", "a")).toBe(true);
+    expect(specTextEqual("a\n  \nb", "a\n\nb")).toBe(true); // blank line with spaces = blank line
+    expect(specTextEqual("a\nb", "a\n\nb")).toBe(false); // a missing middle line is a difference
+    expect(specTextEqual("a b", "a  b")).toBe(false); // inner whitespace counts
+    expect(specTextEqual(" a", "a")).toBe(false); // leading whitespace counts
+    expect(specTextEqual("ab", "a")).toBe(false);
+    expect(specTextEqual("", "\n \n")).toBe(true);
   });
   it("working: CRLF line endings, trailing spaces/tabs and a missing or extra final newline", async () => {
     const variants = [
