@@ -30,6 +30,9 @@ import { dimensionScore, gradeFor } from "../scoring";
 import { MAX_SPEC_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
 
 const FETCH_TIMEOUT_MS = 5000;
+
+export const INCOMPLETE_SPEC_NOTE =
+  "Not measured — the spec could not be read in full (size or time limit). Weight redistributed across the other Dim 3 sub-checks.";
 const STATIC_UA = "AstrantScanner-Dim3/1.2.0";
 
 // Security pass 2026-11-04: validated hops (incl. homepage-discovered spec
@@ -63,6 +66,9 @@ interface DiscoveryHit {
   body: string;
   contentType: string;
   source: string;
+  // false when the body hit the byte cap, timed out or errored: the spec's
+  // content was not measured (security pass 2026-11-04).
+  complete: boolean;
 }
 
 const WELL_KNOWN_CANDIDATES = [
@@ -86,12 +92,14 @@ async function probeWellKnown(origin: string): Promise<DiscoveryHit | null> {
       redirect: "follow",
     });
     if (res && res.ok) {
-      const body = (await res.body({ maxBytes: MAX_SPEC_BYTES })).text;
+      const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
+      const body = read.text;
       return {
         url,
         body,
         contentType: (res.headers.get("content-type") ?? "").toLowerCase(),
         source: `well-known ${path}`,
+        complete: read.complete,
       };
     }
     res?.discard();
@@ -111,12 +119,14 @@ async function probeCanonical(origin: string): Promise<DiscoveryHit | null> {
       redirect: "follow",
     });
     if (res && res.ok) {
-      const body = (await res.body({ maxBytes: MAX_SPEC_BYTES })).text;
+      const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
+      const body = read.text;
       return {
         url,
         body,
         contentType: (res.headers.get("content-type") ?? "").toLowerCase(),
         source: `canonical ${path}`,
+        complete: read.complete,
       };
     }
     res?.discard();
@@ -171,12 +181,14 @@ async function probeHomepageLink(
     redirect: "follow",
   });
   if (res && res.ok) {
-    const body = (await res.body({ maxBytes: MAX_SPEC_BYTES })).text;
+    const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
+    const body = read.text;
     return {
       url: candidate,
       body,
       contentType: (res.headers.get("content-type") ?? "").toLowerCase(),
       source: `homepage link ${candidate}`,
+      complete: read.complete,
     };
   }
   res?.discard();
@@ -315,6 +327,37 @@ export async function runDim3(
     passed: discoveryScore >= 70,
     notes: `Found via ${hit.source} at ${hit.url} (content-type=${hit.contentType || "unknown"}).`,
   });
+
+  // Spec body not read in full (byte cap, deadline or read error): its
+  // content was not measured, so the four content sub-checks are N/A
+  // (weight redistributed, as for other unmeasurable sub-checks) rather than
+  // scored 0 as "invalid".
+  if (!hit.complete) {
+    for (const [id, name] of [
+      ["spec_validity", "Spec validity (parses + has version field)"],
+      ["info_completeness", "Spec info completeness (title + version + description)"],
+      ["security_schemes", "Security schemes documented"],
+      ["operation_coverage", "Operation coverage + per-operation docs"],
+    ] as const) {
+      subs.push({
+        id,
+        name,
+        weight: { spec_validity: 25, info_completeness: 15, security_schemes: 15, operation_coverage: 20 }[id],
+        score: 0,
+        passed: false,
+        notes: INCOMPLETE_SPEC_NOTE,
+        na: true,
+      });
+    }
+    const partialScore = dimensionScore(subs) ?? 0;
+    return {
+      dimension_id: 3,
+      dimension_name: "OpenAPI / API Catalog",
+      score: partialScore,
+      grade: gradeFor(partialScore),
+      sub_checks: subs,
+    };
+  }
 
   // ── Sub-check 2: spec_validity ────────────────────────────────────────
   const parsed = tryParseSpec(hit.body, hit.contentType);

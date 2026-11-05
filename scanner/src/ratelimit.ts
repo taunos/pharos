@@ -1,4 +1,5 @@
 import type { Env } from "./types";
+import { constantTimeEqual } from "./auth";
 
 async function sha256(input: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
@@ -68,13 +69,47 @@ export function urlCacheKey(url: string): string {
   return i < 0 ? url : url.slice(0, i);
 }
 
+/** A bare IPv4 (dotted quad, 0-255, no leading zeros) or IPv6 literal. */
+export function isIpLiteral(s: string): boolean {
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(s);
+  if (v4) return v4.slice(1).every((o) => Number(o) <= 255 && (o === "0" || !o.startsWith("0")));
+  if (!s.includes(":") || !/^[0-9a-fA-F:.]{2,45}$/.test(s)) return false;
+  try {
+    new URL(`http://[${s}]/`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The rate-limit identity. The marketing proxy (astrant.io /api/scan) is a
+ * cross-zone Worker subrequest, so Cloudflare replaces its CF-Connecting-IP
+ * with one shared Worker address; the proxy forwards the real client IP in
+ * x-astrant-client-ip, authenticated by x-astrant-proxy-key. The forwarded IP
+ * is used only when that key passes the constant-time check AND the value is
+ * an IP literal; otherwise our own CF-Connecting-IP. Identity only, never tier.
+ */
+export function limiterIdentity(
+  secret: string | undefined,
+  connectingIp: string | undefined,
+  proxyKey: string | undefined,
+  forwardedIp: string | undefined
+): string {
+  const fwd = forwardedIp?.trim() ?? "";
+  if (secret && proxyKey && constantTimeEqual(proxyKey, secret) && isIpLiteral(fwd)) return fwd;
+  return connectingIp ?? "unknown";
+}
+
 export interface RateLimitBinding {
   limit(opts: { key: string }): Promise<{ success: boolean }>;
 }
 
 /**
- * First gate on POST /api/scan: the Cloudflare Rate Limiting binding (atomic
- * per location, unlike the KV read-modify-write below it). true = allowed.
+ * First gate on POST /api/scan: the Cloudflare Rate Limiting binding. It is
+ * best-effort (per Cloudflare location, approximate and eventually
+ * consistent), so it blunts bursts rather than enforcing an exact count;
+ * the KV read-modify-write limits stay behind it. true = allowed.
  * Fails open (logged) only when the binding is absent or errors; the KV
  * limits still apply behind it.
  */

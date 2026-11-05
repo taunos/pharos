@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
 import type { Env, ScanTier } from "./types";
-import { checkBurstLimit, checkRateLimit } from "./ratelimit";
+import { checkBurstLimit, checkRateLimit, limiterIdentity } from "./ratelimit";
 import { isSafeTargetUrl } from "./safe-fetch";
 import { runScan } from "./run-scan";
 import { SCORING_VERSION } from "./version";
@@ -129,13 +129,18 @@ app.post("/api/scan", async (c) => {
   // rate limits. URL validation above still applies to them. Everything else,
   // including paid requests degraded to free, goes through both limits.
   if (tier !== "paid") {
-    const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
+    const ip = limiterIdentity(
+      c.env.INTERNAL_FULFILL_KEY,
+      c.req.header("CF-Connecting-IP"),
+      c.req.header("x-astrant-proxy-key"),
+      c.req.header("x-astrant-client-ip")
+    );
 
-    // Security pass 2026-11-04: first limit is the atomic Rate Limiting
-    // binding (keyed by IP), ahead of any KV/D1/fetch work; the KV daily
-    // limits below stay as the second layer. Its limit (5 per 60 s) is only
-    // reachable by a client already over 5 per day, so the existing message
-    // stays accurate.
+    // Security pass 2026-11-04: first limit is the best-effort Rate Limiting
+    // binding (keyed by IP; approximate, eventually consistent), ahead of any
+    // KV/D1/fetch work; the KV daily limits below stay as the second layer.
+    // Its limit (5 per 60 s) is normally only reachable by a client already
+    // over 5 per day, so the existing message stays accurate.
     if (!(await checkBurstLimit(c.env.SCAN_RATE_LIMITER, ip))) {
       return c.json({ ok: false, error: "Rate limit: 5 scans per IP per day" }, 429);
     }

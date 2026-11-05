@@ -23,8 +23,9 @@ export interface Env {
   // keys, so no raw IP is stored at rest. Rate limiting fails closed if absent.
   RATE_LIMIT_HASH_SECRET?: string;
   // Security pass 2026-11-04: Cloudflare Rate Limiting binding (wrangler.jsonc
-  // "ratelimits"), the first, atomic gate on POST /api/scan keyed by
-  // CF-Connecting-IP. Optional: when absent the KV limits still apply.
+  // "ratelimits"), the first, best-effort (approximate, eventually consistent)
+  // gate on POST /api/scan, keyed by the client IP. Optional: when absent the
+  // KV limits still apply.
   SCAN_RATE_LIMITER?: RateLimitBinding;
   // P0-C2 Chunk C: optional deferred-capture Queue producer binding. Optional so
   // the disabled build typechecks/deploys without a Queue created yet; when

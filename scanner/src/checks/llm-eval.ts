@@ -24,7 +24,7 @@ export const MAX_PROMPT_CHARS = 6000;
 
 // Security pass 2026-11-04: global soft cap on billable Workers AI calls per
 // UTC day (KV read-modify-write, so concurrent bursts can overshoot a little;
-// the IP rate-limit binding bounds that). Cache hits don't count. When spent,
+// the best-effort IP rate limits only reduce that). Cache hits don't count. When spent,
 // the sub-check gets the same default score / note as an AI failure.
 export const DAILY_AI_CALL_CAP = 1000;
 

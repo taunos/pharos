@@ -3,7 +3,8 @@
 // "truncated or errored reads never produce absence evidence".
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { validateTargetUrl, safeFetch, MAX_HTML_BYTES, MAX_TEXT_BYTES } from "./safe-fetch";
-import { checkBurstLimit, checkRateLimit, urlCacheKey, urlLimitKey } from "./ratelimit";
+import { checkBurstLimit, checkRateLimit, isIpLiteral, limiterIdentity, urlCacheKey, urlLimitKey } from "./ratelimit";
+import { runDim3, INCOMPLETE_SPEC_NOTE } from "./checks/dim3-openapi";
 import { evalWithCache, aiBudgetKey, DAILY_AI_CALL_CAP, MAX_PROMPT_CHARS } from "./checks/llm-eval";
 import { runDim1, evalBlockquote } from "./checks/dim1-llmstxt";
 import { runDim2 } from "./checks/dim2-mcp";
@@ -177,7 +178,7 @@ describe("POST /api/scan rejects unsafe URLs with 400 and writes nothing", () =>
   }
 });
 
-/** In-process stand-in for the Rate Limiting binding: an atomic per-key counter. */
+/** In-process stand-in for the Rate Limiting binding (the real one is best-effort): an exact per-key counter. */
 function mockLimiter(limit: number) {
   const counts = new Map<string, number>();
   const calls: string[] = [];
@@ -310,6 +311,79 @@ describe("authenticated paid-tier calls skip both rate limits", () => {
   });
 });
 
+describe("forwarded client IP from the marketing proxy", () => {
+  const KEY = "valid-internal-fulfill-key";
+  const proxied = (url: string, h: Record<string, string>, tier?: string) =>
+    new Request("https://scanner.astrant.io/api/scan", {
+      method: "POST",
+      // CF replaces CF-Connecting-IP on the proxy's cross-zone subrequest.
+      headers: { "Content-Type": "application/json", "CF-Connecting-IP": "2a06:98c0:3600::103", ...h },
+      body: JSON.stringify(tier ? { url, tier } : { url }),
+    });
+  const envWith = (limit: number) => {
+    const limiter = mockLimiter(limit);
+    const s = makeScanEnv({ limiter });
+    (s.env as Record<string, unknown>).INTERNAL_FULFILL_KEY = KEY;
+    return { ...s, limiter };
+  };
+
+  it("isIpLiteral / limiterIdentity", () => {
+    for (const ip of ["203.0.113.7", "0.0.0.0", "2001:db8::1", "::1", "::ffff:1.2.3.4"]) expect(isIpLiteral(ip), ip).toBe(true);
+    for (const ip of ["", "1.2.3", "256.1.1.1", "01.2.3.4", "example.com", "1.2.3.4, 5.6.7.8", "[::1]", "::1]/x", "gg::1"]) expect(isIpLiteral(ip), ip).toBe(false);
+    expect(limiterIdentity(KEY, "9.9.9.9", KEY, " 203.0.113.7 ")).toBe("203.0.113.7");
+    expect(limiterIdentity(KEY, "9.9.9.9", "wrong", "203.0.113.7")).toBe("9.9.9.9");
+    expect(limiterIdentity(KEY, "9.9.9.9", undefined, "203.0.113.7")).toBe("9.9.9.9");
+    expect(limiterIdentity(undefined, "9.9.9.9", KEY, "203.0.113.7")).toBe("9.9.9.9");
+    expect(limiterIdentity(KEY, "9.9.9.9", KEY, "not-an-ip")).toBe("9.9.9.9");
+    expect(limiterIdentity(KEY, undefined, undefined, undefined)).toBe("unknown");
+  });
+
+  it("a spoofed x-astrant-client-ip without the key is ignored", async () => {
+    stub404();
+    const { env, limiter } = envWith(100);
+    await app.fetch(proxied("https://example.com/", { "x-astrant-client-ip": "198.51.100.1" }), env as never);
+    await app.fetch(proxied("https://example.com/", { "x-astrant-client-ip": "198.51.100.2", "x-astrant-proxy-key": "wrong" }), env as never);
+    expect(limiter.calls).toEqual(["scan:2a06:98c0:3600::103", "scan:2a06:98c0:3600::103"]);
+  });
+
+  it("with the key, distinct client IPs get distinct budgets (burst gate and KV)", async () => {
+    stub404();
+    const { env, limiter, kvOps } = envWith(1);
+    const send = (ip: string, path: string) =>
+      app.fetch(proxied(`https://example.com/${path}`, { "x-astrant-client-ip": ip, "x-astrant-proxy-key": KEY }), env as never);
+    expect((await send("198.51.100.1", "a")).status).toBe(200);
+    expect((await send("198.51.100.2", "b")).status).toBe(200);
+    expect((await send("198.51.100.1", "c")).status).toBe(429);
+    expect(limiter.calls).toEqual(["scan:198.51.100.1", "scan:198.51.100.2", "scan:198.51.100.1"]);
+    // The KV per-IP keys differ too (HMAC of each client IP).
+    const ipKeys = new Set(kvOps.filter((k) => k.startsWith("get:rl:ip:")));
+    expect(ipKeys.size).toBe(2);
+  });
+
+  it("tier=free with the proxy key is still limited (forwarding auth is not paid entitlement)", async () => {
+    stub404();
+    const { env, d1Calls } = envWith(0);
+    const res = await app.fetch(
+      proxied("https://example.com/", { "x-astrant-client-ip": "198.51.100.1", "x-astrant-proxy-key": KEY }, "free"),
+      env as never
+    );
+    expect(res.status).toBe(429);
+    expect(d1Calls).toEqual([]);
+  });
+
+  it("tier=paid with only the proxy key (no fulfill-key header) is degraded to free and limited", async () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    stub404();
+    const { env } = envWith(0);
+    const res = await app.fetch(
+      proxied("https://example.com/", { "x-astrant-client-ip": "198.51.100.1", "x-astrant-proxy-key": KEY }, "paid"),
+      env as never
+    );
+    expect(res.status).toBe(429);
+    err.mockRestore();
+  });
+});
+
 describe("per-URL limit and cache key normalization", () => {
   it("urlLimitKey drops query and fragment; urlCacheKey drops only the fragment", () => {
     expect(urlLimitKey("https://Example.com/a?x=1#f")).toBe("https://example.com/a");
@@ -391,6 +465,41 @@ describe("safeFetch", () => {
       ["https://example.com/b", "Bearer t", "POST", "{}"],
       ["https://other.com/c", null, "GET", undefined],
     ]);
+  });
+
+  it("follows only 301/302/303/307/308; 304 and other 3xx are returned as-is", async () => {
+    for (const status of [300, 304, 305, 306]) {
+      const calls: string[] = [];
+      const fetchImpl = async (u: string) => {
+        calls.push(u);
+        return new Response(null, { status, headers: { location: "https://example.com/next" } });
+      };
+      const r = await safeFetch("https://example.com/", {}, { timeoutMs: 1000, fetchImpl });
+      expect(r?.status, String(status)).toBe(status);
+      expect(calls).toEqual(["https://example.com/"]);
+    }
+  });
+
+  it("method rewriting: 303 -> GET; 301/302 -> GET only for POST; 307/308 preserve", async () => {
+    const run = async (status: number, method: string) => {
+      const seen: { method?: string; body?: unknown }[] = [];
+      const fetchImpl = async (_u: string, init?: RequestInit) => {
+        seen.push({ method: init?.method, body: init?.body });
+        return seen.length === 1 ? new Response(null, { status, headers: { location: "/next" } }) : new Response("ok");
+      };
+      await safeFetch("https://example.com/", { method, body: method === "GET" || method === "HEAD" ? undefined : "b" }, { timeoutMs: 1000, fetchImpl });
+      return seen[1];
+    };
+    expect(await run(303, "POST")).toEqual({ method: "GET", body: undefined });
+    expect(await run(303, "PUT")).toEqual({ method: "GET", body: undefined });
+    expect(await run(303, "HEAD")).toEqual({ method: "HEAD", body: undefined });
+    expect(await run(301, "POST")).toEqual({ method: "GET", body: undefined });
+    expect(await run(302, "POST")).toEqual({ method: "GET", body: undefined });
+    expect(await run(301, "PUT")).toEqual({ method: "PUT", body: "b" });
+    expect(await run(302, "DELETE")).toEqual({ method: "DELETE", body: "b" });
+    expect(await run(302, "GET")).toEqual({ method: "GET", body: undefined });
+    expect(await run(307, "POST")).toEqual({ method: "POST", body: "b" });
+    expect(await run(308, "PUT")).toEqual({ method: "PUT", body: "b" });
   });
 
   it("headers that never arrive (fetch ignoring the signal) time out to null", async () => {
@@ -573,6 +682,44 @@ describe("truncated or errored reads produce no absence evidence", () => {
     ));
     const d = await runDim1("https://acme.com/", kvEnv());
     expect(d.sub_checks.find((s) => s.id === "presence")!.evidence).toMatchObject({ body_complete: true, truncated: false });
+  });
+});
+
+describe("Dim 3: an OpenAPI spec not read in full is unmeasured, not invalid", () => {
+  const SPEC = JSON.stringify({ openapi: "3.1.0", info: { title: "T", version: "1", description: "x".repeat(30) }, paths: {} });
+  const byPath = (wk: () => Response) =>
+    vi.fn(async (u: string) => (String(u).endsWith("/.well-known/api-catalog") ? wk() : new Response("", { status: 404 })));
+
+  it("a >10 MB valid spec: discovery scored, content sub-checks N/A with the incomplete note", async () => {
+    const chunk = new Uint8Array(1024 * 1024).fill(32); // whitespace: still valid JSON once complete
+    const head = new TextEncoder().encode(SPEC);
+    vi.stubGlobal("fetch", byPath(() => new Response(streamOf([head, ...Array(11).fill(chunk)]), { status: 200, headers: { "content-type": "application/json" } })));
+    const d = await runDim3("https://acme.com/", kvEnv());
+    expect(d.na).toBeUndefined();
+    const disc = d.sub_checks.find((s) => s.id === "discovery")!;
+    expect(disc.score).toBe(100);
+    for (const id of ["spec_validity", "info_completeness", "security_schemes", "operation_coverage"]) {
+      const s = d.sub_checks.find((x) => x.id === id)!;
+      expect(s, id).toMatchObject({ na: true, score: 0, notes: INCOMPLETE_SPEC_NOTE });
+    }
+    expect(d.sub_checks.map((s) => s.weight)).toEqual([25, 25, 15, 15, 20]);
+    expect(d.score).toBe(100); // discovery only; the unmeasured weight is redistributed
+  });
+
+  it("a spec body that stalls past the deadline is unmeasured too", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.stubGlobal("fetch", byPath(() => new Response(streamOf([new TextEncoder().encode('{"openapi":')], { hang: true }), { status: 200 })));
+    const p = runDim3("https://acme.com/", kvEnv());
+    await vi.advanceTimersByTimeAsync(5001);
+    const d = await p;
+    expect(d.sub_checks.find((s) => s.id === "spec_validity")).toMatchObject({ na: true, notes: INCOMPLETE_SPEC_NOTE });
+  });
+
+  it("a complete spec is scored exactly as before", async () => {
+    vi.stubGlobal("fetch", byPath(() => new Response(SPEC, { status: 200, headers: { "content-type": "application/json" } })));
+    const d = await runDim3("https://acme.com/", kvEnv());
+    expect(d.sub_checks.find((s) => s.id === "spec_validity")).toMatchObject({ score: 100, notes: "Valid JSON spec, openapi 3.1.0." });
+    expect(d.sub_checks.some((s) => s.na)).toBe(false);
   });
 });
 

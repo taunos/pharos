@@ -28,9 +28,10 @@
     { "binding": "CACHE", "id": "000bf34df96f4acdb86999854b32ae12" }
   ],
   "ai": { "binding": "AI" },
-  // Security pass 2026-11-04: first, atomic gate on POST /api/scan, keyed by
-  // CF-Connecting-IP (the KV 5/IP and 3/URL daily limits stay as the second
-  // layer). 5 per 60 s: anyone over it is also over the 5-per-day KV limit.
+  // Security pass 2026-11-04: first, best-effort gate on POST /api/scan (the
+  // binding is approximate and eventually consistent), keyed by the client
+  // IP (the KV 5/IP and 3/URL daily limits stay as the second layer). 5 per
+  // 60 s: anyone over it is normally also over the 5-per-day KV limit.
   // namespace_id is an account-unique integer; mcp-server uses 1001.
   "ratelimits": [
     {

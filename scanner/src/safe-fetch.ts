@@ -227,7 +227,9 @@ export interface SafeResponse {
   discard(): void;
 }
 
-export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+export type FetchLike =(input: string, init?: RequestInit) => Promise<Response>;
 
 export interface SafeFetchOpts {
   /** Overall deadline for every hop plus the body read. */
@@ -239,9 +241,10 @@ export interface SafeFetchOpts {
 /**
  * fetch with manual redirects. Every hop (including the first) is validated;
  * an unsafe target, a network error or the deadline returns null. When the
- * hop budget is exhausted the last 3xx response is returned as-is.
- * 307/308 replay the method and body; 301/302/303 switch to a bodiless GET
- * (the fetch spec's redirect semantics).
+ * hop budget is exhausted the last 3xx response is returned as-is. Only
+ * 301/302/303/307/308 are followed; any other status (incl. 304) is returned.
+ * 307/308 replay the method and body; 303 switches to a bodiless GET (HEAD
+ * stays HEAD); 301/302 switch to GET only for POST (the fetch spec's rules).
  */
 export async function safeFetch(url: string, init: RequestInit = {}, opts: SafeFetchOpts): Promise<SafeResponse | null> {
   const maxRedirects = Math.min(opts.maxRedirects ?? MAX_REDIRECTS, MAX_REDIRECTS);
@@ -264,7 +267,8 @@ export async function safeFetch(url: string, init: RequestInit = {}, opts: SafeF
           signal: deadline.signal,
         })
       );
-      const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+      // Only the five redirect statuses are followed (not 300/304/305/306).
+      const location = REDIRECT_STATUSES.has(res.status) ? res.headers.get("location") : null;
       if (!location || redirects >= maxRedirects) {
         let consumed = false;
         return {
@@ -298,7 +302,9 @@ export async function safeFetch(url: string, init: RequestInit = {}, opts: SafeF
         headers.delete("authorization");
       }
       target = next.toString();
-      if (res.status !== 307 && res.status !== 308 && method !== "HEAD") {
+      // Fetch-spec method rewriting: 303 -> GET (HEAD stays HEAD); 301/302 ->
+      // GET only for POST; 307/308 keep method and body.
+      if ((res.status === 303 && method !== "HEAD") || ((res.status === 301 || res.status === 302) && method === "POST")) {
         method = "GET";
         reqBody = undefined;
       }
