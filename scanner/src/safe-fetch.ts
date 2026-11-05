@@ -68,6 +68,7 @@ export function validateTargetUrl(raw: string | URL): URL {
   const labels = host.split(".");
   if (
     host === "" ||
+    rawHost.endsWith("..") || // E14: at most one trailing dot ("example.com." is fine)
     labels.length < 2 ||
     labels.some((label) => !LABEL_RE.test(label)) ||
     !/[a-z]/.test(labels[labels.length - 1]) ||

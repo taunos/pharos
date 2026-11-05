@@ -9,6 +9,9 @@
     "Each Worker's own test suite runs its copies against this file, so a copy that drifts fails its Worker's tests.",
     "reject: every copy must refuse. accept: every copy must allow.",
     "profiles: rows where the two profiles intentionally differ (prospect is https-only, no punycode, no trailing dot).",
+    "Scope of the prospect profile: outreach applies it to every hop it fetches itself; the scanner applies it to the",
+    "RPC entry URL only (assertProspectUrl). Hops the scanner then fetches during that scan (redirects, discovered",
+    "links) go through the public guard, which still refuses every reject row below (open follow-up, not SSRF).",
     "redirects: every fetching copy follows only follow_statuses, never a no_follow_status, re-validates every hop",
     "against the reject list, and stops after max_redirects hops."
   ],
@@ -77,6 +80,8 @@
     "ws://example.com/",
     "javascript:alert(1)",
     "data:text/plain,hi",
+    "https://example.com../",
+    "https://example.com.../x",
     "https://example..com/",
     "https://.example.com/",
     "https://exa!mple.com/",
