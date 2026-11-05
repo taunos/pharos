@@ -2,13 +2,14 @@
 
 The Pharos Agent Discoverability Score scanner — a Cloudflare Worker that scans a URL across the six dimensions of agent discoverability and returns a composite score.
 
-**Slice 1** ships dimensions 1, 2, and 4 (the no-external-API checks):
+All six dimensions ship (scoring version in `src/version.ts`; weights in `src/scoring.ts`):
 
 - **Dim 1 — llms.txt Quality** (presence, spec compliance, linked-page quality, curation, blockquote LLM eval)
 - **Dim 2 — MCP Server Discoverability** (well-known card, tool coverage, OAuth metadata, live tools/list, DNS TXT)
+- **Dim 3 — OpenAPI / API Catalog** (whole-dimension N/A for content-only sites)
 - **Dim 4 — Structured Capability Data** (JSON-LD presence, Organization, Service/Offer, FAQPage + LLM eval, Review)
-
-Dimensions 3 (OpenAPI), 5 (Agent-Parsable Content), and 6 (Citation Visibility) ship in subsequent slices.
+- **Dim 5 — Agent-Parsable Content** (static fetch)
+- **Dim 6 — Citation Visibility** (free tier: N/A preview; measured in the paid Audit)
 
 ## Stack
 
@@ -26,6 +27,8 @@ npx wrangler d1 create pharos-scanner
 npx wrangler kv namespace create CACHE
 # paste id into wrangler.jsonc
 npm run db:migrate:remote
+# db:migrate* applies only schema.sql; the Worker also needs every file in
+# migrations/ (0001–0005, in order) — INSERT_SCAN_SQL writes columns they add.
 npm run deploy
 ```
 

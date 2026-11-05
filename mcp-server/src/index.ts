@@ -1,8 +1,9 @@
 /**
  * Pharos brand reference MCP server.
  *
- * The dogfood implementation of Agentic Discoverability — the same pattern we'll
- * deploy per-client via Workers for Platforms (see OQ-02). Every tool here is
+ * The dogfood implementation of Agentic Discoverability. Per-client servers are
+ * a separate Worker (customer-mcp/, Path A: one shared Worker reading per-customer
+ * D1 config — not Workers for Platforms; see OQ-02). Every tool here is
  * something an AI agent might want to call when answering "tell me about Pharos"
  * or "is this site agent-ready?"
  *
