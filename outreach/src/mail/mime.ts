@@ -114,7 +114,6 @@ export function firstTextPlain(p: ParsedPart): string {
 export type DsnInfo = { status: string | null; finalRecipient: string | null; originalMessageId: string | null };
 
 export function extractDsn(p: ParsedPart): DsnInfo | null {
-  const isReport = p.contentType === "multipart/report";
   let status: string | null = null;
   let finalRecipient: string | null = null;
   let originalMessageId: string | null = null;
@@ -135,7 +134,10 @@ export function extractDsn(p: ParsedPart): DsnInfo | null {
       originalMessageId = x.headers["message-id"];
     }
   });
-  if (!isReport && !sawDsnPart) return null;
+  // A DSN needs a parsed message/delivery-status part with a Status or Final-Recipient
+  // (E7): a bare multipart/report (read receipts are multipart/report too) or a
+  // delivery-status part with neither field is not treated as a bounce.
+  if (!sawDsnPart || (!status && !finalRecipient)) return null;
   return { status, finalRecipient, originalMessageId };
 }
 

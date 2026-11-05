@@ -1,6 +1,6 @@
 // §9.1 inbox drain, lead matching, classification and same-transaction actions.
 import type { Alerter } from "./alerts";
-import { eventStmt, moveLeadStmt, tripStop } from "./db";
+import { eventStmt, moveLeadStmt } from "./db";
 import { fill, INTERESTED_DRAFT_BODY } from "./copy";
 import { stripQuoted } from "./mail/mime";
 import type { InboundMail, MailClient } from "./mail/types";
@@ -39,8 +39,14 @@ export function sanitizeForModel(text: string): string {
   return out.slice(0, MAX_MODEL_INPUT_CHARS);
 }
 
+/** A bounce only when the parser found delivery-status content (E7); the sender alone never makes one. */
 export function isDsn(m: InboundMail): boolean {
-  return m.dsn !== null || /^(mailer-daemon|postmaster)@/i.test(m.from);
+  return m.dsn !== null;
+}
+
+/** Mail from a bounce address without parsed delivery-status content: a human looks at it, no automatic action. */
+export function isBounceSender(m: InboundMail): boolean {
+  return /^(mailer-daemon|postmaster)@/i.test(m.from);
 }
 
 export function isAutoReply(m: InboundMail): boolean {
@@ -64,6 +70,7 @@ export async function classify(m: InboundMail, ai: AiBinding | null): Promise<Cl
     if (st && st.startsWith("4.")) return { class: "bounce_soft", confidence: 1, method: "rule" };
     return { class: "bounce_hard", confidence: 1, method: "rule" }; // 5.x.x or unknown status: stop emailing
   }
+  if (isBounceSender(m)) return { class: "needs_human", confidence: null, method: "rule" };
   const body = stripQuoted(m.text);
   const subj = m.subject.replace(/^\s*(re|aw|fwd?)\s*:\s*/i, "");
   // Explicit opt-out text in the new reply's SUBJECT or BODY wins over auto-reply
@@ -209,11 +216,11 @@ export async function handleInbound(env: Env, deps: InboundDeps, m: InboundMail)
 
   if (!lead) {
     if (isDsn(m)) {
-      // An unmatched bounce could mean a follow-up to a dead address: hand to Bruno and pause sending.
+      // E7: an unmatched bounce is usually backscatter or a bounce of Bruno's own mail.
+      // It goes to Bruno as an alert; it does not pause outreach.
       stmts.push(insertInbound("needs_human"), eventStmt(db, now, "inbound_unmatched_dsn", null, { class: klass }));
       await db.batch(stmts);
-      await tripStop(db, now, "unmatched_dsn");
-      await deps.alert("Unmatched bounce: sending paused", "A delivery failure arrived that matches no lead. Sending is paused until you resolve it in /admin.");
+      await deps.alert("Unmatched bounce", "A delivery failure arrived that matches no lead. Outreach keeps running; check it in the mailbox.");
       return;
     }
     // Unmatched non-bounce mail: still honour an opt-out/complaint from that sender.
