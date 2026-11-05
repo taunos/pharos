@@ -56,9 +56,18 @@ describe("S1 approved copy is 100% accepted", () => {
     // copy-table numbers are NOT in the global whitelist
     expect(APPROVED_NUMBER_WHITELIST.has("404")).toBe(false);
   });
-  it("there are exactly 3 subject and 3 opener variants", () => {
+  it("there are exactly 3 subjects and ONE fixed opener (Bruno-approved 2026-11-04)", () => {
     expect(SUBJECT_VARIANTS.length).toBe(3);
-    expect(OPENER_VARIANTS.length).toBe(3);
+    expect(OPENER_VARIANTS).toEqual([
+      "I'm Bruno, founder of Astrant. We help B2B software companies see how AI assistants find and describe their sites. We ran {domain} through the same checks we use on our own site, and two things came up that I think are worth fixing:",
+    ]);
+  });
+  it("the D17 method-word bans still apply to any opener that isn't the approved one", () => {
+    const s0 = sheet([gapFrom("1.presence", "not_found", "example.com"), gapFrom("4.json_ld_present", "none", "example.com")]);
+    const base = templateFields(s0, 0);
+    for (const o of ["We ran example.com through an automated scan.", "I personally reviewed example.com.", base.opener + " "]) {
+      expect(validateFields({ ...base, opener: o }, s0, () => 50).ok, o).toBe(false);
+    }
   });
 });
 
@@ -144,7 +153,7 @@ describe("S1 adversarial corpus is 100% rejected", () => {
     // shape / length / subject
     ["newline", { opener: "I'm Bruno.\nTwo things:" }, /newline/],
     ["subject too long", { subject: "Two fixes for example.com that are really worth your time today" }, /length:subject/],
-    ["opener too long", { opener: "I'm Bruno. " + "Two things on example.com are worth fixing. ".repeat(6) }, /length:opener/],
+    ["opener too long", { opener: "I'm Bruno. " + "Two things on example.com are worth fixing. ".repeat(8) }, /length:opener/],
     ["all caps subject", { subject: "TWO FIXES FOR EXAMPLE.COM" }, /all_caps/],
     ["exclamation", { subject: "Two fixes for example.com!" }, /exclamation/],
     ["re:", { subject: "Re: example.com" }, /re_fwd/],

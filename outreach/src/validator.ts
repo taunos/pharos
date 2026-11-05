@@ -6,7 +6,8 @@ export type DraftFields = { subject: string; opener: string; finding_1: string; 
 export type ValidationResult = { ok: true; fields: DraftFields } | { ok: false; failures: string[] };
 
 const KEYS = ["subject", "opener", "finding_1", "finding_2"] as const;
-const LIMITS: Record<(typeof KEYS)[number], number> = { subject: 60, opener: 200, finding_1: 240, finding_2: 240 };
+// opener: 300 fits Bruno's approved fixed opener (~230 chars with a long domain).
+const LIMITS: Record<(typeof KEYS)[number], number> = { subject: 60, opener: 300, finding_1: 240, finding_2: 240 };
 export const MAX_BODY_WORDS = 120;
 
 function esc(s: string): string {
@@ -90,6 +91,17 @@ export function validateFields(f: DraftFields, sheet: FactSheet, bodyWordsOf: (f
   const fail = (r: string) => failures.push(r);
   const domain = sheet.domain.toLowerCase();
 
+  // Exact approved, code-owned text for each field (inserted verbatim, never model-written).
+  // Such a field is exempt from the phrase rules below: e.g. Bruno's approved opener says
+  // "We ran ... checks", which the D17 method-word bans exist to keep out of model text.
+  // Any other value gets every rule (and then fails the pinning check further down anyway).
+  const approved: Record<(typeof KEYS)[number], string[]> = {
+    subject: SUBJECT_VARIANTS.map((t) => fill(t, { domain: sheet.domain })),
+    opener: OPENER_VARIANTS.map((t) => fill(t, { domain: sheet.domain })),
+    finding_1: sheet.gaps[0] ? [sheet.gaps[0].canonical] : [],
+    finding_2: sheet.gaps[1] ? [sheet.gaps[1].canonical] : [],
+  };
+
   for (const k of KEYS) {
     const v = f[k];
     if (typeof v !== "string" || v.trim() === "") {
@@ -97,7 +109,8 @@ export function validateFields(f: DraftFields, sheet: FactSheet, bodyWordsOf: (f
       continue;
     }
     if (/[\r\n]/.test(v)) fail(`shape:${k}_newline`);
-    if (v.length > LIMITS[k]) fail(`length:${k}`);
+    if (v.length > LIMITS[k]) fail(`length:${k}`); // length caps apply to approved text too
+    if (approved[k].includes(v)) continue; // approved code-owned text
 
     // Markdown artifacts
     if (MARKDOWN_CHARS.some((c) => v.includes(c)) || v.includes("**") || v.includes("](")) fail(`markdown:${k}`);

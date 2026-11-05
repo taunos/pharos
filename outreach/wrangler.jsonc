@@ -49,7 +49,6 @@
     "PROSPECT_SCANS_PER_DAY": "40",
     "BENCHMARK_URL": "",
     "OPERATOR_ALERT_TO": "taunos@gmail.com",
-    "WRITER_MODE": "llm",
     "MAIL_PROVIDER": "zoho",
     "MAIL_FROM": "bruno@getastrant.com",
     "MAIL_FROM_NAME": "Bruno at Astrant",

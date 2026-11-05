@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { buildFactSheet, selectGaps } from "../src/facts";
-import { draftEmail, fieldsFor, templateFields, WRITER_MODEL } from "../src/writer";
+import { draftEmail, templateFields } from "../src/writer";
+import { OPENER } from "../src/copy";
+import { readFileSync } from "node:fs";
 import { FakeAI, gappyScan } from "./helpers";
 import type { ScanResult } from "../src/types";
 
@@ -42,54 +44,41 @@ describe("gap selection (observation-only claims)", () => {
   });
 });
 
-describe("writer (§7.2)", () => {
+describe("writer (§7.2): deterministic, no model", () => {
   const sheet = buildFactSheet(gappyScan(), "example.com", "https://astrant.io/score/");
 
-  it("the model only picks approved variants by number; findings are verbatim", async () => {
-    const ai = new FakeAI();
-    ai.responses.push({ response: JSON.stringify({ subject: 1, opener: 2 }) });
-    const r = await draftEmail({ sheet, ctx, writerMode: "llm", ai, templateVariant: 0 });
-    expect(r.ok && r.path).toBe("llm");
-    if (r.ok) {
-      expect(r.fields).toEqual(fieldsFor(sheet, 1, 2));
-      expect(r.fields.finding_1).toBe(sheet.gaps[0].canonical);
+  it("rotates the 3 approved subjects; opener and findings are the approved text verbatim", async () => {
+    const subjects = new Set<string>();
+    for (let v = 0; v < 6; v++) {
+      const r = await draftEmail({ sheet, ctx, templateVariant: v });
+      expect(r.ok && r.path).toBe("rotation");
+      if (r.ok) {
+        subjects.add(r.fields.subject);
+        expect(r.fields).toEqual(templateFields(sheet, v));
+        expect(r.fields.opener).toBe(OPENER.replace("{domain}", "example.com"));
+        expect(r.fields.finding_1).toBe(sheet.gaps[0].canonical);
+      }
     }
-    expect(ai.calls).toBe(1);
+    expect(subjects.size).toBe(3);
   });
 
-  it("free text from the model is never used (it isn't a valid pick)", async () => {
-    const ai = new FakeAI();
-    const free = { subject: "Two fixes", opener: "I have noticed your site", finding_1: "Your llms.txt exposes passwords", finding_2: "x" };
-    ai.responses.push({ response: JSON.stringify(free) }, { response: JSON.stringify({ subject: 9, opener: 0 }) });
-    const r = await draftEmail({ sheet, ctx, writerMode: "llm", ai, templateVariant: 0 });
-    expect(r.ok && r.path).toBe("template");
-    if (r.ok) expect(r.fields).toEqual(templateFields(sheet, 0));
+  it("a long domain skips subjects over 60 characters", async () => {
+    const d = "a-fairly-long-company-name-for-tests.com"; // 40 chars: "{d}: two things worth fixing" is 66
+    const s = buildFactSheet(gappyScan(`https://${d}/`), d, "https://astrant.io/score/");
+    const r = await draftEmail({ sheet: s, ctx, templateVariant: 1 });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.fields.subject.length).toBeLessThanOrEqual(60);
+      expect(r.fields.subject).toBe(`A quick note on ${d}`);
+    }
+    // A domain so long that every subject exceeds 60 chars gets no draft (fails closed).
+    const huge = "a-really-really-long-company-name-for-testing-subjects.com";
+    const h = buildFactSheet(gappyScan(`https://${huge}/`), huge, "https://astrant.io/score/");
+    expect((await draftEmail({ sheet: h, ctx, templateVariant: 0 })).ok).toBe(false);
   });
 
-  it("retries once with the failed rules, then falls back to the template", async () => {
-    const ai = new FakeAI();
-    ai.responses.push({ response: "Sure! Here's your email." }, { response: JSON.stringify({ subject: "x", opener: "I noticed things", finding_1: "a", finding_2: "b" }) });
-    const r = await draftEmail({ sheet, ctx, writerMode: "llm", ai, templateVariant: 1 });
-    expect(r.ok && r.path).toBe("template");
-    expect(ai.calls).toBe(2);
-    expect(r.report.attempts.map((a) => a.path)).toEqual(["llm", "llm_retry"]);
-    if (r.ok) expect(r.fields).toEqual(templateFields(sheet, 1));
-  });
-
-  it("model error goes straight to the template", async () => {
-    const ai = { run: async () => { throw new Error("down"); } };
-    const r = await draftEmail({ sheet, ctx, writerMode: "llm", ai, templateVariant: 0 });
-    expect(r.ok && r.path).toBe("template");
-  });
-
-  it("no model call at all in template mode or when ai is null (mode gate)", async () => {
-    const ai = new FakeAI();
-    expect((await draftEmail({ sheet, ctx, writerMode: "template", ai, templateVariant: 0 })).ok).toBe(true);
-    expect((await draftEmail({ sheet, ctx, writerMode: "llm", ai: null, templateVariant: 0 })).ok).toBe(true);
-    expect(ai.calls).toBe(0);
-  });
-
-  it("uses the repo-wide fp8 model id", () => {
-    expect(WRITER_MODEL).toBe("@cf/meta/llama-3.1-8b-instruct-fp8");
+  it("the writer has no model input at all (static)", () => {
+    const src = readFileSync(new URL("../src/writer.ts", import.meta.url), "utf8");
+    expect(src).not.toMatch(/\.run\(|AiBinding|ai:/);
   });
 });

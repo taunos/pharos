@@ -9,13 +9,12 @@ export const SUBJECT_VARIANTS = [
   "A quick note on {domain}",
 ] as const;
 
-export const OPENER_VARIANTS = [
-  "I'm Bruno, I build Astrant. Two things on {domain} are worth fixing:",
-  "I'm Bruno, founder of Astrant. Here are two things on {domain} worth fixing:",
-  "I'm Bruno, I run Astrant. Two things on {domain} are worth a fix:",
-] as const;
+// Bruno-approved 2026-11-04: ONE fixed opener (replaces the 3 variants). Inserted verbatim.
+export const OPENER =
+  "I'm Bruno, founder of Astrant. We help B2B software companies see how AI assistants find and describe their sites. We ran {domain} through the same checks we use on our own site, and two things came up that I think are worth fixing:";
+export const OPENER_VARIANTS = [OPENER] as const;
 
-export const GREETING = "Hi {domain} team,";
+export const GREETING = "Hi there,"; // Bruno-approved 2026-11-04
 export const SCORE_LINE = "Your Astrant Score is {score}/100. Full result, no signup: {score_url}";
 // D14: only rendered when BENCHMARK_URL is set and returns HTTP 200 at batch-build time.
 export const BENCHMARK_LINE = "How other B2B SaaS sites compare: {benchmark_url}";

@@ -201,7 +201,7 @@ describe("§9.5 batches", () => {
 
   it("dry_run builds drafts (no sends), approval is refused in dry_run", async () => {
     const { db } = freshDb();
-    const env = makeEnv(db, { OUTREACH_MODE: "dry_run", WRITER_MODE: "template" });
+    const env = makeEnv(db, { OUTREACH_MODE: "dry_run" });
     await db.prepare("UPDATE control SET paused = 0, dns_verified_at = 0").run();
     await contactLeads(db, 3, MON_0905 - DAY);
     const r = await buildWeeklyBatch(env, bd(env, MON_0905));
@@ -213,7 +213,7 @@ describe("§9.5 batches", () => {
 
   it("gated: the batch is approved on build (Bruno's send click is the gate); not_before is in-window and ≤ the daily cap", async () => {
     const { db } = freshDb();
-    const env = makeEnv(db, { OUTREACH_MODE: "gated", WRITER_MODE: "template", DRAFTS_PER_DAY: "3" });
+    const env = makeEnv(db, { OUTREACH_MODE: "gated", DRAFTS_PER_DAY: "3" });
     await db.prepare("UPDATE control SET paused = 0").run();
     await contactLeads(db, 8, MON_0905 - DAY);
     const r = await buildWeeklyBatch(env, bd(env, MON_0905));
@@ -235,7 +235,7 @@ describe("§9.5 batches", () => {
 
   it("admin reject still works on a pending batch (approval needs gated/auto)", async () => {
     const { db } = freshDb();
-    const env = makeEnv(db, { OUTREACH_MODE: "dry_run", WRITER_MODE: "template" });
+    const env = makeEnv(db, { OUTREACH_MODE: "dry_run" });
     await db.prepare("UPDATE control SET paused = 0").run();
     const ids = await contactLeads(db, 2, MON_0905 - DAY);
     const r = await buildWeeklyBatch(env, bd(env, MON_0905));
@@ -246,7 +246,7 @@ describe("§9.5 batches", () => {
 
   it("expired batch: leads return to contact_found; the redraft updates the same message row in place", async () => {
     const { db } = freshDb();
-    const env = makeEnv(db, { OUTREACH_MODE: "dry_run", WRITER_MODE: "template" });
+    const env = makeEnv(db, { OUTREACH_MODE: "dry_run" });
     await db.prepare("UPDATE control SET paused = 0").run();
     const [id] = await contactLeads(db, 1, MON_0905 - DAY);
     const r1 = await buildWeeklyBatch(env, bd(env, MON_0905));
@@ -264,7 +264,7 @@ describe("§9.5 batches", () => {
 
   it("stale scans (>7 days + slack) are not drafted; suppressed and EU leads are dropped", async () => {
     const { db } = freshDb();
-    const env = makeEnv(db, { OUTREACH_MODE: "gated", WRITER_MODE: "template" });
+    const env = makeEnv(db, { OUTREACH_MODE: "gated" });
     await db.prepare("UPDATE control SET paused = 0").run();
     await contactLeads(db, 1, MON_0905 - 9 * DAY);
     const eu = await insertLead(db, { domain: "acme.com", state: "contact_found", contact_email: "hello@acme.com", country: "DE", scanned_at: MON_0905, fact_sheet_json: "{}" });
@@ -281,15 +281,14 @@ describe("§9.5 batches", () => {
     expect(autoApprovalAllowed(makeEnv(db, { OUTREACH_MODE: undefined }))).toBe(false);
   });
 
-  it("validator fallback > 50% of a batch pauses drafting only", async () => {
+  it("batch build makes no model call even with Workers AI bound", async () => {
     const { db } = freshDb();
-    const env = makeEnv(db, { OUTREACH_MODE: "gated", WRITER_MODE: "llm" });
+    const env = makeEnv(db, { OUTREACH_MODE: "gated" });
     await db.prepare("UPDATE control SET paused = 0").run();
     await contactLeads(db, 3, MON_0905 - DAY);
-    const r = await buildWeeklyBatch(env, { ...bd(env, MON_0905), ai: env.AI }); // FakeAI returns non-JSON ⇒ template
+    const r = await buildWeeklyBatch(env, { ...bd(env, MON_0905), ai: env.AI });
     expect(r.drafted).toBe(3);
-    const c = await getControl(db);
-    expect(c.drafting_paused).toBe(1);
-    expect(c.paused).toBe(0);
+    expect(env.AI.calls).toBe(0);
+    expect((await getControl(db)).drafting_paused).toBe(0);
   });
 });

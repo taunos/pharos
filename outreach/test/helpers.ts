@@ -151,7 +151,6 @@ export function makeEnv(db: D1Database, over: Partial<Env> = {}): Env & { SCANNE
     DAILY_CAP_MAX: "30",
     DRAFTS_PER_DAY: "10",
     PROSPECT_SCANS_PER_DAY: "40",
-    WRITER_MODE: "llm",
     MAIL_FROM: "bruno@getastrant.com",
     PUBLIC_BASE_URL: "https://go.getastrant.com",
     SCORE_BASE_URL: "https://astrant.io/score/",

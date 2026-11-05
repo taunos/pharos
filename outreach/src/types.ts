@@ -62,7 +62,6 @@ export interface Env {
   PROSPECT_SCANS_PER_DAY?: string;
   BENCHMARK_URL?: string;
   OPERATOR_ALERT_TO?: string;
-  WRITER_MODE?: string;
   MAIL_PROVIDER?: string;
   MAIL_FROM?: string;
   MAIL_FROM_NAME?: string;

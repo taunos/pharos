@@ -7,7 +7,8 @@ import type { InboundMail, MailClient } from "./mail/types";
 import { alertDeleteDraft, cancelOutstandingStmt, mailboxDraftCount } from "./drafts";
 import { requestScanDeletionStmt, suppressStmts } from "./suppression";
 import type { AiBinding, Env, LeadRow, LeadState } from "./types";
-import { WRITER_MODEL } from "./writer";
+/** Workers AI model for reply classification only (enum output). Nothing model-written reaches a draft. */
+export const CLASSIFIER_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
 import { hasUnsafeChars, isAstrantUrl } from "./safety";
 import { gatedCreateDraft } from "./draft-gate";
 import { startOfUtcDay } from "./clock";
@@ -75,7 +76,7 @@ export async function classify(m: InboundMail, ai: AiBinding | null): Promise<Cl
   if (NOT_INTERESTED_RE.test(text)) return { class: "not_interested", confidence: 1, method: "rule" };
   if (!ai) return { class: "needs_human", confidence: null, method: "default" };
   try {
-    const res = await ai.run(WRITER_MODEL, {
+    const res = await ai.run(CLASSIFIER_MODEL, {
       messages: [
         {
           role: "system",

@@ -96,7 +96,6 @@ export async function buildWeeklyBatch(env: Env, deps: BatchDeps): Promise<{ sta
     benchmarkUrl: await benchmarkUrlIfLive(env, deps.fetch),
     privacyUrl: isAstrantUrl(env.PRIVACY_URL) ? env.PRIVACY_URL! : "https://astrant.io/privacy#prospecting",
   };
-  const writerMode = env.WRITER_MODE === "template" ? "template" : "llm";
   const variantBase = (await db.prepare("SELECT COUNT(*) AS n FROM messages").first<{ n: number }>())?.n ?? 0;
   let drafted = 0;
   let fallback = 0;
@@ -112,13 +111,12 @@ export async function buildWeeklyBatch(env: Env, deps: BatchDeps): Promise<{ sta
     }
     const sheet = JSON.parse(lead.fact_sheet_json ?? "null") as FactSheet | null;
     if (!sheet) continue;
-    const out = await draftEmail({ sheet, ctx, writerMode, ai: deps.ai, templateVariant: variantBase + drafted });
+    const out = await draftEmail({ sheet, ctx, templateVariant: variantBase + drafted });
     if (!out.ok) {
       await moveLead(db, now, lead.id, "contact_found", "disqualified", "draft_failed");
       await logEvent(db, now, "draft_failed", lead.id, { report: out.report });
       continue;
     }
-    if (out.path === "template" && writerMode === "llm") fallback++;
     const body = renderInitialBody(out.fields, sheet, ctx);
     // Same safety gate the mailbox draft passes, with placeholder opt-out link and postal line.
     const probe = checkOutboundDraft({
@@ -155,12 +153,7 @@ export async function buildWeeklyBatch(env: Env, deps: BatchDeps): Promise<{ sta
   }
   await db.prepare("UPDATE batches SET draft_count = ?, fallback_count = ? WHERE id = ?").bind(drafted, fallback, batchId).run();
 
-  if (drafted > 0 && fallback / drafted > 0.5) {
-    // §9.3 model drift: pause drafting only.
-    await db.prepare("UPDATE control SET drafting_paused = 1 WHERE id = 1").run();
-    await logEvent(db, now, "stop_trip", null, { reason: "validator_fallback_rate", drafted, fallback });
-    await deps.alert("Drafting paused: model drift", `${fallback} of ${drafted} drafts in this batch needed the template fallback. Drafting is paused.`);
-  }
+  // (The §9.3 "validator fallback rate" stop is gone: there is no model in the writing path.)
 
   if (drafted > 0 && autoApprovalAllowed(env)) {
     const r = await approveBatch(env, { batchId, rejectedLeadIds: [], now, by: "auto", random: deps.random });

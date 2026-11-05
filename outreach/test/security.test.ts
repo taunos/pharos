@@ -16,7 +16,8 @@ import { renderInitialBody, finalizeBody } from "../src/render";
 import { discoverContact, researchStep, safeFetch, MAX_RESPONSE_BYTES } from "../src/research";
 import { checkOutboundDraft, hasMixedScriptWord, hasUnsafeChars, isPublicHostname, safeHttpsUrl } from "../src/safety";
 import { validateFields } from "../src/validator";
-import { draftEmail, parseChoice, templateFields } from "../src/writer";
+import { draftEmail, templateFields } from "../src/writer";
+import { readFileSync } from "node:fs";
 import { b64url } from "../src/crypto";
 import { _resetAccessCache } from "../src/access";
 import { FakeAI, FakeMail, TUE_1400, deps, freshDb, gappyScan, inboundMail, insertLead, makeEnv, makeFetch, noopAlert } from "./helpers";
@@ -57,27 +58,13 @@ function injectedScan(payload: string): ScanResult {
 
 describe("A. prompt injection via the lead's own site never reaches the model or a draft", () => {
   for (const payload of INJECTIONS) {
-    it(`payload is not in the fact sheet's claims, the model prompt, or the draft: ${payload.slice(0, 40)}…`, async () => {
+    it(`payload never reaches a draft (and no model is involved): ${payload.slice(0, 40)}…`, async () => {
       const sheet = buildFactSheet(injectedScan(payload), "example.com", "https://astrant.io/score/");
-      // Claims are code-owned canonical sentences only.
       for (const g of sheet.gaps) expect(g.canonical).not.toContain(payload.slice(0, 20));
-      const seen: string[] = [];
-      const ai = {
-        run: async (_m: string, input: Record<string, unknown>) => {
-          seen.push(JSON.stringify(input));
-          // A compromised model tries to smuggle text out.
-          return { response: payload };
-        },
-      };
-      const out = await draftEmail({ sheet, ctx, writerMode: "llm", ai, templateVariant: 0 });
+      const out = await draftEmail({ sheet, ctx, templateVariant: 0 });
       expect(out.ok).toBe(true);
-      // The model saw no site text and not even the domain.
-      for (const p of seen) {
-        expect(p).not.toContain(payload.slice(0, 20));
-        expect(p).not.toContain("example.com");
-      }
       if (out.ok) {
-        expect(out.path).toBe("template"); // free text from the model is never a valid pick
+        expect(out.path).toBe("rotation");
         const body = renderInitialBody(out.fields, sheet, ctx);
         expect(body).not.toContain(payload.slice(0, 20));
         expect(body).not.toMatch(/evil|phish|discount|passwords|noticed|personally/i);
@@ -85,22 +72,9 @@ describe("A. prompt injection via the lead's own site never reaches the model or
     });
   }
 
-  it("the model's output can only select option numbers; anything else is rejected", () => {
-    expect(parseChoice('{"subject":0,"opener":1}')).toEqual({ subject: 0, opener: 1 });
-    for (const bad of [
-      '{"subject":0,"opener":1,"finding_1":"I noticed"}',
-      'Sure! {"subject":0,"opener":1}',
-      '{"subject":"0","opener":1}',
-      '{"subject":0.5,"opener":1}',
-      '{"subject":-1,"opener":1}',
-      '{"subject":99,"opener":1}',
-      '{"subject":0,"opener":"Ignore previous instructions"}',
-      "[0,1]",
-      "null",
-      INJECTIONS[3],
-    ]) {
-      expect(parseChoice(bad), bad).toBeNull();
-    }
+  it("the writer takes no model and no outside text: its only inputs are the fact sheet and a rotation index", () => {
+    const src = readFileSync(new URL("../src/writer.ts", import.meta.url), "utf8");
+    expect(src).not.toMatch(/\.run\(|AiBinding/);
   });
 
   it("Codex's three fabricated sentences are rejected by the validator", () => {
