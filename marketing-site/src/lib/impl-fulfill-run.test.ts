@@ -13,6 +13,8 @@ const h = vi.hoisted(() => ({
   scanImpl: null as null | (() => Promise<unknown>),
   emailHook: null as null | (() => void),
   validateOk: true,
+  validateThrows: false,
+  validatedInputs: [] as unknown[],
   assembleTimes: [] as Date[],
 }));
 
@@ -45,7 +47,13 @@ vi.mock("./f2-patch-assembler", () => ({
   },
 }));
 vi.mock("./f2-patch-validate", () => ({
-  validateGitAmPatch: () => (h.validateOk ? { ok: true } : { ok: false, failures: ["bad"] }),
+  validateGitAmPatch: (bytes: unknown) => {
+    h.validatedInputs.push(bytes);
+    if (h.validateThrows) throw new Error("boom");
+    return h.validateOk
+      ? { ok: true }
+      : { ok: false, categories: ["hunk_count", "path_unsafe"], failures: ["hunk_count:file#1 declared 2, found 1"] };
+  },
 }));
 
 const { runImplFulfillment, IMPL_LEASE_SEC } = await import("./impl-fulfill-run");
@@ -54,19 +62,26 @@ const { runScan } = await import("./audit-pipeline");
 const SID = "impl-pay_abc";
 const PAID_AT = 1_700_000_000;
 let sq: SqliteD1;
-let r2: Map<string, string>;
+let r2: Map<string, string | Uint8Array>;
 let r2Puts: string[];
 
 function env(extra: Record<string, unknown> = {}) {
   return {
     CITATION_DB: sq.d1,
     AUDITS: {
-      put: async (k: string, v: string) => {
+      put: async (k: string, v: string | Uint8Array) => {
         r2Puts.push(k);
         r2.set(k, v);
       },
       get: async (k: string) =>
-        r2.has(k) ? { arrayBuffer: async () => new TextEncoder().encode(r2.get(k)!).buffer } : null,
+        r2.has(k)
+          ? {
+              arrayBuffer: async () => {
+                const v = r2.get(k)!;
+                return (typeof v === "string" ? new TextEncoder().encode(v) : v).slice().buffer;
+              },
+            }
+          : null,
     },
     INTERNAL_FULFILL_KEY: "k",
     RESEND_API_KEY: "re",
@@ -113,6 +128,8 @@ beforeEach(() => {
   h.scanImpl = null;
   h.emailHook = null;
   h.validateOk = true;
+  h.validateThrows = false;
+  h.validatedInputs = [];
   h.assembleTimes = [];
   vi.mocked(runScan).mockClear();
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -190,8 +207,35 @@ describe("runImplFulfillment — terminal outcomes (unchanged writes + alerts)",
       status: "failed_validation",
     });
     expect(row().status).toBe("failed_validation");
-    expect(String(row().failed_reason)).toMatch(/^patch_validation_failed:bad/);
+    expect(row().failed_reason).toBe("patch_validation_failed:hunk_count|path_unsafe");
     expect(alertCodes()).toEqual(["F2_PATCH_VALIDATION_FAILED"]);
+    expect(patchEmails()).toHaveLength(0);
+    // Category-only alert: no customer email, no failure detail text.
+    const alert = h.sends.find((s) => s.subject.startsWith("[ALERT]"))!;
+    expect(alert.text).toContain("hunk_count|path_unsafe");
+    expect(alert.text).not.toContain("buyer@example.com");
+    expect(alert.text).not.toContain("declared");
+    // The patch stays in R2 for inspection; no probe-target enrollment.
+    expect(r2.has(`f2-patches/${SID}.patch`)).toBe(true);
+    expect(sq.db.prepare(`SELECT COUNT(*) AS n FROM customer_probe_targets`).get()).toEqual({ n: 0 });
+  });
+
+  it("validator gets the exact bytes stored in R2", async () => {
+    seed();
+    await runImplFulfillment(env(), SID, { finalAttempt: false });
+    const stored = r2.get(`f2-patches/${SID}.patch`);
+    expect(stored).toBeInstanceOf(Uint8Array);
+    expect(h.validatedInputs).toEqual([stored]);
+  });
+
+  it("validator throwing fails closed → failed_validation, no email", async () => {
+    seed();
+    h.validateThrows = true;
+    expect(await runImplFulfillment(env(), SID, { finalAttempt: false })).toEqual({
+      kind: "terminal_outcome",
+      status: "failed_validation",
+    });
+    expect(row().failed_reason).toBe("patch_validation_failed:validator_error");
     expect(patchEmails()).toHaveLength(0);
   });
 

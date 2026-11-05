@@ -24,7 +24,7 @@ import { generateOpenApi } from "./f2-generators/openapi";
 import { generateJsonLd } from "./f2-generators/jsonld";
 import { renderMcpServerWorker } from "./f2-mcp-server-template";
 import { assembleGitAmPatch } from "./f2-patch-assembler";
-import { validateGitAmPatch } from "./f2-patch-validate";
+import { validateGitAmPatch, type PatchValidation } from "./f2-patch-validate";
 import { sendF2PatchDeliveryEmail } from "./f2-email";
 import { sendOperatorAlert } from "./operator-alerts";
 import type { ProbeCadence } from "./cadence";
@@ -332,8 +332,11 @@ async function buildAndDeliver(
   });
 
   // Step 7 — Persist patch to R2 (LOW-2 v3 fold — operator recovery path)
+  // F2-VALIDATE-1: the gate below validates these exact bytes, which are the
+  // bytes stored and later attached to the email.
   const patchR2Key = `f2-patches/${sessionId}.patch`;
-  await env.AUDITS.put(patchR2Key, patchContent);
+  const patchBytes = new TextEncoder().encode(patchContent);
+  await env.AUDITS.put(patchR2Key, patchBytes);
   await env.CITATION_DB.prepare(
     `UPDATE implementation_sessions SET patch_r2_key = ?, updated_at = ?
      WHERE session_id = ?`,
@@ -341,26 +344,35 @@ async function buildAndDeliver(
     .bind(patchR2Key, nowSec(), sessionId)
     .run();
 
-  // F2-VALIDATE-1 — fail-closed structural/encoding gate on the assembled patch,
-  // BEFORE enrollment + email. Generators are deterministic (callModel hardcoded
-  // null), so no retry/fallback ladder — a retry would re-emit identical bytes;
-  // that ladder belongs in the future slice that wires a real LLM call. On fail:
-  // no probe-target enrollment, no email, patch retained in R2 for inspection.
-  const patchValidation = validateGitAmPatch(patchContent, Object.keys(allFiles));
+  // F2-VALIDATE-1 — fail-closed structural/encoding gate on the stored patch
+  // bytes, BEFORE enrollment + email. Terminal, no retry: generation is
+  // deterministic per session, so a retry re-emits identical bytes. On fail: no
+  // probe-target enrollment, no email, patch retained in R2 for inspection.
+  // The reason and alert carry failure CATEGORIES only — never patch text,
+  // paths or customer values (the content is partly LLM-generated).
+  let patchValidation: PatchValidation;
+  try {
+    patchValidation = validateGitAmPatch(patchBytes, Object.keys(allFiles));
+  } catch {
+    patchValidation = { ok: false, categories: ["validator_error"], failures: ["validator_error:threw"] };
+  }
   if (!patchValidation.ok) {
+    const categories = patchValidation.categories.join("|");
+    console.error(
+      `F2_PATCH_VALIDATION_FAILED session_id=${sessionId} failures=${patchValidation.failures.join(";").slice(0, 1000)}`,
+    );
     const written = await writeTerminalStatus(
       env,
       sessionId,
       claimedAt,
       "failed_validation",
-      `patch_validation_failed:${patchValidation.failures.join("|").slice(0, 400)}`,
+      `patch_validation_failed:${categories}`.slice(0, 500),
     );
     await sendOperatorAlert(env, {
       alert_code: "F2_PATCH_VALIDATION_FAILED",
-      customer_email: f2.customer_email,
       session_id: sessionId,
       dodo_payment_id: f2.dodo_payment_id,
-      notes: `Patch failed structural validation; retained at ${patchR2Key}. Customer paid; needs manual refund via Dodo dashboard. Failures: ${patchValidation.failures.join("; ")}${written ? "" : LEASE_LOST_NOTE}`,
+      notes: `Patch failed pre-delivery validation (categories: ${categories}). No email was sent. Patch retained in R2 at ${patchR2Key}. Customer paid; refund or re-deliver manually.${written ? "" : LEASE_LOST_NOTE}`,
     });
     return { kind: "terminal_outcome", status: "failed_validation" };
   }
