@@ -67,7 +67,9 @@ export class ZohoMailClient implements MailClient {
   private accountId: string | null = null;
   private folders: Record<string, string> | null = null;
 
-  constructor(private cfg: ZohoConfig, private f: Fetch = fetch, private now: () => number = Date.now) {}
+  // Default wraps the global fetch: stored bare and called as this.f(), Workers
+  // throws "Illegal invocation" (this !== globalThis). Live bug 2026-11-05.
+  constructor(private cfg: ZohoConfig, private f: Fetch = (i, init) => fetch(i, init), private now: () => number = Date.now) {}
 
   private async accessToken(): Promise<string> {
     if (this.token && this.token.exp > this.now() + 60_000) return this.token.value;
