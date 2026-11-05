@@ -11,14 +11,16 @@ import type { ImplVerifier, VerificationCheck, CheckState } from "./impl-verific
 // claude/impl-verify-checks); Resend + scanner are mocked.
 
 const h = vi.hoisted(() => ({
-  sends: [] as Array<{ subject: string; text?: string; html?: string }>,
+  all: [] as Array<{ subject: string; text?: string; html?: string }>,
   scan: { composite: { score: 61, grade: "C" }, scoring_version: "1.3.1" } as unknown,
+  emailError: null as null | { message: string },
 }));
 vi.mock("resend", () => ({
   Resend: class {
     emails = {
       send: async (p: { subject: string; text?: string; html?: string }) => {
-        h.sends.push({ subject: p.subject, text: p.text, html: p.html });
+        h.all.push({ subject: p.subject, text: p.text, html: p.html });
+        if (h.emailError && !p.subject.startsWith("[ALERT]")) return { data: null, error: h.emailError };
         return { data: { id: "em_1" }, error: null };
       },
     };
@@ -28,6 +30,11 @@ vi.mock("./audit-pipeline", () => ({ runScan: vi.fn(async () => h.scan) }));
 
 const { markImplementationApplied, diffChecks } = await import("./impl-verification");
 const { runImplDayAudit } = await import("./impl-day-audit-run");
+const { runScan } = await import("./audit-pipeline");
+
+// Customer emails only (operator alerts excluded).
+const customer = () => h.all.filter((s) => !s.subject.startsWith("[ALERT]"));
+const alerts = () => h.all.filter((s) => s.subject.startsWith("[ALERT]")).map((s) => s.subject.slice(8));
 
 const SID = "impl-pay_abc";
 const PAID_AT = 1_700_000_000;
@@ -134,7 +141,9 @@ beforeEach(() => {
     [`f2-patches/${SID}.patch`, "PATCH-BYTES"],
     [`f2-baseline-scans/f2-baseline-${SID}.json`, JSON.stringify({ composite: { score: 40 }, scoring_version: "1.3.0" })],
   ]);
-  h.sends = [];
+  h.all = [];
+  h.emailError = null;
+  vi.mocked(runScan).mockClear();
   h.scan = { composite: { score: 61, grade: "C" }, scoring_version: "1.3.1" };
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(console, "log").mockImplementation(() => {});
@@ -152,8 +161,8 @@ describe("markImplementationApplied — Day 0", () => {
     expect(r.applied_at).toBe(APPLIED_SEC);
     expect(r.applied_by).toBe("operator");
     expect(r.day30_audit_due_at).toBe(APPLIED_SEC + 30 * DAY);
-    expect(r.day60_audit_due_at).toBe(APPLIED_SEC + 60 * DAY);
-    expect(r.day90_audit_due_at).toBe(APPLIED_SEC + 90 * DAY);
+    expect(r.day60_audit_due_at).toBeNull(); // verified sessions: Day 30 only
+    expect(r.day90_audit_due_at).toBeNull();
     expect(r.bundle_expires_at).toBe(APPLIED_SEC + 91 * DAY);
 
     const rec = verifications();
@@ -209,6 +218,42 @@ describe("markImplementationApplied — Day 0", () => {
     expect(verifications()).toHaveLength(0);
   });
 
+  it("force: Day 0 anchored with no working artifact; checks stored; applied_by marked +forced", async () => {
+    seed();
+    const { v } = fakeVerifier([check("llms.txt", "absent"), check("mcp", "unobservable")]);
+    const res = await markImplementationApplied(env(), SID, "operator", { verifier: v, now: () => APPLIED }, { force: true });
+    expect(res).toMatchObject({ kind: "applied", applied_at: APPLIED_SEC });
+    expect(row()).toMatchObject({ status: "active", applied_by: "operator+forced", day30_audit_due_at: APPLIED_SEC + 30 * DAY });
+    const rec = verifications();
+    expect(rec).toHaveLength(1);
+    expect(JSON.parse(rec[0].checks_json as string).map((c: VerificationCheck) => c.state)).toEqual(["absent", "unobservable"]);
+  });
+
+  it("force does not bypass status / expiry / idempotency guards", async () => {
+    seed("processing");
+    const { v, calls } = fakeVerifier([check("llms.txt", "absent")]);
+    expect(await markImplementationApplied(env(), SID, "operator", { verifier: v }, { force: true })).toEqual({
+      kind: "wrong_status",
+      status: "processing",
+    });
+    sq.db.exec(`UPDATE implementation_sessions SET status = 'awaiting_application', bundle_expired_at = 5`);
+    expect(await markImplementationApplied(env(), SID, "operator", { verifier: v }, { force: true })).toEqual({
+      kind: "bundle_expired",
+    });
+    expect(calls).toHaveLength(0);
+  });
+
+  it("active_email_pending (patch re-sent by hand) → markable like awaiting_application", async () => {
+    seed("active_email_pending", { patch_delivered_at: null, failed_reason: "email_send_failed:x" });
+    const { v } = fakeVerifier([check("llms.txt", "working")]);
+    expect(await markImplementationApplied(env(), SID, "operator", { verifier: v, now: () => APPLIED })).toMatchObject({
+      kind: "applied",
+    });
+    expect(row()).toMatchObject({ status: "active", applied_at: APPLIED_SEC, day30_audit_due_at: APPLIED_SEC + 30 * DAY });
+    expect(verifications()).toHaveLength(1);
+    expect(due(APPLIED_SEC + 30 * DAY + 1).map((r) => r.session_id)).toEqual([SID]);
+  });
+
   it("checker not wired → verifier_unavailable, nothing written", async () => {
     seed();
     expect(await markImplementationApplied(env(), SID, "operator", { verifier: null })).toEqual({
@@ -218,7 +263,7 @@ describe("markImplementationApplied — Day 0", () => {
     expect(verifications()).toHaveLength(0);
   });
 
-  it.each(["queued", "processing", "failed", "failed_validation", "failed_ceiling", "active_email_pending", "active"])(
+  it.each(["queued", "processing", "failed", "failed_validation", "failed_ceiling", "active"])(
     "status %s (no applied_at) → wrong_status, checker not run",
     async (s) => {
       seed(s);
@@ -262,7 +307,7 @@ describe("Day-N re-anchoring (citation-tracking STEP B as shipped + Day-N claim)
     expect(await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID }, { verifier: null })).toEqual({
       kind: "deduped",
     });
-    expect(h.sends).toHaveLength(0);
+    expect(customer()).toHaveLength(0);
   });
 
   it("after mark applied, Day 30 is due at applied_at + 30d, not payment + 30d", async () => {
@@ -274,8 +319,8 @@ describe("Day-N re-anchoring (citation-tracking STEP B as shipped + Day-N claim)
     expect(due(APPLIED_SEC + 30 * DAY + 1).map((r) => r.session_id)).toEqual([SID]);
   });
 
-  it("STEP C: an unexpired awaiting_application order counts as overlap (probes retained)", () => {
-    seed("awaiting_application", { session_id: "impl-pay_new", dodo_payment_id: "pay_new" });
+  it.each(["awaiting_application", "active_email_pending"])("STEP C: an unexpired %s order counts as overlap (probes retained)", (s) => {
+    seed(s, { session_id: "impl-pay_new", dodo_payment_id: "pay_new" });
     // An older, expired order for the same customer.
     seed("active", { bundle_expires_at: PAID_AT - DAY });
     const now = PAID_AT;
@@ -313,10 +358,10 @@ describe("Day-30 recheck — rescan + acceptance checks vs Day 0 and baseline", 
     expect(r2.has(`f2-recheck-scans/${SID}-day30.json`)).toBe(true);
     expect(verifications().find((x) => x.checkpoint === "day0")).toBeDefined(); // Day 0 untouched
 
-    expect(h.sends).toHaveLength(1);
-    const { text, html } = h.sends[0];
-    expect(text).toContain("Scanner score: 40/100 → 61/100");
-    expect(text).toContain("Scoring version: 1.3.0 → 1.3.1");
+    expect(customer()).toHaveLength(1);
+    const { text, html } = customer()[0];
+    expect(text).toContain("  - Astrant Score v1.3.0: 40/100 → Astrant Score v1.3.1: 61/100");
+    expect(text).not.toContain("Scanner score:");
     expect(text).toContain("  - llms.txt: working → working (https://example.com/llms.txt)");
     expect(text).toContain("  - openapi.yaml: absent → working (https://example.com/openapi.yaml)");
     expect(text).toContain("  - mcp-server: working → blocked (https://example.com/mcp-server)");
@@ -330,36 +375,82 @@ describe("Day-30 recheck — rescan + acceptance checks vs Day 0 and baseline", 
     await applied(DAY0);
     const { v } = fakeVerifier(DAY30);
     await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID }, { verifier: v, verificationCopyApproved: true });
-    const { subject, text, html } = h.sends[0];
+    const { subject, text, html } = customer()[0];
     for (const body of [subject, text!, html!]) {
       expect(body).not.toMatch(/cite|citation|traffic|recommend|sales|revenue|trajectory|ranking|visibility/i);
     }
   });
 
-  it("copy not approved (default) → no customer email; failed_reset records why; Day-30 record still stored", async () => {
+  it("same scoring version on both sides → one Astrant Score v<N> label", async () => {
     await applied(DAY0);
+    r2.set(`f2-baseline-scans/f2-baseline-${SID}.json`, JSON.stringify({ composite: { score: 40 } }));
+    sq.db.exec(`UPDATE implementation_sessions SET baseline_scoring_version = '1.3.1'`);
     const { v } = fakeVerifier(DAY30);
-    expect(await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID }, { verifier: v })).toEqual({
-      kind: "failed_reset",
-    });
-    expect(h.sends).toHaveLength(0);
-    expect(row().failed_reason).toMatch(/verification_copy_pending/);
-    expect(row().day30_audit_fired_at).toBeNull();
+    await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID }, { verifier: v, verificationCopyApproved: true });
+    expect(customer()[0].text).toContain("  - Astrant Score v1.3.1: 40/100 → 61/100");
   });
 
-  it("checker not wired at Day 30 → failed_reset, no email (retried by the next sweep)", async () => {
+  it("copy not approved: first sweep stores the record, holds, alerts ONCE, sends nothing", async () => {
+    await applied(DAY0);
+    const { v, calls } = fakeVerifier(DAY30);
+    expect(await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID }, { verifier: v })).toEqual({ kind: "held" });
+    expect(customer()).toHaveLength(0);
+    expect(alerts()).toEqual(["F2_VERIFICATION_COPY_PENDING"]);
+    expect(calls).toHaveLength(1);
+    expect(vi.mocked(runScan)).toHaveBeenCalledTimes(1);
+    const r = row();
+    expect(r.day30_verification_held_at).not.toBeNull();
+    expect(r.day30_audit_fired_at).toBeNull(); // claim released, no failed_at
+    expect(r.day30_audit_failed_at).toBeNull();
+    expect(verifications().find((x) => x.checkpoint === "day30")).toMatchObject({ composite_score: 61 });
+
+    // Second (and later) sweeps while copy is still pending: no paid rescan,
+    // no checks, no second alert, nothing written.
+    const before = row();
+    expect(await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID }, { verifier: v })).toEqual({ kind: "deduped" });
+    expect(await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID }, { verifier: v })).toEqual({ kind: "deduped" });
+    expect(vi.mocked(runScan)).toHaveBeenCalledTimes(1);
+    expect(calls).toHaveLength(1);
+    expect(alerts()).toHaveLength(1);
+    expect(row()).toEqual(before);
+  });
+
+  it("copy approved after a hold → next sweep sends from the stored record (no rescan, no checks)", async () => {
+    await applied(DAY0);
+    const { v, calls } = fakeVerifier(DAY30);
+    await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID }, { verifier: v }); // held
+    h.scan = { composite: { score: 99, grade: "A" }, scoring_version: "9.9.9" }; // must NOT be used
+    expect(
+      await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID }, { verifier: v, verificationCopyApproved: true }),
+    ).toEqual({ kind: "done" });
+    expect(vi.mocked(runScan)).toHaveBeenCalledTimes(1);
+    expect(calls).toHaveLength(1);
+    expect(customer()).toHaveLength(1);
+    const text = customer()[0].text!;
+    expect(text).toContain("Astrant Score v1.3.0: 40/100 → Astrant Score v1.3.1: 61/100");
+    expect(text).toContain("  - mcp-server: working → blocked (https://example.com/mcp-server)");
+    expect(row().day30_audit_succeeded_at).not.toBeNull();
+    expect(alerts()).toHaveLength(1);
+  });
+
+  it("checker not wired at Day 30 → failed_reset, no email, no hold (retried by the next sweep)", async () => {
     await applied(DAY0);
     expect(await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID }, { verifier: null })).toEqual({
       kind: "failed_reset",
     });
-    expect(h.sends).toHaveLength(0);
+    expect(customer()).toHaveLength(0);
     expect(row().failed_reason).toMatch(/F2_VERIFIER_UNAVAILABLE/);
+    expect(row().day30_verification_held_at).toBeNull();
   });
 
   it("a retried Day 30 overwrites its record (INSERT OR REPLACE), never duplicates", async () => {
     await applied(DAY0);
     const { v } = fakeVerifier(DAY30);
-    await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID }, { verifier: v }); // copy pending → reset
+    h.emailError = { message: "rate_limited" };
+    expect(
+      await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID }, { verifier: v, verificationCopyApproved: true }),
+    ).toEqual({ kind: "failed_reset" });
+    h.emailError = null;
     h.scan = { composite: { score: 63, grade: "C" }, scoring_version: "1.3.1" };
     await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID }, { verifier: v, verificationCopyApproved: true });
     const day30 = verifications().filter((x) => x.checkpoint === "day30");
@@ -372,15 +463,26 @@ describe("Day-30 recheck — rescan + acceptance checks vs Day 0 and baseline", 
     const { v, calls } = fakeVerifier(DAY30);
     expect(await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID }, { verifier: v })).toEqual({ kind: "done" });
     expect(calls).toHaveLength(0);
-    expect(h.sends[0].text).toContain("Trajectory:");
+    expect(customer()[0].text).toContain("Trajectory:");
     expect(verifications()).toHaveLength(0);
   });
 
-  it("Day 60 of a verified session: rescan only, no checker run", async () => {
+  it.each([60, 90] as const)("Day %s never runs for a verified session (no scan, no email)", async (d) => {
     await applied(DAY0);
-    const { v, calls } = fakeVerifier(DAY30);
-    expect(await runImplDayAudit(env(), { day_n: 60, f2_session_id: SID }, { verifier: v })).toEqual({ kind: "done" });
-    expect(calls).toHaveLength(0);
+    // Even if a due date were set by hand, the claim refuses a verified row.
+    sq.db.exec(`UPDATE implementation_sessions SET day${d}_audit_due_at = 1`);
+    const { v } = fakeVerifier(DAY30);
+    expect(await runImplDayAudit(env(), { day_n: d, f2_session_id: SID }, { verifier: v })).toEqual({
+      kind: "deduped",
+    });
+    expect(vi.mocked(runScan)).not.toHaveBeenCalled();
+    expect(customer()).toHaveLength(0);
+  });
+
+  it.each([60, 90] as const)("legacy row (no applied_at) still runs Day %s", async (d) => {
+    seed("active", { [`day${d}_audit_due_at`]: 1 });
+    expect(await runImplDayAudit(env(), { day_n: d, f2_session_id: SID }, { verifier: null })).toEqual({ kind: "done" });
+    expect(customer()).toHaveLength(1);
   });
 });
 

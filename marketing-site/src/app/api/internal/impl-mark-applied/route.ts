@@ -1,11 +1,14 @@
 // Implementation verification report v1 — POST /api/internal/impl-mark-applied
 //
-// Operator-only. Marks a delivered Implementation (status 'awaiting_application')
-// as applied: runs the acceptance checks, stores the Day-0 verification record
-// and anchors Day-30/60/90 on applied_at (lib/impl-verification.ts). Idempotent:
-// a repeat call answers already_applied and writes nothing.
+// Operator-only. Marks a delivered Implementation (status 'awaiting_application',
+// or 'active_email_pending' after a manual re-send) as applied: runs the
+// acceptance checks, stores the Day-0 verification record and anchors Day 30 on
+// applied_at (lib/impl-verification.ts). Without force, Day 0 needs at least one
+// working artifact (else 409 NOT_VERIFIED); force: true anchors it anyway
+// (applied_by 'operator+forced'). Idempotent: a repeat call answers
+// already_applied and writes nothing.
 // Auth: x-internal-fulfill-key = INTERNAL_FULFILL_KEY (same as /api/impl-fulfill).
-// Body: { "session_id": "impl-<dodo_payment_id>" }
+// Body: { "session_id": "impl-<dodo_payment_id>", "force"?: boolean }
 
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
@@ -28,18 +31,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  let body: { session_id?: unknown };
+  let body: { session_id?: unknown; force?: unknown };
   try {
-    body = (await req.json()) as { session_id?: unknown };
+    body = (await req.json()) as { session_id?: unknown; force?: unknown };
   } catch {
     return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
   }
-  const sessionId = typeof body.session_id === "string" ? body.session_id : "";
+  const sessionId = typeof body?.session_id === "string" ? body.session_id : "";
   if (!IMPL_ID_RE.test(sessionId)) {
     return NextResponse.json({ error: "session_id required" }, { status: 400 });
   }
+  if (body.force !== undefined && typeof body.force !== "boolean") {
+    return NextResponse.json({ error: "force must be a boolean" }, { status: 400 });
+  }
 
-  const result = await markImplementationApplied(env, sessionId, "operator", { verifier: loadImplVerifier() });
+  const result = await markImplementationApplied(
+    env,
+    sessionId,
+    "operator",
+    { verifier: loadImplVerifier() },
+    { force: body.force === true },
+  );
   switch (result.kind) {
     case "applied":
       return NextResponse.json({ ok: true, applied_at: result.applied_at, checks: result.checks });

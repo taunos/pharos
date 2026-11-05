@@ -2,10 +2,12 @@
 // migration 0018). Fulfillment-side flow only. Must NOT import Next.
 //
 //   delivery → status 'awaiting_application' (lib/impl-fulfill-run.ts Step 11)
-//   mark applied → acceptance checks → Day-0 record + status 'active' +
-//     Day-30/60/90 due dates and bundle_expires_at anchored on applied_at
+//   mark applied (from awaiting_application or active_email_pending) →
+//     acceptance checks → Day-0 record + status 'active' + Day-30 due date and
+//     bundle_expires_at anchored on applied_at (no Day 60/90 for verified rows)
 //   Day 30 → rescan + acceptance checks again (lib/impl-day-audit-run.ts),
-//     compared check-by-check to Day 0 and score-wise to the baseline
+//     compared check-by-check to Day 0 and score-wise to the baseline. While
+//     the email copy is unapproved the result is stored once and held.
 //
 // Proves delivery, not outcomes: nothing here reads or reports citations,
 // traffic or AI recommendations.
@@ -112,11 +114,22 @@ interface AwaitingRow {
   bundle_expired_at: number | null;
 }
 
+// Statuses mark-applied accepts: delivered and awaiting application, or
+// 'active_email_pending' (the patch email failed and the operator re-sent the
+// patch by hand). Both have the patch in R2 and the probe target enrolled.
+export const MARKABLE_STATUSES = [AWAITING_APPLICATION, "active_email_pending"] as const;
+const MARKABLE_SQL = MARKABLE_STATUSES.map((s) => `'${s}'`).join(", ");
+
+// Automatic rule: Day 0 is anchored when at least one artifact is working.
+// opts.force (operator) anchors it whatever the states; the checks are still
+// stored and applied_by gets a "+forced" marker.
+// Only Day 30 is scheduled: verified sessions get no Day-60/90 audits.
 export async function markImplementationApplied(
   env: ImplVerificationEnv,
   sessionId: string,
   appliedBy: "operator",
   deps: VerifyDeps,
+  opts: { force?: boolean } = {},
 ): Promise<MarkAppliedResult> {
   const row = await readAwaitingRow(env, sessionId);
   const early = classify(row);
@@ -127,38 +140,39 @@ export async function markImplementationApplied(
   if (!delivery) return { kind: "patch_missing" };
 
   const checks = await runChecks(deps.verifier, delivery, deps);
-  if (!checks.some((c) => c.state === "working")) return { kind: "not_verified", checks };
+  if (!opts.force && !checks.some((c) => c.state === "working")) return { kind: "not_verified", checks };
 
+  const by = opts.force ? `${appliedBy}+forced` : appliedBy;
   const appliedAt = Math.floor((deps.now ? deps.now() : new Date()).getTime() / 1000);
   // One transaction; both statements carry the same predicate, so the Day-0
-  // record exists iff this call made the awaiting_application → active flip.
+  // record exists iff this call made the markable → active flip.
   const [, flip] = await env.CITATION_DB.batch([
     env.CITATION_DB.prepare(
       `INSERT OR REPLACE INTO implementation_verifications
          (session_id, checkpoint, checks_json, composite_score, scoring_version, scan_r2_key, verified_at)
        SELECT ?1, 'day0', ?2, NULL, NULL, NULL, ?3
        WHERE EXISTS (SELECT 1 FROM implementation_sessions
-                     WHERE session_id = ?1 AND status = 'awaiting_application'
+                     WHERE session_id = ?1 AND status IN (${MARKABLE_SQL})
                        AND applied_at IS NULL AND bundle_expired_at IS NULL)`,
     ).bind(sessionId, JSON.stringify(checks), appliedAt),
     env.CITATION_DB.prepare(
       `UPDATE implementation_sessions
        SET status = 'active', applied_at = ?1, applied_by = ?2,
            day30_audit_due_at = ?1 + ${30 * DAY},
-           day60_audit_due_at = ?1 + ${60 * DAY},
-           day90_audit_due_at = ?1 + ${90 * DAY},
+           day60_audit_due_at = NULL,
+           day90_audit_due_at = NULL,
            bundle_expires_at = ?1 + ${91 * DAY},
            updated_at = ?1
-       WHERE session_id = ?3 AND status = 'awaiting_application'
+       WHERE session_id = ?3 AND status IN (${MARKABLE_SQL})
          AND applied_at IS NULL AND bundle_expired_at IS NULL`,
-    ).bind(appliedAt, appliedBy, sessionId),
+    ).bind(appliedAt, by, sessionId),
   ]);
 
   if (flip.meta.changes !== 1) {
     // A concurrent mark won (or the row moved on): report its state.
     return classify(await readAwaitingRow(env, sessionId)) ?? { kind: "wrong_status", status: "unknown" };
   }
-  console.log(`F2_APPLIED_VERIFIED session_id=${sessionId} by=${appliedBy}`);
+  console.log(`F2_APPLIED_VERIFIED session_id=${sessionId} by=${by}`);
   return { kind: "applied", applied_at: appliedAt, checks };
 }
 
@@ -175,7 +189,9 @@ async function readAwaitingRow(env: ImplVerificationEnv, sessionId: string): Pro
 function classify(row: AwaitingRow | null): MarkAppliedResult | null {
   if (!row) return { kind: "not_found" };
   if (row.applied_at != null) return { kind: "already_applied", applied_at: row.applied_at };
-  if (row.status !== AWAITING_APPLICATION) return { kind: "wrong_status", status: row.status };
+  if (!(MARKABLE_STATUSES as readonly string[]).includes(row.status)) {
+    return { kind: "wrong_status", status: row.status };
+  }
   if (row.bundle_expired_at != null) return { kind: "bundle_expired" };
   return null;
 }
@@ -273,5 +289,34 @@ export async function runRecheckVerification(
     baselineScoringVersion: input.baselineScoringVersion,
     currentScoringVersion: input.currentScoringVersion,
     rows: diffChecks(day0, checks),
+  };
+}
+
+// Rebuilds the Day-30 comparison from the stored records (no rescan, no
+// checks). Used once the email copy is approved for a recheck that was held.
+export async function loadRecheckReport(
+  env: ImplVerificationEnv,
+  sessionId: string,
+  baseline: { score: number; scoringVersion: string | null },
+): Promise<RecheckReport> {
+  const rows = await env.CITATION_DB.prepare(
+    `SELECT checkpoint, checks_json, composite_score, scoring_version
+     FROM implementation_verifications WHERE session_id = ? AND checkpoint IN ('day0', 'day30')`,
+  )
+    .bind(sessionId)
+    .all<{ checkpoint: string; checks_json: string; composite_score: number | null; scoring_version: string | null }>();
+  const byCp = new Map((rows.results ?? []).map((r) => [r.checkpoint, r]));
+  const day30 = byCp.get("day30");
+  if (!day30) throw new Error(`F2_VERIFY_DAY30_RECORD_MISSING session_id=${sessionId}`);
+  const day0 = byCp.get("day0");
+  return {
+    baselineScore: baseline.score,
+    currentScore: day30.composite_score ?? 0,
+    baselineScoringVersion: baseline.scoringVersion,
+    currentScoringVersion: day30.scoring_version,
+    rows: diffChecks(
+      day0 ? (JSON.parse(day0.checks_json) as VerificationCheck[]) : [],
+      JSON.parse(day30.checks_json) as VerificationCheck[],
+    ),
   };
 }

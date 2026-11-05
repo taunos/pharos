@@ -51,6 +51,8 @@ describe("POST /api/internal/impl-mark-applied", () => {
     ["missing id", {}],
     ["bad shape", { session_id: "pay_abc" }],
     ["NUL byte", { session_id: `impl-pay${String.fromCharCode(0)}x` }],
+    ["non-boolean force", { session_id: SID, force: "yes" }],
+    ["null body", "null"],
   ])("%s → 400, nothing read", async (_n, body) => {
     const { POST } = await import("./route");
     expect((await POST(req(body))).status).toBe(400);

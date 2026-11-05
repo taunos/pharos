@@ -5,9 +5,15 @@
 -- implementation_sessions:
 --   baseline_scoring_version  scoring_version of the pre-delivery baseline scan
 --                             (the scan itself stays at R2 f2-baseline-scans/<baseline_scan_id>.json)
---   applied_at                Day 0: when the application was verified. Day-30/60/90
---                             due dates and bundle_expires_at are anchored on it.
---   applied_by                who marked it applied ('operator' in v1)
+--   applied_at                Day 0: when the application was verified. The Day-30
+--                             due date and bundle_expires_at are anchored on it.
+--   applied_by                who marked it applied: 'operator', or 'operator+forced'
+--                             when Day 0 was anchored without a working artifact
+--   day30_verification_held_at  the Day-30 recheck ran and was stored, but its
+--                             email copy is not approved yet: later sweeps skip the
+--                             rescan; once approved the email is sent from the record
+-- Verified rows (applied_at set) get Day 30 only: day60/day90 due dates stay NULL.
+-- mark-applied also accepts 'active_email_pending' (patch re-sent by hand).
 -- New status value (TEXT, no CHECK): 'awaiting_application' — patch delivered,
 -- application not yet verified. Written by marketing-site lib/impl-fulfill-run.ts
 -- Step 11 instead of 'active'; flipped to 'active' by lib/impl-verification.ts.
@@ -26,6 +32,7 @@
 ALTER TABLE implementation_sessions ADD COLUMN baseline_scoring_version TEXT;
 ALTER TABLE implementation_sessions ADD COLUMN applied_at INTEGER;
 ALTER TABLE implementation_sessions ADD COLUMN applied_by TEXT;
+ALTER TABLE implementation_sessions ADD COLUMN day30_verification_held_at INTEGER;
 
 CREATE TABLE IF NOT EXISTS implementation_verifications (
   session_id TEXT NOT NULL,

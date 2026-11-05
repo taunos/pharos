@@ -276,8 +276,16 @@ function renderVerificationBody(
 ): { text: string; html: string } {
   const notChecked = "not checked"; // COPY-PENDING-BRUNO
   const state = (s: CheckState | null) => s ?? notChecked;
-  const score = `Scanner score: ${input.baselineScore.toFixed(0)}/100 → ${input.currentScore.toFixed(0)}/100`;
-  const version = `Scoring version: ${v.baselineScoringVersion ?? "unknown"} → ${v.currentScoringVersion ?? "unknown"}`; // COPY-PENDING-BRUNO
+  // COPY-PENDING-BRUNO: "Astrant Score v<N>: X/100 → Y/100" (one version), or
+  // "Astrant Score v<A>: X/100 → Astrant Score v<B>: Y/100" when the scoring
+  // version changed; "Astrant Score" alone when a version is unknown.
+  const scoreLabel = (ver: string | null) => (ver ? `Astrant Score v${ver}` : "Astrant Score");
+  const before = `${input.baselineScore.toFixed(0)}/100`;
+  const after = `${input.currentScore.toFixed(0)}/100`;
+  const score =
+    v.baselineScoringVersion === v.currentScoringVersion
+      ? `${scoreLabel(v.currentScoringVersion)}: ${before} → ${after}`
+      : `${scoreLabel(v.baselineScoringVersion)}: ${before} → ${scoreLabel(v.currentScoringVersion)}: ${after}`;
   const checksHeading = `Acceptance checks (Day 0 → Day ${input.dayN})`; // COPY-PENDING-BRUNO
   const issuesHeading = "Remaining issues"; // COPY-PENDING-BRUNO
   const noIssues = "None"; // COPY-PENDING-BRUNO
@@ -290,7 +298,6 @@ function renderVerificationBody(
     ``,
     `What changed:`,
     `  - ${score}`,
-    `  - ${version}`,
     ``,
     input.recs.whatChanged,
     ``,
@@ -308,7 +315,7 @@ function renderVerificationBody(
   const heading = `Your Day ${input.dayN} Implementation audit is ready`;
   const cards = [
     emailCardHeading("What changed") +
-      emailStack([emailList([escapeHtml(score), escapeHtml(version)]), escapeHtml(input.recs.whatChanged)]),
+      emailStack([emailList([escapeHtml(score)]), escapeHtml(input.recs.whatChanged)]),
     emailCardHeading(checksHeading) +
       emailList(
         v.rows.map(
