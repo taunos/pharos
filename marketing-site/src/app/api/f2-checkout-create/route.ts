@@ -135,6 +135,7 @@ export async function POST(req: Request) {
   try {
     const resp = await fetch(`${dodoApiBase(env)}/checkouts`, {
       method: "POST",
+      signal: AbortSignal.timeout(15_000),
       headers: {
         Authorization: `Bearer ${env.DODO_API_KEY}`,
         "Content-Type": "application/json",

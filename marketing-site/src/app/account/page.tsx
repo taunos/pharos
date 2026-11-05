@@ -107,6 +107,7 @@ export default async function AccountPage({
       `${env.DODO_API_BASE_URL}/customers/${encodeURIComponent(sub.customer_id)}/customer-portal/session`,
       {
         method: "POST",
+        signal: AbortSignal.timeout(15_000),
         headers: {
           Authorization: `Bearer ${env.DODO_API_KEY}`,
           "Content-Type": "application/json",
