@@ -18,7 +18,18 @@
     // get_pricing notes wording. MUST be flipped together with
     // marketing-site/wrangler.jsonc AUDIT_CHECKOUT_ENABLED.
     "AUDIT_CHECKOUT_ENABLED": "true"
-  }
+  },
+  // Per-client-IP budget for the tools that fetch a user-supplied site
+  // (check_llms_txt, score_url). Keyed on CF-Connecting-IP in src/index.ts.
+  // namespace_id is an account-unique integer chosen here; no other Worker
+  // in this repo declares one.
+  "ratelimits": [
+    {
+      "name": "FETCH_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 20, "period": 60 }
+    }
+  ]
   // NOTE: The original scaffold included a Durable Object binding for
   // `agents/mcp`'s McpAgent session state. It was removed because the
   // installed agents@0.0.50 has a bug in its `mount()` path (double-connect

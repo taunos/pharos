@@ -19,10 +19,22 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { z } from "zod";
 import { HUMAN_PAGE_HTML } from "./human-page";
 import { pricingNotes } from "./audit-gate";
+import { checkLlmsTxt, checkRateLimit, RATE_LIMITED_MESSAGE, type RateLimitBinding } from "./site-fetch";
 
 interface Env {
   AUDIT_CHECKOUT_ENABLED?: string;
+  // Per-client-IP limit shared by the tools that fetch a user-supplied site.
+  FETCH_RATE_LIMITER?: RateLimitBinding;
 }
+
+const rateLimitedResult = (url: string) => ({
+  content: [
+    {
+      type: "text" as const,
+      text: JSON.stringify({ url, error: "rate_limited", message: RATE_LIMITED_MESSAGE }, null, 2),
+    },
+  ],
+});
 
 const SERVICE_CATALOG = {
   services: [
@@ -74,7 +86,7 @@ const SERVICE_CATALOG = {
   ],
 };
 
-function buildMcpServer(env: Env): McpServer {
+function buildMcpServer(env: Env, clientIp: string | null): McpServer {
   const server = new McpServer({ name: "Astrant", version: "0.0.1" });
 
   // ─── Tool 1: get_capabilities ────────────────────────────────────────
@@ -183,151 +195,10 @@ function buildMcpServer(env: Env): McpServer {
         .describe("The site URL to check, e.g. https://example.com — only the host is used."),
     },
     async ({ url }) => {
-      const u = new URL(url);
-      const llmsTxtUrl = `${u.protocol}//${u.host}/llms.txt`;
-      const fetchOnce = (target: string) => {
-        // Append a namespaced cache-busting query param to defeat any stale
-        // entry in the Workers subrequest cache. Most servers (and all static
-        // asset hosts) ignore unknown query strings, so this doesn't change
-        // the response we get back.
-        const cacheBuster = `${target.includes("?") ? "&" : "?"}_pharos_t=${Date.now()}`;
-        return fetch(target + cacheBuster, {
-          method: "GET",
-          headers: { "User-Agent": "AstrantMCP/0.0.1 (+https://astrant.io)" },
-          redirect: "manual",
-          cf: {
-            cacheTtl: 60,
-            cacheEverything: true,
-            cacheTtlByStatus: { "200-299": 60, "404": 0, "500-599": 0 },
-          },
-        });
+      if (!(await checkRateLimit(env.FETCH_RATE_LIMITER, clientIp))) return rateLimitedResult(url);
+      return {
+        content: [{ type: "text", text: JSON.stringify(await checkLlmsTxt(url), null, 2) }],
       };
-
-      try {
-        let res = await fetchOnce(llmsTxtUrl);
-        let finalUrl = llmsTxtUrl;
-        let wasRedirected = false;
-
-        if (res.status >= 300 && res.status < 400) {
-          const location = res.headers.get("location");
-          if (location) {
-            const resolved = new URL(location, llmsTxtUrl).toString();
-            const hop2 = await fetchOnce(resolved);
-            wasRedirected = true;
-            finalUrl = resolved;
-
-            if (hop2.status >= 300 && hop2.status < 400) {
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: JSON.stringify(
-                      {
-                        url: llmsTxtUrl,
-                        exists: false,
-                        status: hop2.status,
-                        was_redirected: true,
-                        final_url: finalUrl,
-                        message:
-                          "llms.txt requires multiple redirects — spec-discouraged.",
-                      },
-                      null,
-                      2
-                    ),
-                  },
-                ],
-              };
-            }
-            res = hop2;
-          }
-        }
-
-        if (res.status !== 200) {
-          const message =
-            res.status >= 300 && res.status < 400
-              ? "llms.txt returns a redirect, which the spec discourages."
-              : res.status === 404
-                ? "llms.txt is not present at this site."
-                : `llms.txt returned an unexpected status: ${res.status}.`;
-
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(
-                  {
-                    url: llmsTxtUrl,
-                    exists: false,
-                    status: res.status,
-                    was_redirected: wasRedirected,
-                    final_url: finalUrl,
-                    message,
-                  },
-                  null,
-                  2
-                ),
-              },
-            ],
-          };
-        }
-
-        const body = await res.text();
-        const lines = body.split(/\r?\n/);
-        const h1 = lines.find((l) => l.trim().startsWith("# "))?.replace(/^\s*#\s+/, "").trim() ?? null;
-        const blockquote = lines
-          .find((l) => l.trim().startsWith("> "))
-          ?.replace(/^\s*>\s+/, "")
-          .trim() ?? null;
-        const linkCount = (body.match(/^\s*-\s*\[.+?\]\(.+?\)/gm) ?? []).length;
-        const contentType = res.headers.get("content-type") ?? "";
-        const goodContentType = /^text\/(plain|markdown)/.test(contentType);
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  url: llmsTxtUrl,
-                  exists: true,
-                  status: 200,
-                  was_redirected: wasRedirected,
-                  final_url: finalUrl,
-                  bytes: body.length,
-                  content_type: contentType,
-                  good_content_type: goodContentType,
-                  h1,
-                  blockquote_summary: blockquote,
-                  link_count: linkCount,
-                  spec_compliant_first_lines: !!h1 && !!blockquote,
-                  note: "For full quality scoring across 6 dimensions, run https://astrant.io/score",
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        };
-      } catch (err) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  url: llmsTxtUrl,
-                  exists: false,
-                  was_redirected: false,
-                  final_url: llmsTxtUrl,
-                  error: err instanceof Error ? err.message : String(err),
-                },
-                null,
-                2
-              ),
-            },
-          ],
-        };
-      }
     }
   );
 
@@ -339,6 +210,9 @@ function buildMcpServer(env: Env): McpServer {
       url: z.string().url().describe("Site URL to score."),
     },
     async ({ url }) => {
+      // The scanner fetches the user-supplied site on our behalf, so this
+      // tool shares the per-IP fetch budget with check_llms_txt.
+      if (!(await checkRateLimit(env.FETCH_RATE_LIMITER, clientIp))) return rateLimitedResult(url);
       try {
         const res = await fetch("https://pharos-scanner.pharos-dev.workers.dev/api/scan", {
           method: "POST",
@@ -432,7 +306,7 @@ async function handleMcpRequest(request: Request, env: Env): Promise<Response> {
   // Stateless Streamable HTTP: fresh server + transport per request.
   // This trades session state for simplicity — fine for our tools, which are
   // all stateless RPC-style calls.
-  const server = buildMcpServer(env);
+  const server = buildMcpServer(env, request.headers.get("CF-Connecting-IP"));
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,
