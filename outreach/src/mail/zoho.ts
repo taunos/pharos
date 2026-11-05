@@ -23,6 +23,8 @@ const PAGE = 50;
 /** Rows re-read before the saved position each tick, so up to this many deletions/moves between ticks can't cause a skip. */
 export const OVERLAP = 25;
 export const MAX_RAW_CHARS = 1_000_000;
+/** Per-call ceiling so a hung Zoho request can't hold the tick past its lease. */
+export const ZOHO_TIMEOUT_MS = 30_000;
 
 /** Cursor = persisted pagination progress: next 1-based start index in oldest-first order. */
 type WalkCursor = { s: number };
@@ -79,7 +81,7 @@ export class ZohoMailClient implements MailClient {
       client_secret: this.cfg.clientSecret,
       grant_type: "refresh_token",
     });
-    const res = await this.f(`https://${this.cfg.accountsHost}/oauth/v2/token`, { method: "POST", body });
+    const res = await this.f(`https://${this.cfg.accountsHost}/oauth/v2/token`, { method: "POST", body, signal: AbortSignal.timeout(ZOHO_TIMEOUT_MS) });
     const j = (await res.json().catch(() => ({}))) as { access_token?: string; expires_in?: number; error?: string };
     if (!res.ok || !j.access_token) throw new ZohoAuthError(`ZOHO_TOKEN_REFRESH_FAILED:${res.status}:${j.error ?? ""}`);
     this.token = { value: j.access_token, exp: this.now() + (j.expires_in ?? 3600) * 1000 };
@@ -90,6 +92,7 @@ export class ZohoMailClient implements MailClient {
     const tok = await this.accessToken();
     const res = await this.f(`https://${this.cfg.apiHost}${path}`, {
       ...init,
+      signal: AbortSignal.timeout(ZOHO_TIMEOUT_MS),
       headers: { ...(init.headers ?? {}), Authorization: `Zoho-oauthtoken ${tok}`, Accept: "application/json" },
     });
     if (res.status === 401) throw new ZohoAuthError(`ZOHO_401:${path.split("?")[0]}`);
