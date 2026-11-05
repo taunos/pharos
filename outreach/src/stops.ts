@@ -15,13 +15,16 @@ async function lastSends(db: D1Database, n: number): Promise<SentRow[]> {
   return r.results ?? [];
 }
 
-async function countInboundFor(db: D1Database, leadIds: string[], classes: string[] | null): Promise<number> {
-  if (leadIds.length === 0) return 0;
-  const uniq = [...new Set(leadIds)];
+// Distinct leads among the `n` most recent sends (optionally sent before `before`)
+// with an inbound of one of `classes` (any class when null). The send window is a
+// subquery, not bound lead ids: D1 rejects more than 100 bound parameters, and the
+// 100/300-send windows bind more than that.
+async function countInboundForRecentSends(db: D1Database, n: number, before: number | null, classes: string[] | null): Promise<number> {
   const cls = classes ? ` AND class IN (${classes.map(() => "?").join(",")})` : "";
+  const win = `SELECT lead_id FROM messages WHERE status = 'sent'${before === null ? "" : " AND sent_at < ?"} ORDER BY sent_at DESC LIMIT ?`;
   const r = await db
-    .prepare(`SELECT COUNT(DISTINCT lead_id) AS n FROM inbound WHERE lead_id IN (${uniq.map(() => "?").join(",")})${cls}`)
-    .bind(...uniq, ...(classes ?? []))
+    .prepare(`SELECT COUNT(DISTINCT lead_id) AS n FROM inbound WHERE lead_id IN (${win})${cls}`)
+    .bind(...(before === null ? [] : [before]), n, ...(classes ?? []))
     .first<{ n: number }>();
   return r?.n ?? 0;
 }
@@ -42,26 +45,25 @@ export async function evaluateStops(env: Env, now: number): Promise<StopVerdict>
     if ((r?.n ?? 0) >= 2) return { reason: "hard_bounces_daily", detail: { n: r?.n } };
   } else {
     const last100 = await lastSends(db, 100);
-    const b = await countInboundFor(db, last100.map((x) => x.lead_id), ["bounce_hard"]);
+    const b = await countInboundForRecentSends(db, 100, null, ["bounce_hard"]);
     if (last100.length > 0 && b / Math.max(last100.length, 100) >= 0.03) return { reason: "hard_bounce_rate", detail: { b, n: last100.length } };
   }
 
   // Complaints: ≥1 in the first 200 sends; ≥0.3% of the last 300 after (i.e. ≥1 in 300).
   const total = (await db.prepare("SELECT COUNT(*) AS n FROM messages WHERE status = 'sent'").first<{ n: number }>())?.n ?? 0;
-  const last300 = await lastSends(db, 300);
   const complaints =
     total <= 200
       ? // Only complaints from leads we wrote to. Unmatched mail (newsletters, the
         // Zoho welcome email, any stranger) must not be able to stop the agent.
         // Live false trip 2026-11-05: a pre-existing inbox email matched the rule.
         (await db.prepare("SELECT COUNT(*) AS n FROM inbound WHERE class = 'complaint' AND lead_id IS NOT NULL").first<{ n: number }>())?.n ?? 0
-      : await countInboundFor(db, last300.map((x) => x.lead_id), ["complaint"]);
+      : await countInboundForRecentSends(db, 300, null, ["complaint"]);
   if (complaints >= 1 && (total <= 200 || complaints / 300 >= 0.003)) return { reason: "complaints", detail: { complaints, total } };
 
   // Opt-out + not-interested > 10% of the last 50 sends (evaluated once ≥20 sends exist).
   const last50 = await lastSends(db, 50);
   if (last50.length >= 20) {
-    const o = await countInboundFor(db, last50.map((x) => x.lead_id), ["opt_out", "not_interested"]);
+    const o = await countInboundForRecentSends(db, 50, null, ["opt_out", "not_interested"]);
     if (o / last50.length > 0.1) return { reason: "opt_out_rate", detail: { o, n: last50.length } };
   }
 
@@ -72,7 +74,7 @@ export async function evaluateStops(env: Env, now: number): Promise<StopVerdict>
       .bind(now - 3 * DAY)
       .all<SentRow>()
   ).results ?? [];
-  if (old40.length >= 40 && (await countInboundFor(db, old40.map((x) => x.lead_id), null)) === 0) {
+  if (old40.length >= 40 && (await countInboundForRecentSends(db, 40, now - 3 * DAY, null)) === 0) {
     return { reason: "silent_failure", detail: { n: 40 } };
   }
 

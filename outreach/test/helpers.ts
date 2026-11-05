@@ -24,6 +24,9 @@ export function makeD1(sqlite: DatabaseSync) {
       _sql: sql,
       _binds: [] as unknown[],
       bind(...a: unknown[]) {
+        // Real D1 rejects more than 100 bound parameters per statement; node:sqlite
+        // allows ~32k, so without this a fake-backed test can't catch the overflow.
+        if (a.length > 100) throw new Error(`D1_ERROR: too many SQL variables (${a.length} > 100)`);
         const s2 = prepare(sql);
         s2._binds = a.map((x) => (x === undefined ? null : typeof x === "boolean" ? (x ? 1 : 0) : x));
         return s2;

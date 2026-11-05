@@ -156,6 +156,14 @@ describe("S5 automatic stops", () => {
     await sends(db, 100, (i) => TUE_1400 - i * HOUR, (i) => (i % 5 === 0 ? "auto_reply" : null));
     expect((await trip(db, env, TUE_1400)).reason).toBe("program_review");
   });
+  it("complaint rate after 200 sends evaluates past D1's 100-parameter limit", async () => {
+    const { db } = freshDb();
+    const env = makeEnv(db);
+    await db.prepare("UPDATE control SET paused = 0, ramp_start_at = ?").bind(TUE_1400 - 60 * DAY).run();
+    // 250 distinct leads ⇒ the last-300 window spans 250 lead ids; one complaint, plenty of interest.
+    await sends(db, 250, (i) => TUE_1400 - 20 * DAY + i * 60, (i) => (i === 249 ? "complaint" : i % 4 === 0 ? "interested" : null));
+    expect((await trip(db, env, TUE_1400)).reason).toBe("complaints");
+  });
   it("healthy state does not trip", async () => {
     const { db } = freshDb();
     const env = makeEnv(db);
