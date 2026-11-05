@@ -4,8 +4,9 @@
  * Workers do not import from each other.
  *
  * - validateTargetUrl: http/https on ports 80/443 only; no credentials, no IP
- *   literals (v4 in any notation, v6), no localhost / single-label / .local /
- *   .internal / .home.arpa hosts, no empty labels. DNS names that resolve to
+ *   literals (v4 in any notation, v6), no localhost / single-label / internal
+ *   or reserved-suffix hosts (BLOCKED_HOST_SUFFIXES), no empty labels, no
+ *   characters outside [a-z0-9-] in a label. DNS names that resolve to
  *   private addresses are left to the Workers network
  *   (global_fetch_strictly_public).
  * - safeFetch: manual redirects (max 3), every hop re-validated, one overall
@@ -27,8 +28,14 @@ export const MAX_SPEC_BYTES = 10 * 1024 * 1024;
 
 export class UnsafeUrlError extends Error {}
 
-const BLOCKED_HOST_SUFFIXES = [".localhost", ".local", ".internal", ".home.arpa"];
-const LABEL_RE = /^[a-z0-9_](?:[a-z0-9_-]{0,61}[a-z0-9_])?$/;
+// E14 (code-quality audit 2026-11-05): the strictest list of the four copies
+// (outreach's). A name matches when it IS the suffix or ends with "." + it.
+// Kept in parity with parity/ssrf-guard-cases.json by ssrf-parity.test.ts.
+const BLOCKED_HOST_SUFFIXES = [
+  "localhost", "local", "localdomain", "internal", "intranet", "lan", "home", "corp", "private",
+  "test", "example", "invalid", "onion", "arpa",
+];
+const LABEL_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
 /** Throws UnsafeUrlError unless `raw` is a public http(s) URL on port 80/443. */
 export function validateTargetUrl(raw: string | URL): URL {
@@ -61,11 +68,11 @@ export function validateTargetUrl(raw: string | URL): URL {
   const labels = host.split(".");
   if (
     host === "" ||
+    rawHost.endsWith("..") || // E14: at most one trailing dot ("example.com." is fine)
     labels.length < 2 ||
     labels.some((label) => !LABEL_RE.test(label)) ||
     !/[a-z]/.test(labels[labels.length - 1]) ||
-    host === "localhost" ||
-    BLOCKED_HOST_SUFFIXES.some((s) => host.endsWith(s))
+    BLOCKED_HOST_SUFFIXES.some((s) => host === s || host.endsWith("." + s))
   ) {
     throw new UnsafeUrlError("Local or internal hostnames are not allowed.");
   }

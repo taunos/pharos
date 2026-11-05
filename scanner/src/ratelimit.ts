@@ -21,6 +21,37 @@ async function hmacHex(secret: string, input: string): Promise<string> {
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/**
+ * E15 (code-quality audit 2026-11-05): the IP part of every rate-limit key.
+ * One customer usually holds a whole IPv6 /64, so IPv6 keys on that prefix
+ * (expanded, lowercased: "2001:db8:1:2::/64"); a v4-mapped IPv6 address keys
+ * as its IPv4. Everything else, IPv4 included, keeps the pre-E15 key
+ * ip.trim().toLowerCase(), so existing counters stay valid. Copies in
+ * marketing-site rate-limit-kv.ts and mcp-server site-fetch.ts follow
+ * parity/ip-rate-limit-key-cases.json.
+ */
+export function rateLimitIpKey(ip: string): string {
+  const s = ip.trim().toLowerCase();
+  if (!s.includes(":")) return s;
+  let host: string;
+  try {
+    host = new URL(`http://[${s}]/`).hostname.slice(1, -1);
+  } catch {
+    return s;
+  }
+  // The URL serializer gives the compressed form with hex groups only.
+  const [head, tail] = host.split("::");
+  const left = head ? head.split(":") : [];
+  const right = tail ? tail.split(":") : [];
+  const groups = tail === undefined ? left : [...left, ...Array(8 - left.length - right.length).fill("0"), ...right];
+  if (groups.slice(0, 5).every((g) => g === "0") && groups[5] === "ffff") {
+    const hi = parseInt(groups[6] ?? "0", 16);
+    const lo = parseInt(groups[7] ?? "0", 16);
+    return `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+  }
+  return `${groups.slice(0, 4).join(":")}::/64`;
+}
+
 export async function checkRateLimit(
   env: Env,
   ip: string,
@@ -33,7 +64,7 @@ export async function checkRateLimit(
     return { allowed: false, reason: "Rate limiting temporarily unavailable", misconfigured: true };
   }
   const today = new Date().toISOString().slice(0, 10);
-  const normIp = ip.trim().toLowerCase();
+  const normIp = rateLimitIpKey(ip);
   const ipKey = `rl:ip:${await hmacHex(env.RATE_LIMIT_HASH_SECRET, normIp)}:${today}`;
   // Security pass 2026-11-04: key the per-URL limit on origin + path, so
   // distinct query strings / fragments can't each get a fresh 3/day budget.
@@ -122,7 +153,7 @@ export async function checkBurstLimit(
     return true;
   }
   try {
-    const { success } = await limiter.limit({ key: `scan:${ip.trim().toLowerCase()}` });
+    const { success } = await limiter.limit({ key: `scan:${rateLimitIpKey(ip)}` });
     return success;
   } catch (e) {
     console.error("[scan] SCAN_RATE_LIMITER errored; failing open to the KV limits:", e instanceof Error ? e.message : String(e));

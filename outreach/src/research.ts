@@ -17,6 +17,8 @@ export const RESCAN_AFTER_MS = 7 * DAY;
 
 type Fetch = typeof fetch;
 
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
 export type SafeResponse = { status: number; contentType: string; body: string; url: string };
 
 /**
@@ -37,7 +39,9 @@ export async function safeFetch(f: Fetch, url: string, siteDomain: string, timeo
       if (!sameSite(current.hostname, siteDomain)) return null;
       const res = await f(current.toString(), { headers: { "User-Agent": OUTREACH_UA }, redirect: "manual", signal: ctl.signal });
       if (res.status >= 300 && res.status < 400) {
-        const loc = res.headers.get("location");
+        // E14: only the five redirect statuses are followed; any other 3xx
+        // (300/304/305/306) counts as "nothing found", like a 3xx with no Location.
+        const loc = REDIRECT_STATUSES.has(res.status) ? res.headers.get("location") : null;
         await res.body?.cancel().catch(() => undefined);
         if (!loc) return null;
         let next: string;

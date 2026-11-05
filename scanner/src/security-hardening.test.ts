@@ -84,7 +84,7 @@ const ACCEPTED = [
   "https://www.example.co.uk:443/",
   "http://example.com:80/",
   "https://example.com./",
-  "https://xn--bcher-kva.example/",
+  "https://xn--bcher-kva.example.com/",
   "https://my-site.io/pricing",
 ];
 
@@ -344,7 +344,8 @@ describe("forwarded client IP from the marketing proxy", () => {
     const { env, limiter } = envWith(100);
     await app.fetch(proxied("https://example.com/", { "x-astrant-client-ip": "198.51.100.1" }), env as never);
     await app.fetch(proxied("https://example.com/", { "x-astrant-client-ip": "198.51.100.2", "x-astrant-proxy-key": "wrong" }), env as never);
-    expect(limiter.calls).toEqual(["scan:2a06:98c0:3600::103", "scan:2a06:98c0:3600::103"]);
+    // E15: the Worker's own IPv6 CF-Connecting-IP keys on its /64.
+    expect(limiter.calls).toEqual(["scan:2a06:98c0:3600:0::/64", "scan:2a06:98c0:3600:0::/64"]);
   });
 
   it("with the key, distinct client IPs get distinct budgets (burst gate and KV)", async () => {

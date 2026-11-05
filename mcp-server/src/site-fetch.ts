@@ -4,7 +4,8 @@
  *
  * - validateTargetUrl: http/https on ports 80/443 only; no credentials, no IP
  *   literals (v4 or v6, which covers private / link-local / metadata ranges),
- *   no localhost / single-label / .local / .internal / .home.arpa hosts.
+ *   no localhost / single-label / internal or reserved-suffix hosts
+ *   (BLOCKED_HOST_SUFFIXES), no characters outside [a-z0-9-] in a label.
  *   DNS names that resolve to private addresses are left to the Workers
  *   network (global_fetch_strictly_public; Workers cannot reach RFC 1918).
  * - safeFetch: manual redirects, each hop re-validated, capped hop count, one
@@ -29,7 +30,14 @@ export const UNTRUSTED_NOTE =
 
 export class UnsafeUrlError extends Error {}
 
-const BLOCKED_HOST_SUFFIXES = [".localhost", ".local", ".internal", ".home.arpa"];
+// E14 (code-quality audit 2026-11-05): the strictest list of the four copies
+// (outreach's). A name matches when it IS the suffix or ends with "." + it.
+// Kept in parity with parity/ssrf-guard-cases.json by test/ssrf-parity.test.ts.
+const BLOCKED_HOST_SUFFIXES = [
+  "localhost", "local", "localdomain", "internal", "intranet", "lan", "home", "corp", "private",
+  "test", "example", "invalid", "onion", "arpa",
+];
+const LABEL_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
 /** Throws UnsafeUrlError unless `raw` is a public http(s) URL on port 80/443. */
 export function validateTargetUrl(raw: string | URL): URL {
@@ -52,20 +60,22 @@ export function validateTargetUrl(raw: string | URL): URL {
   // Strip every trailing dot ("localhost.." is still localhost), then refuse
   // empty labels anywhere else ("example..com").
   const host = u.hostname.toLowerCase().replace(/\.+$/, "");
-  if (host.split(".").some((label) => label === "")) {
-    throw new UnsafeUrlError("Local or internal hostnames are not allowed.");
-  }
   // IPv6 literals keep their brackets in .hostname. IPv4 literals in any
   // notation (decimal, hex, octal, short forms) are normalized to dotted quad
   // by the URL parser, so one pattern covers them all.
   if (host.startsWith("[") || /^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
     throw new UnsafeUrlError("IP address URLs are not allowed; use a domain name.");
   }
+  // E14: labels limited to [a-z0-9-] (no leading/trailing hyphen), and the
+  // last label must contain a letter (scanner safe-fetch.ts parity).
+  const labels = host.split(".");
   if (
     host === "" ||
-    !host.includes(".") ||
-    host === "localhost" ||
-    BLOCKED_HOST_SUFFIXES.some((s) => host.endsWith(s))
+    u.hostname.endsWith("..") || // E14: at most one trailing dot ("example.com." is fine)
+    labels.length < 2 ||
+    labels.some((label) => !LABEL_RE.test(label)) ||
+    !/[a-z]/.test(labels[labels.length - 1] ?? "") ||
+    BLOCKED_HOST_SUFFIXES.some((s) => host === s || host.endsWith("." + s))
   ) {
     throw new UnsafeUrlError("Local or internal hostnames are not allowed.");
   }
@@ -107,6 +117,8 @@ export class Deadline {
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
 export interface SafeFetchResult {
   res: Response;
   finalUrl: string;
@@ -140,7 +152,8 @@ export async function safeFetch(
         signal: opts.deadline.signal,
       })
     );
-    const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+    // E14: only the five redirect statuses are followed (not 300/304/305/306).
+    const location = REDIRECT_STATUSES.has(res.status) ? res.headers.get("location") : null;
     if (!location || redirects >= maxRedirects) {
       return { res, finalUrl: target, redirects };
     }
@@ -252,6 +265,37 @@ export function sanitizeUntrusted(input: string | null | undefined, max: number 
   return cps.length > max ? cps.slice(0, max - 3).join("") + "..." : cleaned;
 }
 
+/**
+ * E15 (code-quality audit 2026-11-05): the IP part of the rate-limit key.
+ * One customer usually holds a whole IPv6 /64, so IPv6 keys on that prefix
+ * (expanded, lowercased: "2001:db8:1:2::/64"); a v4-mapped IPv6 address keys
+ * as its IPv4. Everything else, IPv4 included, keeps ip.trim().toLowerCase()
+ * (CF-Connecting-IP IPv4 is already bare dotted-quad, so existing counters
+ * stay valid). Copies in scanner ratelimit.ts and marketing-site
+ * rate-limit-kv.ts follow parity/ip-rate-limit-key-cases.json.
+ */
+export function rateLimitIpKey(ip: string): string {
+  const s = ip.trim().toLowerCase();
+  if (!s.includes(":")) return s;
+  let host: string;
+  try {
+    host = new URL(`http://[${s}]/`).hostname.slice(1, -1);
+  } catch {
+    return s;
+  }
+  // The URL serializer gives the compressed form with hex groups only.
+  const [head, tail] = host.split("::");
+  const left = head ? head.split(":") : [];
+  const right = tail ? tail.split(":") : [];
+  const groups = tail === undefined ? left : [...left, ...Array(8 - left.length - right.length).fill("0"), ...right];
+  if (groups.slice(0, 5).every((g) => g === "0") && groups[5] === "ffff") {
+    const hi = parseInt(groups[6] ?? "0", 16);
+    const lo = parseInt(groups[7] ?? "0", 16);
+    return `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+  }
+  return `${groups.slice(0, 4).join(":")}::/64`;
+}
+
 export interface RateLimitBinding {
   limit(opts: { key: string }): Promise<{ success: boolean }>;
 }
@@ -267,7 +311,7 @@ export async function checkRateLimit(
     return true;
   }
   try {
-    const { success } = await limiter.limit({ key: `fetch-tool:${clientIp ?? "unknown"}` });
+    const { success } = await limiter.limit({ key: `fetch-tool:${rateLimitIpKey(clientIp ?? "unknown")}` });
     return success;
   } catch (err) {
     log("mcp-server rate limiter errored; failing open", err);
@@ -424,4 +468,96 @@ function redactForLog(err: unknown): string {
     .replace(/[a-z][a-z0-9+.-]*:\/\/\S+/gi, "<url>")
     .replace(/\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b/gi, "<host>");
   return sanitizeUntrusted(masked) ?? "";
+}
+
+// ─── score_url output boundary (E13, code-quality audit 2026-11-05) ───────
+
+/** Cap for a sub-check's notes (scanner prose that quotes site text, e.g. an MCP card name). */
+export const MAX_NOTE_CHARS = 500;
+/** Cap for scanner-computed labels (dimension/sub-check names and ids, grades). */
+const MAX_LABEL_CHARS = 120;
+
+const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+const bool = (v: unknown): boolean | undefined => (typeof v === "boolean" ? v : undefined);
+const label = (v: unknown): string | null => (typeof v === "string" ? sanitizeUntrusted(v, MAX_LABEL_CHARS) : null);
+/**
+ * Sanitizes and caps site text. A pre-cut to 16x the cap (code units) bounds
+ * the CPU spent on a multi-MB value; padding that pushes real text past the
+ * pre-cut only shortens the output. A high surrogate split by the cut is dropped.
+ */
+function siteText(v: unknown, max: number = MAX_FIELD_CHARS): string | undefined {
+  if (typeof v !== "string") return undefined;
+  let s = v.length > max * 16 ? v.slice(0, max * 16) : v;
+  const last = s.charCodeAt(s.length - 1);
+  if (s.length < v.length && last >= 0xd800 && last <= 0xdbff) s = s.slice(0, -1);
+  return sanitizeUntrusted(s, max) ?? undefined;
+}
+const asObj = (v: unknown): Record<string, unknown> =>
+  v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+const asArr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+
+/**
+ * score_url's view of the scanner's `dimensions`. Scanner-computed fields
+ * (ids, names, scores, grades, weights, pass/N/A flags, evidence status and
+ * flags) stay in place, type-checked, with labels sanitized and capped. Every
+ * string that can carry site-controlled text (sub-check notes, evidence
+ * content_type / requested_url / final_url) moves under
+ * site_content_untrusted, sanitized and capped, next to untrusted_content_note:
+ * the same boundary check_llms_txt uses. Unknown fields are dropped.
+ */
+export function shapeScoreDimensions(raw: unknown): {
+  dimensions: Record<string, unknown>[];
+  untrusted_content_note: string;
+  site_content_untrusted: { sub_checks: Record<string, unknown>[] };
+} {
+  const untrusted: Record<string, unknown>[] = [];
+  const dimensions = asArr(raw).map((d) => {
+    const dim = asObj(d);
+    const dimensionId = num(dim.dimension_id);
+    const subChecks = asArr(dim.sub_checks).map((s) => {
+      const sc = asObj(s);
+      const subCheckId = label(sc.id);
+      const out: Record<string, unknown> = {
+        id: subCheckId,
+        name: label(sc.name),
+        weight: num(sc.weight),
+        score: num(sc.score),
+        passed: bool(sc.passed) ?? null,
+        na: bool(sc.na),
+      };
+      const ev = sc.evidence === undefined ? undefined : asObj(sc.evidence);
+      if (ev) {
+        out.evidence = {
+          status: num(ev.status),
+          parsed: bool(ev.parsed) ?? null,
+          body_complete: bool(ev.body_complete),
+          truncated: bool(ev.truncated),
+          ld_json_absent_proven: bool(ev.ld_json_absent_proven),
+        };
+      }
+      untrusted.push({
+        dimension_id: dimensionId,
+        sub_check_id: subCheckId,
+        notes: siteText(sc.notes, MAX_NOTE_CHARS),
+        content_type: siteText(ev?.content_type),
+        requested_url: siteText(ev?.requested_url),
+        final_url: siteText(ev?.final_url),
+      });
+      return out;
+    });
+    return {
+      dimension_id: dimensionId,
+      dimension_name: label(dim.dimension_name),
+      score: num(dim.score),
+      grade: label(dim.grade),
+      na: bool(dim.na),
+      unmeasured: bool(dim.unmeasured),
+      sub_checks: subChecks,
+    };
+  });
+  return {
+    dimensions,
+    untrusted_content_note: UNTRUSTED_NOTE,
+    site_content_untrusted: { sub_checks: untrusted },
+  };
 }
