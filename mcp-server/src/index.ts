@@ -218,6 +218,8 @@ function buildMcpServer(env: Env, clientIp: string | null): McpServer {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url }),
+          // A hung scanner must not hang the agent's tool call; the catch below reports it.
+          signal: AbortSignal.timeout(120_000),
         });
 
         if (!res.ok) {
