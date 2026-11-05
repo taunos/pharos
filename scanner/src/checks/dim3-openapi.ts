@@ -83,6 +83,42 @@ const CANONICAL_CANDIDATES = [
   "/swagger.json",
 ];
 
+// E12: a 200 counts as discovered only when the body plausibly IS a spec or
+// API catalog. HTML (a soft-404 or SPA fallback page) never is. A body read in
+// full must be recognizable: a JSON object with an openapi / swagger key or an
+// RFC 9727 linkset with at least one API relation carrying an href, or YAML
+// with an openapi / swagger key (so a JSON soft-404 like {"error":"Not Found"}
+// is not a hit). A body not read in full keeps the unmeasured path in runDim3.
+// Linear time on hostile bodies.
+function isPlausibleSpec(body: string, contentType: string, complete: boolean): boolean {
+  if (contentType.includes("text/html") || body.trimStart().startsWith("<")) return false;
+  if (!complete) return true;
+  const parsed = tryParseSpec(body, contentType);
+  if (!parsed) return false;
+  if (parsed.format !== "json") return true; // the YAML heuristic already required the key
+  const s = parsed.spec;
+  return "openapi" in s || "swagger" in s || hasApiLinkset(s["linkset"]);
+}
+
+const API_CATALOG_RELS = ["service-desc", "service-doc", "service-meta", "item"];
+
+/** RFC 9727: a linkset array with an entry whose API relation has a link object with an href. */
+function hasApiLinkset(linkset: unknown): boolean {
+  if (!Array.isArray(linkset)) return false;
+  return linkset.some(
+    (entry) =>
+      entry !== null &&
+      typeof entry === "object" &&
+      API_CATALOG_RELS.some((rel) => {
+        const links = (entry as Record<string, unknown>)[rel];
+        return (
+          Array.isArray(links) &&
+          links.some((l) => l !== null && typeof l === "object" && typeof (l as { href?: unknown }).href === "string" && (l as { href: string }).href.trim() !== "")
+        );
+      })
+  );
+}
+
 async function probeWellKnown(origin: string): Promise<DiscoveryHit | null> {
   for (const path of WELL_KNOWN_CANDIDATES) {
     const url = `${origin}${path}`;
@@ -94,10 +130,12 @@ async function probeWellKnown(origin: string): Promise<DiscoveryHit | null> {
     if (res && res.ok) {
       const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
       const body = read.text;
+      const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+      if (!isPlausibleSpec(body, contentType, read.complete)) continue;
       return {
         url,
         body,
-        contentType: (res.headers.get("content-type") ?? "").toLowerCase(),
+        contentType,
         source: `well-known ${path}`,
         complete: read.complete,
       };
@@ -121,10 +159,12 @@ async function probeCanonical(origin: string): Promise<DiscoveryHit | null> {
     if (res && res.ok) {
       const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
       const body = read.text;
+      const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+      if (!isPlausibleSpec(body, contentType, read.complete)) continue;
       return {
         url,
         body,
-        contentType: (res.headers.get("content-type") ?? "").toLowerCase(),
+        contentType,
         source: `canonical ${path}`,
         complete: read.complete,
       };
@@ -135,43 +175,146 @@ async function probeCanonical(origin: string): Promise<DiscoveryHit | null> {
 }
 
 // Homepage <link rel="api-catalog"> tag and anchors mentioning openapi/swagger.
-function extractHomepageSpecLink(homepageHtml: string, base: string): string | null {
-  // 1. <link rel="api-catalog" href="..."> per RFC 9727.
-  const linkRel =
-    /<link\b[^>]*\brel=["'](?:api-catalog|describedby|service-desc)["'][^>]*\bhref=["']([^"']+)["'][^>]*>/i.exec(
-      homepageHtml
-    ) ??
-    /<link\b[^>]*\bhref=["']([^"']+)["'][^>]*\brel=["'](?:api-catalog|describedby|service-desc)["'][^>]*>/i.exec(
-      homepageHtml
-    );
-  if (linkRel) {
-    try {
-      return new URL(linkRel[1], base).toString();
-    } catch {
-      // ignore
+// E12 (Codex r1 sibling, r2): the old whole-document regexes were
+// super-linear on hostile HTML (~2 s on 50 KB) and became reachable once
+// Dim 3 received the homepage. Now a small quote-aware tag tokenizer: exact
+// attribute names (case-insensitive; data-rel is not rel), quoted or
+// unquoted values, a ">" inside a quoted value does not end the tag. Linear:
+// every character is consumed once, scanning resumes after each tag, only
+// rel / href are kept, and at most MAX_TAGS_SCANNED tags of a kind are read.
+const MAX_TAG_CHARS = 2048;
+const MAX_ANCHOR_TEXT_CHARS = 512;
+const MAX_ANCHORS_CHECKED = 1000;
+const MAX_TAGS_SCANNED = 10000;
+
+const isTagSpace = (c: string) => c === " " || c === "\t" || c === "\n" || c === "\r" || c === "\f";
+
+interface SpecTagAttrs {
+  rel?: string;
+  href?: string;
+}
+
+/**
+ * Reads the tag whose name ends at `i` (just past "<name"). Returns its rel /
+ * href attributes (exact names, case-insensitive, first occurrence wins) and
+ * the index of its closing ">", or null when the document ends inside the tag.
+ */
+function readTagAttrs(html: string, i: number): { attrs: SpecTagAttrs; end: number } | null {
+  const attrs: SpecTagAttrs = {};
+  const n = html.length;
+  for (;;) {
+    while (i < n && (isTagSpace(html[i]) || html[i] === "/")) i++;
+    if (i >= n) return null;
+    if (html[i] === ">") return { attrs, end: i };
+    const nameStart = i;
+    while (i < n && !isTagSpace(html[i]) && html[i] !== "/" && html[i] !== ">" && html[i] !== "=") i++;
+    const len = i - nameStart;
+    const key = len === 3 || len === 4 ? html.slice(nameStart, i).toLowerCase() : "";
+    const wanted = (key === "rel" || key === "href") && attrs[key] === undefined ? key : null;
+    while (i < n && isTagSpace(html[i])) i++;
+    let value = "";
+    if (html[i] === "=") {
+      i++;
+      while (i < n && isTagSpace(html[i])) i++;
+      const q = html[i];
+      if (q === '"' || q === "'") {
+        const close = html.indexOf(q, i + 1);
+        if (close === -1) return null;
+        if (wanted) value = html.slice(i + 1, close);
+        i = close + 1;
+      } else {
+        const vStart = i;
+        while (i < n && !isTagSpace(html[i]) && html[i] !== ">") i++;
+        if (wanted) value = html.slice(vStart, i);
+      }
     }
+    if (wanted) attrs[wanted] = decodeHtmlRefs(value);
   }
-  // 2. Anchor with href ending in openapi.json/yaml or swagger.json or
-  //    visible text "OpenAPI" / "Swagger".
-  const anchors =
-    /<a\b[^>]*\bhref=["']([^"']+\.(?:json|yaml|yml))["'][^>]*>(?:\s|<[^>]+>)*([^<]*(?:openapi|swagger)[^<]*)/gi;
-  let m: RegExpExecArray | null;
-  while ((m = anchors.exec(homepageHtml)) !== null) {
+}
+
+const NAMED_REFS: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+
+/**
+ * E12 (Codex r3): decodes the character references an attribute value may
+ * carry (&amp; &lt; &gt; &quot; &apos;, &#NN; and &#xHH;) so href="a?x=1&amp;y=2"
+ * resolves as the browser would. One linear regex pass over a value already
+ * bounded by MAX_TAG_CHARS; an invalid code point becomes U+FFFD.
+ */
+function decodeHtmlRefs(value: string): string {
+  if (!value.includes("&")) return value;
+  return value.replace(/&(?:#[xX]([0-9a-fA-F]{1,6})|#([0-9]{1,7})|(amp|lt|gt|quot|apos));/g, (_, hex, dec, named) => {
+    if (named) return NAMED_REFS[named];
+    const cp = hex ? parseInt(hex, 16) : parseInt(dec, 10);
+    return cp > 0 && cp <= 0x10ffff && !(cp >= 0xd800 && cp <= 0xdfff) ? String.fromCodePoint(cp) : "�";
+  });
+}
+
+/** `<name ...>` tags in order; tags longer than MAX_TAG_CHARS are skipped (but still consumed). */
+function* scanTags(html: string, name: "link" | "a"): Generator<{ attrs: SpecTagAttrs; end: number }> {
+  // Literal-prefixed, so each exec is a linear forward search from lastIndex.
+  const open = name === "link" ? /<link(?=[\s/>])/gi : /<a(?=[\s/>])/gi;
+  for (let scanned = 0; scanned < MAX_TAGS_SCANNED; scanned++) {
+    const m = open.exec(html);
+    if (!m) return;
+    const tag = readTagAttrs(html, m.index + m[0].length);
+    if (!tag) return;
+    if (tag.end - m.index <= MAX_TAG_CHARS) yield tag;
+    open.lastIndex = tag.end + 1;
+  }
+}
+
+const SPEC_LINK_RELS = new Set(["api-catalog", "describedby", "service-desc"]);
+
+function extractHomepageSpecLink(homepageHtml: string, base: string): string | null {
+  const resolve = (href: string): string | null => {
     try {
-      return new URL(m[1], base).toString();
+      return new URL(href.trim(), base).toString();
     } catch {
-      // ignore
+      return null;
     }
+  };
+  // 1. <link rel="api-catalog" href="..."> per RFC 9727 (also describedby /
+  //    service-desc). rel is a space-separated token list.
+  for (const { attrs } of scanTags(homepageHtml, "link")) {
+    const rels = (attrs.rel ?? "").toLowerCase().split(/[ \t\n\r\f]+/);
+    if (!rels.some((r) => SPEC_LINK_RELS.has(r))) continue;
+    const href = attrs.href;
+    const url = href ? resolve(href) : null;
+    if (url) return url;
+  }
+  // 2. Anchor whose href ends in .json / .yaml / .yml and whose text (the
+  //    next MAX_ANCHOR_TEXT_CHARS up to </a>, tags stripped) mentions
+  //    OpenAPI / Swagger.
+  let checked = 0;
+  for (const { attrs, end } of scanTags(homepageHtml, "a")) {
+    const href = attrs.href?.trim();
+    if (!href || !/\.(?:json|yaml|yml)$/i.test(href)) continue;
+    if (++checked > MAX_ANCHORS_CHECKED) break;
+    let text = homepageHtml.slice(end + 1, end + 1 + MAX_ANCHOR_TEXT_CHARS);
+    const close = /<\/a/i.exec(text);
+    if (close) text = text.slice(0, close.index);
+    // [^<>]* cannot cross another "<", so this strip is linear.
+    if (!/openapi|swagger/i.test(text.replace(/<[^<>]*>/g, " "))) continue;
+    const url = resolve(href);
+    if (url) return url;
   }
   return null;
 }
 
+/** A homepage read handed over by another check: its HTML and final (post-redirect) URL. */
+export interface HomepageRead {
+  html: string;
+  url: string;
+}
+
 async function probeHomepageLink(
   origin: string,
-  homepageHtml: string | null
+  homepagePromise: HomepageRead | null | Promise<HomepageRead | null>
 ): Promise<DiscoveryHit | null> {
-  if (!homepageHtml) return null;
-  const candidate = extractHomepageSpecLink(homepageHtml, origin);
+  const homepage = await homepagePromise;
+  if (!homepage || !homepage.html) return null;
+  // E12 (Codex r1): relative hrefs resolve against the page they came from.
+  const candidate = extractHomepageSpecLink(homepage.html, isSafeSpecUrl(homepage.url) ? homepage.url : origin);
   if (!candidate || !isSafeSpecUrl(candidate)) return null;
   const res = await timedFetch(candidate, {
     headers: {
@@ -183,10 +326,12 @@ async function probeHomepageLink(
   if (res && res.ok) {
     const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
     const body = read.text;
+    const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+    if (!isPlausibleSpec(body, contentType, read.complete)) return null;
     return {
       url: candidate,
       body,
-      contentType: (res.headers.get("content-type") ?? "").toLowerCase(),
+      contentType,
       source: `homepage link ${candidate}`,
       complete: read.complete,
     };
@@ -197,14 +342,14 @@ async function probeHomepageLink(
 
 async function discoverApiSpec(
   origin: string,
-  homepageHtml: string | null
+  homepage: HomepageRead | null | Promise<HomepageRead | null>
 ): Promise<DiscoveryHit | null> {
   // Ordered: well-known → canonical → homepage-link. Stop at first hit.
   let hit = await probeWellKnown(origin);
   if (hit) return hit;
   hit = await probeCanonical(origin);
   if (hit) return hit;
-  hit = await probeHomepageLink(origin, homepageHtml);
+  hit = await probeHomepageLink(origin, homepage);
   return hit;
 }
 
@@ -243,23 +388,37 @@ function tryParseSpec(body: string, contentType: string): ParsedSpec | null {
   //    (info_completeness, paths, securitySchemes) get scored as 0 with
   //    notes explaining the limitation. Future work: ship a minimal YAML
   //    parser or call out to an external parsing service.
-  const yamlOpenapi = /^\s*openapi\s*:\s*["']?(\d+\.\d+(?:\.\d+)?)/m.test(body);
-  const yamlSwagger = /^\s*swagger\s*:\s*["']?(\d+\.\d+(?:\.\d+)?)/m.test(body);
-  if (yamlOpenapi || yamlSwagger) {
+  const yaml = yamlVersionKey(body);
+  if (yaml) {
     // Build a minimal spec object so downstream checks can at least see the
     // version field. They'll see no `info` / `paths` and score appropriately.
-    const versionMatch = (yamlOpenapi
-      ? /^\s*openapi\s*:\s*["']?(\d+\.\d+(?:\.\d+)?)/m
-      : /^\s*swagger\s*:\s*["']?(\d+\.\d+(?:\.\d+)?)/m
-    ).exec(body);
-    const versionKey = yamlOpenapi ? "openapi" : "swagger";
     return {
       spec: {
-        [versionKey]: versionMatch ? versionMatch[1] : "unknown",
+        [yaml.key]: yaml.version,
         __yaml_heuristic: true,
       },
       format: "yaml-heuristic",
     };
+  }
+  return null;
+}
+
+// E12 (Codex r1): the old /^\s*openapi\s*:/m regexes were quadratic on runs of
+// newlines (\s spans them; ~9 s on 100k). This is a linear line scan with
+// horizontal whitespace only, over at most YAML_SCAN_LINES lines of at most
+// YAML_SCAN_LINE_CHARS each (the version key sits at the top of a real spec).
+const YAML_SCAN_LINES = 200;
+const YAML_SCAN_LINE_CHARS = 1000;
+const YAML_VERSION_LINE = /^[ \t]*(openapi|swagger)[ \t]*:[ \t]*["']?(\d+\.\d+(?:\.\d+)?)/;
+
+function yamlVersionKey(body: string): { key: "openapi" | "swagger"; version: string } | null {
+  let start = 0;
+  for (let n = 0; n < YAML_SCAN_LINES && start < body.length; n++) {
+    let end = body.indexOf("\n", start);
+    if (end === -1) end = body.length;
+    const m = YAML_VERSION_LINE.exec(body.slice(start, Math.min(end, start + YAML_SCAN_LINE_CHARS)));
+    if (m) return { key: m[1] as "openapi" | "swagger", version: m[2] };
+    start = end + 1;
   }
   return null;
 }
@@ -269,7 +428,9 @@ function tryParseSpec(body: string, contentType: string): ParsedSpec | null {
 export async function runDim3(
   targetUrl: string,
   env: Env,
-  homepageHtml: string | null = null
+  // E12: the homepage another check already read (run-scan passes Dim 4's
+  // read as a promise); awaited only when well-known and canonical both miss.
+  homepage: HomepageRead | null | Promise<HomepageRead | null> = null
 ): Promise<DimensionResult> {
   void env; // reserved for future use; no LLM in Slice 3a
   const origin = new URL(targetUrl).origin;
@@ -277,7 +438,7 @@ export async function runDim3(
   const subs: SubCheck[] = [];
 
   // ── Discovery ──────────────────────────────────────────────────────────
-  const hit = await discoverApiSpec(origin, homepageHtml);
+  const hit = await discoverApiSpec(origin, homepage);
 
   // Whole-dimension N/A: nothing discovered. Mark every sub-check N/A,
   // dimensionScore() returns null, return DimensionResult with na:true.

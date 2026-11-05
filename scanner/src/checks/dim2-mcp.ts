@@ -1,6 +1,7 @@
 import type { DimensionResult, Env, SubCheck } from "../types";
 import { dimensionScoreOrThrow, gradeFor } from "../scoring";
 import { MAX_JSON_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
+import { SCORING_VERSION } from "../version";
 
 const FETCH_TIMEOUT_MS = 5000;
 
@@ -15,6 +16,120 @@ async function readJson(r: SafeResponse): Promise<unknown> {
   const b = await r.body({ maxBytes: MAX_JSON_BYTES });
   if (!b.complete) throw new Error("body incomplete");
   return JSON.parse(b.text);
+}
+
+/** Protocol revision the scanner offers in `initialize` (servers may negotiate down). */
+export const MCP_PROTOCOL_VERSION = "2025-06-18";
+/** One budget for the whole initialize -> initialized -> tools/list handshake. */
+const LIVE_BUDGET_MS = 10000;
+
+/**
+ * E12: finds the JSON-RPC response with `id` in a Streamable HTTP reply. The
+ * body is either JSON (one message or a batch) or an SSE stream whose events
+ * each carry one message in their data: lines. Every candidate is parsed on
+ * its own, so text between messages never merges into one match (the old
+ * greedy /\{[\s\S]*\}/ spanned the first "{" to the last "}").
+ *
+ * Only a response counts: an object with this `id`, a `result` or `error`,
+ * and no `method` (a server request may reuse the id). The first response
+ * wins, so an error response ends the scan too.
+ *
+ * Bounded (Codex r2, r3): lines are scanned lazily (a forward regex search
+ * for each line end, no global rewrite) and the scan stops at the first
+ * response. Data that doesn't start with "{" or "[" is never parsed. JSON.parse
+ * sees at most MAX_SSE_PARSE_CHARS characters across all SSE blocks (on top
+ * of the one whole-body attempt) and at most MAX_JSON_PARSES attempts; the
+ * reply body is already capped at MAX_JSON_BYTES. `exhausted` is true when a
+ * budget, not the end of the body, stopped the scan. The counters are
+ * returned so tests can assert the bounds.
+ */
+export const MAX_JSON_PARSES = 4096;
+export const MAX_SSE_PARSE_CHARS = MAX_JSON_BYTES;
+
+export type JsonRpcScan = {
+  msg: Record<string, unknown> | null;
+  sawJson: boolean;
+  exhausted: boolean;
+  blocks: number;
+  parses: number;
+  parsedChars: number;
+  lines: number;
+};
+
+export function findJsonRpcResponse(text: string, id: string): JsonRpcScan {
+  let sawJson = false;
+  let blocks = 0;
+  let parses = 0;
+  let parsedChars = 0;
+  let lines = 0;
+  const done = (msg: Record<string, unknown> | null, exhausted: boolean): JsonRpcScan => ({
+    msg,
+    sawJson,
+    exhausted,
+    blocks,
+    parses,
+    parsedChars,
+    lines,
+  });
+  const isResponse = (m: unknown): m is Record<string, unknown> =>
+    m !== null &&
+    typeof m === "object" &&
+    !Array.isArray(m) &&
+    (m as { id?: unknown }).id === id &&
+    !("method" in m) &&
+    ("result" in m || "error" in m);
+  const tryParse = (c: string): Record<string, unknown> | null => {
+    parses++;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(c);
+    } catch {
+      return null;
+    }
+    sawJson = true;
+    for (const m of Array.isArray(parsed) ? parsed : [parsed]) if (isResponse(m)) return m;
+    return null;
+  };
+  const looksJson = (c: string) => {
+    const head = c.trimStart()[0];
+    return head === "{" || head === "[";
+  };
+  if (looksJson(text)) {
+    const whole = tryParse(text);
+    if (whole) return done(whole, false);
+  }
+  // SSE: CR / CRLF / LF each end a line; a blank line (or the end of the
+  // body) dispatches the block's data lines. One charCode pass; only data
+  // lines are sliced.
+  const n = text.length;
+  let data: string[] = [];
+  let dataChars = 0;
+  let pos = 0;
+  for (;;) {
+    let end = pos;
+    for (let c = text.charCodeAt(end); end < n && c !== 10 && c !== 13; c = text.charCodeAt(++end));
+    const atEof = end >= n;
+    lines++;
+    if (end - pos >= 5 && text.startsWith("data:", pos)) {
+      const d = text.slice(text.charCodeAt(pos + 5) === 32 ? pos + 6 : pos + 5, end);
+      data.push(d);
+      dataChars += d.length + 1;
+    }
+    if ((end === pos || atEof) && data.length > 0) {
+      blocks++;
+      const payload = data.join("\n");
+      data = [];
+      if (looksJson(payload)) {
+        if (parses >= MAX_JSON_PARSES || parsedChars + dataChars > MAX_SSE_PARSE_CHARS) return done(null, true);
+        parsedChars += dataChars;
+        const msg = tryParse(payload);
+        if (msg) return done(msg, false);
+      }
+      dataChars = 0;
+    }
+    if (atEof) return done(null, false);
+    pos = end + (text.charCodeAt(end) === 13 && text.charCodeAt(end + 1) === 10 ? 2 : 1);
+  }
 }
 
 type ServerCard = {
@@ -42,6 +157,56 @@ async function fetchCard(origin: string): Promise<{ card: ServerCard | null; sta
   return { card: null, status: 0, from: "" };
 }
 
+/**
+ * E12 (Codex r1): DoH JSON gives TXT `data` in presentation syntax: one or
+ * more quoted character-strings (`"v=1; m" "cp=..."`) with backslash escapes
+ * (`\"`, `\\`, and `\DDD` decimal bytes). Returns the concatenated text so a
+ * value split across strings or escaped still matches. Unquoted data is
+ * returned as is. Malformed data (an unterminated string, a \DDD above 255,
+ * anything but whitespace between strings, or more than
+ * MAX_TXT_PRESENTATION_CHARS) returns null: no match.
+ */
+/** TXT RDATA is at most 64 KiB; its presentation form at most 4x that (\DDD). */
+const MAX_TXT_PRESENTATION_CHARS = 4 * 65536;
+
+export function decodeTxtData(data: string): string | null {
+  if (data.length > MAX_TXT_PRESENTATION_CHARS) return null;
+  if (!data.includes('"')) return data;
+  let out = "";
+  let i = 0;
+  while (i < data.length) {
+    if (data[i] === " " || data[i] === "\t") {
+      i++; // separator between character-strings
+      continue;
+    }
+    if (data[i] !== '"') return null;
+    i++;
+    for (;;) {
+      if (i >= data.length) return null; // unterminated
+      const ch = data[i];
+      if (ch === '"') break;
+      if (ch === "\\") {
+        if (i + 1 >= data.length) return null;
+        const ddd = /^\d{3}/.exec(data.slice(i + 1, i + 4));
+        if (ddd) {
+          const code = Number(ddd[0]);
+          if (code > 255) return null;
+          out += String.fromCharCode(code);
+          i += 4;
+        } else {
+          out += data[i + 1];
+          i += 2;
+        }
+      } else {
+        out += ch;
+        i++;
+      }
+    }
+    i++; // closing quote
+  }
+  return out;
+}
+
 async function dnsTxt(host: string): Promise<{ found: boolean; note: string }> {
   try {
     const r = await timedFetch(
@@ -52,9 +217,21 @@ async function dnsTxt(host: string): Promise<{ found: boolean; note: string }> {
       r?.discard();
       return { found: false, note: `DoH status ${r?.status ?? "fetch failed"}` };
     }
-    const j = (await readJson(r)) as { Answer?: Array<{ data?: string }> };
-    const found = !!j.Answer && j.Answer.length > 0;
-    return { found, note: found ? `${j.Answer!.length} TXT record(s) at _mcp.${host}` : `no TXT at _mcp.${host}` };
+    const j = (await readJson(r)) as { Answer?: Array<{ name?: string; type?: number; data?: string }> };
+    // E12: Answer also carries the CNAME chain (a wildcard CNAME answers every
+    // name), so count only TXT records (type 16) at _mcp.<host> itself whose
+    // text mentions mcp (the published research methodology's rule).
+    const want = `_mcp.${host}`.toLowerCase().replace(/\.$/, "");
+    const txt = (Array.isArray(j.Answer) ? j.Answer : []).filter(
+      (a) =>
+        a?.type === 16 &&
+        typeof a.name === "string" &&
+        a.name.toLowerCase().replace(/\.$/, "") === want &&
+        typeof a.data === "string" &&
+        /mcp/i.test(decodeTxtData(a.data) ?? "")
+    );
+    const found = txt.length > 0;
+    return { found, note: found ? `${txt.length} TXT record(s) at _mcp.${host}` : `no TXT at _mcp.${host}` };
   } catch (e) {
     return { found: false, note: `DoH error: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -155,41 +332,73 @@ export async function runDim2(targetUrl: string, env: Env): Promise<DimensionRes
     const t = card.transports[0];
     const transportUrl = t.url ? new URL(t.url, origin).toString() : "";
     if (transportUrl) {
-      const body = JSON.stringify({ jsonrpc: "2.0", id: "scanner-list", method: "tools/list" });
-      const r = await timedFetch(
-        transportUrl,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
-          body,
-        },
-        5000
-      );
-      if (!r) {
-        liveNote = `tools/list timed out or failed for ${transportUrl}`;
-      } else if (r.status >= 200 && r.status < 300) {
-        try {
-          const text = (await r.body({ maxBytes: MAX_JSON_BYTES })).text;
-          // Streamable HTTP may return JSON or SSE-formatted; look for tools array either way
-          const jsonMatch = text.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            const tools = parsed?.result?.tools;
-            if (Array.isArray(tools)) {
-              liveScore = 100;
-              liveNote = `tools/list returned ${tools.length} tools`;
-            } else {
-              liveNote = `tools/list returned ${r.status} but no tools[] in body`;
-            }
+      // E12: MCP lifecycle (spec 2025-06-18): initialize, then the
+      // notifications/initialized notification, then requests carrying the
+      // Mcp-Session-Id (when the server issued one) and MCP-Protocol-Version.
+      const liveDeadline = Date.now() + LIVE_BUDGET_MS;
+      const post = (payload: unknown, extra: Record<string, string> = {}) =>
+        timedFetch(
+          transportUrl,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", ...extra },
+            body: JSON.stringify(payload),
+          },
+          Math.max(1, Math.min(5000, liveDeadline - Date.now()))
+        );
+      const init = await post({
+        jsonrpc: "2.0",
+        id: "scanner-init",
+        method: "initialize",
+        params: { protocolVersion: MCP_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "AstrantScanner", version: SCORING_VERSION } },
+      });
+      let session: Record<string, string> | null = null;
+      if (!init) {
+        liveNote = `initialize timed out or failed for ${transportUrl}`;
+      } else if (init.status >= 200 && init.status < 300) {
+        const { msg, exhausted } = findJsonRpcResponse((await init.body({ maxBytes: MAX_JSON_BYTES })).text, "scanner-init");
+        const result = msg?.result as { protocolVersion?: unknown } | undefined;
+        if (exhausted) {
+          liveNote = `initialize returned ${init.status} but the reply exceeded the scan limit`;
+        } else if (result && typeof result === "object") {
+          // Site-controlled values become request headers: keep only well-formed
+          // ones (an invalid header value would throw inside fetch's Headers).
+          const v = typeof result.protocolVersion === "string" && /^[\w.-]{1,32}$/.test(result.protocolVersion)
+            ? result.protocolVersion
+            : MCP_PROTOCOL_VERSION;
+          session = { "MCP-Protocol-Version": v };
+          const sid = init.headers.get("mcp-session-id");
+          // Spec: visible ASCII (0x21-0x7E). 4096 keeps it header-safe.
+          if (sid && sid.length <= 4096 && /^[\x21-\x7e]+$/.test(sid)) session["Mcp-Session-Id"] = sid;
+        } else {
+          liveNote = `initialize returned ${init.status} but no result in body`;
+        }
+      } else {
+        init.discard();
+        liveNote = `initialize returned status ${init.status}`;
+      }
+      if (session) {
+        (await post({ jsonrpc: "2.0", method: "notifications/initialized" }, session))?.discard();
+        const r = await post({ jsonrpc: "2.0", id: "scanner-list", method: "tools/list" }, session);
+        if (!r) {
+          liveNote = `tools/list timed out or failed for ${transportUrl}`;
+        } else if (r.status >= 200 && r.status < 300) {
+          const { msg, sawJson, exhausted } = findJsonRpcResponse((await r.body({ maxBytes: MAX_JSON_BYTES })).text, "scanner-list");
+          const tools = (msg?.result as { tools?: unknown } | undefined)?.tools;
+          if (Array.isArray(tools)) {
+            liveScore = 100;
+            liveNote = `tools/list returned ${tools.length} tools`;
+          } else if (exhausted) {
+            liveNote = `tools/list returned ${r.status} but the reply exceeded the scan limit`;
+          } else if (sawJson) {
+            liveNote = `tools/list returned ${r.status} but no tools[] in body`;
           } else {
             liveNote = `tools/list returned ${r.status} with non-JSON body`;
           }
-        } catch (e) {
-          liveNote = `tools/list parse error: ${e instanceof Error ? e.message : String(e)}`;
+        } else {
+          r.discard();
+          liveNote = `tools/list returned status ${r.status}`;
         }
-      } else {
-        r.discard();
-        liveNote = `tools/list returned status ${r.status}`;
       }
     }
   }

@@ -34,5 +34,12 @@
  *   Capability separation: scanner has zero of OPENAI_API_KEY /
  *   ANTHROPIC_API_KEY / GOOGLE_AI_API_KEY / PERPLEXITY_API_KEY (verified at
  *   deploy time via wrangler secret list).
+ * - 1.3.1 (E12 scoring defects, 2026-11-05): Dim 3 homepage-link discovery
+ *   wired (reuses Dim 4's homepage read); Dim 3 discovery rejects HTML /
+ *   unparseable 200s (soft-404s); Dim 2 dns_txt counts only TXT records at
+ *   _mcp.<host> that mention mcp (not CNAME chains); Dim 2 live check runs
+ *   the MCP initialize handshake before tools/list and parses JSON / SSE
+ *   replies per message (no greedy regex). `CURRENT_SCORING_VERSION` on
+ *   /score/[id] bumped in lockstep.
  */
-export const SCORING_VERSION = "1.3.0";
+export const SCORING_VERSION = "1.3.1";
