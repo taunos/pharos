@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import AuditResultsPoller from "@/components/AuditResultsPoller";
+import AuditIntakeForm from "@/components/AuditIntakeForm";
+import { isIntakeSessionId } from "@/lib/dataset-intake";
 
 export const metadata: Metadata = {
   title: "Your Astrant Audit — Astrant",
@@ -36,6 +38,9 @@ export default async function AuditResultsPage({
               </p>
             }
           />
+          {isIntakeSessionId(sessionId) ? (
+            <AuditIntakeForm sessionId={sessionId} />
+          ) : null}
         </section>
       </main>
       <SiteFooter />

@@ -174,4 +174,60 @@ describe("POST /api/audit-create — gate open", () => {
     const { session_id } = (await res.json()) as { session_id: string };
     expect(JSON.parse(state.store.get(`funnel:audit:${session_id}`)!).source_scan_id).toBeNull();
   });
+
+  // Dataset spec v2 §4.3 — P2 opt-in checkbox (unticked by default).
+  it.each([
+    ["absent", undefined],
+    ["false", false],
+    ["string 'true'", "true"],
+    ["number 1", 1],
+    ["object", { yes: true }],
+  ])("consent_sellable %s → 0 on session + rights record", async (_n, value) => {
+    openEnv();
+    const { POST } = await import("./route");
+    const body: Record<string, unknown> = { ...VALID };
+    if (value !== undefined) body.consent_sellable = value;
+    const res = await POST(req(body));
+    expect(res.status).toBe(200);
+    const { session_id } = (await res.json()) as { session_id: string };
+    const session = JSON.parse(state.store.get(`audit:${session_id}`)!);
+    expect(session.consent_sellable).toBe(0);
+    expect(session.consent_text_version).toBe("p2-sellable-v1-2026-11-05");
+    expect(session.consent_at).toBe(session.created_at);
+    expect(JSON.parse(state.store.get(`rights:audit:${session_id}`)!).consent_sellable).toBe(0);
+  });
+
+  it("consent_sellable true → 1; rights record has NO TTL, no email/url, P1 default on", async () => {
+    openEnv();
+    const { POST } = await import("./route");
+    const res = await POST(req({ ...VALID, consent_sellable: true }));
+    const { session_id } = (await res.json()) as { session_id: string };
+    expect(JSON.parse(state.store.get(`audit:${session_id}`)!).consent_sellable).toBe(1);
+    const rightsPut = state.puts.find((p) => p.key === `rights:audit:${session_id}`);
+    expect(rightsPut!.opts?.expirationTtl).toBeUndefined();
+    expect(JSON.parse(rightsPut!.value)).toEqual({
+      tier: "audit",
+      consent_sellable: 1,
+      consent_text_version: "p2-sellable-v1-2026-11-05",
+      consent_at: expect.any(Number),
+      consent_method: "checkout_checkbox",
+      p1_opt_out: 0,
+    });
+    expect(rightsPut!.value).not.toContain("example.com");
+  });
+
+  it("consent never changes price, product or Dodo metadata", async () => {
+    openEnv();
+    const { POST } = await import("./route");
+    await POST(req({ ...VALID, consent_sellable: true }));
+    await POST(req({ ...VALID, consent_sellable: false }));
+    const [a, b] = createCheckoutSession.mock.calls.map((c) => c[1] as Record<string, unknown>);
+    const strip = (x: Record<string, unknown>) => {
+      const m = { ...(x.metadata as Record<string, string>) };
+      delete m.session_id;
+      return { ...x, metadata: m, return_url: undefined };
+    };
+    expect(strip(a)).toEqual(strip(b));
+    expect(JSON.stringify(a)).not.toContain("consent");
+  });
 });
