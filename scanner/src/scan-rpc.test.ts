@@ -168,13 +168,10 @@ describe("E11: SCAN_PROXY_KEY authenticates the forwarded client IP", () => {
       body: JSON.stringify({ url: "https://example.com/", ...body }),
     });
 
-  it("proxyTrustKey: SCAN_PROXY_KEY when set; INTERNAL_FULFILL_KEY only while it is unset", () => {
-    expect(proxyTrustKey({ SCAN_PROXY_KEY: PROXY, INTERNAL_FULFILL_KEY: FULFILL })).toBe(PROXY);
+  it("proxyTrustKey: SCAN_PROXY_KEY only; never the fulfill key", () => {
     expect(proxyTrustKey({ SCAN_PROXY_KEY: PROXY })).toBe(PROXY);
-    expect(proxyTrustKey({ INTERNAL_FULFILL_KEY: FULFILL })).toBe(FULFILL);
-    expect(proxyTrustKey({ SCAN_PROXY_KEY: "", INTERNAL_FULFILL_KEY: FULFILL })).toBe(FULFILL);
+    expect(proxyTrustKey({ SCAN_PROXY_KEY: "" })).toBeUndefined();
     expect(proxyTrustKey({})).toBeUndefined();
-    expect(proxyTrustKey({ INTERNAL_FULFILL_KEY: "" })).toBeUndefined();
   });
 
   it("with SCAN_PROXY_KEY set, the proxy key is trusted and the old key is not", async () => {
@@ -185,12 +182,11 @@ describe("E11: SCAN_PROXY_KEY authenticates the forwarded client IP", () => {
     expect(limiter.calls).toEqual(["scan:198.51.100.1", WORKER_KEY]);
   });
 
-  it("with SCAN_PROXY_KEY unset, the old INTERNAL_FULFILL_KEY is still trusted (transition)", async () => {
+  it("with SCAN_PROXY_KEY unset, the fulfill key is not trusted for forwarding", async () => {
     stub404();
     const { env, limiter } = makeEnv({ INTERNAL_FULFILL_KEY: FULFILL });
     await app.fetch(proxied({ "x-astrant-client-ip": "198.51.100.1", "x-astrant-proxy-key": FULFILL }), env);
-    await app.fetch(proxied({ "x-astrant-client-ip": "198.51.100.2", "x-astrant-proxy-key": PROXY }), env);
-    expect(limiter.calls).toEqual(["scan:198.51.100.1", WORKER_KEY]);
+    expect(limiter.calls).toEqual([WORKER_KEY]);
   });
 
   it("the proxy key never grants the paid tier, in either header", async () => {

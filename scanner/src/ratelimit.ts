@@ -134,16 +134,13 @@ export function limiterIdentity(
 
 /**
  * E11 (code-quality audit 2026-11-05): the secret that authenticates
- * x-astrant-proxy-key. SCAN_PROXY_KEY when set. Transition fallback:
- * INTERNAL_FULFILL_KEY, but only while SCAN_PROXY_KEY is unset, so marketing
- * Workers still sending the old key keep working until the new secret lands.
- * Removal step (after SCAN_PROXY_KEY is set on both pharos-scanner and
- * pharos-marketing): return env.SCAN_PROXY_KEY only, and drop marketing's
- * fallback in api/scan/route.ts. Identity only: the paid tier never reads it.
+ * x-astrant-proxy-key is SCAN_PROXY_KEY only (the INTERNAL_FULFILL_KEY
+ * transition fallback was removed 2026-11-05 once the secret was set on both
+ * Workers). Unset = forwarded IPs are never trusted. Identity only: the paid
+ * tier never reads it.
  */
-export function proxyTrustKey(env: Pick<Env, "SCAN_PROXY_KEY" | "INTERNAL_FULFILL_KEY">): string | undefined {
-  if (env.SCAN_PROXY_KEY) return env.SCAN_PROXY_KEY;
-  return env.INTERNAL_FULFILL_KEY || undefined;
+export function proxyTrustKey(env: Pick<Env, "SCAN_PROXY_KEY">): string | undefined {
+  return env.SCAN_PROXY_KEY || undefined;
 }
 
 /**

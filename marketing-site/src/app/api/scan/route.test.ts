@@ -16,7 +16,7 @@ let sent: Sent[] = [];
 
 beforeEach(() => {
   sent = [];
-  state.env = { INTERNAL_FULFILL_KEY: "fulfill-key" };
+  state.env = { SCAN_PROXY_KEY: "scan-proxy-key", INTERNAL_FULFILL_KEY: "fulfill-key" };
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string, init: RequestInit) => {
@@ -41,7 +41,7 @@ describe("POST /api/scan proxy", () => {
     expect(res.status).toBe(200);
     expect(sent[0].headers).toMatchObject({
       "x-astrant-client-ip": "203.0.113.7",
-      "x-astrant-proxy-key": "fulfill-key",
+      "x-astrant-proxy-key": "scan-proxy-key",
     });
     expect(sent[0].headers["x-internal-fulfill-key"]).toBeUndefined();
   });
@@ -77,10 +77,11 @@ describe("POST /api/scan proxy", () => {
     expect(sent[0].headers["x-astrant-proxy-key"]).toBe("scan-proxy-key");
   });
 
-  it("E11: falls back to the fulfill key while SCAN_PROXY_KEY is unset or empty", async () => {
+  it("E11: never sends the fulfill key when SCAN_PROXY_KEY is unset or empty", async () => {
     state.env = { SCAN_PROXY_KEY: "", INTERNAL_FULFILL_KEY: "fulfill-key" };
     await POST(req({ "cf-connecting-ip": "203.0.113.7" }));
-    expect(sent[0].headers["x-astrant-proxy-key"]).toBe("fulfill-key");
+    expect(sent[0].headers["x-astrant-proxy-key"]).toBeUndefined();
+    expect(Object.values(sent[0].headers)).not.toContain("fulfill-key");
   });
 
   it("does not relay client-supplied proxy headers", async () => {

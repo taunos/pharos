@@ -313,7 +313,7 @@ describe("authenticated paid-tier calls skip both rate limits", () => {
 });
 
 describe("forwarded client IP from the marketing proxy", () => {
-  const KEY = "valid-internal-fulfill-key";
+  const KEY = "valid-scan-proxy-key";
   const proxied = (url: string, h: Record<string, string>, tier?: string) =>
     new Request("https://scanner.astrant.io/api/scan", {
       method: "POST",
@@ -324,7 +324,7 @@ describe("forwarded client IP from the marketing proxy", () => {
   const envWith = (limit: number) => {
     const limiter = mockLimiter(limit);
     const s = makeScanEnv({ limiter });
-    (s.env as Record<string, unknown>).INTERNAL_FULFILL_KEY = KEY;
+    (s.env as Record<string, unknown>).SCAN_PROXY_KEY = KEY;
     return { ...s, limiter };
   };
 

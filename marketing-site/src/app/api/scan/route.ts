@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-type ScanProxyEnv = { SCAN_PROXY_KEY?: string; INTERNAL_FULFILL_KEY?: string };
+type ScanProxyEnv = { SCAN_PROXY_KEY?: string };
 
 const DEFAULT_SCANNER_URL = "https://pharos-scanner.pharos-dev.workers.dev";
 
@@ -22,12 +22,10 @@ export async function POST(req: Request) {
   // cf-connecting-ip is used: x-forwarded-for is client-spoofable. The key
   // proves forwarding only; it grants no paid tier.
   const clientIp = req.headers.get("cf-connecting-ip") ?? "";
-  // E11: the dedicated SCAN_PROXY_KEY when set. Transition fallback: the old
-  // INTERNAL_FULFILL_KEY (the scanner accepts it only while its own
-  // SCAN_PROXY_KEY is unset). Removal step: once SCAN_PROXY_KEY is set on
-  // both Workers, send SCAN_PROXY_KEY only.
-  const { SCAN_PROXY_KEY, INTERNAL_FULFILL_KEY } = getCloudflareContext().env as unknown as ScanProxyEnv;
-  const proxyKey = SCAN_PROXY_KEY || INTERNAL_FULFILL_KEY;
+  // E11: the dedicated SCAN_PROXY_KEY only (the INTERNAL_FULFILL_KEY
+  // transition fallback was removed 2026-11-05).
+  const { SCAN_PROXY_KEY } = getCloudflareContext().env as unknown as ScanProxyEnv;
+  const proxyKey = SCAN_PROXY_KEY;
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (clientIp) {
