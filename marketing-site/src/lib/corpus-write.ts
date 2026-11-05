@@ -119,8 +119,9 @@ export async function writeAuditToCorpus(
     status: "recommendations_complete",
     score_pre: audit.scan.composite.score,
     score_post: null,
+    // No buyer email: the corpus has no deletion path, and the privacy policy
+    // deletes Audit emails after 30 days (dataset spec F-1, 2026-11-05).
     metadata: {
-      email: sessionRecord.email,
       grade: audit.scan.composite.grade,
       dimensions_scored: audit.scan.dimensions_scored,
       dimensions_total: audit.scan.dimensions_total,
