@@ -266,7 +266,8 @@ export async function POST(req: Request) {
       case "conflict":
         console.error("[capture-email] outbox_conflict");
         return NextResponse.json(
-          { success: false, error: "Another email address is already receiving this scan's report. Use that address, or try again once it's delivered." },
+          // E1: a different address is in flight and will stay bound to the scan.
+          { success: false, error: DIFFERENT_EMAIL_ERROR },
           { status: 409 }
         );
       case "not_found":

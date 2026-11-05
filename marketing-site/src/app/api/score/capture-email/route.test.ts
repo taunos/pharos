@@ -53,7 +53,8 @@ vi.mock("@/lib/score-scanner-client", () => ({
 import { POST } from "./route";
 
 const SCAN = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
-const A1 = "Another email address is already receiving this scan's report. Use that address, or try again once it's delivered.";
+// E1 (Codex r2): the in-flight conflict now uses the permanent-binding refusal.
+const A1 = "This scan's report has already been sent to a different address. To get a report at this address, run a new scan.";
 const A2 = "We couldn't queue your report just now. Please try again in a minute.";
 const LEGACY_KEY_RE = /^score-reports\/[^/]+\/[0-9a-f]{16}\.pdf$/;
 
