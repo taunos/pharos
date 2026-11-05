@@ -128,6 +128,25 @@ describe("Zoho client (mocked fetch; never real credentials)", () => {
     expect(calls.filter((c) => c.startsWith("POST https://accounts.zoho.test/oauth/v2/token")).length).toBe(1);
   });
 
+  it("every Zoho request carries a timeout signal (token refresh, API reads, draft creation)", async () => {
+    const signals: Array<AbortSignal | null | undefined> = [];
+    const f = (async (u: RequestInfo | URL, init?: RequestInit) => {
+      signals.push(init?.signal);
+      const url = String(u);
+      if (url.includes("/oauth/v2/token")) return Response.json({ access_token: "at", expires_in: 3600 });
+      if (url.includes("/folders")) return Response.json({ data: [{ folderId: "7", folderType: "Inbox" }, { folderId: "8", folderType: "Sent" }] });
+      if (url.includes("/messages/view")) return Response.json({ data: [] });
+      if (url.includes("/api/accounts/42/messages")) return Response.json({ data: { messageId: "d1" } });
+      if (url.includes("/api/accounts")) return Response.json({ data: [{ accountId: "42", primaryEmailAddress: "bruno@getastrant.com" }] });
+      return new Response("{}", { status: 404 });
+    }) as typeof fetch;
+    const z = new ZohoMailClient(cfg, f);
+    await z.drainInbox(null, 1);
+    await z.createDraft({ to: "a@acme.com", subject: "s", text: "t" });
+    expect(signals.length).toBeGreaterThanOrEqual(5);
+    for (const s of signals) expect(s).toBeInstanceOf(AbortSignal);
+  });
+
   it("a folder that shrank below the saved position (bulk archive) restarts from the top instead of stalling", async () => {
     // 100 messages were read (cursor s=101); Bruno archived 60, then 1 new reply arrived → folder holds 41.
     const folder = Array.from({ length: 41 }, (_, i) => ({ messageId: String(i + 1), receivedTime: String(i) }));
