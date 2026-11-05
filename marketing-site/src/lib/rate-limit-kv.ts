@@ -245,6 +245,14 @@ export async function checkDeleteMeRateLimit(
 // approximate per location, so it blunts bursts rather than enforcing an exact
 // count; the KV windows bound the longer horizon. A missing/erroring binding
 // fails open to the KV layer (logged), never closed.
+//
+// The per-scan recipient cap's KV race no longer matters (E1): the scanner
+// binds a scan to its FIRST captured address in one conditional UPDATE
+// (CAPTURE_SET_EMAIL_SQL; the outbox path under its op lease), and this route
+// mails only after that bind succeeds or to the stored address. So parallel
+// captures mail at most one address per scan. A second address is only
+// possible after a confirmed delete-me clears the stored email; the cap still
+// bounds those rebinds over 24h, so it stays.
 export const CAPTURE_IP_HOURLY_LIMIT = 10;
 export const CAPTURE_IP_DAILY_LIMIT = 30;
 export const CAPTURE_SCAN_DISTINCT_RECIPIENT_LIMIT = 3;
