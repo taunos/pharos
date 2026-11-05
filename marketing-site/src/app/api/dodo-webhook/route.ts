@@ -54,6 +54,8 @@ interface WebhookEnv extends DodoEnvBindings {
 const F2_IMPLEMENTATION_PRODUCT_ID = "pdt_0NdQE5vccUUgOHMsF6Pzz";
 
 const WEBHOOK_DEDUPE_TTL = 7 * 24 * 60 * 60;
+// E4: a welcome-send claim older than this is treated as a crashed attempt.
+const WELCOME_CLAIM_STALE_S = 10 * 60;
 
 type DodoWebhookPayload = {
   type?: string;
@@ -453,6 +455,12 @@ export async function POST(req: Request) {
       if (!(await holdForManualReview(env, "custom", paymentRef, "CUSTOM_DEPOSIT_PAID", "custom scoping deposit; manual follow-up needed", sessionId ?? ""))) {
         return retryLater();
       }
+    } else if (tier === "autopilot" && !isSubscriptionPayment(parsed)) {
+      // E3 (Codex r1): tier metadata is buyer-influenceable. An "autopilot"
+      // payment with no subscription evidence will never see subscription.active.
+      if (!(await holdForManualReview(env, "autopilot", paymentRef, "AUTOPILOT_PAID_NO_SUBSCRIPTION", "tier=autopilot without a subscription", sessionId ?? ""))) {
+        return retryLater();
+      }
     } else if (tier === "autopilot") {
       // F3: payment confirms but actual fulfillment happens at subscription.active
       // (separate top-level event type per V3.A). Log only here.
@@ -553,23 +561,38 @@ export async function POST(req: Request) {
       env, fndCustomerId, subTier.tierKey, subTier.tierPriceCents,
     );
 
-    // 4/5. E4 (2026-11-05): send FIRST, stamp welcome_email_sent_at only after
-    // a successful send. The old order (stamp, then send, swallow the error)
-    // lost a failed welcome email for good. Trade-off: if the send succeeds
-    // but the stamp write fails, a redelivery sends a second welcome — a rare
-    // duplicate is preferred to a silently lost onboarding link. (No Resend
-    // idempotency key: the body carries freshly minted tokens, so a retry is
-    // never byte-identical and Resend would reject it.)
-    const welcomeRow = await env.CITATION_DB.prepare(
-      `SELECT welcome_email_sent_at, created_at FROM subscriptions WHERE subscription_id = ?`
+    // 4/5. E4 (2026-11-05): welcome_email_sent_at gets its real (positive)
+    // timestamp only after a successful send. The old order (stamp, then send,
+    // swallow the error) lost a failed welcome email for good.
+    //   claim:   CAS NULL (or a stale claim) → -claimedAt. One concurrent
+    //            delivery wins; the others skip (Codex r1: no double send).
+    //   success: -claimedAt → now.
+    //   failure: -claimedAt → NULL, 500 without dedupe, so Dodo redelivers.
+    //   crash:   a claim older than WELCOME_CLAIM_STALE_S is re-claimable.
+    // Residual: a send that succeeds but whose final stamp write fails is
+    // re-sent on the next delivery (rare duplicate > silently lost link).
+    const claimedAt = Math.floor(Date.now() / 1000);
+    const claim = await env.CITATION_DB.prepare(
+      `UPDATE subscriptions
+       SET welcome_email_sent_at = ?
+       WHERE subscription_id = ?
+         AND (welcome_email_sent_at IS NULL
+              OR (welcome_email_sent_at < 0 AND -welcome_email_sent_at < ?))`
     )
-      .bind(subscriptionId)
-      .first<{ welcome_email_sent_at: number | null; created_at: number }>();
-    if (welcomeRow && welcomeRow.welcome_email_sent_at === null) {
+      .bind(-claimedAt, subscriptionId, claimedAt - WELCOME_CLAIM_STALE_S)
+      .run();
+    if (claim.meta.changes === 1) {
+      const subCreated = await env.CITATION_DB.prepare(
+        `SELECT created_at FROM subscriptions WHERE subscription_id = ?`
+      )
+        .bind(subscriptionId)
+        .first<{ created_at: number }>();
       // A redelivery after a failed send sees the founding row it created the
       // first time as `already_founder`; that is still this subscription's
       // first welcome, so it must get the founding variant, not "welcome back".
-      foundingResult = await firstWelcomeFoundingResult(env, fndCustomerId, welcomeRow.created_at, foundingResult);
+      if (subCreated) {
+        foundingResult = await firstWelcomeFoundingResult(env, fndCustomerId, subCreated.created_at, foundingResult);
+      }
       try {
         const { sendWelcomeEmail } = await import("@/lib/welcome-email");
         await sendWelcomeEmail(env, subscriptionId, customerEmail, foundingResult);
@@ -578,22 +601,44 @@ export async function POST(req: Request) {
           `F3_WELCOME_EMAIL_SEND_FAILED subscription_id=${subscriptionId.substring(0, 8)}...`,
           err
         );
-        // No stamp, no dedupe: Dodo redelivers and the send is retried.
-        await alertOperator(
-          env,
-          "F3_WELCOME_EMAIL_SEND_FAILED",
-          "",
-          `subscription_id=${subscriptionId}: welcome email failed; Dodo will retry. If it never arrives, resend manually.`,
-        );
+        await env.CITATION_DB.prepare(
+          `UPDATE subscriptions SET welcome_email_sent_at = NULL
+           WHERE subscription_id = ? AND welcome_email_sent_at = ?`
+        )
+          .bind(subscriptionId, -claimedAt)
+          .run();
+        // One alert per subscription, not one per redelivery (Codex r1).
+        const alertKey = `welcome-alert:${subscriptionId}`;
+        const alerted = await env.SESSIONS.get(alertKey).catch(() => null);
+        if (!alerted) {
+          await alertOperator(
+            env,
+            "F3_WELCOME_EMAIL_SEND_FAILED",
+            "",
+            `subscription_id=${subscriptionId}: welcome email failed; Dodo will retry. If it never arrives, resend manually.`,
+          );
+          await env.SESSIONS.put(alertKey, "1", { expirationTtl: WEBHOOK_DEDUPE_TTL }).catch(() => undefined);
+        }
+        // No positive stamp, no dedupe: Dodo redelivers and the send is retried.
         return NextResponse.json({ ok: false, reason: "welcome email failed" }, { status: 500 });
       }
       await env.CITATION_DB.prepare(
-        `UPDATE subscriptions
-         SET welcome_email_sent_at = ?
-         WHERE subscription_id = ? AND welcome_email_sent_at IS NULL`
+        `UPDATE subscriptions SET welcome_email_sent_at = ?
+         WHERE subscription_id = ? AND welcome_email_sent_at = ?`
       )
-        .bind(Math.floor(Date.now() / 1000), subscriptionId)
+        .bind(Math.floor(Date.now() / 1000), subscriptionId, -claimedAt)
         .run();
+    } else {
+      // Lost the claim. If another delivery is mid-send, do NOT write the
+      // dedupe key: if that send fails, this webhook must still be retryable.
+      const cur = await env.CITATION_DB.prepare(
+        `SELECT welcome_email_sent_at FROM subscriptions WHERE subscription_id = ?`
+      )
+        .bind(subscriptionId)
+        .first<{ welcome_email_sent_at: number | null }>();
+      if (cur && cur.welcome_email_sent_at !== null && cur.welcome_email_sent_at < 0) {
+        return retryLater();
+      }
     }
   } else if (eventType === "subscription.renewed") {
     // F3: critical for D8 sunset semantics. Without this, current_period_end stays stale

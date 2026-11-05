@@ -206,9 +206,35 @@ export async function checkDeleteMeRateLimit(
 //     so a legitimate retry is never blocked by this limit.
 // Check-all-then-increment (delete-me precedent) so a blocked request does not
 // consume budget on the other windows. SESSIONS KV, `rl:capture:` prefix.
+//
+// KV is read-modify-write, so a parallel burst can read the same counter and
+// lose updates. The FIRST layer is therefore the Workers Rate Limiting binding
+// CAPTURE_RATE_LIMITER (3 / 60 s, keyed per IP and per scan; counted by
+// Cloudflare, not by us), the scanner's SCAN_RATE_LIMITER precedent. It is
+// approximate per location, so it blunts bursts rather than enforcing an exact
+// count; the KV windows bound the longer horizon. A missing/erroring binding
+// fails open to the KV layer (logged), never closed.
 export const CAPTURE_IP_HOURLY_LIMIT = 10;
 export const CAPTURE_IP_DAILY_LIMIT = 30;
 export const CAPTURE_SCAN_DISTINCT_RECIPIENT_LIMIT = 3;
+
+export interface RateLimitBinding {
+  limit(opts: { key: string }): Promise<{ success: boolean }>;
+}
+
+async function burstAllowed(limiter: RateLimitBinding | undefined, key: string): Promise<boolean> {
+  if (!limiter) {
+    console.error("[capture-email] CAPTURE_RATE_LIMITER binding missing; failing open to the KV limits");
+    return true;
+  }
+  try {
+    const { success } = await limiter.limit({ key });
+    return success;
+  } catch (e) {
+    console.error("[capture-email] CAPTURE_RATE_LIMITER errored; failing open to the KV limits");
+    return true;
+  }
+}
 
 interface RecipientSet {
   hashes: string[];
@@ -220,11 +246,17 @@ export async function checkCaptureEmailRateLimit(
   ip: string,
   scanId: string,
   emailLogHash: string,
-  hashSecret: string | undefined
+  hashSecret: string | undefined,
+  burst?: RateLimitBinding
 ): Promise<RateLimitResult> {
   if (!hashSecret) return { allowed: false, misconfigured: true }; // fail closed — never key on raw IP
   const ipHash = await hmacIp(hashSecret, ip);
   const now = Math.floor(Date.now() / 1000);
+
+  // Layer 1: atomic burst gate (per IP, then per scan). Both are consumed
+  // before the KV layer so a parallel burst cannot race past it.
+  if (!(await burstAllowed(burst, `capture-ip:${ipHash}`))) return { allowed: false, retryAfterSec: 60 };
+  if (!(await burstAllowed(burst, `capture-scan:${scanId}`))) return { allowed: false, retryAfterSec: 60 };
   const ipChecks: Array<{ key: string; limit: number; windowSec: number }> = [
     { key: `rl:capture:ip:${ipHash}:hr`, limit: CAPTURE_IP_HOURLY_LIMIT, windowSec: 3600 },
     { key: `rl:capture:ip:${ipHash}:day`, limit: CAPTURE_IP_DAILY_LIMIT, windowSec: 86400 },
@@ -263,8 +295,11 @@ export async function checkCaptureEmailRateLimit(
 
   if (blockedRetry !== null) return { allowed: false, retryAfterSec: blockedRetry };
 
+  // Second pass re-reads each counter; honor a denial here too (a concurrent
+  // request may have filled the window since the first pass).
   for (const c of ipChecks) {
-    await checkAndIncrement(kv, c.key, c.limit, c.windowSec);
+    const r = await checkAndIncrement(kv, c.key, c.limit, c.windowSec);
+    if (!r.allowed) return r;
   }
   if (!known) {
     rcpts.hashes.push(emailLogHash);

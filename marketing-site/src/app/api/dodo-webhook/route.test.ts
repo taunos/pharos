@@ -610,6 +610,20 @@ describe("E3 — non-fulfilled payment paths record manual review + alert before
     expect(alerts.subjects).toHaveLength(0);
   });
 
+  it("tier=autopilot on a one-shot payment (no subscription evidence) → manual-review record + alert", async () => {
+    const { POST } = await import("./route");
+    await POST(pay("wh_ap1", { metadata: { tier: "autopilot" }, payment_id: "pay_ap1" }));
+    expect(state.store.has("manual-review:autopilot:pay_ap1")).toBe(true);
+    expect(alerts.subjects.some((s) => s.includes("AUTOPILOT_PAID_NO_SUBSCRIPTION"))).toBe(true);
+  });
+
+  it("tier=autopilot on a subscription charge is left to subscription.active (no alert)", async () => {
+    const { POST } = await import("./route");
+    await POST(pay("wh_ap2", { metadata: { tier: "autopilot" }, payment_id: "pay_ap2", subscription_id: "sub_ap" }));
+    expect([...state.store.keys()].some((k) => k.startsWith("manual-review:"))).toBe(false);
+    expect(alerts.subjects).toHaveLength(0);
+  });
+
   it("custom and concierge deposits → manual-review record + alert", async () => {
     const { POST } = await import("./route");
     await POST(pay("wh_c1", { metadata: { tier: "custom" }, payment_id: "pay_c1" }));
@@ -749,8 +763,9 @@ describe("E4 — subscription.active gate, product allow-list, welcome stamped o
     const res = await POST(active("wh_s3", "pdt_STANDARD"));
     expect(res.status).toBe(200);
     expect(welcome.send).toHaveBeenCalledTimes(1);
-    expect(rowAtSend).toEqual({ welcome_email_sent_at: null });
-    expect(subRow()!.welcome_email_sent_at).not.toBeNull();
+    // During the send the row holds only a negative in-flight claim, never a real stamp.
+    expect((rowAtSend as { welcome_email_sent_at: number }).welcome_email_sent_at).toBeLessThan(0);
+    expect(subRow()!.welcome_email_sent_at).toBeGreaterThan(0);
   });
 
   it("welcome send fails → NOT stamped, 500, no dedupe, alert; the redelivery sends it and stamps", async () => {
@@ -758,7 +773,7 @@ describe("E4 — subscription.active gate, product allow-list, welcome stamped o
     const { POST } = await import("./route");
     const res = await POST(active("wh_s4", "pdt_STANDARD"));
     expect(res.status).toBe(500);
-    expect(subRow()!.welcome_email_sent_at).toBeNull();
+    expect(subRow()!.welcome_email_sent_at).toBeNull(); // claim released
     expect(state.store.has("webhook:wh_s4")).toBe(false);
     expect(alerts.subjects.some((s) => s.includes("F3_WELCOME_EMAIL_SEND_FAILED"))).toBe(true);
 
@@ -769,6 +784,42 @@ describe("E4 — subscription.active gate, product allow-list, welcome stamped o
     // The retry is still this subscription's first welcome: founding variant, not "welcome back".
     const founding = welcome.send.mock.calls[1][3] as { kind: string };
     expect(founding.kind).toBe("newly_assigned");
+  });
+
+  it("two OVERLAPPING deliveries send ONE welcome; the loser answers 503 without dedupe while the winner is mid-send", async () => {
+    let release!: () => void;
+    welcome.send.mockImplementationOnce(() => new Promise<undefined>((r) => { release = () => r(undefined); }));
+    const { POST } = await import("./route");
+    const first = POST(active("wh_s6", "pdt_STANDARD"));
+    await new Promise((r) => setTimeout(r, 20));
+    const second = await POST(active("wh_s6", "pdt_STANDARD"));
+    expect(second.status).toBe(503);
+    expect(state.store.has("webhook:wh_s6")).toBe(false);
+    release();
+    expect((await first).status).toBe(200);
+    expect(welcome.send).toHaveBeenCalledTimes(1);
+    expect(subRow()!.welcome_email_sent_at).toBeGreaterThan(0);
+  });
+
+  it("repeated welcome failures alert the operator ONCE per subscription", async () => {
+    welcome.send.mockRejectedValue(new Error("resend down"));
+    const { POST } = await import("./route");
+    for (let i = 0; i < 3; i++) expect((await POST(active("wh_s7", "pdt_STANDARD"))).status).toBe(500);
+    expect(alerts.subjects.filter((s) => s.includes("F3_WELCOME_EMAIL_SEND_FAILED"))).toHaveLength(1);
+    expect(welcome.send).toHaveBeenCalledTimes(3);
+  });
+
+  it("a crashed claim older than 10 minutes is re-claimable", async () => {
+    const { POST } = await import("./route");
+    state.subGate = "true";
+    // Simulate a delivery that inserted the row and crashed mid-send 11 minutes ago.
+    await POST(active("wh_s8a", "pdt_STANDARD", "sub_8"));
+    state.sq!.db.prepare(`UPDATE subscriptions SET welcome_email_sent_at = ? WHERE subscription_id = ?`).run(-(Math.floor(Date.now() / 1000) - 660), "sub_8");
+    welcome.send.mockClear();
+    const res = await POST(active("wh_s8b", "pdt_STANDARD", "sub_8"));
+    expect(res.status).toBe(200);
+    expect(welcome.send).toHaveBeenCalledTimes(1);
+    expect(subRow("sub_8")!.welcome_email_sent_at).toBeGreaterThan(0);
   });
 
   it("an already-stamped subscription is not re-sent on redelivery", async () => {

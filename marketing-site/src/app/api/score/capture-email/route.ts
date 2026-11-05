@@ -42,7 +42,7 @@ import {
   markPdfGenerated,
 } from "@/lib/score-scanner-client";
 import type { ScanResult } from "@/lib/audit-types";
-import { checkCaptureEmailRateLimit } from "@/lib/rate-limit-kv";
+import { checkCaptureEmailRateLimit, type RateLimitBinding } from "@/lib/rate-limit-kv";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -61,6 +61,7 @@ interface CaptureEnv {
   INTERNAL_SCANNER_ADMIN_KEY: string;
   CAPTURE_PIPELINE_MODE?: string;
   RATE_LIMIT_HASH_SECRET?: string;
+  CAPTURE_RATE_LIMITER?: RateLimitBinding;
 }
 
 // Honeypot success — same JSON shape as a real success, plausible
@@ -144,7 +145,8 @@ export async function POST(req: Request) {
     ip,
     scanId,
     emailLogHash,
-    env.RATE_LIMIT_HASH_SECRET
+    env.RATE_LIMIT_HASH_SECRET,
+    env.CAPTURE_RATE_LIMITER
   );
   if (!rl.allowed) {
     if (rl.misconfigured) {
