@@ -216,3 +216,41 @@ describe("E7 (Codex r3): an unmatched, unparsed delivery report still alerts Bru
     expect((await getControl(db)).paused).toBe(0);
   });
 });
+
+describe("E6 (Codex r4): reason + paused_at repeating can't fool a stale resume", () => {
+  const staleProxy = (db: D1Database, stale: unknown) =>
+    new Proxy(db, {
+      get(t, k) {
+        if (k === "prepare") {
+          return (sql: string) => {
+            const st = (t as D1Database).prepare(sql);
+            if (/^SELECT \* FROM control/.test(sql)) return { ...st, first: async () => stale, bind: st.bind.bind(st) } as unknown as D1PreparedStatement;
+            return st;
+          };
+        }
+        const v = (t as unknown as Record<string | symbol, unknown>)[k];
+        return typeof v === "function" ? (v as Function).bind(t) : v;
+      },
+    }) as D1Database;
+
+  for (const sameMs of [false, true]) {
+    it(`complaints → provider_auth → complaints again (paused_at unchanged${sameMs ? ", same millisecond" : ""}): the stale resume leaves it paused`, async () => {
+      const { db } = freshDb();
+      const { getControl: gc, tripStop } = await import("../src/db");
+      await db.prepare("UPDATE control SET paused = 0").run();
+      await tripStop(db, TUE_1400, "complaints");
+      const stale = await gc(db); // the delayed resume reads (complaints, paused_at = TUE_1400)
+      const t2 = sameMs ? TUE_1400 : TUE_1400 + 5;
+      await tripStop(db, t2, "provider_auth"); // paused_at kept
+      await tripStop(db, sameMs ? TUE_1400 : TUE_1400 + 9, "complaints"); // same reason, same paused_at again
+      const now = await gc(db);
+      expect([now.pause_reason, now.paused_at]).toEqual([stale.pause_reason, stale.paused_at]);
+      await resume(staleProxy(db, stale), TUE_1400 + 20, "bruno@example.com");
+      expect(await db.prepare("SELECT paused, pause_reason FROM control").first()).toEqual({ paused: 1, pause_reason: "complaints" });
+      expect((await db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind IN ('resumed','stop_acknowledged')").first<{ n: number }>())!.n).toBe(0);
+      // A fresh resume (current read) still works.
+      await resume(db, TUE_1400 + 30, "bruno@example.com");
+      expect((await gc(db)).paused).toBe(0);
+    });
+  }
+});
