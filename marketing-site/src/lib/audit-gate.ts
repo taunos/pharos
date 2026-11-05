@@ -9,3 +9,7 @@ export function isAuditCheckoutEnabled(
 ): boolean {
   return env.AUDIT_CHECKOUT_ENABLED === "true";
 }
+
+// The Dodo product the Audit checkout sells. Shared by /api/audit-create
+// (checkout creation) and the webhook (payment → product binding).
+export const AUDIT_PRODUCT_ID = "pdt_0NdQDsS4Shhe1BrDzQDaa";

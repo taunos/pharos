@@ -178,7 +178,7 @@ export default function AuditResultsPoller({
           Email{" "}
           <a
             className="text-[var(--color-fg)] hover:underline"
-            href={`mailto:contact@astrant.io?subject=Astrant%20audit%20issue%20%E2%80%94%20session%20${sessionId}`}
+            href={`mailto:contact@astrant.io?subject=Astrant%20audit%20issue%20%E2%80%94%20session%20${encodeURIComponent(sessionId)}`}
           >
             contact@astrant.io
           </a>{" "}
@@ -268,7 +268,7 @@ export default function AuditResultsPoller({
             Re-check status
           </button>
           <a
-            href={`mailto:contact@astrant.io?subject=Astrant%20audit%20error%20%E2%80%94%20session%20${sessionId}`}
+            href={`mailto:contact@astrant.io?subject=Astrant%20audit%20error%20%E2%80%94%20session%20${encodeURIComponent(sessionId)}`}
             className="border border-[var(--color-border)] px-5 py-2 text-sm text-[var(--color-fg)] transition hover:bg-[var(--color-surface-2)]"
           >
             Email us
@@ -305,7 +305,7 @@ export default function AuditResultsPoller({
           This is taking longer than expected. We&apos;ve been notified. Email{" "}
           <a
             className="text-[var(--color-fg)] hover:underline"
-            href={`mailto:contact@astrant.io?subject=Astrant%20audit%20slow%20%E2%80%94%20session%20${sessionId}`}
+            href={`mailto:contact@astrant.io?subject=Astrant%20audit%20slow%20%E2%80%94%20session%20${encodeURIComponent(sessionId)}`}
           >
             contact@astrant.io
           </a>{" "}

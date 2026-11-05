@@ -86,6 +86,37 @@ export async function createCheckoutSession(
   return { checkout_url, checkout_session_id };
 }
 
+export type DodoPaymentProducts = {
+  product_cart: Array<{ product_id?: string; quantity?: number }> | null;
+  subscription_id: string | null;
+  subscription_ids: unknown[];
+};
+
+// Security pass 2026-11-04: authoritative product lookup for a payment, used
+// when a webhook arrives without product_cart. Throws on any failure so the
+// caller can return a retryable 5xx (Dodo redelivers) instead of guessing.
+export async function getPaymentProducts(
+  env: DodoEnvBindings,
+  paymentId: string,
+): Promise<DodoPaymentProducts> {
+  const base = dodoApiBase(env);
+  const res = await fetch(`${base}/payments/${encodeURIComponent(paymentId)}`, {
+    headers: { Authorization: `Bearer ${env.DODO_API_KEY}` },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) throw new Error(`Dodo payment lookup failed: ${res.status}`);
+  const data = (await res.json()) as {
+    product_cart?: Array<{ product_id?: string; quantity?: number }> | null;
+    subscription_id?: string | null;
+    subscription_ids?: unknown[] | null;
+  };
+  return {
+    product_cart: data.product_cart ?? null,
+    subscription_id: data.subscription_id ?? null,
+    subscription_ids: Array.isArray(data.subscription_ids) ? data.subscription_ids : [],
+  };
+}
+
 function decodeSecret(rawSecret: string): Uint8Array {
   // Standard Webhooks / Svix secrets typically arrive prefixed with `whsec_`
   // followed by a base64-encoded random key. If the prefix isn't there,

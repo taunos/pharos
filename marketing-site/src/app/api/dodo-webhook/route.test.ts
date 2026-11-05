@@ -15,6 +15,7 @@ const state: {
   fulfillSend: ReturnType<typeof vi.fn>;
   fulfillBound: boolean;
   maxProbeTargets: string | undefined;
+  implGate: string | undefined;
 } = {
   store: new Map(),
   send: vi.fn(),
@@ -25,6 +26,7 @@ const state: {
   fulfillSend: vi.fn(),
   fulfillBound: true,
   maxProbeTargets: undefined,
+  implGate: "true",
 };
 
 const kv = {
@@ -61,12 +63,21 @@ vi.mock("@opennextjs/cloudflare", () => ({
       ...(state.sq ? { CITATION_DB: state.sq.d1 } : {}),
       ...(state.fulfillBound ? { FULFILL_QUEUE: { send: state.fulfillSend } } : {}),
       ...(state.maxProbeTargets !== undefined ? { MAX_PROBE_TARGETS: state.maxProbeTargets } : {}),
+      ...(state.implGate !== undefined ? { IMPLEMENTATION_CHECKOUT_ENABLED: state.implGate } : {}),
     },
   }),
 }));
 
+const dodoApi = vi.hoisted(() => ({
+  getPaymentProducts: vi.fn(async (_env: unknown, _id: string) => ({
+    product_cart: [{ product_id: "pdt_0NdQDsS4Shhe1BrDzQDaa", quantity: 1 }],
+    subscription_id: null as string | null,
+    subscription_ids: [] as unknown[],
+  })),
+}));
 vi.mock("@/lib/dodo", () => ({
   verifyWebhook: async () => ({ valid: true }),
+  getPaymentProducts: dodoApi.getPaymentProducts,
 }));
 
 const SID = "11111111-2222-4333-8444-555555555555";
@@ -85,7 +96,12 @@ function seed(status: string, extra: Record<string, unknown> = {}) {
   );
 }
 
-function webhook(id = "wh_1", sessionId = SID, host = "https://astrant.io") {
+function webhook(
+  id = "wh_1",
+  sessionId = SID,
+  host = "https://astrant.io",
+  extraData: Record<string, unknown> = { product_cart: [{ product_id: "pdt_0NdQDsS4Shhe1BrDzQDaa" }] },
+) {
   return new Request(`${host}/api/dodo-webhook`, {
     method: "POST",
     headers: {
@@ -95,7 +111,7 @@ function webhook(id = "wh_1", sessionId = SID, host = "https://astrant.io") {
     },
     body: JSON.stringify({
       type: "payment.succeeded",
-      data: { metadata: { tier: "audit", session_id: sessionId } },
+      data: { metadata: { tier: "audit", session_id: sessionId }, ...extraData },
     }),
   });
 }
@@ -114,6 +130,7 @@ beforeEach(() => {
   state.fulfillSend = vi.fn(async () => undefined);
   state.fulfillBound = true;
   state.maxProbeTargets = undefined;
+  state.implGate = "true";
   alerts.subjects = [];
   alerts.texts = [];
   kv.get.mockClear();
@@ -381,5 +398,166 @@ describe("POST /api/dodo-webhook — implementation tier (Slice Q)", () => {
     expect(state.store.has("webhook:wh_i1")).toBe(true);
     expect(implRow()).toBeUndefined();
     expect(state.fulfillSend).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/dodo-webhook — security pass 2026-11-04 (product binding + gate)", () => {
+  it("audit tier paid with a DIFFERENT product → no enqueue, no state change, alert, 200 + dedupe", async () => {
+    seed("awaiting_payment");
+    const { POST } = await import("./route");
+    const res = await POST(
+      webhook("wh_wp", SID, "https://astrant.io", {
+        payment_id: "pay_x",
+        product_cart: [{ product_id: "pdt_SOMETHING_ELSE" }],
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(state.send).not.toHaveBeenCalled();
+    expect(session().status).toBe("awaiting_payment");
+    expect(alerts.subjects.some((s) => s.includes("AUDIT_PAYMENT_REJECTED"))).toBe(true);
+    expect(state.store.has("webhook:wh_wp")).toBe(true);
+  });
+
+  it("audit tier paid with the Audit product → fulfilled, no alert", async () => {
+    seed("awaiting_payment");
+    const { POST } = await import("./route");
+    const res = await POST(
+      webhook("wh_ok", SID, "https://astrant.io", {
+        payment_id: "pay_ok",
+        product_cart: [{ product_id: "pdt_0NdQDsS4Shhe1BrDzQDaa" }],
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(state.send).toHaveBeenCalledTimes(1);
+    expect(alerts.subjects).toHaveLength(0);
+  });
+
+  it("no cart in the webhook → looks the payment up in Dodo; Audit product → fulfilled, no alert", async () => {
+    seed("awaiting_payment");
+    dodoApi.getPaymentProducts.mockClear();
+    const { POST } = await import("./route");
+    const res = await POST(webhook("wh_np", SID, "https://astrant.io", { payment_id: "pay_np" }));
+    expect(res.status).toBe(200);
+    expect(dodoApi.getPaymentProducts).toHaveBeenCalledWith(expect.anything(), "pay_np");
+    expect(state.send).toHaveBeenCalledTimes(1);
+    expect(alerts.subjects).toHaveLength(0);
+  });
+
+  it("no cart and the Dodo lookup fails → 503, no enqueue, NO dedupe (Dodo redelivers)", async () => {
+    seed("awaiting_payment");
+    dodoApi.getPaymentProducts.mockRejectedValueOnce(new Error("Dodo payment lookup failed: 502"));
+    const { POST } = await import("./route");
+    const res = await POST(webhook("wh_lf", SID, "https://astrant.io", { payment_id: "pay_lf" }));
+    expect(res.status).toBe(503);
+    expect(state.send).not.toHaveBeenCalled();
+    expect(state.store.has("webhook:wh_lf")).toBe(false);
+    expect(session().status).toBe("awaiting_payment");
+  });
+
+  it("no cart and no payment_id → rejected (no blind allow)", async () => {
+    seed("awaiting_payment");
+    const { POST } = await import("./route");
+    const res = await POST(webhook("wh_none", SID, "https://astrant.io", {}));
+    expect(res.status).toBe(200);
+    expect(state.send).not.toHaveBeenCalled();
+    expect(alerts.subjects.some((s) => s.includes("AUDIT_PAYMENT_REJECTED"))).toBe(true);
+  });
+
+  it("cart = [Audit, other product] → rejected (every item is checked, not just [0])", async () => {
+    seed("awaiting_payment");
+    const { POST } = await import("./route");
+    const res = await POST(
+      webhook("wh_mix", SID, "https://astrant.io", {
+        payment_id: "pay_mix",
+        product_cart: [{ product_id: "pdt_0NdQDsS4Shhe1BrDzQDaa" }, { product_id: "pdt_OTHER" }],
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(state.send).not.toHaveBeenCalled();
+    expect(state.store.has("manual-review:audit:pay_mix")).toBe(true);
+  });
+
+  it("a subscription payment tagged tier=audit → rejected", async () => {
+    seed("awaiting_payment");
+    const { POST } = await import("./route");
+    const res = await POST(
+      webhook("wh_sub", SID, "https://astrant.io", {
+        payment_id: "pay_sub",
+        subscription_id: "sub_123",
+        product_cart: [{ product_id: "pdt_0NdQDsS4Shhe1BrDzQDaa" }],
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(state.send).not.toHaveBeenCalled();
+  });
+
+  it("implementation tier while IMPLEMENTATION_CHECKOUT_ENABLED is not \"true\" → no insert, no enqueue, alert, 200 + dedupe", async () => {
+    state.implGate = "false";
+    state.sq = createSqliteD1([readMigration("0008_implementation_sessions.sql"), readMigration("0016_dayn_email_sent_at.sql"), PROBE_TARGETS_SQL]);
+    const { POST } = await import("./route");
+    const res = await POST(
+      new Request("https://astrant.io/api/dodo-webhook", {
+        method: "POST",
+        headers: { "webhook-id": "wh_ic", "webhook-timestamp": "0", "webhook-signature": "v1,x" },
+        body: JSON.stringify({
+          type: "payment.succeeded",
+          data: {
+            metadata: { tier: "implementation" },
+            payment_id: "pay_ic",
+            product_cart: [{ product_id: "pdt_0NdQE5vccUUgOHMsF6Pzz" }],
+            customer: { customer_id: "cus_ic", email: "buyer@example.com" },
+          },
+        }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(state.fulfillSend).not.toHaveBeenCalled();
+    const rows = state.sq!.db.prepare(`SELECT COUNT(*) AS n FROM implementation_sessions`).get() as { n: number };
+    expect(rows.n).toBe(0);
+    expect(alerts.subjects.some((s) => s.includes("IMPLEMENTATION_PAID_WHILE_CLOSED"))).toBe(true);
+    expect(state.store.has("manual-review:implementation:pay_ic")).toBe(true);
+    expect(state.store.has("webhook:wh_ic")).toBe(true);
+  });
+
+  it("lookup fails twice → 503 both times, ONE pending-verification record and ONE alert", async () => {
+    seed("awaiting_payment");
+    dodoApi.getPaymentProducts.mockRejectedValueOnce(new Error("401")).mockRejectedValueOnce(new Error("401"));
+    const { POST } = await import("./route");
+    expect((await POST(webhook("wh_pv", SID, "https://astrant.io", { payment_id: "pay_pv" }))).status).toBe(503);
+    expect((await POST(webhook("wh_pv", SID, "https://astrant.io", { payment_id: "pay_pv" }))).status).toBe(503);
+    expect(state.store.has("pending-verification:audit:pay_pv")).toBe(true);
+    expect(alerts.subjects.filter((s) => s.includes("AUDIT_PAYMENT_LOOKUP_FAILED"))).toHaveLength(1);
+    expect(state.send).not.toHaveBeenCalled();
+  });
+
+  it("API lookup shows a multi-subscription payment (subscription_ids) → rejected", async () => {
+    seed("awaiting_payment");
+    dodoApi.getPaymentProducts.mockResolvedValueOnce({
+      product_cart: [{ product_id: "pdt_0NdQDsS4Shhe1BrDzQDaa", quantity: 1 }],
+      subscription_id: null,
+      subscription_ids: ["sub_a"],
+    });
+    const { POST } = await import("./route");
+    expect((await POST(webhook("wh_ms", SID, "https://astrant.io", { payment_id: "pay_ms" }))).status).toBe(200);
+    expect(state.send).not.toHaveBeenCalled();
+  });
+
+  it("rejected payment but the manual-review record can't be written → 503, no dedupe (Dodo retries)", async () => {
+    seed("awaiting_payment");
+    const origPut = kv.put.getMockImplementation();
+    kv.put.mockImplementation(async (k: string, v: string) => {
+      if (k.startsWith("manual-review:")) throw new Error("kv down");
+      state.store.set(k, v);
+    });
+    const { POST } = await import("./route");
+    const res = await POST(
+      webhook("wh_kvf", SID, "https://astrant.io", {
+        payment_id: "pay_kvf",
+        product_cart: [{ product_id: "pdt_OTHER" }],
+      }),
+    );
+    expect(res.status).toBe(503);
+    expect(state.store.has("webhook:wh_kvf")).toBe(false);
+    if (origPut) kv.put.mockImplementation(origPut);
   });
 });

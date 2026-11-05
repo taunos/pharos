@@ -308,3 +308,41 @@ describe("runAuditFulfillment — provider completeness (A3)", async () => {
     expect(h.alerts).toHaveLength(0);
   });
 });
+
+describe("redactDiagnostic (operator alert hygiene)", async () => {
+  const { redactDiagnostic } = await import("./audit-fulfill-run");
+
+  it("strips URLs (Gemini's key is a URL query param)", () => {
+    const out = redactDiagnostic(
+      "fetch failed: https://generativelanguage.googleapis.com/v1beta/models/x:generateContent?key=AIzaSyFAKEFAKEFAKEFAKEFAKE123",
+    );
+    expect(out).not.toContain("AIza");
+    expect(out).not.toContain("googleapis");
+    expect(out).toContain("[url]");
+  });
+
+  it("strips bare key= params, key-shaped tokens and emails", () => {
+    const out = redactDiagnostic(
+      "bad request key=abc123secret; token sk-proj-ABCDEFGHIJKLMNOP; contact ops@example.com",
+    );
+    expect(out).not.toContain("abc123secret");
+    expect(out).not.toContain("sk-proj-ABCDEFGHIJKLMNOP");
+    expect(out).not.toContain("ops@example.com");
+  });
+
+  it("strips Perplexity keys, Bearer tokens and JSON-style secrets", () => {
+    const out = redactDiagnostic(
+      'auth pplx-ABCDEFGHIJKLMNOPQRST failed; header Bearer abc.def.ghi; body {"api_key": "s3cr3tvalue", "error": "bad"}',
+    );
+    expect(out).not.toContain("pplx-ABCDEFGHIJKLMNOPQRST");
+    expect(out).not.toContain("abc.def.ghi");
+    expect(out).not.toContain("s3cr3tvalue");
+    expect(out).toContain('"error": "bad"');
+  });
+
+  it("keeps ordinary provider messages readable", () => {
+    expect(redactDiagnostic("HTTP 401: You exceeded your current quota")).toBe(
+      "HTTP 401: You exceeded your current quota",
+    );
+  });
+});
