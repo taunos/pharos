@@ -175,3 +175,44 @@ describe("E7 (Codex r2): explicit opt-out text wins over the bounce-sender fallb
     expect((await classify(inboundMail({ from: "postmaster@example.com", text: "Please unsubscribe me." }), null)).class).toBe("opt_out");
   });
 });
+
+describe("E6 (Codex r3): a stale resume never lifts a newer stop", () => {
+  it("request 1 resumes complaints, provider_auth trips, the delayed request 2 leaves provider_auth in place", async () => {
+    const { db } = freshDb();
+    await db.prepare("UPDATE control SET paused = 1, pause_reason = 'complaints', paused_at = ? WHERE id = 1").bind(TUE_1400 - HOUR).run();
+    const { getControl: gc, tripStop } = await import("../src/db");
+    const stale = await gc(db);
+    await resume(db, TUE_1400, "bruno@example.com");
+    await tripStop(db, TUE_1400 + 5, "provider_auth");
+    const db2 = new Proxy(db, {
+      get(t, k) {
+        if (k === "prepare") {
+          return (sql: string) => {
+            const st = (t as D1Database).prepare(sql);
+            if (/^SELECT \* FROM control/.test(sql)) return { ...st, first: async () => stale, bind: st.bind.bind(st) } as unknown as D1PreparedStatement;
+            return st;
+          };
+        }
+        const v = (t as unknown as Record<string | symbol, unknown>)[k];
+        return typeof v === "function" ? (v as Function).bind(t) : v;
+      },
+    });
+    await resume(db2 as D1Database, TUE_1400 + 10, "bruno@example.com");
+    expect(await db.prepare("SELECT paused, pause_reason FROM control").first()).toEqual({ paused: 1, pause_reason: "provider_auth" });
+    expect((await db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind = 'resumed'").first<{ n: number }>())!.n).toBe(1);
+  });
+});
+
+describe("E7 (Codex r3): an unmatched, unparsed delivery report still alerts Bruno", () => {
+  it("truncated DSN from postmaster@ that matches no lead ⇒ alert, no pause", async () => {
+    const { handleInbound } = await import("../src/inbound");
+    const { FakeMail } = await import("./helpers");
+    const { db } = freshDb();
+    const env = makeEnv(db);
+    await db.prepare("UPDATE control SET paused = 0").run();
+    const alerts: string[] = [];
+    await handleInbound(env, { mail: new FakeMail(), ai: null, alert: async (k: string) => void alerts.push(k), now: () => TUE_1400 }, inboundMail({ from: "postmaster@mx.net", subject: "Delivery Status Notification", deliveryReport: true, dsn: null }));
+    expect(alerts).toContain("Unmatched bounce");
+    expect((await getControl(db)).paused).toBe(0);
+  });
+});

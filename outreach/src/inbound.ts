@@ -245,7 +245,9 @@ export async function handleInbound(env: Env, deps: InboundDeps, m: InboundMail)
       .bind(m.providerMessageId, lead?.id ?? null, k, cls.confidence, cls.method, draftId, m.receivedAt, now);
 
   if (!lead) {
-    if (isDsn(m)) {
+    // Parsed DSN, or (unless it was an explicit opt-out/complaint) mail from a bounce
+    // address / an unparsed delivery report: a possible delivery failure, so Bruno is told.
+    if (isDsn(m) || ((isBounceSender(m) || m.deliveryReport) && klass === "needs_human")) {
       // E7: an unmatched bounce is usually backscatter or a bounce of Bruno's own mail.
       // It goes to Bruno as an alert; it does not pause outreach.
       stmts.push(insertInbound("needs_human"), eventStmt(db, now, "inbound_unmatched_dsn", null, { class: klass }));

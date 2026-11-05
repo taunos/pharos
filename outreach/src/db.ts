@@ -51,11 +51,19 @@ export async function resume(db: D1Database, now: number, by: string): Promise<v
   const c = await getControl(db);
   if (!c.paused) return;
   const add = c.ramp_start_at != null && c.paused_at != null && c.paused_at > c.ramp_start_at ? now - c.paused_at : 0;
+  // Every statement is tied to the pause instance this resume read (reason + paused_at):
+  // a stale, delayed resume can't lift a newer stop Bruno hasn't looked at. The events
+  // run before the UPDATE so their condition still sees the pause.
+  const samePause = "EXISTS (SELECT 1 FROM control WHERE id = 1 AND paused = 1 AND pause_reason IS ? AND paused_at IS ?)";
   const stmts = [
     db
-      .prepare("UPDATE control SET paused = 0, pause_reason = NULL, paused_at = NULL, ramp_paused_ms = ramp_paused_ms + ? WHERE id = 1 AND paused = 1")
-      .bind(add),
-    eventStmt(db, now, "resumed", null, { by_admin: by.length > 0, reason: c.pause_reason }),
+      .prepare(`INSERT INTO events (at, lead_id, kind, detail_json) SELECT ?, NULL, 'resumed', ? WHERE ${samePause}`)
+      .bind(now, JSON.stringify({ by_admin: by.length > 0, reason: c.pause_reason }), c.pause_reason, c.paused_at),
+    db
+      .prepare(
+        "UPDATE control SET paused = 0, pause_reason = NULL, paused_at = NULL, ramp_paused_ms = ramp_paused_ms + ? WHERE id = 1 AND paused = 1 AND pause_reason IS ? AND paused_at IS ?"
+      )
+      .bind(add, c.pause_reason, c.paused_at),
   ];
   // E6: resuming acknowledges the data behind THIS stop only (stops.ts
   // stopAcknowledgedAt). No other stop is ever acknowledged implicitly. Inbound
@@ -67,11 +75,11 @@ export async function resume(db: D1Database, now: number, by: string): Promise<v
   // in the same transaction and requires that pause to still be in place, so a
   // second, delayed resume (outreach already running) acknowledges nothing.
   if (c.pause_reason) {
-    stmts.unshift(
+    stmts.splice(1, 0,
       db
         .prepare(
           "INSERT INTO events (at, lead_id, kind, detail_json) SELECT ?, NULL, 'stop_acknowledged', json_object('reason', ?, 'inbound_rowid', (SELECT COALESCE(MAX(rowid), 0) FROM inbound)) " +
-            "WHERE EXISTS (SELECT 1 FROM control WHERE id = 1 AND paused = 1 AND pause_reason = ? AND paused_at IS ?)"
+            `WHERE ${samePause}`
         )
         .bind(now, c.pause_reason, c.pause_reason, c.paused_at)
     );
