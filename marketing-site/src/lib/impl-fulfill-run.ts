@@ -12,9 +12,14 @@
 //   4-7. 4 patch-time LLM generators (audit-recs fires later at Day-N)
 //   8. Patch assembly + R2 persist + structural validation
 //   9. customer_probe_targets INSERT-with-CHECK + ON CONFLICT (D18 Stage 3 Fix A)
-//   10. Audit due-dates + delivery email; patch_delivered_at written right after
-//       a confirmed send (A3)
-//   11. status='active', keyed on the claim (A4)
+//   10. bundle_expires_at + delivery email; patch_delivered_at written right
+//       after a confirmed send (A3)
+//   11. status='awaiting_application', keyed on the claim (A4)
+// Verification report v1 (migration 0018): Day 0 = verified application, not
+// payment. Day-30/60/90 due dates are NOT set here; lib/impl-verification.ts
+// sets them from applied_at once the application is verified and flips the
+// row to 'active'. The baseline scan (Step 3) stays in R2, linked on the row
+// with its scoring_version.
 // A re-run that finds patch_delivered_at set skips Steps 3-10 (A3).
 
 import { runScan, type AuditEnv } from "./audit-pipeline";
@@ -44,7 +49,7 @@ export interface ImplRunEnv extends AuditEnv {
 export const IMPL_LEASE_SEC = 1200;
 
 export type ImplRunResult =
-  | { kind: "done" } // status → active
+  | { kind: "done" } // status → awaiting_application
   | {
       kind: "terminal_outcome";
       status: "failed_validation" | "failed_ceiling" | "active_email_pending";
@@ -154,11 +159,12 @@ export async function runImplFulfillment(
       if (outcome !== null) return outcome;
     }
 
-    // Step 11 — Status flip → 'active' (A4: keyed on this claim).
+    // Step 11 — Status flip → 'awaiting_application' (A4: keyed on this claim).
+    // Day-N audits start only once the application is verified (Day 0).
     const completeTime = nowSec();
     const activeResult = await env.CITATION_DB.prepare(
       `UPDATE implementation_sessions
-       SET status = 'active', updated_at = ?
+       SET status = 'awaiting_application', updated_at = ?
        WHERE session_id = ? AND status = 'processing' AND processing_started_at = ?`,
     )
       .bind(completeTime, sessionId, claimedAt)
@@ -286,10 +292,11 @@ async function buildAndDeliver(
     JSON.stringify(baselineScan),
   );
   await env.CITATION_DB.prepare(
-    `UPDATE implementation_sessions SET baseline_scan_id = ?, updated_at = ?
+    `UPDATE implementation_sessions
+     SET baseline_scan_id = ?, baseline_scoring_version = ?, updated_at = ?
      WHERE session_id = ?`,
   )
-    .bind(baselineScanId, nowSec(), sessionId)
+    .bind(baselineScanId, baselineScan.scoring_version ?? null, nowSec(), sessionId)
     .run();
 
   // Step 4-7 — Run 4 patch-time LLM generators (audit-recs fires at Day-N, not here)
@@ -435,19 +442,16 @@ async function buildAndDeliver(
     return { kind: "terminal_outcome", status: "failed_ceiling" };
   }
 
-  // Step 9 — Audit due-dates + bundle_expires_at persist
-  const day30Due = f2.payment_succeeded_at + 30 * 86400;
-  const day60Due = f2.payment_succeeded_at + 60 * 86400;
-  const day90Due = f2.payment_succeeded_at + 90 * 86400;
+  // Step 9 — bundle_expires_at persist. Day-30/60/90 due dates are anchored on
+  // applied_at (Day 0) by lib/impl-verification.ts, not on payment.
   const bundleExpires = f2.payment_succeeded_at + 91 * 86400;
 
   await env.CITATION_DB.prepare(
     `UPDATE implementation_sessions
-     SET day30_audit_due_at = ?, day60_audit_due_at = ?, day90_audit_due_at = ?,
-         bundle_expires_at = ?, updated_at = ?
+     SET bundle_expires_at = ?, updated_at = ?
      WHERE session_id = ?`,
   )
-    .bind(day30Due, day60Due, day90Due, bundleExpires, nowSec(), sessionId)
+    .bind(bundleExpires, nowSec(), sessionId)
     .run();
 
   // Step 10 — Patch-delivery email (Resend idempotencyKey f2-patch:{session_id})
