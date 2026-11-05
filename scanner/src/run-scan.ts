@@ -71,11 +71,16 @@ export async function runScan(
   // marketing-site/src/lib/dim6/runDim6.ts). Capability separation per
   // locked decision 1: scanner has zero of the 4 LLM-provider API keys.
   const startedAt = Date.now();
+  // E12: Dim 3's homepage-link discovery reuses Dim 4's homepage read (no
+  // extra fetch). Settled by Dim 4, or with null when Dim 4 ends without
+  // handing it over (resolve is idempotent), so Dim 3 never waits forever.
+  let handHomepage!: (html: string | null) => void;
+  const homepageHtml = new Promise<string | null>((resolve) => (handHomepage = resolve));
   const [d1, d2, d3, d4, d5, d6] = await Promise.all([
     runDim1(url, env),
     runDim2(url, env),
-    runDim3(url, env),
-    runDim4(url, env),
+    runDim3(url, env, homepageHtml),
+    runDim4(url, env, handHomepage).finally(() => handHomepage(null)),
     runDim5(url, env, tier),
     runDim6(url, tier),
   ]);

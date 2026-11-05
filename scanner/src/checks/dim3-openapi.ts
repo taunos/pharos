@@ -83,6 +83,15 @@ const CANONICAL_CANDIDATES = [
   "/swagger.json",
 ];
 
+// E12: a 200 counts as discovered only when the body plausibly IS a spec or
+// API catalog. HTML (a soft-404 or SPA fallback page) never is; a body read in
+// full must parse (JSON object, or YAML with an openapi/swagger key). A body
+// not read in full keeps the unmeasured path in runDim3.
+function isPlausibleSpec(body: string, contentType: string, complete: boolean): boolean {
+  if (contentType.includes("text/html") || /^\s*</.test(body)) return false;
+  return !complete || tryParseSpec(body, contentType) !== null;
+}
+
 async function probeWellKnown(origin: string): Promise<DiscoveryHit | null> {
   for (const path of WELL_KNOWN_CANDIDATES) {
     const url = `${origin}${path}`;
@@ -94,10 +103,12 @@ async function probeWellKnown(origin: string): Promise<DiscoveryHit | null> {
     if (res && res.ok) {
       const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
       const body = read.text;
+      const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+      if (!isPlausibleSpec(body, contentType, read.complete)) continue;
       return {
         url,
         body,
-        contentType: (res.headers.get("content-type") ?? "").toLowerCase(),
+        contentType,
         source: `well-known ${path}`,
         complete: read.complete,
       };
@@ -121,10 +132,12 @@ async function probeCanonical(origin: string): Promise<DiscoveryHit | null> {
     if (res && res.ok) {
       const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
       const body = read.text;
+      const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+      if (!isPlausibleSpec(body, contentType, read.complete)) continue;
       return {
         url,
         body,
-        contentType: (res.headers.get("content-type") ?? "").toLowerCase(),
+        contentType,
         source: `canonical ${path}`,
         complete: read.complete,
       };
@@ -168,8 +181,9 @@ function extractHomepageSpecLink(homepageHtml: string, base: string): string | n
 
 async function probeHomepageLink(
   origin: string,
-  homepageHtml: string | null
+  homepagePromise: string | null | Promise<string | null>
 ): Promise<DiscoveryHit | null> {
+  const homepageHtml = await homepagePromise;
   if (!homepageHtml) return null;
   const candidate = extractHomepageSpecLink(homepageHtml, origin);
   if (!candidate || !isSafeSpecUrl(candidate)) return null;
@@ -183,10 +197,12 @@ async function probeHomepageLink(
   if (res && res.ok) {
     const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
     const body = read.text;
+    const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+    if (!isPlausibleSpec(body, contentType, read.complete)) return null;
     return {
       url: candidate,
       body,
-      contentType: (res.headers.get("content-type") ?? "").toLowerCase(),
+      contentType,
       source: `homepage link ${candidate}`,
       complete: read.complete,
     };
@@ -197,7 +213,7 @@ async function probeHomepageLink(
 
 async function discoverApiSpec(
   origin: string,
-  homepageHtml: string | null
+  homepageHtml: string | null | Promise<string | null>
 ): Promise<DiscoveryHit | null> {
   // Ordered: well-known → canonical → homepage-link. Stop at first hit.
   let hit = await probeWellKnown(origin);
@@ -269,7 +285,9 @@ function tryParseSpec(body: string, contentType: string): ParsedSpec | null {
 export async function runDim3(
   targetUrl: string,
   env: Env,
-  homepageHtml: string | null = null
+  // E12: homepage HTML another check already fetched (run-scan passes Dim 4's
+  // read as a promise); awaited only when well-known and canonical both miss.
+  homepageHtml: string | null | Promise<string | null> = null
 ): Promise<DimensionResult> {
   void env; // reserved for future use; no LLM in Slice 3a
   const origin = new URL(targetUrl).origin;

@@ -190,7 +190,13 @@ Return a single average score 0-100, nothing else.`;
   return { score, note: `LLM rated ${questions.length} question(s) avg ${score}/100${tag}` };
 }
 
-export async function runDim4(targetUrl: string, env: Env): Promise<DimensionResult> {
+export async function runDim4(
+  targetUrl: string,
+  env: Env,
+  // E12: receives the homepage HTML this check reads (null when it couldn't),
+  // so Dim 3's homepage-link discovery reuses it instead of fetching again.
+  onHomepageHtml?: (html: string | null) => void
+): Promise<DimensionResult> {
   const subs: SubCheck[] = [];
 
   const res = await timedFetch(targetUrl, { headers: { "User-Agent": "AstrantScanner/0.1", Accept: "text/html" } });
@@ -228,8 +234,10 @@ export async function runDim4(targetUrl: string, env: Env): Promise<DimensionRes
       }
       evidence.ld_json_absent_proven = ldJsonAbsentProven(html, evidence.content_type, b.complete);
     }
+    onHomepageHtml?.(read ? html : null);
   } else {
     res?.discard();
+    onHomepageHtml?.(null);
   }
   const validBlocks = blocks.filter((b) => !(b as { __invalid?: boolean })?.__invalid);
 

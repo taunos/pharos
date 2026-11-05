@@ -1,6 +1,7 @@
 import type { DimensionResult, Env, SubCheck } from "../types";
 import { dimensionScoreOrThrow, gradeFor } from "../scoring";
 import { MAX_JSON_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
+import { SCORING_VERSION } from "../version";
 
 const FETCH_TIMEOUT_MS = 5000;
 
@@ -15,6 +16,45 @@ async function readJson(r: SafeResponse): Promise<unknown> {
   const b = await r.body({ maxBytes: MAX_JSON_BYTES });
   if (!b.complete) throw new Error("body incomplete");
   return JSON.parse(b.text);
+}
+
+/** Protocol revision the scanner offers in `initialize` (servers may negotiate down). */
+export const MCP_PROTOCOL_VERSION = "2025-06-18";
+/** One budget for the whole initialize -> initialized -> tools/list handshake. */
+const LIVE_BUDGET_MS = 10000;
+
+/**
+ * E12: finds the JSON-RPC response with `id` in a Streamable HTTP reply. The
+ * body is either JSON (one message or a batch) or an SSE stream whose events
+ * each carry one message in their data: lines. Every candidate is parsed on
+ * its own, so text between messages never merges into one match (the old
+ * greedy /\{[\s\S]*\}/ spanned the first "{" to the last "}").
+ */
+export function findJsonRpcResponse(text: string, id: string): { msg: Record<string, unknown> | null; sawJson: boolean } {
+  const candidates = [text];
+  let data: string[] = [];
+  for (const line of [...text.split(/\r\n|\r|\n/), ""]) {
+    if (line === "") {
+      if (data.length > 0) candidates.push(data.join("\n"));
+      data = [];
+    } else if (line.startsWith("data:")) {
+      data.push(line.slice(5).replace(/^ /, ""));
+    }
+  }
+  let sawJson = false;
+  for (const c of candidates) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(c);
+    } catch {
+      continue;
+    }
+    sawJson = true;
+    for (const m of Array.isArray(parsed) ? parsed : [parsed]) {
+      if (m && typeof m === "object" && (m as { id?: unknown }).id === id) return { msg: m as Record<string, unknown>, sawJson };
+    }
+  }
+  return { msg: null, sawJson };
 }
 
 type ServerCard = {
@@ -52,9 +92,21 @@ async function dnsTxt(host: string): Promise<{ found: boolean; note: string }> {
       r?.discard();
       return { found: false, note: `DoH status ${r?.status ?? "fetch failed"}` };
     }
-    const j = (await readJson(r)) as { Answer?: Array<{ data?: string }> };
-    const found = !!j.Answer && j.Answer.length > 0;
-    return { found, note: found ? `${j.Answer!.length} TXT record(s) at _mcp.${host}` : `no TXT at _mcp.${host}` };
+    const j = (await readJson(r)) as { Answer?: Array<{ name?: string; type?: number; data?: string }> };
+    // E12: Answer also carries the CNAME chain (a wildcard CNAME answers every
+    // name), so count only TXT records (type 16) at _mcp.<host> itself whose
+    // text mentions mcp (the published research methodology's rule).
+    const want = `_mcp.${host}`.toLowerCase().replace(/\.$/, "");
+    const txt = (Array.isArray(j.Answer) ? j.Answer : []).filter(
+      (a) =>
+        a?.type === 16 &&
+        typeof a.name === "string" &&
+        a.name.toLowerCase().replace(/\.$/, "") === want &&
+        typeof a.data === "string" &&
+        /mcp/i.test(a.data)
+    );
+    const found = txt.length > 0;
+    return { found, note: found ? `${txt.length} TXT record(s) at _mcp.${host}` : `no TXT at _mcp.${host}` };
   } catch (e) {
     return { found: false, note: `DoH error: ${e instanceof Error ? e.message : String(e)}` };
   }
@@ -155,41 +207,68 @@ export async function runDim2(targetUrl: string, env: Env): Promise<DimensionRes
     const t = card.transports[0];
     const transportUrl = t.url ? new URL(t.url, origin).toString() : "";
     if (transportUrl) {
-      const body = JSON.stringify({ jsonrpc: "2.0", id: "scanner-list", method: "tools/list" });
-      const r = await timedFetch(
-        transportUrl,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
-          body,
-        },
-        5000
-      );
-      if (!r) {
-        liveNote = `tools/list timed out or failed for ${transportUrl}`;
-      } else if (r.status >= 200 && r.status < 300) {
-        try {
-          const text = (await r.body({ maxBytes: MAX_JSON_BYTES })).text;
-          // Streamable HTTP may return JSON or SSE-formatted; look for tools array either way
-          const jsonMatch = text.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            const tools = parsed?.result?.tools;
-            if (Array.isArray(tools)) {
-              liveScore = 100;
-              liveNote = `tools/list returned ${tools.length} tools`;
-            } else {
-              liveNote = `tools/list returned ${r.status} but no tools[] in body`;
-            }
+      // E12: MCP lifecycle (spec 2025-06-18): initialize, then the
+      // notifications/initialized notification, then requests carrying the
+      // Mcp-Session-Id (when the server issued one) and MCP-Protocol-Version.
+      const liveDeadline = Date.now() + LIVE_BUDGET_MS;
+      const post = (payload: unknown, extra: Record<string, string> = {}) =>
+        timedFetch(
+          transportUrl,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", ...extra },
+            body: JSON.stringify(payload),
+          },
+          Math.max(1, Math.min(5000, liveDeadline - Date.now()))
+        );
+      const init = await post({
+        jsonrpc: "2.0",
+        id: "scanner-init",
+        method: "initialize",
+        params: { protocolVersion: MCP_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "AstrantScanner", version: SCORING_VERSION } },
+      });
+      let session: Record<string, string> | null = null;
+      if (!init) {
+        liveNote = `initialize timed out or failed for ${transportUrl}`;
+      } else if (init.status >= 200 && init.status < 300) {
+        const { msg } = findJsonRpcResponse((await init.body({ maxBytes: MAX_JSON_BYTES })).text, "scanner-init");
+        const result = msg?.result as { protocolVersion?: unknown } | undefined;
+        if (result && typeof result === "object") {
+          // Site-controlled values become request headers: keep only well-formed
+          // ones (an invalid header value would throw inside fetch's Headers).
+          const v = typeof result.protocolVersion === "string" && /^[\w.-]{1,32}$/.test(result.protocolVersion)
+            ? result.protocolVersion
+            : MCP_PROTOCOL_VERSION;
+          session = { "MCP-Protocol-Version": v };
+          const sid = init.headers.get("mcp-session-id");
+          if (sid && /^[\x21-\x7e]{1,256}$/.test(sid)) session["Mcp-Session-Id"] = sid;
+        } else {
+          liveNote = `initialize returned ${init.status} but no result in body`;
+        }
+      } else {
+        init.discard();
+        liveNote = `initialize returned status ${init.status}`;
+      }
+      if (session) {
+        (await post({ jsonrpc: "2.0", method: "notifications/initialized" }, session))?.discard();
+        const r = await post({ jsonrpc: "2.0", id: "scanner-list", method: "tools/list" }, session);
+        if (!r) {
+          liveNote = `tools/list timed out or failed for ${transportUrl}`;
+        } else if (r.status >= 200 && r.status < 300) {
+          const { msg, sawJson } = findJsonRpcResponse((await r.body({ maxBytes: MAX_JSON_BYTES })).text, "scanner-list");
+          const tools = (msg?.result as { tools?: unknown } | undefined)?.tools;
+          if (Array.isArray(tools)) {
+            liveScore = 100;
+            liveNote = `tools/list returned ${tools.length} tools`;
+          } else if (sawJson) {
+            liveNote = `tools/list returned ${r.status} but no tools[] in body`;
           } else {
             liveNote = `tools/list returned ${r.status} with non-JSON body`;
           }
-        } catch (e) {
-          liveNote = `tools/list parse error: ${e instanceof Error ? e.message : String(e)}`;
+        } else {
+          r.discard();
+          liveNote = `tools/list returned status ${r.status}`;
         }
-      } else {
-        r.discard();
-        liveNote = `tools/list returned status ${r.status}`;
       }
     }
   }
