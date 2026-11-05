@@ -126,6 +126,15 @@ describe("S5 automatic stops", () => {
     await sends(db, 10, () => TUE_1400 - HOUR, (i) => (i === 0 ? "complaint" : null));
     expect((await trip(db, env, TUE_1400)).reason).toBe("complaints");
   });
+  it("a complaint-classed email from a non-lead sender does not trip the stop", async () => {
+    const { db } = freshDb();
+    const env = makeEnv(db);
+    await db
+      .prepare("INSERT INTO inbound (provider_message_id, lead_id, class, confidence, method, received_at) VALUES ('m-stranger', NULL, 'complaint', 1, 'rule', ?)")
+      .bind(TUE_1400 - HOUR)
+      .run();
+    expect((await trip(db, env, TUE_1400)).reason).not.toBe("complaints");
+  });
   it("opt-out + not-interested > 10% of last 50", async () => {
     const { db } = freshDb();
     const env = makeEnv(db);

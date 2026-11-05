@@ -51,7 +51,10 @@ export async function evaluateStops(env: Env, now: number): Promise<StopVerdict>
   const last300 = await lastSends(db, 300);
   const complaints =
     total <= 200
-      ? (await db.prepare("SELECT COUNT(*) AS n FROM inbound WHERE class = 'complaint'").first<{ n: number }>())?.n ?? 0
+      ? // Only complaints from leads we wrote to. Unmatched mail (newsletters, the
+        // Zoho welcome email, any stranger) must not be able to stop the agent.
+        // Live false trip 2026-11-05: a pre-existing inbox email matched the rule.
+        (await db.prepare("SELECT COUNT(*) AS n FROM inbound WHERE class = 'complaint' AND lead_id IS NOT NULL").first<{ n: number }>())?.n ?? 0
       : await countInboundFor(db, last300.map((x) => x.lead_id), ["complaint"]);
   if (complaints >= 1 && (total <= 200 || complaints / 300 >= 0.003)) return { reason: "complaints", detail: { complaints, total } };
 
