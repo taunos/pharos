@@ -58,7 +58,7 @@ export type CaptureOutboxInput = {
 
 export type CaptureOutboxResult =
   | { status: "deferred"; job_id: string; reused: boolean; sendOnly: boolean; enqueued: boolean }
-  | { status: "conflict"; reason: "different_email_in_flight" }
+  | { status: "conflict"; reason: "different_email_in_flight" | "different_email_captured" }
   | { status: "unavailable"; reason: "tombstoned_or_contended" | "fence_lost" | "insert_conflict" }
   | { status: "not_found" };
 
@@ -126,12 +126,21 @@ export async function runCaptureOutbox(
     // is backed by its active artifact; otherwise a fresh render job.
     const ptr = await db
       .prepare(
-        `SELECT s.pdf_r2_key AS ptr,
+        `SELECT s.pdf_r2_key AS ptr, s.email AS email,
                 (SELECT 1 FROM r2_artifacts a WHERE a.scan_id=s.id AND a.status='active' AND a.r2_key=s.pdf_r2_key) AS active_ptr
            FROM scans s WHERE s.id=?`
       )
       .bind(scanId)
-      .first<{ ptr: string | null; active_ptr: number | null }>();
+      .first<{ ptr: string | null; email: string | null; active_ptr: number | null }>();
+    // E1 (code-quality audit 2026-11-05): a scan that already has a captured
+    // address is bound to it. A DIFFERENT address must never overwrite it (that
+    // would re-point the owner's report, rescan mail and unsubscribe state at a
+    // stranger holding the /score/<id> link). Marketing refuses this first;
+    // this is the authoritative check under the lease. Mutate nothing.
+    if (ptr?.email && normalizeEmail(ptr.email) !== input.email) {
+      await releaseLease(env, scanId, leaseId, fence);
+      return { status: "conflict", reason: "different_email_captured" };
+    }
     const hash = await emailR2KeyHash(input.email);
     const prefix = `score-reports/${scanId}/${hash}/`;
     if (ptr?.ptr && ptr.active_ptr === 1 && ptr.ptr.startsWith(prefix)) {

@@ -312,6 +312,39 @@ describe("runCaptureOutbox — pointer + lease branches", () => {
     expect(jobs[0].pdf_r2_key).toBe(ptr);
   });
 
+  it("E1: a DIFFERENT email on a scan whose report was already delivered → conflict, no capture-field change, no job, no Queue message", async () => {
+    const sqlite = freshSqlite();
+    const hash = await emailR2KeyHash("alice@example.com");
+    const ptr = `score-reports/s1/${hash}/1.pdf`;
+    seedScan(sqlite, { id: "s1", email: "alice@example.com", opted: 1, pdf_r2_key: ptr });
+    sqlite.prepare(
+      "INSERT INTO r2_artifacts (r2_key, scan_id, capture_job_id, op_fence, created_at, status) VALUES (?, 's1', 'j-old', 1, 1, 'active')",
+    ).run(ptr);
+    insertJob(sqlite, { job_id: "j-old", scan_id: "s1", phase: "done", email: "alice@example.com" });
+    const q = makeQueue();
+    const env = makeEnv(sqlite, [], { queue: q.ok });
+
+    const res = await runCaptureOutbox(env, "s1", input("attacker@evil.test", 0), NOW);
+    expect(res).toEqual({ status: "conflict", reason: "different_email_captured" });
+    expect(scanRow(sqlite, "s1")).toMatchObject({ email: "alice@example.com", opt: 1, op_lease_id: null });
+    expect(jobsFor(sqlite, "s1")).toHaveLength(1); // only the old done job
+    expect(q.sent).toHaveLength(0);
+  });
+
+  it("E1: the SAME captured email (send-only reuse) is still accepted", async () => {
+    const sqlite = freshSqlite();
+    const hash = await emailR2KeyHash("alice@example.com");
+    const ptr = `score-reports/s1/${hash}/1.pdf`;
+    seedScan(sqlite, { id: "s1", email: "alice@example.com", pdf_r2_key: ptr });
+    sqlite.prepare(
+      "INSERT INTO r2_artifacts (r2_key, scan_id, capture_job_id, op_fence, created_at, status) VALUES (?, 's1', 'j-old', 1, 1, 'active')",
+    ).run(ptr);
+    const env = makeEnv(sqlite, [], { queue: makeQueue().ok });
+    const res = await runCaptureOutbox(env, "s1", input("alice@example.com"), NOW);
+    expect(res.status).toBe("deferred");
+    expect(jobsFor(sqlite, "s1")[0].phase).toBe("uploaded");
+  });
+
   it("non-active pointer → fresh pending job", async () => {
     const sqlite = freshSqlite();
     const hash = await emailR2KeyHash("alice@example.com");
@@ -358,7 +391,9 @@ describe("runCaptureOutbox — pointer + lease branches", () => {
 
   it("unexpected unique conflict rolls back scan-field changes and queues nothing", async () => {
     const sqlite = freshSqlite();
-    seedScan(sqlite, { id: "s1", email: "old@example.com" });
+    // E1: no captured email yet (a different captured email is now refused
+    // before the batch, by the different_email_captured guard).
+    seedScan(sqlite, { id: "s1", email: null });
     const q = makeQueue();
     // Race: a conflicting unfinished job appears AFTER the in-flight pre-check
     // but BEFORE the batch commits → the plain conditional INSERT violates
@@ -371,7 +406,7 @@ describe("runCaptureOutbox — pointer + lease branches", () => {
     const res = await runCaptureOutbox(env, "s1", input("alice@example.com"), NOW);
     expect(res.status).toBe("unavailable"); // insert_conflict
     // scan-field update rolled back
-    expect(scanRow(sqlite, "s1")!.email).toBe("old@example.com");
+    expect(scanRow(sqlite, "s1")!.email).toBeNull();
     // only the injected racer exists; no second job
     const jobs = jobsFor(sqlite, "s1");
     expect(jobs).toHaveLength(1);
