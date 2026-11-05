@@ -21,8 +21,8 @@
     {
       "binding": "DB",
       "database_name": "pharos-outreach",
-      // Filled in by Bruno after `wrangler d1 create pharos-outreach` (runbook step 2).
-      "database_id": "REPLACE_WITH_D1_ID_FROM_WRANGLER_D1_CREATE",
+      // Created 2026-11-05 (runbook step 2).
+      "database_id": "f6850564-b879-45db-acc7-268f588eafef",
       "migrations_dir": "migrations"
     }
   ],
@@ -57,8 +57,8 @@
     "PUBLIC_BASE_URL": "https://go.getastrant.com",
     "SCORE_BASE_URL": "https://astrant.io/score/",
     "PRIVACY_URL": "https://astrant.io/privacy#prospecting",
-    "CF_ACCESS_TEAM_DOMAIN": "",
-    "CF_ACCESS_AUD": "",
+    "CF_ACCESS_TEAM_DOMAIN": "noisy-firefly-bf23.cloudflareaccess.com",
+    "CF_ACCESS_AUD": "db3f1ddc2c6ce6a9300621d849e200a6633219f2e5b855d1ed06fca55afa910e",
     "ADMIN_EMAIL": "taunos@gmail.com"
   }
 }
