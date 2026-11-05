@@ -468,6 +468,9 @@ describe("openapi states", () => {
     expect(specTextEqual(" a", "a")).toBe(false); // leading whitespace counts
     expect(specTextEqual("ab", "a")).toBe(false);
     expect(specTextEqual("", "\n \n")).toBe(true);
+    // Codex r5: a CR inside a line is a real difference, not line-ending noise.
+    expect(specTextEqual("open\rapi: 3.1.0", "openapi: 3.1.0")).toBe(false);
+    expect(specTextEqual("a\rb\n", "ab\n")).toBe(false);
   });
   it("working: CRLF line endings, trailing spaces/tabs and a missing or extra final newline", async () => {
     const variants = [

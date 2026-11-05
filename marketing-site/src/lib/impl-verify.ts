@@ -1470,14 +1470,13 @@ const isLineSpace = (c: number) => c === 32 || c === 9 || c === 13;
 function sameLine(a: string, i: number, ea: number, b: string, j: number, eb: number): boolean {
   while (ea > i && isLineSpace(a.charCodeAt(ea - 1))) ea--;
   while (eb > j && isLineSpace(b.charCodeAt(eb - 1))) eb--;
-  for (;;) {
-    while (i < ea && a.charCodeAt(i) === 13) i++;
-    while (j < eb && b.charCodeAt(j) === 13) j++;
-    if (i >= ea || j >= eb) return i >= ea && j >= eb;
+  // CR is ignored only in the trailing run before LF (i.e. CRLF); a CR
+  // inside the line is a real difference (Codex r5).
+  if (ea - i !== eb - j) return false;
+  for (; i < ea; i++, j++) {
     if (a.charCodeAt(i) !== b.charCodeAt(j)) return false;
-    i++;
-    j++;
   }
+  return true;
 }
 
 /** Only newlines, spaces, tabs and CRs from s[p] on (true past the end). */
