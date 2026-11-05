@@ -43,18 +43,18 @@ describe("Dim 4 evidence comes from its own homepage response", () => {
     stubFetch(403, "Forbidden");
     const d = await runDim4("https://acme.com/", env);
     const j = d.sub_checks.find((s) => s.id === "json_ld_present")!;
-    expect(j.evidence).toEqual({ status: 403, content_type: "text/html; charset=utf-8", parsed: false });
+    expect(j.evidence).toMatchObject({ status: 403, content_type: "text/html; charset=utf-8", parsed: false, ld_json_absent_proven: false });
   });
   it("a 200 HTML page with no JSON-LD yields evidence status 200, parsed", async () => {
     stubFetch(200, "<html><body>hello</body></html>");
     const d = await runDim4("https://acme.com/", env);
-    for (const s of d.sub_checks) expect(s.evidence).toEqual({ status: 200, content_type: "text/html; charset=utf-8", parsed: true });
+    for (const s of d.sub_checks) expect(s.evidence).toMatchObject({ status: 200, content_type: "text/html; charset=utf-8", parsed: true, body_complete: true });
   });
   it("a fetch failure yields evidence status null", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => {
       throw new Error("boom");
     }));
     const d = await runDim4("https://acme.com/", env);
-    expect(d.sub_checks[0].evidence).toEqual({ status: null, content_type: "", parsed: false });
+    expect(d.sub_checks[0].evidence).toMatchObject({ status: null, content_type: "", parsed: false, final_url: "", ld_json_absent_proven: false });
   });
 });

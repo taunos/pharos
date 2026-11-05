@@ -1,32 +1,35 @@
 // §7.1 fact sheet + copy table + gap selection.
 //
-// Step-0 V-read classification (scanner/src/checks/*, 2026-11-04). Only
-// DETERMINISTIC sub-checks whose failure mode can be read unambiguously from
-// `notes` are in the copy table. Excluded (and why):
-//   dim1.linked_pages_quality  deterministic, but a failed sample can be a fetch error (no status in notes)
-//   dim1.curation_quality      deterministic heuristic; anti-pattern wording not a clear "gap" claim
-//   dim1.blockquote_eval       MODEL-SCORED (llm-eval; AI failure defaults to 50)
-//   dim2.*                     D6: MCP discovery is never a hook
-//   dim3.*                     whole-dim N/A when no API surface; when found, discovery always >= 50
-//   dim4.faq_schema            MODEL-SCORED in part (conversational eval)
-//   dim4.review_schema         scanner itself says absence is common for B2B SaaS and "does not imply broken"
-//   dim5.js_vs_no_js_render_diff  "minimal HTML" note is also produced by a fetch failure; "likely SPA" is a guess
-//   dim5.page_weight_lcp       weight-only, LCP not measured on free tier; weak claim
-//   dim5.pricing_text_visibility / case-study checks  non-200 notes don't say which status (could be 403/429)
-//   dim6.*                     D6: free-tier Dim 6 is a demo preview
+// OBSERVATION-ONLY CLAIMS (orchestrator decision after Codex round 3; Bruno's
+// top risk is a false claim under his name). A finding may reach a draft only if
+// it states a directly observed fact about ONE specific request to the lead's
+// OWN host, proven by that request's own evidence:
+//   - requested URL: https on the lead's domain (or www.), at the exact path;
+//   - final URL (after redirects): https, host = the lead's domain or www.domain;
+//     any other host (including other subdomains and look-alikes) => no finding;
+//   - status code and content type from that same response;
+//   - when the claim depends on the body: the whole body read, no error, and
+//     the scanner's text-level proof (ld_json_absent_proven).
+// Missing, partial, ambiguous or cross-host evidence => the finding is dropped;
+// with fewer than MIN_GAPS findings the lead gets no draft.
 //
-// Dim 4 reads the homepage, and its notes say "no JSON-LD found" even when
-// the homepage fetch failed. Security round 2: an absence claim needs success
-// evidence from the SAME response that produced the finding. The scanner now
-// attaches `evidence` (status, content type, parsed) to every Dim 4 sub-check;
-// a Dim 4 claim requires status 200 + an HTML content type + a parsed body on
-// that sub-check. No evidence (older scanner) or anything else => no claim
-// (fail closed). Another dimension's request never stands in for it.
-import { UUID_RE, isAstrantUrl, isPublicHostname } from "./safety";
+// Only three findings meet that bar. Everything else was REMOVED (round 3):
+//   1.spec_compliance (H1 / blockquote)  the scanner searches only the first
+//        50/10 lines and a body read error looks like an empty file: whole-file
+//        absence is not provable.
+//   4.json_ld_present.invalid            "invalid JSON" depends on our parser and
+//        on HTML wrappers consumers tolerate.
+//   4.organization_schema / 4.service_offer_schema  @type can be an IRI, an array
+//        or nested in @graph; absence of a type is not provable for all encodings.
+//   5.markdown_negotiation               a 403 on the probes plus an HTML 200 can't
+//        prove "no Markdown version".
+// Earlier exclusions (model-scored checks, Dim 2 MCP, Dim 6 citation demo, ...)
+// still apply: nothing outside the table below can ever become a claim.
+import { UUID_RE, isAstrantUrl, isPublicHostname, sameSite } from "./safety";
 import type { DimensionResult, ScanResult, SubCheck } from "./types";
 
 export type Gap = {
-  id: string; // "<dim>.<sub_check.id>[.<variant>]"
+  id: string; // "<dim>.<sub_check.id>.<variant>"
   dimension: string;
   anchor: string;
   canonical: string;
@@ -48,59 +51,46 @@ type Rule = {
   key: string; // "<dim>.<sub_check.id>"
   anchor: string;
   variants: Record<string, string>;
-  /** Returns the variant to use, or null when this failure is not a claimable gap. */
-  pick: (sc: SubCheck, scan: ScanResult) => { variant: string; numbers: number[] } | null;
+  /** Returns the variant to use, or null when this result is not a provable observation. */
+  pick: (sc: SubCheck, domain: string) => { variant: string; numbers: number[] } | null;
 };
 
-const FETCH_FAILURE_RE = /timeout|timed out|fetch failed|blocked|status=(401|403|429|5\d\d)|\b(401|403|429|5\d\d)\b/i;
-
-function sub(scan: ScanResult, dim: number, id: string): SubCheck | undefined {
-  const d = scan.dimensions.find((x) => x.dimension_id === dim);
-  return d?.sub_checks.find((s) => s.id === id);
+function parseHttps(u: unknown): URL | null {
+  if (typeof u !== "string" || !u) return null;
+  try {
+    const x = new URL(u);
+    return x.protocol === "https:" && !x.username && !x.password && (x.port === "" || x.port === "443") ? x : null;
+  } catch {
+    return null;
+  }
 }
 
-/** Same-response success evidence: 200, HTML, body parsed. */
-export function evidenceOk(sc: SubCheck | undefined): boolean {
-  const e = sc?.evidence;
-  return !!e && e.status === 200 && e.parsed === true && /^text\/html\b|^application\/xhtml\+xml\b/i.test(e.content_type.trim());
+/** The evidence is about exactly one request to `path` on the lead's own site, and it ended on that site. */
+export function ownSiteRequest(sc: SubCheck, domain: string, path: string): boolean {
+  const e = sc.evidence;
+  if (!e) return false;
+  const req = parseHttps(e.requested_url);
+  const fin = parseHttps(e.final_url);
+  if (!req || !fin) return false;
+  if (!sameSite(req.hostname, domain) || req.pathname !== path) return false;
+  return sameSite(fin.hostname, domain);
 }
 
-function jsonLdPresent(scan: ScanResult): boolean {
-  const j = sub(scan, 4, "json_ld_present");
-  return !!j && !j.na && j.passed && evidenceOk(j) && /valid JSON-LD block\(s\) on homepage/.test(j.notes);
-}
+const HTML_CT_RE = /^text\/html\s*(;|$)/i;
 
 export const COPY_RULES: Rule[] = [
   {
     key: "1.presence",
     anchor: "llms.txt",
     variants: {
-      not_found: "{domain}/llms.txt returns a 404, so there is no llms.txt file for AI assistants to read.",
-      html: "/llms.txt on {domain} returns an HTML page (content type text/html) instead of a text file, so tools that look for the file get a web page.",
+      not_found: "When we requested {domain}/llms.txt, the server answered with a 404 (not found).",
+      html: "When we requested {domain}/llms.txt, the server returned an HTML page (content type text/html), not a text file.",
     },
-    pick: (sc) => {
-      if (/^status=404$/.test(sc.notes)) return { variant: "not_found", numbers: [404] };
-      if (/^status=200, content-type="text\/html/i.test(sc.notes)) return { variant: "html", numbers: [] };
-      return null;
-    },
-  },
-  {
-    key: "1.spec_compliance",
-    anchor: "llms.txt",
-    variants: {
-      both: "The llms.txt file on {domain} has no H1 title and no blockquote summary, the two lines the llms.txt format puts at the top.",
-      h1: "The llms.txt file on {domain} has no H1 title line, which the llms.txt format puts at the top.",
-      blockquote: "The llms.txt file on {domain} has no blockquote summary line under the title, which the llms.txt format expects.",
-    },
-    pick: (sc, scan) => {
-      const presence = sub(scan, 1, "presence");
-      if (!presence || !presence.passed) return null; // only about a file that exists
-      const m = /^h1=(yes|no), blockquote=(yes|no)$/.exec(sc.notes);
-      if (!m) return null;
-      // The 1 in "H1" is a number token, so it is carried as this gap's number.
-      if (m[1] === "no" && m[2] === "no") return { variant: "both", numbers: [1] };
-      if (m[1] === "no") return { variant: "h1", numbers: [1] };
-      if (m[2] === "no") return { variant: "blockquote", numbers: [] };
+    pick: (sc, domain) => {
+      if (!ownSiteRequest(sc, domain, "/llms.txt")) return null;
+      const e = sc.evidence!;
+      if (e.status === 404) return { variant: "not_found", numbers: [404] };
+      if (e.status === 200 && HTML_CT_RE.test(e.content_type.trim())) return { variant: "html", numbers: [] };
       return null;
     },
   },
@@ -108,46 +98,16 @@ export const COPY_RULES: Rule[] = [
     key: "4.json_ld_present",
     anchor: "JSON-LD",
     variants: {
-      none: "No JSON-LD structured data was found in the HTML of the {domain} homepage.",
-      invalid: "The JSON-LD on the {domain} homepage doesn't parse as valid JSON.",
+      none: "When we requested the {domain} homepage, its HTML had no JSON-LD block (no script of type application/ld+json).",
     },
-    pick: (sc) => {
-      if (!evidenceOk(sc)) return null;
-      if (sc.notes === "no JSON-LD found on homepage") return { variant: "none", numbers: [] };
-      if (/^\d+ JSON-LD block\(s\) present but failed to parse$/.test(sc.notes)) return { variant: "invalid", numbers: [] };
-      return null;
+    pick: (sc, domain) => {
+      if (!ownSiteRequest(sc, domain, "/")) return null;
+      const e = sc.evidence!;
+      if (e.status !== 200 || !HTML_CT_RE.test(e.content_type.trim())) return null;
+      if (e.body_complete !== true || e.parsed !== true || e.ld_json_absent_proven !== true) return null;
+      if (sc.notes !== "no JSON-LD found on homepage") return null; // the scanner's own parse agrees
+      return { variant: "none", numbers: [] };
     },
-  },
-  {
-    key: "4.organization_schema",
-    anchor: "JSON-LD",
-    variants: {
-      missing: "The JSON-LD on the {domain} homepage has no Organization entry.",
-    },
-    pick: (sc, scan) => {
-      if (!evidenceOk(sc) || !jsonLdPresent(scan)) return null;
-      return sc.notes === "no Organization schema" ? { variant: "missing", numbers: [] } : null;
-    },
-  },
-  {
-    key: "4.service_offer_schema",
-    anchor: "JSON-LD",
-    variants: {
-      missing: "The JSON-LD on the {domain} homepage has no Product, Service or Offer entry.",
-    },
-    pick: (sc, scan) => {
-      if (!evidenceOk(sc) || !jsonLdPresent(scan)) return null;
-      return sc.notes === "no Service / Product / Offer schema" ? { variant: "missing", numbers: [] } : null;
-    },
-  },
-  {
-    key: "5.markdown_negotiation",
-    anchor: "Markdown",
-    variants: {
-      none: "The {domain} homepage doesn't return Markdown when a client asks for it, and there is no Markdown version of the page, so AI agents have to pull the text out of the HTML themselves.",
-    },
-    pick: (sc) =>
-      /^No markdown variant or content negotiation\./.test(sc.notes) ? { variant: "none", numbers: [] } : null,
   },
 ];
 
@@ -157,7 +117,7 @@ export const COPY_TABLE_TEMPLATES: string[] = COPY_RULES.flatMap((r) => Object.v
 /** Anchor terms across the whole copy table (validator: no anchor of a gap not in the sheet). */
 export const ALL_ANCHORS: string[] = [...new Set(COPY_RULES.map((r) => r.anchor))];
 
-const HOOK_DIMENSIONS = new Set([1, 3, 4, 5]); // D6: never 2 or 6
+const HOOK_DIMENSIONS = new Set([1, 4]); // the only dimensions with provable observations
 
 function fillDomain(tpl: string, domain: string): string {
   return tpl.replace(/\{domain\}/g, domain);
@@ -169,10 +129,9 @@ export function selectGaps(scan: ScanResult, domain: string): Gap[] {
     if (!HOOK_DIMENSIONS.has(dim.dimension_id) || dim.na) continue;
     for (const sc of dim.sub_checks) {
       if (sc.passed || sc.na) continue;
-      if (FETCH_FAILURE_RE.test(sc.notes)) continue;
       const rule = COPY_RULES.find((r) => r.key === `${dim.dimension_id}.${sc.id}`);
       if (!rule) continue;
-      const picked = rule.pick(sc, scan);
+      const picked = rule.pick(sc, domain);
       if (!picked) continue;
       candidates.push({
         id: `${rule.key}.${picked.variant}`,

@@ -47,7 +47,8 @@ function injectedScan(payload: string): ScanResult {
   // Payloads everywhere a hostile site could influence the scan output.
   s.dimensions[0].sub_checks[0].notes = `status=200, content-type="text/html; ${payload}"`;
   s.dimensions[0].sub_checks[1].notes = payload;
-  s.dimensions[3].sub_checks[0].notes = payload;
+  // (Dim 4 json_ld_present notes stay the scanner's exact string: the finding requires it.)
+  s.dimensions[3].sub_checks[1].notes = payload;
   s.dimensions[3].sub_checks.push({ id: "faq_schema", name: payload, weight: 20, score: 0, passed: false, notes: payload });
   s.dimensions[4].sub_checks[0].notes = `No markdown variant or content negotiation. ${payload}`;
   s.dimensions[0].dimension_name = s.dimensions[0].dimension_name; // scanner-owned names stay

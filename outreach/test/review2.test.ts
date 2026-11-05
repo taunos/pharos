@@ -6,11 +6,11 @@ import { fileURLToPath } from "node:url";
 import { COPY_RULES, buildFactSheet, selectGaps } from "../src/facts";
 import { classify, handleInbound } from "../src/inbound";
 import { hasUnsafeChars } from "../src/safety";
-import { FakeMail, TUE_1400, freshDb, gappyScan, inboundMail, insertLead, makeEnv, noopAlert } from "./helpers";
+import { FakeMail, TUE_1400, freshDb, gappyScan, homepageOk, inboundMail, insertLead, makeEnv, noopAlert } from "./helpers";
 import type { ScanResult } from "../src/types";
 
 const cp = (...n: number[]) => String.fromCodePoint(...n);
-const OK = { status: 200, content_type: "text/html; charset=utf-8", parsed: true };
+const OK = homepageOk("example.com");
 
 function withDim4Evidence(s: ScanResult, ev: unknown): ScanResult {
   for (const sc of s.dimensions[3].sub_checks) (sc as { evidence?: unknown }).evidence = ev;
@@ -20,7 +20,7 @@ function withDim4Evidence(s: ScanResult, ev: unknown): ScanResult {
 describe("#1 HIGH: the JSON-LD absence claim says only what was observed", () => {
   it("copy is narrowed to the observation", () => {
     const r = COPY_RULES.find((x) => x.key === "4.json_ld_present")!;
-    expect(r.variants.none).toBe("No JSON-LD structured data was found in the HTML of the {domain} homepage.");
+    expect(r.variants.none).toBe("When we requested the {domain} homepage, its HTML had no JSON-LD block (no script of type application/ld+json).");
     expect(r.variants.none).not.toMatch(/so |doesn't describe/);
   });
 });

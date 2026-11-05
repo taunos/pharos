@@ -7,50 +7,37 @@ import type { ScanResult } from "../src/types";
 const ctx = { benchmarkUrl: null, privacyUrl: "https://astrant.io/privacy#prospecting" };
 const clone = (s: ScanResult): ScanResult => JSON.parse(JSON.stringify(s));
 
-describe("gap selection (§7.1, D6)", () => {
-  it("picks deterministic gaps from dims 1/4/5, one per dimension, ranked by weight × (100 − score)", () => {
+describe("gap selection (observation-only claims)", () => {
+  it("picks the two provable observations: /llms.txt 404 and no JSON-LD block, each from its own request", () => {
     const gaps = selectGaps(gappyScan(), "example.com");
-    expect(gaps.map((g) => g.id)).toEqual(["1.presence.not_found", "4.json_ld_present.none", "5.markdown_negotiation.none"]);
+    expect(gaps.map((g) => g.id)).toEqual(["1.presence.not_found", "4.json_ld_present.none"]);
     expect(gaps[0].numbers).toEqual([404]);
-    expect(gaps[0].canonical).toBe("example.com/llms.txt returns a 404, so there is no llms.txt file for AI assistants to read.");
+    expect(gaps[0].canonical).toBe("When we requested example.com/llms.txt, the server answered with a 404 (not found).");
   });
 
-  it("never uses Dim 2 (MCP) or Dim 6 (citation), nor model-scored sub-checks", () => {
-    const s = clone(gappyScan());
-    const ids = selectGaps(s, "example.com").map((g) => g.id);
-    expect(ids.some((i) => i.startsWith("2.") || i.startsWith("6."))).toBe(false);
+  it("never uses Dim 2 (MCP), Dim 5, Dim 6, or model-scored sub-checks", () => {
+    const ids = selectGaps(clone(gappyScan()), "example.com").map((g) => g.id);
+    expect(ids.some((i) => /^(2|3|5|6)\./.test(i))).toBe(false);
     expect(ids.some((i) => i.includes("blockquote_eval") || i.includes("faq_schema"))).toBe(false);
   });
 
-  it("drops fetch failures (403/429/5xx/timeout) — a blocked request tells us nothing", () => {
-    const s = clone(gappyScan());
-    s.dimensions[0].sub_checks[0].notes = "status=403";
-    expect(selectGaps(s, "example.com").some((g) => g.id.startsWith("1.presence"))).toBe(false);
-    s.dimensions[0].sub_checks[0].notes = "fetch failed";
-    expect(selectGaps(s, "example.com").some((g) => g.id.startsWith("1.presence"))).toBe(false);
+  it("a blocked /llms.txt request (403/429/5xx/no response) is not a finding", () => {
+    for (const status of [403, 429, 500, 503, null]) {
+      const s = clone(gappyScan());
+      s.dimensions[0].sub_checks[0].evidence!.status = status;
+      expect(selectGaps(s, "example.com").some((g) => g.id.startsWith("1.presence")), String(status)).toBe(false);
+    }
   });
 
-  it("Dim 4 gaps need same-response evidence; Dim 5 answering is not enough", () => {
+  it("Dim 4 gaps need same-response evidence; another dimension answering is not enough", () => {
     const s = clone(gappyScan());
     for (const sc of s.dimensions[3].sub_checks) sc.evidence = { status: 403, content_type: "text/html", parsed: false };
-    const ids = selectGaps(s, "example.com").map((g) => g.id);
-    expect(ids.some((i) => i.startsWith("4."))).toBe(false);
-    expect(ids.some((i) => i.startsWith("5."))).toBe(true);
+    expect(selectGaps(s, "example.com").some((i) => i.id.startsWith("4."))).toBe(false);
   });
 
-  it("spec_compliance is only claimed about a file that exists", () => {
+  it("fewer than 2 provable observations ⇒ the fact sheet has < 2 (no draft for the lead)", () => {
     const s = clone(gappyScan());
-    // presence fails (404) → spec_compliance is not a separate claim even though it failed
-    expect(selectGaps(s, "example.com").some((g) => g.id.startsWith("1.spec_compliance"))).toBe(false);
-    s.dimensions[0].sub_checks[0] = { ...s.dimensions[0].sub_checks[0], score: 100, passed: true, notes: 'status=200, content-type="text/plain"' };
-    expect(selectGaps(s, "example.com").map((g) => g.id)).toContain("1.spec_compliance.both");
-  });
-
-  it("fewer than 2 valid gaps ⇒ the fact sheet has < 2 (lead is disqualified upstream)", () => {
-    const s = clone(gappyScan());
-    s.dimensions[0].sub_checks[0].notes = "status=503";
-    s.dimensions[4].sub_checks[0] = { ...s.dimensions[4].sub_checks[0], passed: true, score: 100, notes: "Accept: text/markdown returns text/markdown (directly)." };
-    s.dimensions[3].sub_checks[0].notes = "weird";
+    s.dimensions[0].sub_checks[0].evidence!.status = 503;
     expect(buildFactSheet(s, "example.com", "https://astrant.io/score/").gaps.length).toBeLessThan(2);
   });
 });

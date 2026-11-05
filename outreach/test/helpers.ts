@@ -187,11 +187,27 @@ function dim(id: number, name: string, subs: SubCheck[], extra: Partial<Dimensio
   return { dimension_id: id, dimension_name: name, score: 30, grade: "F", sub_checks: subs, ...extra };
 }
 
-/** Dim 4 same-response evidence as the current scanner emits it for a 200 HTML homepage. */
-export const HOMEPAGE_OK = { status: 200, content_type: "text/html; charset=utf-8", parsed: true };
+/** Dim 4 same-response evidence as the current scanner emits it for a 200 HTML homepage (example.com). */
+export const HOMEPAGE_OK = homepageOk("example.com");
+export function homepageOk(host: string) {
+  return {
+    status: 200,
+    content_type: "text/html; charset=utf-8",
+    parsed: true,
+    requested_url: `https://${host}/`,
+    final_url: `https://www.${host}/`, // same-site redirect to www is fine
+    body_complete: true,
+    ld_json_absent_proven: true,
+  };
+}
+export function llmsNotFound(host: string) {
+  return { status: 404, content_type: "text/html", parsed: false, requested_url: `https://${host}/llms.txt`, final_url: `https://${host}/llms.txt` };
+}
 
 /** A scan with three claimable gaps: llms.txt 404, no JSON-LD (homepage answered), no Markdown. */
 export function gappyScan(url = "https://example.com/", id = "aaaaaaaa-0000-4000-8000-000000000001"): ScanResult {
+  const host = new URL(url).hostname;
+  const HOMEPAGE_OK = homepageOk(host);
   return {
     id,
     url,
@@ -200,7 +216,7 @@ export function gappyScan(url = "https://example.com/", id = "aaaaaaaa-0000-4000
     created_at: 1,
     tier: "free",
     dimensions: [
-      dim(1, "llms.txt Quality", [sc("presence", 25, 0, "status=404"), sc("spec_compliance", 25, 0, "h1=no, blockquote=no"), sc("blockquote_eval", 15, 50, "LLM rated blockquote 50/100")]),
+      dim(1, "llms.txt Quality", [sc("presence", 25, 0, "status=404", { evidence: llmsNotFound(host) }), sc("spec_compliance", 25, 0, "h1=no, blockquote=no"), sc("blockquote_eval", 15, 50, "LLM rated blockquote 50/100")]),
       dim(2, "MCP Server Discoverability", [sc("well_known", 30, 0, "no /.well-known/mcp")]),
       dim(3, "OpenAPI / API Catalog", [sc("discovery", 1, 0, "n/a", { na: true })], { na: true }),
       dim(4, "Structured Capability Data", [

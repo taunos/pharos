@@ -87,6 +87,31 @@ export function extractJsonLdBlocks(html: string): unknown[] {
   return out;
 }
 
+/** Decodes numeric (&#47; &#x2B;) and the &plus; &sol; &amp; entities, which is all an "ld+json" spelling can need. */
+function decodeAttrEntities(s: string): string {
+  return s
+    .replace(/&#x([0-9a-f]{1,6});?/gi, (_, h: string) => safeCodePoint(parseInt(h, 16)))
+    .replace(/&#([0-9]{1,7});?/g, (_, d: string) => safeCodePoint(parseInt(d, 10)))
+    .replace(/&plus;/gi, "+")
+    .replace(/&sol;/gi, "/")
+    .replace(/&amp;/gi, "&");
+}
+function safeCodePoint(n: number): string {
+  return n >= 0 && n <= 0x10ffff ? String.fromCodePoint(n) : "";
+}
+const UTF8_COMPATIBLE = /^(utf-?8|us-ascii|ascii|iso-8859-1|latin1|windows-1252)$/i;
+
+/** See SubCheckEvidence.ld_json_absent_proven. Conservative: any doubt => false. */
+export function ldJsonAbsentProven(html: string, contentType: string, bodyComplete: boolean): boolean {
+  if (!bodyComplete) return false;
+  const cs = /charset\s*=\s*"?([^";\s]+)/i.exec(contentType)?.[1];
+  if (cs && !UTF8_COMPATIBLE.test(cs)) return false;
+  if (html.includes(String.fromCodePoint(0xfffd))) return false; // decoding errors
+  // Decode twice (handles &amp;#43; style double encoding), then search.
+  const text = decodeAttrEntities(decodeAttrEntities(html));
+  return !/ld\s*\+\s*json/i.test(text);
+}
+
 function findByType(blocks: unknown[], typeName: string): Record<string, unknown>[] {
   const matches: Record<string, unknown>[] = [];
   for (const b of blocks) {
@@ -154,15 +179,33 @@ export async function runDim4(targetUrl: string, env: Env): Promise<DimensionRes
   let invalidCount = 0;
   // Evidence from THIS response, attached to every Dim 4 sub-check, so a consumer
   // never infers "the homepage had no JSON-LD" from some other request.
-  const evidence: SubCheckEvidence = { status: res ? res.status : null, content_type: res?.headers.get("content-type") ?? "", parsed: false };
+  const evidence: SubCheckEvidence = {
+    status: res ? res.status : null,
+    content_type: res?.headers.get("content-type") ?? "",
+    parsed: false,
+    requested_url: targetUrl,
+    final_url: res?.url ?? "",
+    body_complete: false,
+    ld_json_absent_proven: false,
+  };
   if (res && res.status === 200) {
+    let read = false;
     try {
       html = await res.text();
-      blocks = extractJsonLdBlocks(html);
-      invalidCount = blocks.filter((b) => (b as { __invalid?: boolean })?.__invalid).length;
-      evidence.parsed = true;
+      read = true;
     } catch {
-      // ignore
+      // body read error: not complete
+    }
+    evidence.body_complete = read;
+    if (read) {
+      try {
+        blocks = extractJsonLdBlocks(html);
+        invalidCount = blocks.filter((b) => (b as { __invalid?: boolean })?.__invalid).length;
+        evidence.parsed = true;
+      } catch {
+        // ignore
+      }
+      evidence.ld_json_absent_proven = ldJsonAbsentProven(html, evidence.content_type, true);
     }
   }
   const validBlocks = blocks.filter((b) => !(b as { __invalid?: boolean })?.__invalid);

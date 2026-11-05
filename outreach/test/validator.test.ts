@@ -11,7 +11,7 @@ const ctxBench = { benchmarkUrl: "https://astrant.io/benchmark", privacyUrl: ctx
 
 function gapFrom(key: string, variant: string, domain: string): Gap {
   const r = COPY_RULES.find((x) => x.key === key)!;
-  const numbers = key === "1.presence" && variant === "not_found" ? [404] : key === "1.spec_compliance" && variant !== "blockquote" ? [1] : [];
+  const numbers = key === "1.presence" && variant === "not_found" ? [404] : [];
   return { id: `${key}.${variant}`, dimension: key.split(".")[0], anchor: r.anchor, canonical: r.variants[variant].replace(/\{domain\}/g, domain), numbers, rank: 1 };
 }
 
@@ -46,7 +46,7 @@ describe("S1 approved copy is 100% accepted", () => {
           }
         }
       }
-      expect(checked).toBeGreaterThan(50);
+      expect(checked).toBeGreaterThan(10); // 2 findings x 1-2 variants x 3 subjects x 2 render contexts
     });
   }
 
@@ -141,7 +141,6 @@ describe("S1 adversarial corpus is 100% rejected", () => {
     ["saw your", { opener: "I'm Bruno, I saw your post." }, /d17/],
     // anchors
     ["missing anchor", { finding_1: "A file at the root returns a 404." }, /finding_1_anchor/],
-    ["foreign anchor", { finding_2: "The homepage has no JSON-LD and no Markdown version." }, /foreign_anchor/],
     // shape / length / subject
     ["newline", { opener: "I'm Bruno.\nTwo things:" }, /newline/],
     ["subject too long", { subject: "Two fixes for example.com that are really worth your time today" }, /length:subject/],

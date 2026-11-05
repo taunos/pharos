@@ -64,7 +64,24 @@ export type ScanTier = "free" | "paid";
  * (outreach security round 2). Absence claims ("no JSON-LD found") are only
  * meaningful when status is 200, the content type is HTML and the body was parsed.
  */
-export type SubCheckEvidence = { status: number | null; content_type: string; parsed: boolean };
+export type SubCheckEvidence = {
+  status: number | null;
+  content_type: string;
+  parsed: boolean;
+  /** The URL this sub-check requested. */
+  requested_url?: string;
+  /** Response.url after redirects ("" if unknown). Lets a consumer reject cross-host results. */
+  final_url?: string;
+  /** The whole body was read without error (no truncation). */
+  body_complete?: boolean;
+  /**
+   * Dim 4 only: true iff the FULL body was read as UTF-8-compatible text with no
+   * decoding errors and, after decoding numeric and &plus;/&sol;/&amp; entities,
+   * the text "ld+json" appears nowhere (case-insensitive). This proves no
+   * application/ld+json script exists in the static HTML, whatever the markup.
+   */
+  ld_json_absent_proven?: boolean;
+};
 
 export type SubCheck = {
   id: string;
