@@ -192,6 +192,7 @@ export async function POST(req: Request) {
   // ── E1: bind the scan to its captured address ──────────────────────────
   // A scan that already has an address only ever mails THAT address.
   let recipient = email;
+  let recipientIsStored = false;
   if (state.has_email_captured) {
     const stored = await getEmailForScan(env, scanId);
     if (!stored.ok) {
@@ -211,6 +212,7 @@ export async function POST(req: Request) {
         );
       }
       recipient = normalizeEmail(stored.email);
+      recipientIsStored = true;
     }
   }
 
@@ -339,6 +341,15 @@ export async function POST(req: Request) {
         success: true,
         message: "Your gap report is ready — check your inbox.",
       });
+    }
+    // Fail closed: the state said captured but the stored address read back
+    // empty (e.g. a concurrent delete-me). Never fall back to the request's
+    // address here — this branch sends without binding.
+    if (!recipientIsStored) {
+      return NextResponse.json(
+        { success: false, error: "Could not load scan." },
+        { status: 502 }
+      );
     }
     // Re-send. Need the public scan record for email body composition.
     const scanFetch = await getPublicScan(scanId, env);

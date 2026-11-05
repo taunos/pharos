@@ -472,6 +472,20 @@ describe("E1 — capture-email never returns tokens; a scan only ever mails its 
     expect(h.sendDeferred).not.toHaveBeenCalled();
   });
 
+  it("RACE: state says captured + PDF ready but the stored email reads back null/empty (concurrent delete) → 502, nothing mailed, no fallback to the request's address", async () => {
+    for (const email of [null, ""]) {
+      rec("getScanState", h.getScanState, () => readyState());
+      rec("getEmailForScan", h.getEmailForScan, () => ({ ok: true, email }));
+      const r = await post("attacker@evil.test");
+      expect(r.status).toBe(502);
+      expect(await r.json()).toEqual({ success: false, error: "Could not load scan." });
+      expect(h.sendReady).not.toHaveBeenCalled();
+      expect(h.sendDeferred).not.toHaveBeenCalled();
+      expect(h.getPublicScan).not.toHaveBeenCalled();
+      expect(h.kvPut).not.toHaveBeenCalled();
+    }
+  });
+
   it("stored-email read failure → 502, nothing sent (fail closed)", async () => {
     rec("getScanState", h.getScanState, () => readyState());
     rec("getEmailForScan", h.getEmailForScan, () => ({ ok: false, error: "timeout" }));

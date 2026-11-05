@@ -437,6 +437,7 @@ export function mountScoreAdmin(app: Hono<{ Bindings: Env }>): void {
       return c.json({ ok: false, error: "unauthorized" }, 401);
     }
     const scanId = c.req.param("id");
+    // Over marketing's SCANNER_SVC Service Binding there is no CF-Connecting-IP, so this, pdf-key and replay limits share one global "unknown" bucket.
     const workerIp = c.req.header("CF-Connecting-IP") ?? "unknown";
 
     const rl = await checkEmailReadbackRateLimit(c.env, scanId, workerIp);
