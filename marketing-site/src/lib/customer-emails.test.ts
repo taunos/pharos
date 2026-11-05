@@ -302,3 +302,16 @@ describe("E1 customer emails", () => {
     for (const [name, s] of Object.entries(sent)) writeFileSync(join(dir, `${name}.html`), s.html, "utf8");
   });
 });
+
+// E4 (2026-11-05): the Resend SDK returns API failures in `error` instead of
+// throwing; sendWelcomeEmail must throw so the webhook does not stamp
+// welcome_email_sent_at for an email Resend never accepted.
+describe("E4 — sendWelcomeEmail surfaces a Resend API error", () => {
+  it("throws when Resend returns { error }", async () => {
+    sendMock.mockResolvedValueOnce({ data: null, error: { message: "domain not verified", name: "validation_error" } });
+    await expect(sendWelcomeEmail(welcomeEnv, "sub_123", "jane@acme-analytics.com", null)).rejects.toThrow(/Resend/);
+  });
+  it("resolves on a normal send", async () => {
+    await expect(sendWelcomeEmail(welcomeEnv, "sub_123", "jane@acme-analytics.com", null)).resolves.toBeUndefined();
+  });
+});

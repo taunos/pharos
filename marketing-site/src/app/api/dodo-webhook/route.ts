@@ -15,6 +15,7 @@ import type { FulfillMessage } from "@/lib/fulfill-queue-consumer";
 import { updateFunnelStatus } from "@/lib/audit-funnel";
 import { AUDIT_PRODUCT_ID } from "@/lib/audit-gate";
 import { isImplementationCheckoutEnabled } from "@/lib/implementation-gate";
+import { isSubscriptionCheckoutEnabled } from "@/lib/subscription-gate";
 import { parseMaxProbeTargets } from "@/lib/probe-ceiling";
 
 interface WebhookEnv extends DodoEnvBindings {
@@ -46,6 +47,8 @@ interface WebhookEnv extends DodoEnvBindings {
   IMPLEMENTATION_CHECKOUT_ENABLED?: string;
   // Slice Q (Q1g): durable Implementation producer (astrant-fulfill).
   FULFILL_QUEUE?: Queue<FulfillMessage>;
+  // E4 (2026-11-05): server-side subscription launch gate (fail-closed).
+  SUBSCRIPTION_CHECKOUT_ENABLED?: string;
 }
 
 const F2_IMPLEMENTATION_PRODUCT_ID = "pdt_0NdQE5vccUUgOHMsF6Pzz";
@@ -165,6 +168,66 @@ async function recordManualReview(
 
 const retryLater = () =>
   NextResponse.json({ ok: false, reason: "retry later" }, { status: 503 });
+
+// E3 (2026-11-05): every paid-but-not-fulfilled path goes through here, BEFORE
+// the dedupe write. A durable manual-review record first (alerts are
+// fail-open, console logs are sampled), then one operator alert. Returns false
+// when the record could not be written: the caller must answer without the
+// dedupe key so Dodo redelivers.
+async function holdForManualReview(
+  env: WebhookEnv,
+  tier: string,
+  paymentRef: string,
+  alertCode: string,
+  reason: string,
+  sessionId = "",
+): Promise<boolean> {
+  console.error(`[dodo-webhook] ${alertCode} payment_id=${paymentRef}: ${reason}`);
+  if (!(await recordManualReview(env, "manual-review", tier, paymentRef, reason))) {
+    return false;
+  }
+  await alertOperator(
+    env,
+    alertCode,
+    sessionId,
+    `payment_id=${paymentRef}: ${reason} — not fulfilled; reconcile/refund manually (KV manual-review:${tier}:${paymentRef})`,
+  );
+  return true;
+}
+
+// A charge that belongs to a subscription (Standard/Pro). Those are fulfilled
+// and gated by the subscription.* events, not by payment.succeeded.
+function isSubscriptionPayment(parsed: DodoWebhookPayload): boolean {
+  const d = parsed.data ?? {};
+  const ids = (d as { subscription_ids?: unknown[] }).subscription_ids;
+  return !!d.subscription_id || (Array.isArray(ids) && ids.length > 0);
+}
+
+// E4: on a redelivery after a failed welcome send, tryAssignFoundingStatus
+// reports the founding row THIS subscription created as `already_founder`.
+// If that row was assigned at or after this subscription's first activation,
+// the customer is a new founder and gets the founding welcome.
+async function firstWelcomeFoundingResult(
+  env: WebhookEnv,
+  customerId: string,
+  subscriptionCreatedAt: number,
+  result: AssignmentResult | null,
+): Promise<AssignmentResult | null> {
+  if (result?.kind !== "already_founder" || result.founding_status !== "active") return result;
+  const row = await env.CITATION_DB.prepare(
+    `SELECT founding_assigned_at FROM founding_customers WHERE customer_id = ?`
+  )
+    .bind(customerId)
+    .first<{ founding_assigned_at: number }>();
+  if (row && row.founding_assigned_at >= subscriptionCreatedAt) {
+    return {
+      kind: "newly_assigned",
+      foundingOrderSeq: result.foundingOrderSeq,
+      foundingTierLocks: result.foundingTierLocks,
+    };
+  }
+  return result;
+}
 
 export async function POST(req: Request) {
   const env = getCloudflareContext().env as unknown as WebhookEnv;
@@ -386,9 +449,10 @@ export async function POST(req: Request) {
         return f2Result;
       }
     } else if (tier === "custom") {
-      console.error(
-        `[dodo-webhook] custom scoping deposit received; manual followup needed. metadata=${JSON.stringify(metadata)}`
-      );
+      // E3: a paid scoping deposit is fulfilled by hand — durable record + alert.
+      if (!(await holdForManualReview(env, "custom", paymentRef, "CUSTOM_DEPOSIT_PAID", "custom scoping deposit; manual follow-up needed", sessionId ?? ""))) {
+        return retryLater();
+      }
     } else if (tier === "autopilot") {
       // F3: payment confirms but actual fulfillment happens at subscription.active
       // (separate top-level event type per V3.A). Log only here.
@@ -396,13 +460,23 @@ export async function POST(req: Request) {
         `F3_AUTOPILOT_PAYMENT_RECEIVED subscription_id=${parsed.data?.subscription_id ?? "unknown"}; awaiting subscription.active`
       );
     } else if (tier === "concierge") {
-      console.error(
-        `[dodo-webhook] subscription purchased (tier=concierge); future flow (F4). metadata=${JSON.stringify(metadata)}`
+      // E3: no automated concierge flow exists — durable record + alert.
+      if (!(await holdForManualReview(env, "concierge", paymentRef, "CONCIERGE_PAID_NO_FLOW", "tier=concierge has no automated fulfillment", sessionId ?? ""))) {
+        return retryLater();
+      }
+    } else if (!tier && isSubscriptionPayment(parsed)) {
+      // A Standard/Pro subscription charge (Dodo buy links carry no tier
+      // metadata). Fulfilment and its gate live in the subscription.* events;
+      // alerting here would fire on every renewal.
+      console.log(
+        `[dodo-webhook] subscription payment.succeeded payment_id=${paymentRef}; handled by subscription.* events`
       );
     } else {
-      console.error(
-        `[dodo-webhook] payment.succeeded with unrecognized tier=${tier ?? "<missing>"}; metadata=${JSON.stringify(metadata)}`
-      );
+      // E3: unknown or missing tier on a one-shot payment — we took money and
+      // nothing will fulfil it.
+      if (!(await holdForManualReview(env, "unknown", paymentRef, "PAYMENT_UNKNOWN_TIER", `unrecognized tier=${tier ?? "<missing>"}`, sessionId ?? ""))) {
+        return retryLater();
+      }
     }
   } else if (eventType === "payment.failed") {
     console.error(
@@ -425,6 +499,22 @@ export async function POST(req: Request) {
     if (!subscriptionId || !customerEmail) {
       console.error(`F3_WEBHOOK_MISSING_FIELDS subscription_id=${subscriptionId ?? "null"}`);
       return NextResponse.json({ ok: false, code: "MISSING_FIELDS" }, { status: 400 });
+    }
+
+    // E4 (2026-11-05): server-side launch gate + product allow-list. The
+    // /subscriptions CTAs alone do not stop a direct Dodo buy link. A closed
+    // gate or a product that is not Standard/Pro → durable manual-review record
+    // + one alert; NO subscriptions row, NO onboarding email. Dedupe after.
+    const subTier = resolveTierFromProductId(env, productId);
+    if (!isSubscriptionCheckoutEnabled(env) || !subTier) {
+      const reason = !subTier
+        ? `product ${productId || "<missing>"} is not a subscription product`
+        : "subscription gate closed";
+      if (!(await holdForManualReview(env, "subscription", subscriptionId, "SUBSCRIPTION_NOT_PROVISIONED", reason))) {
+        return retryLater();
+      }
+      await env.SESSIONS.put(dedupeKey, "1", { expirationTtl: WEBHOOK_DEDUPE_TTL });
+      return NextResponse.json({ ok: true, held: "manual-review" });
     }
 
     const now = Math.floor(Date.now() / 1000);
@@ -459,33 +549,51 @@ export async function POST(req: Request) {
     // is defined-string at this point, and customerId's fallback chain ends with it — so
     // customerId IS defined at runtime. Explicit narrow for tryAssignFoundingStatus's strict signature.
     const fndCustomerId: string = customerId ?? subscriptionId;
-    const fndTier = resolveTierFromProductId(env, productId);
-    let foundingResult: AssignmentResult | null = null;
-    if (fndTier) {
-      foundingResult = await tryAssignFoundingStatus(env, fndCustomerId, fndTier.tierKey, fndTier.tierPriceCents);
-    }
+    let foundingResult: AssignmentResult | null = await tryAssignFoundingStatus(
+      env, fndCustomerId, subTier.tierKey, subTier.tierPriceCents,
+    );
 
-    // 4. CAS UPDATE welcome_email_sent_at (atomic; single-statement; race-free).
-    const casResult = await env.CITATION_DB.prepare(
-      `UPDATE subscriptions
-       SET welcome_email_sent_at = ?
-       WHERE subscription_id = ? AND welcome_email_sent_at IS NULL`
+    // 4/5. E4 (2026-11-05): send FIRST, stamp welcome_email_sent_at only after
+    // a successful send. The old order (stamp, then send, swallow the error)
+    // lost a failed welcome email for good. Trade-off: if the send succeeds
+    // but the stamp write fails, a redelivery sends a second welcome — a rare
+    // duplicate is preferred to a silently lost onboarding link. (No Resend
+    // idempotency key: the body carries freshly minted tokens, so a retry is
+    // never byte-identical and Resend would reject it.)
+    const welcomeRow = await env.CITATION_DB.prepare(
+      `SELECT welcome_email_sent_at, created_at FROM subscriptions WHERE subscription_id = ?`
     )
-      .bind(now, subscriptionId)
-      .run();
-
-    // 5. If CAS won, send welcome email.
-    if (casResult.meta.changes === 1) {
+      .bind(subscriptionId)
+      .first<{ welcome_email_sent_at: number | null; created_at: number }>();
+    if (welcomeRow && welcomeRow.welcome_email_sent_at === null) {
+      // A redelivery after a failed send sees the founding row it created the
+      // first time as `already_founder`; that is still this subscription's
+      // first welcome, so it must get the founding variant, not "welcome back".
+      foundingResult = await firstWelcomeFoundingResult(env, fndCustomerId, welcomeRow.created_at, foundingResult);
       try {
         const { sendWelcomeEmail } = await import("@/lib/welcome-email");
         await sendWelcomeEmail(env, subscriptionId, customerEmail, foundingResult);
       } catch (err) {
-        // Resend bounce/error logging surfaces delivery failures operationally.
         console.error(
           `F3_WELCOME_EMAIL_SEND_FAILED subscription_id=${subscriptionId.substring(0, 8)}...`,
           err
         );
+        // No stamp, no dedupe: Dodo redelivers and the send is retried.
+        await alertOperator(
+          env,
+          "F3_WELCOME_EMAIL_SEND_FAILED",
+          "",
+          `subscription_id=${subscriptionId}: welcome email failed; Dodo will retry. If it never arrives, resend manually.`,
+        );
+        return NextResponse.json({ ok: false, reason: "welcome email failed" }, { status: 500 });
       }
+      await env.CITATION_DB.prepare(
+        `UPDATE subscriptions
+         SET welcome_email_sent_at = ?
+         WHERE subscription_id = ? AND welcome_email_sent_at IS NULL`
+      )
+        .bind(Math.floor(Date.now() / 1000), subscriptionId)
+        .run();
     }
   } else if (eventType === "subscription.renewed") {
     // F3: critical for D8 sunset semantics. Without this, current_period_end stays stale
@@ -692,11 +800,18 @@ async function handleF2ImplementationPayment(
   webhookId: string,
 ): Promise<NextResponse | { status: 200 }> {
   // V-E defensive belt-and-suspenders: F2 is one-shot; subscription_id MUST be null.
+  const implPaymentRef = parsed.data?.payment_id ?? parsed.data?.id ?? "null";
+  // E3: a validation failure is a paid-but-unfulfilled Implementation. Record
+  // + alert before the caller's dedupe write; a failed record → 500 with no
+  // dedupe (the caller returns 500s as-is) so Dodo redelivers.
+  const hold = async (code: string, reason: string, body: Record<string, unknown>) => {
+    if (!(await holdForManualReview(env, "implementation", implPaymentRef, code, reason))) {
+      return NextResponse.json({ ok: false, reason: "retry later" }, { status: 500 });
+    }
+    return NextResponse.json(body);
+  };
   if (parsed.data?.subscription_id != null) {
-    console.warn(
-      `F2_UNEXPECTED_SUBSCRIPTION_ID payment_id=${parsed.data?.payment_id ?? parsed.data?.id ?? "null"}`,
-    );
-    return NextResponse.json({ ok: true, skipped: "has-subscription-id" });
+    return hold("F2_UNEXPECTED_SUBSCRIPTION_ID", "implementation payment carries a subscription_id", { ok: true, skipped: "has-subscription-id" });
   }
 
   // V-A.2 defensive ??-fallback (matches shipped F3 pattern at lines 206-211)
@@ -706,10 +821,7 @@ async function handleF2ImplementationPayment(
     parsed.data?.product_id ??
     "";
   if (productId !== F2_IMPLEMENTATION_PRODUCT_ID) {
-    console.warn(
-      `F2_WRONG_PRODUCT_ID payment_id=${parsed.data?.payment_id ?? parsed.data?.id} product_id=${productId}`,
-    );
-    return NextResponse.json({ ok: true, skipped: "wrong-product" });
+    return hold("F2_WRONG_PRODUCT_ID", `product_id=${productId || "<missing>"}`, { ok: true, skipped: "wrong-product" });
   }
 
   const dodoCustomerId =
@@ -720,10 +832,7 @@ async function handleF2ImplementationPayment(
   const customerEmail = parsed.data?.customer?.email ?? parsed.data?.email;
 
   if (!dodoCustomerId || !dodoPaymentId || !customerEmail) {
-    console.error(
-      `F2_MISSING_REQUIRED_FIELDS payment_id=${dodoPaymentId ?? "null"} customer_id=${dodoCustomerId ?? "null"}`,
-    );
-    return NextResponse.json({ ok: true, error: "MISSING_REQUIRED" });
+    return hold("F2_MISSING_REQUIRED_FIELDS", `customer_id=${dodoCustomerId ?? "null"} email=${customerEmail ? "present" : "missing"}`, { ok: true, error: "MISSING_REQUIRED" });
   }
 
   // Parse the 5 custom_field_responses per spec v6.1 D17
@@ -743,6 +852,10 @@ async function handleF2ImplementationPayment(
     console.error(
       `F2_MISSING_CUSTOM_FIELDS payment_id=${dodoPaymentId} responses=${JSON.stringify(responses)}`,
     );
+    // E3: durable record before the dedupe write (the alert below is fail-open).
+    if (!(await recordManualReview(env, "manual-review", "implementation", dodoPaymentId, "missing custom fields"))) {
+      return NextResponse.json({ ok: false, reason: "retry later" }, { status: 500 });
+    }
     // Alert dedupe (Codex MED v2): one alert per webhook-id
     const alertDedupeKey = `webhook-alert:${webhookId}`;
     const alreadyAlerted = await env.SESSIONS.get(alertDedupeKey);
@@ -788,6 +901,10 @@ async function handleF2ImplementationPayment(
 
   if (ceilingCheck && ceilingCheck.count >= f2MaxProbeTargets) {
     console.error(`F2_OVER_CAPACITY_DIRECT_PURCHASE payment_id=${dodoPaymentId}`);
+    // E3: durable record before the dedupe write (the alert below is fail-open).
+    if (!(await recordManualReview(env, "manual-review", "implementation", dodoPaymentId, "over capacity"))) {
+      return NextResponse.json({ ok: false, reason: "retry later" }, { status: 500 });
+    }
     const alertDedupeKey = `webhook-alert:${webhookId}`;
     const alreadyAlerted = await env.SESSIONS.get(alertDedupeKey);
     if (!alreadyAlerted) {

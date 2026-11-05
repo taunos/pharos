@@ -53,6 +53,10 @@ export const metadata: Metadata = {
 //     = https://checkout.dodopayments.com/buy/pdt_0NdQEbaRcrAC3qQuCAlnh?quantity=1  -> Standard $149
 //   CHECKOUT_PRO_URL = `https://checkout.dodopayments.com/buy/${env.PRO_PRODUCT_ID}?quantity=1`
 //     = https://checkout.dodopayments.com/buy/pdt_0NdQEw8wrcH0nd5OlZ3IJ?quantity=1     -> Pro $899
+// E4 (2026-11-05): the webhook enforces the same gate server-side. A
+// subscription that activates while SUBSCRIPTION_CHECKOUT_ENABLED !== "true"
+// (lib/subscription-gate.ts) is held for manual review with no row and no
+// onboarding email — flip that var together with these consts.
 const CHECKOUT_STANDARD_URL = "/audit#waitlist";
 const CHECKOUT_PRO_URL = "/audit#waitlist";
 

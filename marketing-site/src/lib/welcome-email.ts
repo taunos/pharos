@@ -97,7 +97,10 @@ export async function sendWelcomeEmail(
     subject = "Astrant is active — set up your monitoring";
   }
 
-  await resend.emails.send({
+  // E4 (2026-11-05): the Resend SDK reports API failures in `error` and does
+  // not throw. Throw here so the webhook does not stamp welcome_email_sent_at
+  // for an email that was never accepted.
+  const result = await resend.emails.send({
     from: "Astrant <reports@astrant.io>",
     to: customerEmail,
     replyTo: "contact@astrant.io",
@@ -109,6 +112,9 @@ export async function sendWelcomeEmail(
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
     },
   });
+  if (result?.error) {
+    throw new Error(`welcome email rejected by Resend: ${result.error.message}`);
+  }
 }
 
 function unsubscribeFooterHtml(lead: string, unsubscribeLink: string): string {

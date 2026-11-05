@@ -20,6 +20,7 @@ const h = vi.hoisted(() => ({
   sendDeferred: vi.fn(),
   issueScanToken: vi.fn(),
   hashEmailForLog: vi.fn(),
+  sessions: new Map<string, string>(),
 }));
 
 vi.mock("@opennextjs/cloudflare", () => ({ getCloudflareContext: () => ({ env: h.env }) }));
@@ -87,7 +88,8 @@ beforeEach(() => {
   Object.assign(h.env, {
     AUDITS: { put: h.auditsPut },
     TRIAGE_CACHE: { get: h.kvGet, put: h.kvPut },
-    SESSIONS: {},
+    SESSIONS: { get: async (k: string) => h.sessions.get(k) ?? null, put: async (k: string, v: string) => { h.sessions.set(k, v); } },
+    RATE_LIMIT_HASH_SECRET: "rl-secret",
     CF_ACCOUNT_ID: "acct",
     CF_API_TOKEN: "tok",
     RESEND_API_KEY: "re",
@@ -95,6 +97,7 @@ beforeEach(() => {
     INTERNAL_SCANNER_ADMIN_KEY: "k",
   });
   h.calls.length = 0;
+  h.sessions.clear();
   for (const fn of [h.kvGet, h.kvPut, h.auditsPut, h.getScanState, h.captureEmail, h.getPublicScan, h.markPdfGenerated, h.captureOutbox, h.generateScoreReportPDF, h.sendReady, h.sendDeferred, h.issueScanToken, h.hashEmailForLog]) fn.mockReset();
   h.issueScanToken.mockResolvedValue("tok");
   h.hashEmailForLog.mockResolvedValue("lhash");
@@ -247,5 +250,55 @@ describe("gate ON — deferred pipeline (CD3 outcome mapping)", () => {
     expect(h.generateScoreReportPDF).toHaveBeenCalledTimes(0);
     expect(h.auditsPut).toHaveBeenCalledTimes(0);
     expect(h.auditsPut.mock.calls.filter((c) => LEGACY_KEY_RE.test(String(c[0])))).toHaveLength(0);
+  });
+});
+
+// ── E2: per-IP + per-scan distinct-recipient send limits ─────────────────────
+describe("E2 — capture-email send limits (rate-limit-kv)", () => {
+  const send = (email: string, ip = "203.0.113.7") =>
+    POST(
+      new Request("https://astrant.io/api/score/capture-email", {
+        method: "POST",
+        headers: { "content-type": "application/json", "CF-Connecting-IP": ip },
+        body: JSON.stringify({ scan_id: SCAN, email, opt_in_rescan: false }),
+      })
+    );
+
+  it("rotating recipients on one scan is capped at 3 distinct addresses; the 4th never reaches the scanner or Resend", async () => {
+    h.hashEmailForLog.mockImplementation(async (e: string) => `h-${e}`);
+    for (let i = 0; i < 3; i++) {
+      const r = await send(`victim${i}@example.com`, `198.51.100.${i}`);
+      expect(r.status).toBe(200);
+    }
+    h.calls.length = 0;
+    h.sendReady.mockClear();
+    const r = await send("victim9@example.com", "198.51.100.99");
+    expect(r.status).toBe(429);
+    expect(await r.json()).toEqual({ success: false, error: "Could not save your email. Please try again." });
+    expect(h.calls).toEqual([]);
+    expect(h.sendReady).not.toHaveBeenCalled();
+    // An address already seen for the scan is not blocked by the recipient cap.
+    const again = await send("victim0@example.com", "198.51.100.50");
+    expect(again.status).toBe(200);
+  });
+
+  it("one IP is capped at 10 captures per hour across addresses", async () => {
+    h.hashEmailForLog.mockImplementation(async (e: string) => `h-${e}`);
+    for (let i = 0; i < 10; i++) {
+      h.sessions.delete(`rl:capture:scan:${SCAN}:rcpts`);
+      expect((await send(`u${i}@example.com`)).status).toBe(200);
+    }
+    h.sessions.delete(`rl:capture:scan:${SCAN}:rcpts`);
+    h.calls.length = 0;
+    const r = await send("u11@example.com");
+    expect(r.status).toBe(429);
+    expect(h.calls).toEqual([]);
+  });
+
+  it("fails closed (503, no scanner call) when RATE_LIMIT_HASH_SECRET is absent", async () => {
+    delete h.env.RATE_LIMIT_HASH_SECRET;
+    const r = await send("a@example.com");
+    expect(r.status).toBe(503);
+    expect(h.calls).toEqual([]);
   });
 });

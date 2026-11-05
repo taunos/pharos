@@ -42,6 +42,7 @@ import {
   markPdfGenerated,
 } from "@/lib/score-scanner-client";
 import type { ScanResult } from "@/lib/audit-types";
+import { checkCaptureEmailRateLimit } from "@/lib/rate-limit-kv";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -59,6 +60,7 @@ interface CaptureEnv {
   UNSUBSCRIBE_SECRET: string;
   INTERNAL_SCANNER_ADMIN_KEY: string;
   CAPTURE_PIPELINE_MODE?: string;
+  RATE_LIMIT_HASH_SECRET?: string;
 }
 
 // Honeypot success — same JSON shape as a real success, plausible
@@ -133,6 +135,34 @@ export async function POST(req: Request) {
   }
 
   const emailLogHash = await hashEmailForLog(email, env.UNSUBSCRIBE_SECRET);
+
+  // E2: per-IP + per-scan distinct-recipient send limits, before any scanner
+  // call or send. Over-limit reuses the existing generic save-failure copy.
+  const ip = req.headers.get("CF-Connecting-IP") ?? "unknown";
+  const rl = await checkCaptureEmailRateLimit(
+    env.SESSIONS,
+    ip,
+    scanId,
+    emailLogHash,
+    env.RATE_LIMIT_HASH_SECRET
+  );
+  if (!rl.allowed) {
+    if (rl.misconfigured) {
+      console.error("RATE_LIMIT_MISCONFIGURED: RATE_LIMIT_HASH_SECRET is not set");
+      return NextResponse.json(
+        { success: false, error: "Server not configured." },
+        { status: 503 }
+      );
+    }
+    console.warn("[capture-email] rate_limited");
+    return NextResponse.json(
+      { success: false, error: "Could not save your email. Please try again." },
+      {
+        status: 429,
+        headers: rl.retryAfterSec ? { "Retry-After": String(rl.retryAfterSec) } : undefined,
+      }
+    );
+  }
 
   // ── State check + idempotency cool-downs ───────────────────────────────
   const stateRes = await getScanState(env, scanId);
