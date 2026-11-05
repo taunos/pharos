@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { sendWelcomeEmail, type WelcomeEmailEnv } from "@/lib/welcome-email";
+import { constantTimeEqual } from "@/lib/dodo";
 
 interface PreviewEnv extends WelcomeEmailEnv {
   INTERNAL_FULFILL_KEY: string;
@@ -13,7 +14,7 @@ interface PreviewEnv extends WelcomeEmailEnv {
 export async function POST(request: Request) {
   const env = getCloudflareContext().env as unknown as PreviewEnv;
   const auth = request.headers.get("x-internal-fulfill-key");
-  if (!auth || auth !== env.INTERNAL_FULFILL_KEY) {
+  if (!env.INTERNAL_FULFILL_KEY || !auth || !constantTimeEqual(auth, env.INTERNAL_FULFILL_KEY)) {
     return new Response("Unauthorized", { status: 401 });
   }
 
