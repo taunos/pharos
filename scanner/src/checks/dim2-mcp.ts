@@ -30,26 +30,55 @@ const LIVE_BUDGET_MS = 10000;
  * its own, so text between messages never merges into one match (the old
  * greedy /\{[\s\S]*\}/ spanned the first "{" to the last "}").
  *
- * Bounded (Codex r2): SSE lines are scanned lazily and the scan stops at the
- * first match, after MAX_SSE_LINES lines, MAX_SSE_BLOCKS data blocks or
- * MAX_JSON_PARSES parse attempts; data that doesn't start with "{" or "["
- * is never parsed. The counters are returned so tests can assert the bound.
+ * Only a response counts: an object with this `id`, a `result` or `error`,
+ * and no `method` (a server request may reuse the id). The first response
+ * wins, so an error response ends the scan too.
+ *
+ * Bounded (Codex r2, r3): lines are scanned lazily (a forward regex search
+ * for each line end, no global rewrite) and the scan stops at the first
+ * response. Data that doesn't start with "{" or "[" is never parsed. JSON.parse
+ * sees at most MAX_SSE_PARSE_CHARS characters across all SSE blocks (on top
+ * of the one whole-body attempt) and at most MAX_JSON_PARSES attempts; the
+ * reply body is already capped at MAX_JSON_BYTES. `exhausted` is true when a
+ * budget, not the end of the body, stopped the scan. The counters are
+ * returned so tests can assert the bounds.
  */
-export const MAX_SSE_BLOCKS = 64;
-export const MAX_JSON_PARSES = 64;
-export const MAX_SSE_LINES = 10000;
+export const MAX_JSON_PARSES = 4096;
+export const MAX_SSE_PARSE_CHARS = MAX_JSON_BYTES;
 
-export function findJsonRpcResponse(
-  text: string,
-  id: string
-): { msg: Record<string, unknown> | null; sawJson: boolean; blocks: number; parses: number; lines: number } {
+export type JsonRpcScan = {
+  msg: Record<string, unknown> | null;
+  sawJson: boolean;
+  exhausted: boolean;
+  blocks: number;
+  parses: number;
+  parsedChars: number;
+  lines: number;
+};
+
+export function findJsonRpcResponse(text: string, id: string): JsonRpcScan {
   let sawJson = false;
   let blocks = 0;
   let parses = 0;
+  let parsedChars = 0;
   let lines = 0;
+  const done = (msg: Record<string, unknown> | null, exhausted: boolean): JsonRpcScan => ({
+    msg,
+    sawJson,
+    exhausted,
+    blocks,
+    parses,
+    parsedChars,
+    lines,
+  });
+  const isResponse = (m: unknown): m is Record<string, unknown> =>
+    m !== null &&
+    typeof m === "object" &&
+    !Array.isArray(m) &&
+    (m as { id?: unknown }).id === id &&
+    !("method" in m) &&
+    ("result" in m || "error" in m);
   const tryParse = (c: string): Record<string, unknown> | null => {
-    const head = c.trimStart()[0];
-    if ((head !== "{" && head !== "[") || parses >= MAX_JSON_PARSES) return null;
     parses++;
     let parsed: unknown;
     try {
@@ -58,35 +87,49 @@ export function findJsonRpcResponse(
       return null;
     }
     sawJson = true;
-    for (const m of Array.isArray(parsed) ? parsed : [parsed]) {
-      if (m && typeof m === "object" && (m as { id?: unknown }).id === id) return m as Record<string, unknown>;
-    }
+    for (const m of Array.isArray(parsed) ? parsed : [parsed]) if (isResponse(m)) return m;
     return null;
   };
-  const whole = tryParse(text);
-  if (whole) return { msg: whole, sawJson, blocks, parses, lines };
-  // SSE: CR / CRLF / LF each end a line; a blank line dispatches the block's
-  // data lines. Line ends are found by a forward regex search from the
-  // current position (no global rewrite of the body); at most MAX_SSE_LINES
-  // lines are examined.
-  const eol = /\r\n|\r|\n/g;
-  let data: string[] = [];
-  let pos = 0;
-  for (; lines < MAX_SSE_LINES && blocks < MAX_SSE_BLOCKS && parses < MAX_JSON_PARSES; lines++) {
-    eol.lastIndex = pos;
-    const m = eol.exec(text);
-    const line = text.slice(pos, m ? m.index : text.length);
-    if (line.startsWith("data:")) data.push(line.slice(5).replace(/^ /, ""));
-    if ((line === "" || !m) && data.length > 0) {
-      blocks++;
-      const msg = tryParse(data.join("\n"));
-      if (msg) return { msg, sawJson, blocks, parses, lines: lines + 1 };
-      data = [];
-    }
-    if (!m) break;
-    pos = m.index + m[0].length;
+  const looksJson = (c: string) => {
+    const head = c.trimStart()[0];
+    return head === "{" || head === "[";
+  };
+  if (looksJson(text)) {
+    const whole = tryParse(text);
+    if (whole) return done(whole, false);
   }
-  return { msg: null, sawJson, blocks, parses, lines };
+  // SSE: CR / CRLF / LF each end a line; a blank line (or the end of the
+  // body) dispatches the block's data lines. One charCode pass; only data
+  // lines are sliced.
+  const n = text.length;
+  let data: string[] = [];
+  let dataChars = 0;
+  let pos = 0;
+  for (;;) {
+    let end = pos;
+    for (let c = text.charCodeAt(end); end < n && c !== 10 && c !== 13; c = text.charCodeAt(++end));
+    const atEof = end >= n;
+    lines++;
+    if (end - pos >= 5 && text.startsWith("data:", pos)) {
+      const d = text.slice(text.charCodeAt(pos + 5) === 32 ? pos + 6 : pos + 5, end);
+      data.push(d);
+      dataChars += d.length + 1;
+    }
+    if ((end === pos || atEof) && data.length > 0) {
+      blocks++;
+      const payload = data.join("\n");
+      data = [];
+      if (looksJson(payload)) {
+        if (parses >= MAX_JSON_PARSES || parsedChars + dataChars > MAX_SSE_PARSE_CHARS) return done(null, true);
+        parsedChars += dataChars;
+        const msg = tryParse(payload);
+        if (msg) return done(msg, false);
+      }
+      dataChars = 0;
+    }
+    if (atEof) return done(null, false);
+    pos = end + (text.charCodeAt(end) === 13 && text.charCodeAt(end + 1) === 10 ? 2 : 1);
+  }
 }
 
 type ServerCard = {
@@ -313,9 +356,11 @@ export async function runDim2(targetUrl: string, env: Env): Promise<DimensionRes
       if (!init) {
         liveNote = `initialize timed out or failed for ${transportUrl}`;
       } else if (init.status >= 200 && init.status < 300) {
-        const { msg } = findJsonRpcResponse((await init.body({ maxBytes: MAX_JSON_BYTES })).text, "scanner-init");
+        const { msg, exhausted } = findJsonRpcResponse((await init.body({ maxBytes: MAX_JSON_BYTES })).text, "scanner-init");
         const result = msg?.result as { protocolVersion?: unknown } | undefined;
-        if (result && typeof result === "object") {
+        if (exhausted) {
+          liveNote = `initialize returned ${init.status} but the reply exceeded the scan limit`;
+        } else if (result && typeof result === "object") {
           // Site-controlled values become request headers: keep only well-formed
           // ones (an invalid header value would throw inside fetch's Headers).
           const v = typeof result.protocolVersion === "string" && /^[\w.-]{1,32}$/.test(result.protocolVersion)
@@ -323,7 +368,8 @@ export async function runDim2(targetUrl: string, env: Env): Promise<DimensionRes
             : MCP_PROTOCOL_VERSION;
           session = { "MCP-Protocol-Version": v };
           const sid = init.headers.get("mcp-session-id");
-          if (sid && /^[\x21-\x7e]{1,256}$/.test(sid)) session["Mcp-Session-Id"] = sid;
+          // Spec: visible ASCII (0x21-0x7E). 4096 keeps it header-safe.
+          if (sid && sid.length <= 4096 && /^[\x21-\x7e]+$/.test(sid)) session["Mcp-Session-Id"] = sid;
         } else {
           liveNote = `initialize returned ${init.status} but no result in body`;
         }
@@ -337,11 +383,13 @@ export async function runDim2(targetUrl: string, env: Env): Promise<DimensionRes
         if (!r) {
           liveNote = `tools/list timed out or failed for ${transportUrl}`;
         } else if (r.status >= 200 && r.status < 300) {
-          const { msg, sawJson } = findJsonRpcResponse((await r.body({ maxBytes: MAX_JSON_BYTES })).text, "scanner-list");
+          const { msg, sawJson, exhausted } = findJsonRpcResponse((await r.body({ maxBytes: MAX_JSON_BYTES })).text, "scanner-list");
           const tools = (msg?.result as { tools?: unknown } | undefined)?.tools;
           if (Array.isArray(tools)) {
             liveScore = 100;
             liveNote = `tools/list returned ${tools.length} tools`;
+          } else if (exhausted) {
+            liveNote = `tools/list returned ${r.status} but the reply exceeded the scan limit`;
           } else if (sawJson) {
             liveNote = `tools/list returned ${r.status} but no tools[] in body`;
           } else {

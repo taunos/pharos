@@ -228,8 +228,25 @@ function readTagAttrs(html: string, i: number): { attrs: SpecTagAttrs; end: numb
         if (wanted) value = html.slice(vStart, i);
       }
     }
-    if (wanted) attrs[wanted] = value;
+    if (wanted) attrs[wanted] = decodeHtmlRefs(value);
   }
+}
+
+const NAMED_REFS: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+
+/**
+ * E12 (Codex r3): decodes the character references an attribute value may
+ * carry (&amp; &lt; &gt; &quot; &apos;, &#NN; and &#xHH;) so href="a?x=1&amp;y=2"
+ * resolves as the browser would. One linear regex pass over a value already
+ * bounded by MAX_TAG_CHARS; an invalid code point becomes U+FFFD.
+ */
+function decodeHtmlRefs(value: string): string {
+  if (!value.includes("&")) return value;
+  return value.replace(/&(?:#[xX]([0-9a-fA-F]{1,6})|#([0-9]{1,7})|(amp|lt|gt|quot|apos));/g, (_, hex, dec, named) => {
+    if (named) return NAMED_REFS[named];
+    const cp = hex ? parseInt(hex, 16) : parseInt(dec, 10);
+    return cp > 0 && cp <= 0x10ffff && !(cp >= 0xd800 && cp <= 0xdfff) ? String.fromCodePoint(cp) : "�";
+  });
 }
 
 /** `<name ...>` tags in order; tags longer than MAX_TAG_CHARS are skipped (but still consumed). */

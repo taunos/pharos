@@ -1,7 +1,7 @@
 // E12 (code-quality audit 2026-11-05): scoring defects in Dim 2 and Dim 3.
 // Fixtures only: every fetch is stubbed, no network.
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { runDim2, findJsonRpcResponse, decodeTxtData, MCP_PROTOCOL_VERSION, MAX_SSE_BLOCKS, MAX_JSON_PARSES, MAX_SSE_LINES } from "./checks/dim2-mcp";
+import { runDim2, findJsonRpcResponse, decodeTxtData, MCP_PROTOCOL_VERSION, MAX_JSON_PARSES, MAX_SSE_PARSE_CHARS } from "./checks/dim2-mcp";
 import { runDim3 } from "./checks/dim3-openapi";
 import { runScan } from "./run-scan";
 import { SCORING_VERSION } from "./version";
@@ -392,20 +392,12 @@ describe("E12 r1: TXT data is decoded from presentation syntax before matching",
 
 // ── Codex r2 follow-ups ──────────────────────────────────────────────────
 
-describe("E12 r2: JSON-RPC scan is bounded", () => {
-  it('"data:x\\n\\n" x 200k (1.6 MB): at most MAX_SSE_BLOCKS blocks, no JSON.parse of non-JSON data', () => {
-    const hostile = "data:x\n\n".repeat(200000);
-    const r = findJsonRpcResponse(hostile, "a");
-    expect(r).toMatchObject({ msg: null, sawJson: false, parses: 0 });
-    expect(r.blocks).toBe(MAX_SSE_BLOCKS);
-  });
+describe("E12 r2/r3: JSON-RPC scan is bounded and only takes responses", () => {
+  const MB2 = 2 * 1024 * 1024;
 
-  it("2 MB of JSON-looking blocks: at most MAX_JSON_PARSES parse attempts", () => {
-    const hostile = 'data: {"id":"z"}\n\n'.repeat(120000);
-    const r = findJsonRpcResponse(hostile, "a");
-    expect(r.msg).toBeNull();
-    expect(r.parses).toBeLessThanOrEqual(MAX_JSON_PARSES);
-    expect(r.blocks).toBeLessThanOrEqual(MAX_SSE_BLOCKS);
+  it('"data:x\n\n" x 200k (1.6 MB): every block skipped without a JSON.parse', () => {
+    const r = findJsonRpcResponse("data:x\n\n".repeat(200000), "a");
+    expect(r).toMatchObject({ msg: null, sawJson: false, exhausted: false, parses: 0, blocks: 200000 });
   });
 
   for (const [name, unit] of [
@@ -414,22 +406,90 @@ describe("E12 r2: JSON-RPC scan is bounded", () => {
     ["blank lines", "\n"],
     ["bare CRs", "\r"],
   ] as const) {
-    it(`2 MB of ${name}: at most MAX_SSE_LINES lines examined`, () => {
-      const r = findJsonRpcResponse(unit.repeat(Math.ceil((2 * 1024 * 1024) / unit.length)), "a");
-      expect(r.msg).toBeNull();
-      expect(r.lines).toBeLessThanOrEqual(MAX_SSE_LINES);
-      expect(r.parses).toBe(0);
+    it(`2 MB of ${name}: one pass, no JSON.parse`, () => {
+      const text = unit.repeat(Math.ceil(MB2 / unit.length));
+      const r = findJsonRpcResponse(text, "a");
+      expect(r).toMatchObject({ msg: null, parses: 0, exhausted: false });
+      expect(r.lines).toBeLessThanOrEqual(text.length + 1); // each line visited once
     });
   }
 
-  it("stops at the first matching id", () => {
+  it(`more than MAX_JSON_PARSES JSON blocks: stops at the cap and reports exhausted`, () => {
+    const r = findJsonRpcResponse('data: {"id":"z"}\n\n'.repeat(MAX_JSON_PARSES + 50) + 'data: {"id":"a","result":1}\n\n', "a");
+    expect(r).toMatchObject({ msg: null, exhausted: true, parses: MAX_JSON_PARSES });
+  });
+
+  it("more than MAX_SSE_PARSE_CHARS of JSON data: stops at the byte budget and reports exhausted", () => {
+    const big = 'data: {"id":"z","pad":"' + "x".repeat(512 * 1024) + '"}\n\n';
+    const r = findJsonRpcResponse(big.repeat(5), "a");
+    expect(r.exhausted).toBe(true);
+    expect(r.parsedChars).toBeLessThanOrEqual(MAX_SSE_PARSE_CHARS);
+  });
+
+  it("a valid reply after 200 small notifications is found (the r2 64-block cap rejected it)", () => {
+    const body = 'event: message\ndata: {"jsonrpc":"2.0","method":"notifications/progress"}\n\n'.repeat(200) + 'data: {"id":"a","result":2}\n\n';
+    expect(findJsonRpcResponse(body, "a")).toMatchObject({ msg: { result: 2 }, exhausted: false });
+  });
+
+  it("stops at the first response", () => {
     const body = 'data: {"id":"a","result":1}\n\n' + 'data: {"id":"z"}\n\n'.repeat(50);
     expect(findJsonRpcResponse(body, "a")).toMatchObject({ msg: { result: 1 }, blocks: 1, parses: 1 });
   });
 
-  it("the response after a few notifications is still found", () => {
-    const body = 'event: message\ndata: {"method":"notifications/message"}\n\n'.repeat(10) + 'data: {"id":"a","result":2}\n\n';
-    expect(findJsonRpcResponse(body, "a").msg).toMatchObject({ result: 2 });
+  it("a server request reusing the id is not the response", () => {
+    const body = 'data: {"jsonrpc":"2.0","id":"a","method":"ping"}\n\ndata: {"jsonrpc":"2.0","id":"a","result":3}\n\n';
+    expect(findJsonRpcResponse(body, "a").msg).toMatchObject({ result: 3 });
+    expect(findJsonRpcResponse('[{"id":"a","method":"ping"},{"id":"a","result":4}]', "a").msg).toMatchObject({ result: 4 });
+    expect(findJsonRpcResponse('{"id":"a"}', "a").msg).toBeNull(); // neither result nor error
+  });
+
+  it("an error response wins and ends the scan", () => {
+    const body = 'data: {"id":"a","error":{"code":-1,"message":"x"}}\n\ndata: {"id":"a","result":5}\n\n';
+    expect(findJsonRpcResponse(body, "a")).toMatchObject({ msg: { error: { code: -1 } }, parses: 1 });
+  });
+
+  it("live check: a request reusing scanner-list before the tools reply still scores 100", async () => {
+    routes({
+      [CARD]: json({ name: "acme", transports: [{ url: MCP }] }),
+      [MCP]: (init) => {
+        const msg = JSON.parse(String(init.body));
+        if (msg.method === "initialize") return json({ jsonrpc: "2.0", id: msg.id, result: {} })();
+        if (msg.method === "tools/list") return sse({ jsonrpc: "2.0", id: msg.id, method: "ping" }, { jsonrpc: "2.0", id: msg.id, result: TOOLS })();
+        return new Response(null, { status: 202 });
+      },
+    });
+    expect(await live()).toMatchObject({ score: 100, notes: "tools/list returned 3 tools" });
+  });
+
+  it("live check: an exhausted scan is reported distinctly", async () => {
+    const notes = Array.from({ length: MAX_JSON_PARSES + 1 }, () => ({ jsonrpc: "2.0", method: "notifications/progress" }));
+    routes({
+      [CARD]: json({ name: "acme", transports: [{ url: MCP }] }),
+      [MCP]: (init) => {
+        const msg = JSON.parse(String(init.body));
+        if (msg.method === "initialize") return json({ jsonrpc: "2.0", id: msg.id, result: {} })();
+        if (msg.method === "tools/list") return sse(...notes, { jsonrpc: "2.0", id: msg.id, result: TOOLS })();
+        return new Response(null, { status: 202 });
+      },
+    });
+    expect(await live()).toMatchObject({ score: 0, notes: "tools/list returned 200 but the reply exceeded the scan limit" });
+  });
+
+  it("live check: a long (4096-char) visible-ASCII session id is kept; control chars are not", async () => {
+    for (const [sid, kept] of [["s".repeat(4096), true], ["s".repeat(4097), false]] as const) {
+      const calls = routes({
+        [CARD]: json({ name: "acme", transports: [{ url: MCP }] }),
+        [MCP]: (init) => {
+          const msg = JSON.parse(String(init.body));
+          if (msg.method === "initialize") return new Response(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: {} }), { status: 200, headers: { "content-type": "application/json", "mcp-session-id": sid } });
+          if (msg.method === "tools/list") return json({ jsonrpc: "2.0", id: msg.id, result: TOOLS })();
+          return new Response(null, { status: 202 });
+        },
+      });
+      await live();
+      const list = calls.find((c) => c.url === MCP && c.body.includes("tools/list"))!;
+      expect(list.headers.get("mcp-session-id")).toBe(kept ? sid : null);
+    }
   });
 });
 
@@ -485,5 +545,29 @@ describe("E12 r2: a linkset must carry an API relation", () => {
   it("an item relation with an href counts", async () => {
     routes({ "https://acme.com/.well-known/api-catalog": json({ linkset: [{ anchor: "https://acme.com", item: [{ href: "https://acme.com/api/" }] }] }, "application/linkset+json") });
     expect((await runDim3("https://acme.com/", env())).sub_checks[0].score).toBe(100);
+  });
+});
+
+describe("E12 r3: HTML character references in rel / href", () => {
+  it("&amp; in an href is decoded before resolving", async () => {
+    routes({ "https://acme.com/spec?v=1&fmt=json": json(SPEC) });
+    const page = '<link rel="service-desc" href="/spec?v=1&amp;fmt=json">';
+    const d = await runDim3("https://acme.com/", env(), Promise.resolve({ html: page, url: "https://acme.com/" }));
+    expect(d.sub_checks[0].notes).toContain("homepage link https://acme.com/spec?v=1&fmt=json");
+  });
+
+  it("numeric references in rel and href are decoded (&#115;ervice-desc, &#x2F;)", async () => {
+    routes({ "https://acme.com/api/spec.json": json(SPEC) });
+    const page = '<link rel="&#115;ervice-desc" href="&#x2F;api&#47;spec.json">';
+    const d = await runDim3("https://acme.com/", env(), Promise.resolve({ html: page, url: "https://acme.com/" }));
+    expect(d.sub_checks[0].notes).toContain("homepage link https://acme.com/api/spec.json");
+  });
+
+  it("&quot; / &lt; / &gt; / &apos; decode, and an invalid code point becomes U+FFFD", async () => {
+    const calls = routes({});
+    const page = '<link rel="service-desc" href="/a&lt;b&gt;&quot;&apos;&#0;&#x110000;.json">';
+    await runDim3("https://acme.com/", env(), Promise.resolve({ html: page, url: "https://acme.com/" }));
+    const expected = new URL("/a<b>\"'" + "\ufffd\ufffd" + ".json", "https://acme.com/").toString();
+    expect(calls.some((c) => c.url === expected)).toBe(true);
   });
 });
