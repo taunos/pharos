@@ -719,7 +719,7 @@ export function renderAuditHtml(audit: AuditResult, sessionId: string): string {
         <div class="dim-head">
           <h3>${escapeHtml(d.name)} <span style="font-size:9pt;font-family:ui-monospace,monospace;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">${C.naLabel}</span></h3>
           <div class="dim-score">
-            <span class="dim-grade" style="color:#64748b;font-style:italic;">${C.naGrade}</span>
+            <span class="dim-grade" style="color:#64748b;font-style:italic;">${d.unmeasured ? C.naGradeUnmeasured : C.naGrade}</span>
           </div>
         </div>
         <p style="font-size:10pt;color:#64748b;margin:6pt 0;">${escapeHtml(d.note)}</p>

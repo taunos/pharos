@@ -224,3 +224,38 @@ describe("Score PDF upsell footer follows the Audit gate", () => {
     expect(body.html).toContain(expected);
   });
 });
+
+describe("Score PDF: N/A grade label and scope note", () => {
+  const naDim = (extra: Record<string, unknown>) => ({
+    dimension_id: 3,
+    dimension_name: "OpenAPI / API Catalog",
+    score: 0,
+    grade: "F",
+    na: true,
+    sub_checks: [{ id: "discovery", name: "API spec discovery", weight: 25, score: 0, passed: false, notes: "n", na: true }],
+    ...extra,
+  });
+  const withDim3 = (extra: Record<string, unknown>): ScanResult => ({
+    ...scan,
+    dimensions: [...scan.dimensions, naDim(extra)],
+    dimensions_scored: 2,
+    dimensions_applicable: 1,
+  });
+
+  it("old scans (no unmeasured flag): 'not applicable' and the legacy scope sentence", () => {
+    const html = renderScoreReportHTML({ scan: withDim3({}), email: "a@b.com", scoringVersion: "1.1.0" });
+    expect(html).toContain('font-style:italic;">not applicable</span>');
+    expect(html).not.toContain("not measured");
+    expect(html).toContain(
+      " Some dimensions did not apply to your site (e.g. no API surface for the OpenAPI dimension) and were dropped from the composite.</p>",
+    );
+  });
+
+  it("unmeasured Dim 3: 'not measured', no 'no API surface'", () => {
+    const html = renderScoreReportHTML({ scan: withDim3({ unmeasured: true }), email: "a@b.com", scoringVersion: "1.1.0" });
+    expect(html).toContain('font-style:italic;">not measured</span>');
+    expect(html).not.toContain(">not applicable<");
+    expect(html).not.toContain("no API surface");
+    expect(html).toContain(" Some dimensions could not be measured on this run and were dropped from the composite.</p>");
+  });
+});

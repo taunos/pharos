@@ -33,6 +33,7 @@ export const AUDIT_REPORT_COPY = {
     " The same JSON is also available as a separate download from your audit results page.",
   naLabel: "N/A",
   naGrade: "not applicable",
+  naGradeUnmeasured: "not measured",
   naFallbackNote:
     "Dimension did not apply to this site; dropped from composite.",
   checkColumns: ["Check", "Score", "Weight", "Notes"] as const,
@@ -78,6 +79,7 @@ export type ReportDimension =
       id: number;
       name: string;
       note: string;
+      unmeasured?: true;
     }
   | {
       kind: "scored";
@@ -140,6 +142,9 @@ export function buildAuditReportModel(
         id: d.dimension_id,
         name: clean(d.dimension_name, 120),
         note: clean(d.sub_checks[0]?.notes ?? AUDIT_REPORT_COPY.naFallbackNote),
+        // Applies but was not measured this run: graded "not measured", not
+        // "not applicable". Key only present when set (old scans unchanged).
+        ...(d.unmeasured ? { unmeasured: true as const } : {}),
       };
     }
     return {
