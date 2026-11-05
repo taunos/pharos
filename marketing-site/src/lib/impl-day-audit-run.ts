@@ -24,6 +24,21 @@ import { runScan, type AuditEnv } from "./audit-pipeline";
 import { sendF2DayNAuditEmail } from "./f2-email";
 import { generateAuditRecs } from "./f2-generators/audit-recs";
 import { alertOperator } from "./operator-alerts";
+import { runRecheckVerification, type ImplVerifier, type RecheckReport } from "./impl-verification";
+import { loadImplVerifier } from "./impl-verify-adapter";
+
+// Verification report v1: Day-N due dates are anchored on applied_at (Day 0)
+// by lib/impl-verification.ts; the claim below only ever sees 'active' rows,
+// so a delivered-but-unapplied row ('awaiting_application') never fires.
+// A row with applied_at set gets, at Day 30, the rescan PLUS the acceptance
+// checks again, stored as the 'day30' verification record and compared to
+// Day 0 (checks) and the baseline (score). Legacy 'active' rows without
+// applied_at keep the payment-anchored flow unchanged.
+export interface ImplDayDeps {
+  verifier?: ImplVerifier | null; // default: loadImplVerifier()
+  fetchImpl?: typeof fetch;
+  verificationCopyApproved?: boolean; // default: F2_VERIFICATION_COPY_APPROVED
+}
 
 export interface ImplDayRunEnv extends AuditEnv {
   INTERNAL_FULFILL_KEY: string;
@@ -49,11 +64,15 @@ interface F2ImplementationRow {
   payment_succeeded_at: number;
   status: string;
   email_sent_at: number | null;
+  applied_at: number | null;
+  patch_r2_key: string | null;
+  baseline_scoring_version: string | null;
 }
 
 export async function runImplDayAudit(
   env: ImplDayRunEnv,
   implAudit: { day_n: 30 | 60 | 90; f2_session_id: string },
+  deps: ImplDayDeps = {},
 ): Promise<ImplDayRunResult> {
   const { day_n, f2_session_id } = implAudit;
   const firedAtCol = `day${day_n}_audit_fired_at`;
@@ -85,7 +104,8 @@ export async function runImplDayAudit(
     const f2 = await env.CITATION_DB.prepare(
       `SELECT session_id, customer_email, customer_domain, brand_name,
               customer_id, baseline_scan_id, payment_succeeded_at, status,
-              ${emailSentAtCol} AS email_sent_at
+              ${emailSentAtCol} AS email_sent_at,
+              applied_at, patch_r2_key, baseline_scoring_version
        FROM implementation_sessions WHERE session_id = ?`,
     )
       .bind(f2_session_id)
@@ -99,7 +119,7 @@ export async function runImplDayAudit(
       emailSent = true;
       console.log(`F2_AUDIT_DAYN_RESUME_AFTER_SEND session_id=${f2_session_id} day_n=${day_n}`);
     } else {
-      await scanAndSend(env, f2, day_n, f2_session_id);
+      await scanAndSend(env, f2, day_n, f2_session_id, deps);
       emailSent = true;
       // Delivered marker, in its own statement, right after the confirmed send.
       const sentTime = Math.floor(Date.now() / 1000);
@@ -154,20 +174,51 @@ async function scanAndSend(
   f2: F2ImplementationRow,
   day_n: 30 | 60 | 90,
   f2_session_id: string,
+  deps: ImplDayDeps,
 ): Promise<void> {
   // Read baseline scan
   let baselineScore = 0;
+  let baselineScoringVersion = f2.baseline_scoring_version;
   if (f2.baseline_scan_id) {
     const baselineObj = await env.AUDITS.get(`f2-baseline-scans/${f2.baseline_scan_id}.json`);
     if (baselineObj) {
-      const baseline = JSON.parse(await baselineObj.text()) as { composite?: { score?: number } };
+      const baseline = JSON.parse(await baselineObj.text()) as {
+        composite?: { score?: number };
+        scoring_version?: string;
+      };
       baselineScore = baseline.composite?.score ?? 0;
+      baselineScoringVersion ??= baseline.scoring_version ?? null;
     }
   }
 
   // Re-scan customer domain at Day-N
   const currentScan = await runScan(f2.customer_domain, env.INTERNAL_FULFILL_KEY, env.SCANNER_SVC);
   const currentScore = currentScan.composite.score;
+
+  // Verification report v1: Day-30 recheck of a verified (applied) session.
+  let verification: RecheckReport | undefined;
+  if (day_n === 30 && f2.applied_at != null) {
+    const scanR2Key = `f2-recheck-scans/${f2_session_id}-day30.json`;
+    await env.AUDITS.put(scanR2Key, JSON.stringify(currentScan));
+    verification = await runRecheckVerification(
+      env,
+      {
+        session_id: f2_session_id,
+        customer_domain: f2.customer_domain,
+        patch_r2_key: f2.patch_r2_key,
+        checkpoint: "day30",
+        baselineScore,
+        baselineScoringVersion,
+        currentScore,
+        currentScoringVersion: currentScan.scoring_version ?? null,
+        scanR2Key,
+      },
+      {
+        verifier: deps.verifier !== undefined ? deps.verifier : loadImplVerifier(),
+        fetchImpl: deps.fetchImpl,
+      },
+    );
+  }
 
   // v1.0: no cite-share numbers yet (v1.1+ wires the citation-tracking
   // aggregator), so none are passed and no citation delta is shown.
@@ -195,7 +246,8 @@ async function scanAndSend(
     baselineScore,
     currentScore,
     autoPilotCheckoutUrl,
-  });
+    verification,
+  }, { verificationCopyApproved: deps.verificationCopyApproved });
 
   if (!emailResult.ok) {
     throw new Error(`F2_AUDIT_EMAIL_SEND_FAILED day_n=${day_n} err=${emailResult.error}`);

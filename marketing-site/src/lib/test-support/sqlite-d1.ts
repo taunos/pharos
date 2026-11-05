@@ -33,6 +33,13 @@ export function createSqliteD1(schemaSql: string[]): SqliteD1 {
     prepare(sql: string) {
       let params: unknown[] = [];
       const stmt = {
+        // Used by batch() below.
+        get __sql() {
+          return sql;
+        },
+        get __params() {
+          return params;
+        },
         bind(...p: unknown[]) {
           params = p;
           return stmt;
@@ -55,6 +62,23 @@ export function createSqliteD1(schemaSql: string[]): SqliteD1 {
         },
       };
       return stmt;
+    },
+    // D1 batch: one transaction, rolled back if any statement throws.
+    async batch(stmts: Array<{ __sql: string; __params: unknown[] }>) {
+      db.exec("BEGIN");
+      try {
+        const out = stmts.map(({ __sql: sql, __params: params }) => {
+          state.calls.push({ sql, params });
+          check(sql);
+          const r = db.prepare(sql).run(...(params as never[]));
+          return { success: true, meta: { changes: Number(r.changes) }, results: [] };
+        });
+        db.exec("COMMIT");
+        return out;
+      } catch (err) {
+        db.exec("ROLLBACK");
+        throw err;
+      }
     },
   } as unknown as D1Database;
   return state;
