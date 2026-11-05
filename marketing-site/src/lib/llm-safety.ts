@@ -130,20 +130,20 @@ const NOTE_VOCAB = new Set(
     "http https in included info inputschema inside invalid is isn't it it's json json-ld l lcp least link linked " +
     "links list llm llms.txt m markdown markdown-ish markup match may mb mcp md measurable measured mention " +
     "metadata minimal missing modal modal-suggesting models ms n n/a name named negotiation network no " +
-    "non-json none not oauth oauth-authorization-server object of offer older on one only open openapi " +
+    "non-json none not oauth oauth-authorization-server object of offer older on one open openapi " +
     "operation operations or organization other out overlap page pages paid paid-tier pair pair(s) parse " +
     "parsed parses partial-credit path paths patterns per period positioned present price prices pricing " +
     "pricing-link product provider q query question questions rated re-run reachability reached record " +
-    "recognizable redirected redistributed relevant render rendered rendering required response returned " +
+    "recognizable redirected redistributed relevant render rendered rendering required returned " +
     "returns review root run s saas sameas sample sampled schema scheme scored search-result security " +
     "securityschemes server-card service signal site size skipped slice so spec specs static " +
     "static-vs-rendered status still structure sub-checks success-stories suffix summary swagger target " +
     "text text-based the this tier timed title to token tokens tools top-level transport transports true " +
     "txt type unmeasurable url urls valid validation variant version via visibility vs weight well-formed " +
-    "well-known when wired with without yaml yaml-heuristic yes yet your zero " +
+    "well-known when wired with without yaml yaml-heuristic yes yet zero " +
     // later additions: common template words + the interpolated values
     // that come from our own code (auth types we score, provider ids).
-    "return strings auth oauth2 apikey doc b2b imply chars characters per-model averages average " +
+    "strings auth oauth2 apikey doc b2b imply chars characters per-model averages average h1 " +
     "openai anthropic google perplexity gemini claude gpt-4o sonar diy"
   ).split(" ")
 );
@@ -290,11 +290,27 @@ export function findDisallowedLink(
   const scheme = t.match(/\b(javascript|data|vbscript|file|blob)\s*:/i);
   if (scheme) return scheme[0];
 
-  for (const m of t.matchAll(/\b([a-z][a-z0-9+.-]*):\/\/([^\s/?#)\]'"<>]+)/gi)) {
-    const proto = m[1].toLowerCase();
-    if (proto !== "http" && proto !== "https") return m[0];
-    const host = m[2].replace(/^[^@]*@/, "").replace(/:\d+$/, "");
-    if (!hostAllowed(host, auditedHost)) return m[0];
+  // Plain-text remediation never needs a backslash; browsers treat "\" as "/"
+  // in URLs, so "https://evil.com\x.schema.org" resolves to evil.com.
+  if (t.includes(String.fromCharCode(92))) return String.fromCharCode(92);
+
+  // Judge every URL by what a browser would resolve (WHATWG URL parser), not
+  // by a regex over its text. Covers scheme URLs and protocol-relative //host.
+  const urlLike = [
+    ...[...t.matchAll(/\b[a-z][a-z0-9+.-]*:\/\/[^\s<>"'`]+/gi)].map((m) => ({ raw: m[0], parse: m[0] })),
+    ...[...t.matchAll(/(?:^|[\s(\[<"'`=])(\/\/[^\s<>"'`]+)/g)].map((m) => ({ raw: m[1], parse: `https:${m[1]}` })),
+  ];
+  for (const { raw, parse } of urlLike) {
+    const shown = raw.replace(/[).,;:!?\]]+$/, "");
+    let u: URL;
+    try {
+      u = new URL(parse.replace(/[).,;:!?\]]+$/, ""));
+    } catch {
+      return shown;
+    }
+    if (u.protocol !== "http:" && u.protocol !== "https:") return shown;
+    if (u.username || u.password) return shown;
+    if (!hostAllowed(u.hostname, auditedHost)) return shown;
   }
 
   const email = t.match(/[^\s@<>()]+@[a-z0-9-]+(\.[a-z0-9-]+)+/i);
@@ -302,7 +318,7 @@ export function findDisallowedLink(
 
   // Bare domains: label(.label)+ ending in an alphabetic TLD. Skip what we
   // already validated as part of a scheme URL, filenames and spec fields.
-  const stripped = t.replace(/\b[a-z][a-z0-9+.-]*:\/\/\S+/gi, " ");
+  const stripped = t.replace(/\b[a-z][a-z0-9+.-]*:\/\/\S+/gi, " ").replace(/(^|\s)\/\/\S+/g, " ");
   for (const m of stripped.matchAll(
     /(?<![\w@./-])((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z][a-z0-9-]*[a-z0-9])(?![\w-])/gi
   )) {

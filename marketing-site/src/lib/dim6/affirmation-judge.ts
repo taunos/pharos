@@ -57,11 +57,17 @@ const VERDICT_EXACT = /^["'`*\s]*(AFFIRM|DENY)["'`*\s.!]*$/i;
 // Prompt-injection screen on the PROVIDER response, before the judge sees it.
 // Provider answers can quote the audited site (Perplexity searches the web),
 // so a hostile site can plant text aimed at this judge. A response carrying
-// verdict tokens or evaluator-directed instructions is scored neither way:
-// it becomes unmeasurable (excluded from the formula), so injected text can
-// neither inflate the site's score nor deflate it.
+// verdict tokens or evaluator-directed instructions scores as DENY (0,
+// measurable). Not "unmeasurable": dropping a cell from the denominator
+// would let a site discard its own zero cells and inflate the aggregate
+// (Codex review 2026-11-04). The site owner is the attacker, so the safe
+// direction is down.
 export const JUDGE_INJECTION_PATTERNS: RegExp[] = [
-  /\b(?:AFFIRM|DENY)\b/, // case-sensitive: the verdict tokens themselves
+  /\b(?:AFFIRM|DENY)\b/, // verdict tokens, exact case
+  /\baffirm\b/i, // any case ("deny" lowercase is ordinary English, so not here)
+  /\b(?:respond|reply|answer|output|return)\s+(?:only\s+)?(?:with\s+)?(?:the\s+)?(?:single\s+|one\s+)?word\b/i,
+  /\b(?:respond|reply|answer)\s+(?:only\s+)?with\b/i,
+  /\bsingle word\b|\bfor this task\b|\bclassif(?:y|ication) (?:this|the) (?:response|answer)\b/i,
   /\b(?:ignore|disregard|forget|override)\b[^.\n]{0,40}\b(?:instructions?|prompts?|rules?|guidelines|above|previous|prior)\b/i,
   /\b(?:system prompt|developer message|system message)\b/i,
   /\b(?:evaluator|grader|judge|classifier)s?\b[^.\n]{0,60}\b(?:must|should|output|answer|respond|return|reply|say)\b/i,
@@ -179,10 +185,10 @@ export async function judgeAffirmation(
   const cleaned = stripUnsafeChars(responseText);
   const injected = detectJudgeInjection(cleaned);
   if (injected) {
-    return {
-      kind: "unmeasurable",
-      reason: `possible prompt injection in provider response: ${injected.replace(/[^\w .:-]/g, "?")}`,
-    };
+    console.warn(
+      `[dim6-judge] possible prompt injection in provider response, scoring DENY: ${injected.replace(/[^\w .:-]/g, "?")}`
+    );
+    return { kind: "deny" };
   }
   const prompt = buildJudgePrompt(stripUnsafeChars(targetUrl), cleaned);
 
