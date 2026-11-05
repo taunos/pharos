@@ -1,7 +1,7 @@
 // E12 (code-quality audit 2026-11-05): scoring defects in Dim 2 and Dim 3.
 // Fixtures only: every fetch is stubbed, no network.
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { runDim2, findJsonRpcResponse, decodeTxtData, MCP_PROTOCOL_VERSION } from "./checks/dim2-mcp";
+import { runDim2, findJsonRpcResponse, decodeTxtData, MCP_PROTOCOL_VERSION, MAX_SSE_BLOCKS, MAX_JSON_PARSES, MAX_SSE_LINES } from "./checks/dim2-mcp";
 import { runDim3 } from "./checks/dim3-openapi";
 import { runScan } from "./run-scan";
 import { SCORING_VERSION } from "./version";
@@ -282,39 +282,45 @@ describe("findJsonRpcResponse", () => {
   });
 
   it("reports whether any JSON was seen", () => {
-    expect(findJsonRpcResponse("<html>", "a")).toEqual({ msg: null, sawJson: false });
-    expect(findJsonRpcResponse('{"id":"other"}', "a")).toEqual({ msg: null, sawJson: true });
+    expect(findJsonRpcResponse("<html>", "a")).toMatchObject({ msg: null, sawJson: false });
+    expect(findJsonRpcResponse('{"id":"other"}', "a")).toMatchObject({ msg: null, sawJson: true });
   });
 });
 
 // ── Codex r1 follow-ups ──────────────────────────────────────────────────
 
+// Codex r2: no tight wall-clock asserts. One warm-up run, then a generous
+// 1 s ceiling: the old code took seconds to minutes on these inputs, the new
+// code a few ms, so the ceiling separates them without CI flakiness.
+async function underOneSecond<T>(run: () => Promise<T>): Promise<T> {
+  await run();
+  const t = performance.now();
+  const r = await run();
+  expect(performance.now() - t).toBeLessThan(1000);
+  return r;
+}
+
 describe("E12 r1: hostile bodies are scanned in linear time", () => {
-  it("1 MB of newlines at /openapi.yaml: rejected in < 100 ms (old YAML regex was quadratic)", async () => {
+  it("1 MB of newlines at /openapi.yaml is rejected quickly (old YAML regex was quadratic)", async () => {
     routes({ "https://acme.com/openapi.yaml": () => new Response("\n".repeat(1024 * 1024), { status: 200, headers: { "content-type": "text/plain" } }) });
-    const t = performance.now();
-    const d = await runDim3("https://acme.com/", env());
-    expect(performance.now() - t).toBeLessThan(100);
-    expect(d.na).toBe(true);
+    expect((await underOneSecond(() => runDim3("https://acme.com/", env()))).na).toBe(true);
   });
 
   it("1 MB of mixed whitespace before an openapi key past the scan window is not a spec", async () => {
     routes({ "https://acme.com/openapi.yaml": () => new Response(" \t\r\n".repeat(256 * 1024) + "openapi: 3.0.0\n", { status: 200, headers: { "content-type": "text/plain" } }) });
-    const t = performance.now();
-    expect((await runDim3("https://acme.com/", env())).na).toBe(true);
-    expect(performance.now() - t).toBeLessThan(100);
+    expect((await underOneSecond(() => runDim3("https://acme.com/", env()))).na).toBe(true);
   });
 
   for (const [name, html] of [
     ["many <link> tags with long attributes", ("<link rel=x " + "a".repeat(1000)).repeat(2000)],
     ["a spec anchor followed by 1 MB of whitespace", '<a href="x.json">' + " ".repeat(1024 * 1024)],
     ["many spec anchors with tag soup", ('<a href="x.json">' + "<".repeat(500)).repeat(4000)],
+    ["2 MB of attribute soup", ("<a b=c d='e' f=\"g\" " + "x ".repeat(100)).repeat(8000)],
+    ["an unterminated quoted value", '<link rel="service-desc" href="' + "a".repeat(2 * 1024 * 1024)],
   ] as const) {
-    it(`homepage link scan on ${name}: < 100 ms`, async () => {
+    it(`homepage link scan on ${name} is quick`, async () => {
       routes({});
-      const t = performance.now();
-      const d = await runDim3("https://acme.com/", env(), Promise.resolve({ html, url: "https://acme.com/" }));
-      expect(performance.now() - t).toBeLessThan(100);
+      const d = await underOneSecond(() => runDim3("https://acme.com/", env(), Promise.resolve({ html, url: "https://acme.com/" })));
       expect(d.na).toBe(true);
     });
   }
@@ -381,5 +387,103 @@ describe("E12 r1: TXT data is decoded from presentation syntax before matching",
 
   it("an escaped \\109cp (m) scores 100", async () => {
     expect((await dnsCheck([{ name: "_mcp.acme.com", type: 16, data: '"\\109cp=https://mcp.acme.com/mcp"' }])).score).toBe(100);
+  });
+});
+
+// ── Codex r2 follow-ups ──────────────────────────────────────────────────
+
+describe("E12 r2: JSON-RPC scan is bounded", () => {
+  it('"data:x\\n\\n" x 200k (1.6 MB): at most MAX_SSE_BLOCKS blocks, no JSON.parse of non-JSON data', () => {
+    const hostile = "data:x\n\n".repeat(200000);
+    const r = findJsonRpcResponse(hostile, "a");
+    expect(r).toMatchObject({ msg: null, sawJson: false, parses: 0 });
+    expect(r.blocks).toBe(MAX_SSE_BLOCKS);
+  });
+
+  it("2 MB of JSON-looking blocks: at most MAX_JSON_PARSES parse attempts", () => {
+    const hostile = 'data: {"id":"z"}\n\n'.repeat(120000);
+    const r = findJsonRpcResponse(hostile, "a");
+    expect(r.msg).toBeNull();
+    expect(r.parses).toBeLessThanOrEqual(MAX_JSON_PARSES);
+    expect(r.blocks).toBeLessThanOrEqual(MAX_SSE_BLOCKS);
+  });
+
+  for (const [name, unit] of [
+    ["comment lines", ":\n"],
+    ["undispatched data lines", "data:x\n"],
+    ["blank lines", "\n"],
+    ["bare CRs", "\r"],
+  ] as const) {
+    it(`2 MB of ${name}: at most MAX_SSE_LINES lines examined`, () => {
+      const r = findJsonRpcResponse(unit.repeat(Math.ceil((2 * 1024 * 1024) / unit.length)), "a");
+      expect(r.msg).toBeNull();
+      expect(r.lines).toBeLessThanOrEqual(MAX_SSE_LINES);
+      expect(r.parses).toBe(0);
+    });
+  }
+
+  it("stops at the first matching id", () => {
+    const body = 'data: {"id":"a","result":1}\n\n' + 'data: {"id":"z"}\n\n'.repeat(50);
+    expect(findJsonRpcResponse(body, "a")).toMatchObject({ msg: { result: 1 }, blocks: 1, parses: 1 });
+  });
+
+  it("the response after a few notifications is still found", () => {
+    const body = 'event: message\ndata: {"method":"notifications/message"}\n\n'.repeat(10) + 'data: {"id":"a","result":2}\n\n';
+    expect(findJsonRpcResponse(body, "a").msg).toMatchObject({ result: 2 });
+  });
+});
+
+describe("E12 r2: quote-aware tag tokenizer", () => {
+  it('<link data-rel="service-desc" data-href="/fake.json"> is not a spec link', async () => {
+    const calls = routes({ "https://acme.com/fake.json": json(SPEC) });
+    const page = '<link data-rel="service-desc" data-href="/fake.json"><a data-href="/fake.json">OpenAPI</a>';
+    const d = await runDim3("https://acme.com/", env(), Promise.resolve({ html: page, url: "https://acme.com/" }));
+    expect(d.na).toBe(true);
+    expect(calls.some((c) => c.url === "https://acme.com/fake.json")).toBe(false);
+  });
+
+  it('href="spec>v1.json" (">" inside a quoted value) is discovered', async () => {
+    routes({ "https://acme.com/spec%3Ev1.json": json(SPEC) });
+    const page = '<link rel="service-desc" href="spec>v1.json">';
+    const d = await runDim3("https://acme.com/", env(), Promise.resolve({ html: page, url: "https://acme.com/" }));
+    expect(d.sub_checks[0].notes).toContain("homepage link https://acme.com/spec%3Ev1.json");
+  });
+
+  it("unquoted values, upper-case names and rel token lists work", async () => {
+    routes({ "https://acme.com/api.json": json(SPEC) });
+    const page = "<LINK REL=\"alternate service-desc\" HREF=/api.json>";
+    const d = await runDim3("https://acme.com/", env(), Promise.resolve({ html: page, url: "https://acme.com/" }));
+    expect(d.sub_checks[0].notes).toContain("homepage link https://acme.com/api.json");
+  });
+});
+
+describe("E12 r2: strict TXT decoding", () => {
+  it("returns null for malformed presentation data", () => {
+    expect(decodeTxtData('"\\256cp"')).toBeNull(); // \DDD > 255
+    expect(decodeTxtData('"mcp=https://x')).toBeNull(); // unterminated
+    expect(decodeTxtData('"m" x "cp"')).toBeNull(); // junk between strings
+    expect(decodeTxtData('"m"\t"cp"')).toBe("mcp");
+  });
+
+  it("a malformed record does not count", async () => {
+    expect((await dnsCheck([{ name: "_mcp.acme.com", type: 16, data: '"v=1; mcp=https://x' }])).score).toBe(0);
+  });
+});
+
+describe("E12 r2: a linkset must carry an API relation", () => {
+  it("an empty or unrelated linkset is not discovered", async () => {
+    routes({ "https://acme.com/.well-known/api-catalog": json({ linkset: [] }, "application/linkset+json") });
+    expect((await runDim3("https://acme.com/", env())).na).toBe(true);
+    routes({
+      "https://acme.com/.well-known/api-catalog": json({ linkset: [{ anchor: "https://acme.com", status: [{ href: "https://status.acme.com" }] }] }, "application/linkset+json"),
+    });
+    expect((await runDim3("https://acme.com/", env())).na).toBe(true);
+    routes({ "https://acme.com/.well-known/api-catalog": json({ linkset: [{ "service-desc": [{ type: "x" }] }] }, "application/linkset+json") });
+    expect((await runDim3("https://acme.com/", env())).na).toBe(true);
+  });
+
+  it("an item relation with an href counts", async () => {
+    routes({ "https://acme.com/.well-known/api-catalog": json({ linkset: [{ anchor: "https://acme.com", item: [{ href: "https://acme.com/api/" }] }] }, "application/linkset+json") });
+    expect((await runDim3("https://acme.com/", env())).sub_checks[0].score).toBe(100);
   });
 });

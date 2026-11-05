@@ -29,32 +29,64 @@ const LIVE_BUDGET_MS = 10000;
  * each carry one message in their data: lines. Every candidate is parsed on
  * its own, so text between messages never merges into one match (the old
  * greedy /\{[\s\S]*\}/ spanned the first "{" to the last "}").
+ *
+ * Bounded (Codex r2): SSE lines are scanned lazily and the scan stops at the
+ * first match, after MAX_SSE_LINES lines, MAX_SSE_BLOCKS data blocks or
+ * MAX_JSON_PARSES parse attempts; data that doesn't start with "{" or "["
+ * is never parsed. The counters are returned so tests can assert the bound.
  */
-export function findJsonRpcResponse(text: string, id: string): { msg: Record<string, unknown> | null; sawJson: boolean } {
-  const candidates = [text];
-  let data: string[] = [];
-  for (const line of [...text.split(/\r\n|\r|\n/), ""]) {
-    if (line === "") {
-      if (data.length > 0) candidates.push(data.join("\n"));
-      data = [];
-    } else if (line.startsWith("data:")) {
-      data.push(line.slice(5).replace(/^ /, ""));
-    }
-  }
+export const MAX_SSE_BLOCKS = 64;
+export const MAX_JSON_PARSES = 64;
+export const MAX_SSE_LINES = 10000;
+
+export function findJsonRpcResponse(
+  text: string,
+  id: string
+): { msg: Record<string, unknown> | null; sawJson: boolean; blocks: number; parses: number; lines: number } {
   let sawJson = false;
-  for (const c of candidates) {
+  let blocks = 0;
+  let parses = 0;
+  let lines = 0;
+  const tryParse = (c: string): Record<string, unknown> | null => {
+    const head = c.trimStart()[0];
+    if ((head !== "{" && head !== "[") || parses >= MAX_JSON_PARSES) return null;
+    parses++;
     let parsed: unknown;
     try {
       parsed = JSON.parse(c);
     } catch {
-      continue;
+      return null;
     }
     sawJson = true;
     for (const m of Array.isArray(parsed) ? parsed : [parsed]) {
-      if (m && typeof m === "object" && (m as { id?: unknown }).id === id) return { msg: m as Record<string, unknown>, sawJson };
+      if (m && typeof m === "object" && (m as { id?: unknown }).id === id) return m as Record<string, unknown>;
     }
+    return null;
+  };
+  const whole = tryParse(text);
+  if (whole) return { msg: whole, sawJson, blocks, parses, lines };
+  // SSE: CR / CRLF / LF each end a line; a blank line dispatches the block's
+  // data lines. Line ends are found by a forward regex search from the
+  // current position (no global rewrite of the body); at most MAX_SSE_LINES
+  // lines are examined.
+  const eol = /\r\n|\r|\n/g;
+  let data: string[] = [];
+  let pos = 0;
+  for (; lines < MAX_SSE_LINES && blocks < MAX_SSE_BLOCKS && parses < MAX_JSON_PARSES; lines++) {
+    eol.lastIndex = pos;
+    const m = eol.exec(text);
+    const line = text.slice(pos, m ? m.index : text.length);
+    if (line.startsWith("data:")) data.push(line.slice(5).replace(/^ /, ""));
+    if ((line === "" || !m) && data.length > 0) {
+      blocks++;
+      const msg = tryParse(data.join("\n"));
+      if (msg) return { msg, sawJson, blocks, parses, lines: lines + 1 };
+      data = [];
+    }
+    if (!m) break;
+    pos = m.index + m[0].length;
   }
-  return { msg: null, sawJson };
+  return { msg: null, sawJson, blocks, parses, lines };
 }
 
 type ServerCard = {
@@ -87,30 +119,44 @@ async function fetchCard(origin: string): Promise<{ card: ServerCard | null; sta
  * more quoted character-strings (`"v=1; m" "cp=..."`) with backslash escapes
  * (`\"`, `\\`, and `\DDD` decimal bytes). Returns the concatenated text so a
  * value split across strings or escaped still matches. Unquoted data is
- * returned as is.
+ * returned as is. Malformed data (an unterminated string, a \DDD above 255,
+ * anything but whitespace between strings, or more than
+ * MAX_TXT_PRESENTATION_CHARS) returns null: no match.
  */
-export function decodeTxtData(data: string): string {
+/** TXT RDATA is at most 64 KiB; its presentation form at most 4x that (\DDD). */
+const MAX_TXT_PRESENTATION_CHARS = 4 * 65536;
+
+export function decodeTxtData(data: string): string | null {
+  if (data.length > MAX_TXT_PRESENTATION_CHARS) return null;
   if (!data.includes('"')) return data;
   let out = "";
   let i = 0;
   while (i < data.length) {
-    if (data[i] !== '"') {
+    if (data[i] === " " || data[i] === "\t") {
       i++; // separator between character-strings
       continue;
     }
+    if (data[i] !== '"') return null;
     i++;
-    while (i < data.length && data[i] !== '"') {
-      if (data[i] === "\\" && i + 1 < data.length) {
+    for (;;) {
+      if (i >= data.length) return null; // unterminated
+      const ch = data[i];
+      if (ch === '"') break;
+      if (ch === "\\") {
+        if (i + 1 >= data.length) return null;
         const ddd = /^\d{3}/.exec(data.slice(i + 1, i + 4));
         if (ddd) {
-          out += String.fromCharCode(Number(ddd[0]));
+          const code = Number(ddd[0]);
+          if (code > 255) return null;
+          out += String.fromCharCode(code);
           i += 4;
         } else {
           out += data[i + 1];
           i += 2;
         }
       } else {
-        out += data[i++];
+        out += ch;
+        i++;
       }
     }
     i++; // closing quote
@@ -139,7 +185,7 @@ async function dnsTxt(host: string): Promise<{ found: boolean; note: string }> {
         typeof a.name === "string" &&
         a.name.toLowerCase().replace(/\.$/, "") === want &&
         typeof a.data === "string" &&
-        /mcp/i.test(decodeTxtData(a.data))
+        /mcp/i.test(decodeTxtData(a.data) ?? "")
     );
     const found = txt.length > 0;
     return { found, note: found ? `${txt.length} TXT record(s) at _mcp.${host}` : `no TXT at _mcp.${host}` };

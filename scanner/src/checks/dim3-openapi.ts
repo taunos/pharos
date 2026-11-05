@@ -86,9 +86,10 @@ const CANONICAL_CANDIDATES = [
 // E12: a 200 counts as discovered only when the body plausibly IS a spec or
 // API catalog. HTML (a soft-404 or SPA fallback page) never is. A body read in
 // full must be recognizable: a JSON object with an openapi / swagger key or an
-// RFC 9727 `linkset` array, or YAML with an openapi / swagger key (so a JSON
-// soft-404 like {"error":"Not Found"} is not a hit). A body not read in full
-// keeps the unmeasured path in runDim3. Linear time on hostile bodies.
+// RFC 9727 linkset with at least one API relation carrying an href, or YAML
+// with an openapi / swagger key (so a JSON soft-404 like {"error":"Not Found"}
+// is not a hit). A body not read in full keeps the unmeasured path in runDim3.
+// Linear time on hostile bodies.
 function isPlausibleSpec(body: string, contentType: string, complete: boolean): boolean {
   if (contentType.includes("text/html") || body.trimStart().startsWith("<")) return false;
   if (!complete) return true;
@@ -96,7 +97,26 @@ function isPlausibleSpec(body: string, contentType: string, complete: boolean): 
   if (!parsed) return false;
   if (parsed.format !== "json") return true; // the YAML heuristic already required the key
   const s = parsed.spec;
-  return "openapi" in s || "swagger" in s || Array.isArray(s["linkset"]);
+  return "openapi" in s || "swagger" in s || hasApiLinkset(s["linkset"]);
+}
+
+const API_CATALOG_RELS = ["service-desc", "service-doc", "service-meta", "item"];
+
+/** RFC 9727: a linkset array with an entry whose API relation has a link object with an href. */
+function hasApiLinkset(linkset: unknown): boolean {
+  if (!Array.isArray(linkset)) return false;
+  return linkset.some(
+    (entry) =>
+      entry !== null &&
+      typeof entry === "object" &&
+      API_CATALOG_RELS.some((rel) => {
+        const links = (entry as Record<string, unknown>)[rel];
+        return (
+          Array.isArray(links) &&
+          links.some((l) => l !== null && typeof l === "object" && typeof (l as { href?: unknown }).href === "string" && (l as { href: string }).href.trim() !== "")
+        );
+      })
+  );
 }
 
 async function probeWellKnown(origin: string): Promise<DiscoveryHit | null> {
@@ -155,45 +175,93 @@ async function probeCanonical(origin: string): Promise<DiscoveryHit | null> {
 }
 
 // Homepage <link rel="api-catalog"> tag and anchors mentioning openapi/swagger.
-// E12 (Codex r1 sibling): the old whole-document regexes ([^>]* then \brel= /
-// \bhref=, and (?:\s|<[^>]+>)*[^<]*) were super-linear on hostile HTML (~2 s
-// on 50 KB) and became reachable once Dim 3 received the homepage. Now a
-// linear tag scan: each tag is at most MAX_TAG_CHARS, the scan resumes after
-// its ">", and the attribute regexes only ever see one bounded tag.
+// E12 (Codex r1 sibling, r2): the old whole-document regexes were
+// super-linear on hostile HTML (~2 s on 50 KB) and became reachable once
+// Dim 3 received the homepage. Now a small quote-aware tag tokenizer: exact
+// attribute names (case-insensitive; data-rel is not rel), quoted or
+// unquoted values, a ">" inside a quoted value does not end the tag. Linear:
+// every character is consumed once, scanning resumes after each tag, only
+// rel / href are kept, and at most MAX_TAGS_SCANNED tags of a kind are read.
 const MAX_TAG_CHARS = 2048;
 const MAX_ANCHOR_TEXT_CHARS = 512;
 const MAX_ANCHORS_CHECKED = 1000;
+const MAX_TAGS_SCANNED = 10000;
 
-/** Tags `<name ...>` in order, as bounded strings (longer or unterminated ones are skipped). */
-function* scanTags(html: string, name: "link" | "a"): Generator<{ tag: string; end: number }> {
-  // Literal-prefixed, so each exec is a linear forward search from lastIndex.
-  const open = name === "link" ? /<link[\s/>]/gi : /<a[\s/>]/gi;
+const isTagSpace = (c: string) => c === " " || c === "\t" || c === "\n" || c === "\r" || c === "\f";
+
+interface SpecTagAttrs {
+  rel?: string;
+  href?: string;
+}
+
+/**
+ * Reads the tag whose name ends at `i` (just past "<name"). Returns its rel /
+ * href attributes (exact names, case-insensitive, first occurrence wins) and
+ * the index of its closing ">", or null when the document ends inside the tag.
+ */
+function readTagAttrs(html: string, i: number): { attrs: SpecTagAttrs; end: number } | null {
+  const attrs: SpecTagAttrs = {};
+  const n = html.length;
   for (;;) {
-    const m = open.exec(html);
-    if (!m) return;
-    const end = html.indexOf(">", m.index + 1);
-    if (end === -1) return;
-    if (end - m.index <= MAX_TAG_CHARS) yield { tag: html.slice(m.index, end + 1), end };
-    open.lastIndex = end + 1;
+    while (i < n && (isTagSpace(html[i]) || html[i] === "/")) i++;
+    if (i >= n) return null;
+    if (html[i] === ">") return { attrs, end: i };
+    const nameStart = i;
+    while (i < n && !isTagSpace(html[i]) && html[i] !== "/" && html[i] !== ">" && html[i] !== "=") i++;
+    const len = i - nameStart;
+    const key = len === 3 || len === 4 ? html.slice(nameStart, i).toLowerCase() : "";
+    const wanted = (key === "rel" || key === "href") && attrs[key] === undefined ? key : null;
+    while (i < n && isTagSpace(html[i])) i++;
+    let value = "";
+    if (html[i] === "=") {
+      i++;
+      while (i < n && isTagSpace(html[i])) i++;
+      const q = html[i];
+      if (q === '"' || q === "'") {
+        const close = html.indexOf(q, i + 1);
+        if (close === -1) return null;
+        if (wanted) value = html.slice(i + 1, close);
+        i = close + 1;
+      } else {
+        const vStart = i;
+        while (i < n && !isTagSpace(html[i]) && html[i] !== ">") i++;
+        if (wanted) value = html.slice(vStart, i);
+      }
+    }
+    if (wanted) attrs[wanted] = value;
   }
 }
 
-const quotedAttr = (tag: string, name: "rel" | "href"): string | null =>
-  (name === "rel" ? /\brel=["']([^"']*)["']/i : /\bhref=["']([^"']*)["']/i).exec(tag)?.[1] ?? null;
+/** `<name ...>` tags in order; tags longer than MAX_TAG_CHARS are skipped (but still consumed). */
+function* scanTags(html: string, name: "link" | "a"): Generator<{ attrs: SpecTagAttrs; end: number }> {
+  // Literal-prefixed, so each exec is a linear forward search from lastIndex.
+  const open = name === "link" ? /<link(?=[\s/>])/gi : /<a(?=[\s/>])/gi;
+  for (let scanned = 0; scanned < MAX_TAGS_SCANNED; scanned++) {
+    const m = open.exec(html);
+    if (!m) return;
+    const tag = readTagAttrs(html, m.index + m[0].length);
+    if (!tag) return;
+    if (tag.end - m.index <= MAX_TAG_CHARS) yield tag;
+    open.lastIndex = tag.end + 1;
+  }
+}
+
+const SPEC_LINK_RELS = new Set(["api-catalog", "describedby", "service-desc"]);
 
 function extractHomepageSpecLink(homepageHtml: string, base: string): string | null {
   const resolve = (href: string): string | null => {
     try {
-      return new URL(href, base).toString();
+      return new URL(href.trim(), base).toString();
     } catch {
       return null;
     }
   };
-  // 1. <link rel="api-catalog" href="..."> per RFC 9727 (also describedby / service-desc).
-  for (const { tag } of scanTags(homepageHtml, "link")) {
-    const rel = quotedAttr(tag, "rel")?.toLowerCase();
-    if (rel !== "api-catalog" && rel !== "describedby" && rel !== "service-desc") continue;
-    const href = quotedAttr(tag, "href");
+  // 1. <link rel="api-catalog" href="..."> per RFC 9727 (also describedby /
+  //    service-desc). rel is a space-separated token list.
+  for (const { attrs } of scanTags(homepageHtml, "link")) {
+    const rels = (attrs.rel ?? "").toLowerCase().split(/[ \t\n\r\f]+/);
+    if (!rels.some((r) => SPEC_LINK_RELS.has(r))) continue;
+    const href = attrs.href;
     const url = href ? resolve(href) : null;
     if (url) return url;
   }
@@ -201,8 +269,8 @@ function extractHomepageSpecLink(homepageHtml: string, base: string): string | n
   //    next MAX_ANCHOR_TEXT_CHARS up to </a>, tags stripped) mentions
   //    OpenAPI / Swagger.
   let checked = 0;
-  for (const { tag, end } of scanTags(homepageHtml, "a")) {
-    const href = quotedAttr(tag, "href");
+  for (const { attrs, end } of scanTags(homepageHtml, "a")) {
+    const href = attrs.href?.trim();
     if (!href || !/\.(?:json|yaml|yml)$/i.test(href)) continue;
     if (++checked > MAX_ANCHORS_CHECKED) break;
     let text = homepageHtml.slice(end + 1, end + 1 + MAX_ANCHOR_TEXT_CHARS);
