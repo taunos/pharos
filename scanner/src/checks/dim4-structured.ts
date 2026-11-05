@@ -193,9 +193,10 @@ Return a single average score 0-100, nothing else.`;
 export async function runDim4(
   targetUrl: string,
   env: Env,
-  // E12: receives the homepage HTML this check reads (null when it couldn't),
-  // so Dim 3's homepage-link discovery reuses it instead of fetching again.
-  onHomepageHtml?: (html: string | null) => void
+  // E12: receives the homepage this check reads (HTML + final URL; null when
+  // it couldn't), so Dim 3's homepage-link discovery reuses it instead of
+  // fetching again.
+  onHomepage?: (homepage: { html: string; url: string } | null) => void
 ): Promise<DimensionResult> {
   const subs: SubCheck[] = [];
 
@@ -234,10 +235,10 @@ export async function runDim4(
       }
       evidence.ld_json_absent_proven = ldJsonAbsentProven(html, evidence.content_type, b.complete);
     }
-    onHomepageHtml?.(read ? html : null);
+    onHomepage?.(read ? { html, url: res.url || targetUrl } : null);
   } else {
     res?.discard();
-    onHomepageHtml?.(null);
+    onHomepage?.(null);
   }
   const validBlocks = blocks.filter((b) => !(b as { __invalid?: boolean })?.__invalid);
 

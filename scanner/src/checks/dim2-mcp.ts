@@ -82,6 +82,42 @@ async function fetchCard(origin: string): Promise<{ card: ServerCard | null; sta
   return { card: null, status: 0, from: "" };
 }
 
+/**
+ * E12 (Codex r1): DoH JSON gives TXT `data` in presentation syntax: one or
+ * more quoted character-strings (`"v=1; m" "cp=..."`) with backslash escapes
+ * (`\"`, `\\`, and `\DDD` decimal bytes). Returns the concatenated text so a
+ * value split across strings or escaped still matches. Unquoted data is
+ * returned as is.
+ */
+export function decodeTxtData(data: string): string {
+  if (!data.includes('"')) return data;
+  let out = "";
+  let i = 0;
+  while (i < data.length) {
+    if (data[i] !== '"') {
+      i++; // separator between character-strings
+      continue;
+    }
+    i++;
+    while (i < data.length && data[i] !== '"') {
+      if (data[i] === "\\" && i + 1 < data.length) {
+        const ddd = /^\d{3}/.exec(data.slice(i + 1, i + 4));
+        if (ddd) {
+          out += String.fromCharCode(Number(ddd[0]));
+          i += 4;
+        } else {
+          out += data[i + 1];
+          i += 2;
+        }
+      } else {
+        out += data[i++];
+      }
+    }
+    i++; // closing quote
+  }
+  return out;
+}
+
 async function dnsTxt(host: string): Promise<{ found: boolean; note: string }> {
   try {
     const r = await timedFetch(
@@ -103,7 +139,7 @@ async function dnsTxt(host: string): Promise<{ found: boolean; note: string }> {
         typeof a.name === "string" &&
         a.name.toLowerCase().replace(/\.$/, "") === want &&
         typeof a.data === "string" &&
-        /mcp/i.test(a.data)
+        /mcp/i.test(decodeTxtData(a.data))
     );
     const found = txt.length > 0;
     return { found, note: found ? `${txt.length} TXT record(s) at _mcp.${host}` : `no TXT at _mcp.${host}` };
