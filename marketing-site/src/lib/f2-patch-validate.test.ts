@@ -86,12 +86,12 @@ describe("validateGitAmPatch — targeted mutations of real assembler output", (
   });
 
   it("U+FFFD replacement char", () => {
-    const p = base().replace("hello", "hel�lo");
+    const p = base().replace("hello", `hel${String.fromCharCode(0xfffd)}lo`);
     expect(cats(validateGitAmPatch(p, EXPECTED))).toContain("encoding");
   });
 
   it("mojibake signature", () => {
-    const p = base().replace("hello", "helloâ€™");
+    const p = base().replace("hello", `hello${String.fromCharCode(0xe2, 0x20ac, 0x2122)}`);
     expect(cats(validateGitAmPatch(p, EXPECTED))).toContain("encoding");
   });
 
@@ -101,7 +101,7 @@ describe("validateGitAmPatch — targeted mutations of real assembler output", (
   });
 
   it("BOM at the start of the patch", () => {
-    expect(cats(validateGitAmPatch("﻿" + base(), EXPECTED))).toContain("encoding");
+    expect(cats(validateGitAmPatch(String.fromCharCode(0xfeff) + base(), EXPECTED))).toContain("encoding");
   });
 
   it("patch without a final newline", () => {

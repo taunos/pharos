@@ -46,7 +46,7 @@ const SENTINEL =
   "From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001";
 const AUTHOR_LINE = "From: Astrant <implementation@astrant.io>";
 const DATE_LINE =
-  /^Date: (Sun|Mon|Tue|Wed|Thu|Fri|Sat), \d{2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} \+0000$/;
+  /^Date: (Sun|Mon|Tue|Wed|Thu|Fri|Sat), (\d{2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4}) (\d{2}):(\d{2}):(\d{2}) \+0000$/;
 const SUBJECT_PREFIX = "Subject: [PATCH] ";
 const NO_NEWLINE_MARKER = "\\ No newline at end of file";
 
@@ -65,9 +65,18 @@ const MOJIBAKE_SIGNATURES = ["Ã¢â‚¬", "Ã¢â¬", "ÃƒÂ", "â€™", "�
 // C0 controls + DEL except \t and \n (CR included: the assembler is LF-only, so
 // a CR is header-injection or contamination), plus C1 controls.
 const DISALLOWED_CTRL = /[\x00-\x08\x0B-\x1F\x7F-\x9F]/;
-// Bidi embedding/override/isolate controls (CVE-2021-42574 "Trojan Source"):
-// they make generated code read differently from how it executes.
-const BIDI_CTRL = /[‪-‮⁦-⁩]/;
+// Bidi controls (CVE-2021-42574 "Trojan Source"): they make generated code
+// read differently from how it executes. The full Unicode Bidi_Control set,
+// marks included (U+061C, U+200E, U+200F, U+202A-202E, U+2066-2069).
+const BIDI_CTRL = new RegExp(
+  `[${[0x061c, 0x200e, 0x200f, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066, 0x2067, 0x2068, 0x2069]
+    .map((cp) => String.fromCharCode(cp))
+    .join("")}]`,
+);
+// Built from code points: escape sequences in source have been silently
+// turned into raw invisible characters by tooling before.
+const BOM = String.fromCharCode(0xfeff);
+const REPLACEMENT_CHAR = String.fromCharCode(0xfffd);
 const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
 
 // One path segment: a conservative ASCII allowlist. Every path the pipeline
@@ -132,8 +141,8 @@ function run(input: string | Uint8Array, expectedFiles: readonly string[], c: Co
   }
 
   // ── Whole-patch character checks ────────────────────────────────────────
-  if (patch.includes("﻿")) c.add("encoding", "byte-order mark present");
-  if (patch.includes("�")) c.add("encoding", "U+FFFD replacement char present");
+  if (patch.includes(BOM)) c.add("encoding", "byte-order mark present");
+  if (patch.includes(REPLACEMENT_CHAR)) c.add("encoding", "U+FFFD replacement char present");
   for (const sig of MOJIBAKE_SIGNATURES) {
     if (patch.includes(sig)) {
       c.add("encoding", "mojibake signature");
@@ -157,7 +166,7 @@ function run(input: string | Uint8Array, expectedFiles: readonly string[], c: Co
   // ── Envelope + headers (fixed positions; no folding, no extra headers) ──
   if (lines[0] !== SENTINEL) c.add("mailbox_envelope", "line1 is not the git-am From sentinel");
   if (lines[1] !== AUTHOR_LINE) c.add("mailbox_header", "line2 is not the fixed From: author");
-  if (!DATE_LINE.test(lines[2] ?? "")) c.add("mailbox_header", "line3 is not an RFC 2822 UTC Date:");
+  if (!validDateLine(lines[2] ?? "")) c.add("mailbox_header", "line3 is not a valid RFC 2822 UTC Date:");
   const subject = lines[3] ?? "";
   if (!subject.startsWith(SUBJECT_PREFIX) || subject.length <= SUBJECT_PREFIX.length) {
     c.add("mailbox_header", "line4 is not a [PATCH] Subject:");
@@ -194,9 +203,13 @@ function run(input: string | Uint8Array, expectedFiles: readonly string[], c: Co
       c.add("mailbox_body", `line${k + 1} could be a scissors line`);
     }
   }
-  // The first body line becomes an in-body header if it looks like one.
-  if (/^(From|Subject|Date|Author)\s*:/i.test(lines[5] ?? "")) {
-    c.add("mailbox_body", "line6 would be read as an in-body header");
+  // git mailinfo skips leading blank lines, then reads in-body headers. The
+  // assembler's first body line is never blank, and the first non-blank line
+  // must not look like a header.
+  if (sepIdx === 5 || lines[5] === "") c.add("mailbox_body", "commit body starts blank or is empty");
+  const firstText = lines.slice(5, sepIdx).find((l) => l.trim() !== "");
+  if (firstText !== undefined && /^\s*(From|Subject|Date|Author)\s*:/i.test(firstText)) {
+    c.add("mailbox_body", "first body line would be read as an in-body header");
   }
 
   // ── Diff blocks: a strict sequence up to the `-- ` trailer ──────────────
@@ -339,6 +352,25 @@ function checkPathSet(paths: string[], c: Collector): void {
       }
     }
   }
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+// Shape AND value: git's date parser rejects e.g. day 99 or hour 99.
+function validDateLine(line: string): boolean {
+  const m = DATE_LINE.exec(line);
+  if (!m) return false;
+  const [, wd, dd, mon, yyyy, hh, mi, ss] = m;
+  const y = +yyyy, mo = MONTHS.indexOf(mon), d = +dd, h = +hh, n = +mi, s = +ss;
+  if (y < 2000 || y > 2100 || h > 23 || n > 59 || s > 59) return false;
+  const t = new Date(Date.UTC(y, mo, d, h, n, s));
+  return (
+    t.getUTCFullYear() === y &&
+    t.getUTCMonth() === mo &&
+    t.getUTCDate() === d &&
+    WEEKDAYS[t.getUTCDay()] === wd
+  );
 }
 
 function lineOf(s: string, index: number): number {
