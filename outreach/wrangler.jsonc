@@ -38,7 +38,7 @@
     ]
   },
   "vars": {
-    "OUTREACH_MODE": "off",
+    "OUTREACH_MODE": "dry_run",
     "DAILY_CAP_MAX": "30",
     // Mailbox drafts per UTC day (follow-ups included). ~10 real sends a week is the plan.
     "DRAFTS_PER_DAY": "10",
