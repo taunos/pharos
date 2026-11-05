@@ -78,12 +78,16 @@ describe("Phase 1 code inspection", () => {
     const re = new RegExp(String.raw`[\p{Cf}\p{Zl}\p{Zp}]`, "u");
     for (const f of [...SRC, ...files(join(ROOT, "test"))]) expect(re.test(read(f)), f).toBe(false);
   });
-  it("wrangler.jsonc declares no secret values and defaults to off", () => {
+  it("wrangler.jsonc declares no secret values and OUTREACH_MODE is an exact known mode", () => {
     const w = read(join(ROOT, "wrangler.jsonc"));
     for (const name of ["POSTAL_ADDRESS", "OPTOUT_HMAC_SECRET", "SUPPRESSION_HMAC_SECRET", "MAIL_OAUTH_CLIENT_ID", "MAIL_OAUTH_CLIENT_SECRET", "MAIL_OAUTH_REFRESH_TOKEN"]) {
       expect(new RegExp(`"${name}"\\s*:`).test(w), name).toBe(false);
     }
-    expect(w).toMatch(/"OUTREACH_MODE":\s*"off"/);
+    // The runbook advances the mode by editing this file (off → dry_run → gated),
+    // so pin validity, not a rollout stage: a typo here would silently parse to
+    // "off" (parseMode is fail-closed; covered in mode-research.test.ts).
+    const mode = w.match(/"OUTREACH_MODE":\s*"([^"]*)"/)?.[1];
+    expect(["off", "dry_run", "gated", "auto"]).toContain(mode);
     expect(w).toMatch(/"entrypoint":\s*"ProspectScan"/);
   });
 });
