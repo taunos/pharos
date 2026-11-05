@@ -36,7 +36,10 @@ export function assembleGitAmPatch(input: F2PatchInput): string {
     `Session: ${input.session_id}`,
     ``,
     `Includes: customized llms.txt, deployable MCP server (TypeScript Worker),`,
-    `OpenAPI spec scaffold, JSON-LD schema blocks, static monitoring scripts,`,
+    // The OpenAPI spec is in the patch only when API operations were found.
+    "public/openapi.yaml" in input.files
+      ? `OpenAPI spec scaffold, JSON-LD schema blocks, static monitoring scripts,`
+      : `JSON-LD schema blocks, static monitoring scripts,`,
     `and a per-stack README at ASTRANT_IMPLEMENTATION.md.`,
     ``,
     `Apply with: git am astrant-implementation.patch`,

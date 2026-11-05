@@ -207,13 +207,30 @@ describe("E1 customer emails", () => {
 
   it("#6 F2 patch delivery", async () => {
     const s = await capture("f2-patch-delivery", () =>
-      sendF2PatchDeliveryEmail(env, { toEmail: "jane@acme-analytics.com", brandName: "Acme", patchR2Key: "f2/patch", sessionId: "impl-1" }),
+      sendF2PatchDeliveryEmail(env, {
+        toEmail: "jane@acme-analytics.com",
+        brandName: "Acme",
+        patchR2Key: "f2/patch",
+        sessionId: "impl-1",
+        includesOpenApi: true,
+      }),
     );
     expect(s.replyTo).toBe("contact@astrant.io");
     expect(s.html).toContain(BRAND_FOOTER);
     expect(s.html).toMatch(/<pre [^>]*>cd mcp-server &amp;&amp; npx wrangler login &amp;&amp; npx wrangler deploy<\/pre>/);
     expect(s.text).toMatchSnapshot("text");
     expect(s.html).toMatchSnapshot("html");
+  });
+
+  it("#6b F2 patch delivery without an OpenAPI spec: the list omits only that item", async () => {
+    const input = { toEmail: "jane@acme-analytics.com", brandName: "Acme", patchR2Key: "f2/patch", sessionId: "impl-1" };
+    await sendF2PatchDeliveryEmail(env, { ...input, includesOpenApi: true });
+    const withSpec = lastSent();
+    const without = await capture("f2-patch-delivery-no-openapi", () => sendF2PatchDeliveryEmail(env, { ...input, includesOpenApi: false }));
+    expect(without.text).not.toContain("OpenAPI");
+    expect(without.html).not.toContain("OpenAPI");
+    expect(without.text).toBe(withSpec.text.replace("  - OpenAPI spec scaffold for your category\n", ""));
+    expect(without.html).toContain("JSON-LD schema blocks for your root layout");
   });
 
   for (const dayN of [30, 60, 90] as const) {

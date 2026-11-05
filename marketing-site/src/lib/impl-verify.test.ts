@@ -34,7 +34,8 @@ const GEN_INPUT = {
 };
 
 // Exactly what impl-fulfill-run.ts Step 4-6 builds (minus README/monitoring,
-// which the verifier does not read).
+// which the verifier does not read). No API operations are detected, so the
+// OpenAPI generator skips its artifact (null) and the patch carries none.
 async function deliveredFiles(): Promise<Record<string, string>> {
   const env = { SESSIONS: kv };
   const [llms, mcpConfig, openapi, jsonld] = await Promise.all([
@@ -43,9 +44,9 @@ async function deliveredFiles(): Promise<Record<string, string>> {
     generateOpenApi(env, GEN_INPUT),
     generateJsonLd(env, GEN_INPUT),
   ]);
+  if (openapi !== null) throw new Error("expected the OpenAPI artifact to be skipped without operations");
   return {
     "public/llms.txt": llms,
-    "public/openapi.yaml": openapi,
     "ASTRANT_IMPLEMENTATION.md": "# Acme\n",
     "monitoring/check-llms-txt.sh": "#!/usr/bin/env bash\necho ok\n",
     "app/layout-jsonld.html": jsonld,
@@ -63,8 +64,19 @@ const PATCH = assembleGitAmPatch({
 });
 const EXPECTED = expectedFromDelivery({ patch: PATCH });
 
+// An OpenAPI spec as the generator emits it when operations are known.
+const OPENAPI_SPEC = (await generateOpenApi({ SESSIONS: kv }, GEN_INPUT, [
+  { method: "get", path: "/pets", summary: "list" },
+  { method: "post", path: "/pets", summary: "add" },
+  { method: "delete", path: "/pets/{id}" },
+]))!;
+const EXPECTED_OPENAPI: ExpectedArtifacts = {
+  engine: EXPECTED.engine,
+  openapi: expectedFromDelivery({ files: { "public/openapi.yaml": OPENAPI_SPEC } }).openapi,
+};
+
 // The real rendered Worker (mcp-server/index.ts), loaded as a module so the
-// template-protocol path is checked against delivered behaviour, not a mock.
+// MCP check runs JSON-RPC end to end against delivered behaviour, not a mock.
 const workerDir = mkdtempSync(join(tmpdir(), "impl-verify-"));
 writeFileSync(join(workerDir, "index.ts"), FILES["mcp-server/index.ts"]);
 const deliveredWorker = (await import(/* @vite-ignore */ pathToFileURL(join(workerDir, "index.ts")).href)).default as {
@@ -98,12 +110,12 @@ function router(routes: Record<string, Handler | Response | string>) {
 function goodSite(over: Record<string, Handler | Response | string> = {}) {
   return router({
     [`${SITE}/llms.txt`]: FILES["public/llms.txt"],
-    [`${SITE}/openapi.yaml`]: FILES["public/openapi.yaml"],
+    [`${SITE}/openapi.yaml`]: OPENAPI_SPEC,
     [`${SITE}/`]: new Response(homepage(), { headers: { "content-type": "text/html; charset=utf-8" } }),
     [`${SITE}/robots.txt`]: "User-agent: *\nAllow: /\n",
     [`${MCP}/`]: (url, init) => deliveredWorker.fetch(new Request(url, init), {}),
     [`${MCP}/.well-known/mcp.json`]: (url, init) => deliveredWorker.fetch(new Request(url, init), {}),
-    [`${MCP}/mcp/call`]: (url, init) => deliveredWorker.fetch(new Request(url, init), {}),
+    [`${MCP}/mcp`]: (url, init) => deliveredWorker.fetch(new Request(url, init), {}),
     ...over,
   });
 }
@@ -163,13 +175,15 @@ describe("expectedFromDelivery (real generator output)", () => {
       links: ["https://acme.com/"],
       content: FILES["public/llms.txt"],
     });
-    expect(EXPECTED.openapi).toMatchObject({
+    expect(FILES).not.toHaveProperty(["public/openapi.yaml"]);
+    expect(EXPECTED.openapi).toBeUndefined();
+    expect(EXPECTED_OPENAPI.openapi).toMatchObject({
       path: "/openapi.yaml",
       version: "3.1.0",
       title: "Acme API",
       servers: ["https://acme.com"],
-      paths: {},
-      operationCount: 0,
+      paths: { "/pets": ["get", "post"], "/pets/{id}": ["delete"] },
+      operationCount: 3,
     });
     expect(EXPECTED.json_ld).toEqual({
       path: "/",
@@ -205,27 +219,29 @@ describe("verifyArtifacts: the delivered artifacts, applied unmodified", () => {
   it("reports every artifact working, with evidence", async () => {
     const { fetchImpl } = goodSite();
     const r = await run(fetchImpl);
-    expect(Object.keys(r)).toEqual(["llms_txt", "openapi", "json_ld", "mcp_server"]);
+    expect(Object.keys(r)).toEqual(["llms_txt", "json_ld", "mcp_server"]);
     for (const c of Object.values(r)) {
       expect(c.state, `${c.artifact}: ${JSON.stringify(c.evidence)}`).toBe("working");
       expect(c.checkedAt).toBe("2026-11-05T12:00:00.000Z");
     }
     expect(r.llms_txt.evidence.note).toBe("byte-identical to the delivered file");
     expect(r.llms_txt.url).toBe("https://acme.com/llms.txt");
-    expect(r.openapi.evidence.matched).toEqual(["openapi:3.1.0", "title:Acme API", "server:https://acme.com"]);
     expect(r.json_ld.evidence.matched).toContain("marker:astrant-jsonld");
-    // The delivered Worker is not a JSON-RPC MCP server: the evidence says so.
-    expect(r.mcp_server.url).toBe(`${MCP}/.well-known/mcp.json`);
-    expect(r.mcp_server.evidence.note).toMatch(/^Astrant template protocol, not MCP JSON-RPC \(initialize got no JSON-RPC result \(HTTP 404\)\)/);
+    // The customer reported the bare workers.dev origin: initialize there 404s,
+    // the Worker's card names /mcp, and the JSON-RPC check passes there.
+    expect(r.mcp_server.url).toBe(`${MCP}/mcp`);
+    expect(r.mcp_server.evidence.note).toBe(
+      "MCP JSON-RPC: initialize + tools/list returned 4 tool(s); tools/call get_capabilities returned content",
+    );
     expect(r.mcp_server.evidence.matched).toEqual([
       "tool:get_capabilities",
       "tool:get_pricing",
       "tool:get_case_studies",
       "tool:get_contact_tools",
-      "name:Acme",
-      "domain:acme.com",
       "call:get_capabilities",
+      "name:Acme",
     ]);
+    expect(r.mcp_server.evidence.missing).toBeUndefined();
   });
 
   it("accepts CRLF-served copies and customer edits that keep the delivered structure", async () => {
@@ -353,7 +369,7 @@ describe("llms_txt states", () => {
 // ── OpenAPI states ───────────────────────────────────────────────────────
 
 describe("openapi states", () => {
-  const ex = only("openapi");
+  const ex = EXPECTED_OPENAPI;
   const path = `${SITE}/openapi.yaml`;
   it("absent and blocked", async () => {
     expect((await run(goodSite({ [path]: new Response("", { status: 404 }) }).fetchImpl, { expected: ex })).openapi.state).toBe("absent");
@@ -371,27 +387,34 @@ describe("openapi states", () => {
     expect(r.openapi.state).toBe("mismatch");
     expect(r.openapi.evidence.note).toMatch(/not the delivered spec/);
   });
+  it("working: the delivered spec served unmodified", async () => {
+    const r = await run(goodSite().fetchImpl, { expected: ex });
+    expect(r.openapi.state).toBe("working");
+    expect(r.openapi.evidence.matched).toEqual([
+      "openapi:3.1.0",
+      "title:Acme API",
+      "server:https://acme.com",
+      "op:GET /pets",
+      "op:POST /pets",
+      "op:DELETE /pets/{id}",
+    ]);
+    expect(r.openapi.evidence.note).toBe("byte-identical to the delivered file; 3 operations served, 3 delivered");
+  });
   it("working: the customer extended paths[] and converted it to JSON", async () => {
     const json = JSON.stringify({
       openapi: "3.1.0",
       info: { title: "Acme API", version: "1" },
       servers: [{ url: "https://acme.com/" }],
-      paths: { "/pets": { get: {}, post: {}, parameters: [] } },
+      paths: { "/pets": { get: {}, post: {}, parameters: [] }, "/pets/{id}": { delete: {}, put: {} } },
     });
     const r = await run(goodSite({ [path]: json }).fetchImpl, { expected: ex });
     expect(r.openapi.state).toBe("working");
-    expect(r.openapi.evidence.note).toMatch(/2 operations served, 0 delivered/);
+    expect(r.openapi.evidence.note).toMatch(/4 operations served, 3 delivered/);
   });
   it("mismatch: a delivered operation is missing", async () => {
-    const withOps = FILES["public/openapi.yaml"].replace(
-      "paths: {}",
-      "paths:\n  /pets:\n    get:\n      summary: list\n    post:\n      summary: add\n  /pets/{id}:\n    delete: {}\n",
-    );
-    const exp = expectedFromDelivery({ files: { "public/openapi.yaml": withOps } });
-    expect(exp.openapi?.paths).toEqual({ "/pets": ["get", "post"], "/pets/{id}": ["delete"] });
-    expect(exp.openapi?.operationCount).toBe(3);
-    const served = withOps.replace("    post:\n      summary: add\n", "");
-    const r = await run(goodSite({ [path]: served }).fetchImpl, { expected: exp });
+    const served = OPENAPI_SPEC.replace('    post:\n      summary: "add"\n', "");
+    expect(served).not.toBe(OPENAPI_SPEC);
+    const r = await run(goodSite({ [path]: served }).fetchImpl, { expected: ex });
     expect(r.openapi.state).toBe("mismatch");
     expect(r.openapi.evidence.missing).toEqual(["op:POST /pets"]);
     expect(r.openapi.evidence.matched).toContain("op:GET /pets");
@@ -473,18 +496,20 @@ describe("json_ld states", () => {
 
 // ── MCP server states ────────────────────────────────────────────────────
 
-/** A JSON-RPC MCP server (Streamable HTTP; tools/list answered as SSE). */
-function jsonRpcServer(tools: string[], opts: { sse?: boolean } = {}): Handler {
+/** A third-party JSON-RPC MCP server (Streamable HTTP, sessionful; replies optionally as SSE). */
+function jsonRpcServer(tools: string[], opts: { sse?: boolean; name?: string } = {}): Handler {
   return async (_url, init) => {
     const msg = JSON.parse(String(init.body)) as { id?: string; method: string };
     if (msg.method === "initialize") {
       return Response.json(
-        { jsonrpc: "2.0", id: msg.id, result: { protocolVersion: "2025-06-18", capabilities: {}, serverInfo: { name: "x" } } },
+        { jsonrpc: "2.0", id: msg.id, result: { protocolVersion: "2025-06-18", capabilities: {}, serverInfo: { name: opts.name ?? "Acme" } } },
         { headers: { "mcp-session-id": "sess-1" } },
       );
     }
     if (msg.method === "notifications/initialized") return new Response(null, { status: 202 });
-    const payload = JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: { tools: tools.map((name) => ({ name })) } });
+    const result =
+      msg.method === "tools/call" ? { content: [{ type: "text", text: "{}" }] } : { tools: tools.map((name) => ({ name })) };
+    const payload = JSON.stringify({ jsonrpc: "2.0", id: msg.id, result });
     if (opts.sse) return new Response(`event: message\ndata: ${payload}\n\n`, { headers: { "content-type": "text/event-stream" } });
     return new Response(payload, { headers: { "content-type": "application/json" } });
   };
@@ -505,10 +530,42 @@ describe("mcp_server states", () => {
       });
       const r = await run(fetchImpl, { expected: ex, mcpUrl: `${MCP}/mcp` });
       expect(r.mcp_server.state).toBe("working");
-      expect(r.mcp_server.evidence.note).toBe("MCP JSON-RPC: initialize + tools/list returned 4 tool(s)");
-      expect(seen.map((s) => s.method)).toEqual(["initialize", "notifications/initialized", "tools/list"]);
+      expect(r.mcp_server.evidence.note).toBe(
+        "MCP JSON-RPC: initialize + tools/list returned 4 tool(s); tools/call get_capabilities returned content",
+      );
+      expect(seen.map((s) => s.method)).toEqual(["initialize", "notifications/initialized", "tools/list", "tools/call"]);
       expect(seen[2].headers.get("mcp-session-id")).toBe("sess-1");
+      expect(seen[3].headers.get("mcp-protocol-version")).toBe("2025-06-18");
     }
+  });
+  it("working: the delivered Worker at its /mcp endpoint, end to end in-process", async () => {
+    const methods: string[] = [];
+    const { fetchImpl } = goodSite({
+      [`${MCP}/mcp`]: (url, init) => {
+        methods.push(JSON.parse(String(init.body)).method);
+        return deliveredWorker.fetch(new Request(url, init), {});
+      },
+    });
+    const r = await run(fetchImpl, { expected: ex, mcpUrl: `${MCP}/mcp` });
+    expect(r.mcp_server).toMatchObject({ state: "working", url: `${MCP}/mcp` });
+    expect(methods).toEqual(["initialize", "notifications/initialized", "tools/list", "tools/call"]);
+  });
+  it("mismatch: tools/call does not return content", async () => {
+    const worker: Handler = async (url, init) => {
+      if (JSON.parse(String(init.body)).method === "tools/call") {
+        return Response.json({ jsonrpc: "2.0", id: "verify-call", error: { code: -32602, message: "Unknown tool" } });
+      }
+      return deliveredWorker.fetch(new Request(url, init), {});
+    };
+    const r = await run(goodSite({ [`${MCP}/mcp`]: worker }).fetchImpl, { expected: ex });
+    expect(r.mcp_server.state).toBe("mismatch");
+    expect(r.mcp_server.evidence.missing).toEqual(["call:get_capabilities"]);
+    expect(r.mcp_server.evidence.note).toMatch(/tools\/call get_capabilities: JSON-RPC error$/);
+  });
+  it("mismatch: serverInfo names another brand", async () => {
+    const r = await run(router({ [`${MCP}/`]: jsonRpcServer(names, { name: "Other" }) }).fetchImpl, { expected: ex });
+    expect(r.mcp_server.state).toBe("mismatch");
+    expect(r.mcp_server.evidence.missing).toEqual(["name:Acme"]);
   });
   it("mismatch: tools/list lacks a delivered tool", async () => {
     const { fetchImpl } = router({ [`${MCP}/`]: jsonRpcServer(["get_capabilities", "something_else"]) });
@@ -516,16 +573,32 @@ describe("mcp_server states", () => {
     expect(r.mcp_server.state).toBe("mismatch");
     expect(r.mcp_server.evidence.missing).toEqual(["tool:get_pricing", "tool:get_case_studies", "tool:get_contact_tools"]);
   });
-  it("mismatch: the template card belongs to someone else", async () => {
-    const card = Response.json({ name: "Other", domain: "other.com", tools: names.map((name) => ({ name })) });
-    const r = await run(goodSite({ [`${MCP}/.well-known/mcp.json`]: card }).fetchImpl, { expected: ex });
+  it("mismatch: the legacy non-MCP template protocol (card + POST /mcp/call), even with every tool listed", async () => {
+    // The pre-JSON-RPC delivered Worker: a card with no transports, tools via /mcp/call.
+    const legacy = router({
+      [`${MCP}/.well-known/mcp.json`]: Response.json({ name: "Acme", domain: "acme.com", tools: names.map((name) => ({ name })) }),
+      [`${MCP}/mcp/call`]: Response.json({ brand: "Acme" }),
+    });
+    const r = await run(legacy.fetchImpl, { expected: ex });
     expect(r.mcp_server.state).toBe("mismatch");
-    expect(r.mcp_server.evidence.missing).toEqual(["name:Acme", "domain:acme.com"]);
+    expect(r.mcp_server.url).toBe(`${MCP}/.well-known/mcp.json`);
+    expect(r.mcp_server.evidence.note).toMatch(/^legacy non-MCP protocol: no MCP JSON-RPC endpoint answers \(initialize at /);
+    expect(r.mcp_server.evidence.matched).toEqual(names.map((n) => `tool:${n}`));
+    expect(legacy.calls).not.toContain(`${MCP}/mcp/call`);
   });
-  it("mismatch: card lists the tools but /mcp/call does not answer", async () => {
-    const r = await run(goodSite({ [`${MCP}/mcp/call`]: new Response("nope", { status: 500 }) }).fetchImpl, { expected: ex });
+  it("mismatch: the card names an endpoint that does not speak JSON-RPC either", async () => {
+    const card = Response.json({ name: "Acme", transports: [{ type: "streamable-http", url: "/mcp" }], tools: [] });
+    const r = await run(router({ [`${MCP}/.well-known/mcp.json`]: card }).fetchImpl, { expected: ex });
     expect(r.mcp_server.state).toBe("mismatch");
-    expect(r.mcp_server.evidence.missing).toEqual(["call:get_capabilities"]);
+    expect(r.mcp_server.evidence.note).toMatch(/card endpoint https:\/\/astrant-mcp-acme\.acct\.workers\.dev\/mcp got no JSON-RPC result either \(HTTP 404\)/);
+    expect(r.mcp_server.evidence.missing).toEqual(names.map((n) => `tool:${n}`));
+  });
+  it("a card endpoint on another origin is never fetched", async () => {
+    const card = Response.json({ name: "Acme", transports: [{ type: "streamable-http", url: "https://evil.example/mcp" }], tools: [] });
+    const { calls, fetchImpl } = router({ [`${MCP}/.well-known/mcp.json`]: card });
+    const r = await run(fetchImpl, { expected: ex });
+    expect(r.mcp_server.state).toBe("mismatch");
+    expect(calls.some((c) => c.startsWith("https://evil.example"))).toBe(false);
   });
   it("absent: neither JSON-RPC nor the template card answers", async () => {
     const r = await run(router({}).fetchImpl, { expected: ex });

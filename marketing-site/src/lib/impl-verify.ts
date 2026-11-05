@@ -12,9 +12,10 @@
 //               @type with the delivered key fields
 //   mcp_server  the URL the customer reports: MCP JSON-RPC initialize ->
 //               notifications/initialized -> tools/list with the delivered tool
-//               names; if the endpoint does not speak JSON-RPC, the delivered
-//               Worker's own protocol (GET /.well-known/mcp.json card +
-//               POST /mcp/call), labelled as such in the evidence note
+//               names -> tools/call of one delivered tool (content[]); if that
+//               URL does not speak JSON-RPC, the endpoint named by its origin's
+//               /.well-known/mcp.json card is tried once; a card without a
+//               JSON-RPC endpoint is "legacy non-MCP protocol" (mismatch)
 //
 // States: working | absent (404/410, soft-404, not in the page) | blocked
 // (401/403/407/451, WAF challenge, robots.txt disallow) | mismatch (present but
@@ -231,18 +232,18 @@ export function filesFromPatch(patch: string | Uint8Array): Record<string, strin
 
 /**
  * The rendered Worker (f2-mcp-server-template/worker-template.ts): tool names
- * are the keys of the `const TOOL_RESPONSES = {...};` JSON literal; brand and
- * domain come from the MCP_DISCOVERY string literals.
+ * are the keys of the `const TOOL_RESPONSES: ... = {...};` JSON literal; brand
+ * and domain come from the MCP_DISCOVERY JSON string literals.
  */
 function parseMcpWorker(src: string): ExpectedMcpServer {
-  const marker = "const TOOL_RESPONSES = ";
-  const start = src.indexOf(marker);
+  const decl = src.indexOf("const TOOL_RESPONSES");
+  const eq = decl < 0 ? -1 : src.indexOf(" = ", decl);
   // JSON.stringify(_, null, 2) closes the top-level object with "}" at column 0.
-  const end = start < 0 ? -1 : src.indexOf("\n};", start);
-  if (start < 0 || end < 0) throw new Error(`${MCP_WORKER_FILE} has no TOOL_RESPONSES literal`);
+  const end = eq < 0 ? -1 : src.indexOf("\n};", eq);
+  if (end < 0) throw new Error(`${MCP_WORKER_FILE} has no TOOL_RESPONSES literal`);
   let tools: unknown;
   try {
-    tools = JSON.parse(src.slice(start + marker.length, end + 2));
+    tools = JSON.parse(src.slice(eq + 3, end + 2));
   } catch {
     throw new Error(`${MCP_WORKER_FILE} TOOL_RESPONSES is not JSON`);
   }
@@ -257,22 +258,34 @@ function parseMcpWorker(src: string): ExpectedMcpServer {
   };
 }
 
-/** Value of the first `  <field>: "..."` line after `from`, with the template's backslash escapes undone. */
+/** Value of the first `  <field>: "..."` line after `from` (a JSON string literal). */
 function jsStringField(src: string, from: number, field: string): string {
-  const key = `\n  ${field}: "`;
+  const key = `\n  ${field}: `;
   const at = src.indexOf(key, from);
-  if (at < 0) return "";
-  let out = "";
-  for (let i = at + key.length; i < src.length; i++) {
-    const c = src[i];
-    if (c === "\n") return "";
-    if (c === "\\") {
-      out += src[i + 1] ?? "";
-      i++;
-    } else if (c === '"') return out;
-    else out += c;
+  if (at < 0 || src[at + key.length] !== '"') return "";
+  const q = readDoubleQuoted(src, at + key.length);
+  return q ? q.value : "";
+}
+
+/**
+ * The double-quoted string starting at s[start] (a '"'), decoded with JSON
+ * string rules (a subset of YAML's double-quoted escapes). Stops at a line
+ * break. null = unterminated or not a valid JSON string.
+ */
+function readDoubleQuoted(s: string, start: number): { value: string; end: number } | null {
+  for (let i = start + 1; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c === 10 || c === 13) return null;
+    if (c === 92) i++; // backslash: skip the escaped char
+    else if (c === 34) {
+      try {
+        return { value: JSON.parse(s.slice(start, i + 1)) as string, end: i + 1 };
+      } catch {
+        return null;
+      }
+    }
   }
-  return "";
+  return null;
 }
 
 // ── verifyArtifacts ──────────────────────────────────────────────────────
@@ -713,10 +726,10 @@ function splitKeyValue(s: string): { key: string; value: string } | null {
   let after: number;
   const q = s[0];
   if (q === '"' || q === "'") {
-    const close = s.indexOf(q, 1);
-    if (close < 0 || s[close + 1] !== ":") return null;
-    key = s.slice(1, close);
-    after = close + 2;
+    const k = readQuoted(s, 0);
+    if (!k || s[k.end] !== ":") return null;
+    key = k.value;
+    after = k.end + 1;
   } else {
     const colon = s.indexOf(": ");
     const at = colon >= 0 ? colon : s.endsWith(":") ? s.length - 1 : -1;
@@ -727,13 +740,27 @@ function splitKeyValue(s: string): { key: string; value: string } | null {
   let value = s.slice(after).trim();
   const vq = value[0];
   if ((vq === '"' || vq === "'") && value.length >= 2) {
-    const close = value.indexOf(vq, 1);
-    if (close > 0) value = value.slice(1, close);
+    const v = readQuoted(value, 0);
+    if (v) value = v.value;
   } else {
     const hash = value.indexOf(" #");
     if (hash >= 0) value = value.slice(0, hash).trim();
   }
   return { key, value };
+}
+
+/** A YAML flow scalar quoted with " (JSON escapes) or ' ('' is a quote) at s[start]. */
+function readQuoted(s: string, start: number): { value: string; end: number } | null {
+  if (s[start] === '"') return readDoubleQuoted(s, start);
+  let out = "";
+  for (let i = start + 1; i < s.length; i++) {
+    if (s[i] !== "'") out += s[i];
+    else if (s[i + 1] === "'") {
+      out += "'";
+      i++;
+    } else return { value: out, end: i + 1 };
+  }
+  return null;
 }
 
 function countOperations(paths: Record<string, string[]>): number {
@@ -926,13 +953,30 @@ async function checkMcp(ctx: Ctx, exp: ExpectedMcpServer, mcpUrl: string | undef
   } catch {
     return result(ctx, "mcp_server", mcpUrl, "unobservable", { note: "MCP URL is not a public http(s) URL" });
   }
-  const url = target.toString();
   const deadline = Date.now() + MCP_BUDGET_MS;
   const left = () => Math.max(1, deadline - Date.now());
-  const post = (payload: unknown, extra: Record<string, string> = {}, at = url) =>
+  const url = target.toString();
+  const first = await mcpJsonRpc(ctx, exp, url, left);
+  if ("check" in first) return first.check;
+  return checkMcpCard(ctx, exp, target, left, `initialize at ${url} got no JSON-RPC result (HTTP ${first.noRpc})`);
+}
+
+/**
+ * MCP over Streamable HTTP at `url`: initialize -> notifications/initialized
+ * -> tools/list (every delivered tool) -> tools/call of one delivered tool
+ * (must return content[]). { noRpc } = initialize got no JSON-RPC result.
+ */
+async function mcpJsonRpc(
+  ctx: Ctx,
+  exp: ExpectedMcpServer,
+  url: string,
+  left: () => number,
+): Promise<{ check: ArtifactCheck } | { noRpc: number }> {
+  const done = (state: ArtifactState, evidence: Evidence) => ({ check: result(ctx, "mcp_server", url, state, evidence) });
+  const post = (payload: unknown, extra: Record<string, string> = {}) =>
     get(
       ctx,
-      at,
+      url,
       {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", ...extra },
@@ -947,69 +991,111 @@ async function checkMcp(ctx: Ctx, exp: ExpectedMcpServer, mcpUrl: string | undef
     method: "initialize",
     params: { protocolVersion: MCP_PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "AstrantVerify", version: "1" } },
   });
-  if (!init.ok) return result(ctx, "mcp_server", url, "unobservable", { note: `initialize: ${FAIL_NOTES[init.reason]}` });
+  if (!init.ok) return done("unobservable", { note: `initialize: ${FAIL_NOTES[init.reason]}` });
   const initRes = init.res;
   const initType = initRes.headers.get("content-type") ?? "";
   const initBad = classifyStatus(initRes);
   if (initBad && initBad.state !== "absent" && initRes.status !== 400 && initRes.status !== 405) {
     initRes.discard();
-    return result(ctx, "mcp_server", url, initBad.state, { status: initRes.status, contentType: initType, note: `initialize: ${initBad.note}` });
+    return done(initBad.state, { status: initRes.status, contentType: initType, note: `initialize: ${initBad.note}` });
   }
   let session: Record<string, string> | null = null;
+  let serverName: string | null = null;
   if (!initBad) {
     const { msg } = findJsonRpcResponse((await initRes.body({ maxBytes: MAX_JSON_BYTES })).text, "verify-init");
-    const r = msg?.result as { protocolVersion?: unknown } | undefined;
+    const r = msg?.result as { protocolVersion?: unknown; serverInfo?: { name?: unknown } } | undefined;
     if (r && typeof r === "object") {
       const v =
         typeof r.protocolVersion === "string" && /^[\w.-]{1,32}$/.test(r.protocolVersion) ? r.protocolVersion : MCP_PROTOCOL_VERSION;
       session = { "MCP-Protocol-Version": v };
       const sid = initRes.headers.get("mcp-session-id");
       if (sid && sid.length <= 4096 && /^[\x21-\x7e]+$/.test(sid)) session["Mcp-Session-Id"] = sid;
+      if (typeof r.serverInfo?.name === "string") serverName = r.serverInfo.name;
     }
   } else {
     initRes.discard();
   }
-
-  if (!session) return checkMcpTemplate(ctx, exp, target, left, initRes.status);
+  if (!session) return { noRpc: initRes.status };
 
   const notified = await post({ jsonrpc: "2.0", method: "notifications/initialized" }, session);
   if (notified.ok) notified.res.discard();
   const list = await post({ jsonrpc: "2.0", id: "verify-list", method: "tools/list" }, session);
-  if (!list.ok) return result(ctx, "mcp_server", url, "unobservable", { note: `tools/list: ${FAIL_NOTES[list.reason]}` });
+  if (!list.ok) return done("unobservable", { note: `tools/list: ${FAIL_NOTES[list.reason]}` });
   const lr = list.res;
   const ev = { status: lr.status, contentType: lr.headers.get("content-type") ?? "" };
   const lbad = classifyStatus(lr);
   if (lbad) {
     lr.discard();
-    return result(ctx, "mcp_server", url, lbad.state === "absent" ? "mismatch" : lbad.state, { ...ev, note: `tools/list: ${lbad.note}` });
+    return done(lbad.state === "absent" ? "mismatch" : lbad.state, { ...ev, note: `tools/list: ${lbad.note}` });
   }
   const { msg, exhausted } = findJsonRpcResponse((await lr.body({ maxBytes: MAX_JSON_BYTES })).text, "verify-list");
   const tools = (msg?.result as { tools?: unknown } | undefined)?.tools;
   if (!Array.isArray(tools)) {
-    return result(ctx, "mcp_server", url, exhausted ? "unobservable" : "mismatch", {
+    return done(exhausted ? "unobservable" : "mismatch", {
       ...ev,
       note: exhausted ? "tools/list reply exceeded the scan limit" : "tools/list reply has no tools[]",
     });
   }
   const served = toolNames(tools);
-  return toolVerdict(ctx, url, exp, served, ev, `MCP JSON-RPC: initialize + tools/list returned ${served.length} tool(s)`, null);
+
+  // Behaviour: one delivered tool (served, if any is) must answer tools/call with content[].
+  const probe = exp.toolNames.find((t) => served.includes(t)) ?? exp.toolNames[0];
+  let call: { probe: string; ok: boolean } | null = null;
+  let callNote = "no delivered tool to call";
+  if (probe) {
+    const got = await post(
+      { jsonrpc: "2.0", id: "verify-call", method: "tools/call", params: { name: probe, arguments: {} } },
+      session,
+    );
+    if (!got.ok) return done("unobservable", { ...ev, note: `tools/call ${probe}: ${FAIL_NOTES[got.reason]}` });
+    const cbad = classifyStatus(got.res);
+    if (cbad) {
+      got.res.discard();
+      if (cbad.state === "unobservable") return done("unobservable", { ...ev, note: `tools/call ${probe}: ${cbad.note}` });
+      call = { probe, ok: false };
+      callNote = `tools/call ${probe}: ${cbad.note}`;
+    } else {
+      const reply = findJsonRpcResponse((await got.res.body({ maxBytes: MAX_JSON_BYTES })).text, "verify-call");
+      if (reply.exhausted) return done("unobservable", { ...ev, note: `tools/call ${probe}: reply exceeded the scan limit` });
+      const r = reply.msg?.result as { content?: unknown; isError?: unknown } | undefined;
+      const ok = !!r && Array.isArray(r.content) && r.content.length > 0 && r.isError !== true;
+      call = { probe, ok };
+      callNote = ok
+        ? `tools/call ${probe} returned content`
+        : `tools/call ${probe}: ${reply.msg?.error ? "JSON-RPC error" : r?.isError === true ? "isError result" : "no content[]"}`;
+    }
+  }
+
+  const matched: string[] = [];
+  const missing: string[] = [];
+  const have = new Set(served);
+  for (const t of exp.toolNames) (have.has(t) ? matched : missing).push(`tool:${t}`);
+  if (call) (call.ok ? matched : missing).push(`call:${call.probe}`);
+  if (exp.brandName) (serverName !== null && norm(serverName) === norm(exp.brandName) ? matched : missing).push(`name:${exp.brandName}`);
+  return done(missing.length === 0 ? "working" : "mismatch", {
+    ...ev,
+    matched,
+    missing,
+    note: `MCP JSON-RPC: initialize + tools/list returned ${served.length} tool(s); ${callNote}`,
+  });
 }
 
 /**
- * The delivered Worker (f2-mcp-server-template/worker-template.ts) is NOT a
- * JSON-RPC MCP server: it serves GET /.well-known/mcp.json and POST /mcp/call
- * {"tool": name}. When initialize gets no JSON-RPC result, check that protocol.
+ * The reported URL does not speak JSON-RPC. The delivered Worker's
+ * /.well-known/mcp.json names its MCP endpoint (transports[].url): when that is
+ * another URL on the same origin, run the JSON-RPC check there once. Anything
+ * else (e.g. the pre-JSON-RPC Astrant template: card + POST /mcp/call) is a
+ * mismatch, never working: real MCP clients cannot use it.
  */
-async function checkMcpTemplate(
+async function checkMcpCard(
   ctx: Ctx,
   exp: ExpectedMcpServer,
   target: URL,
   left: () => number,
-  initStatus: number,
+  pre: string,
 ): Promise<ArtifactCheck> {
   const cardUrl = target.origin + "/.well-known/mcp.json";
   const card = await get(ctx, cardUrl, { headers: { Accept: "application/json" } }, left());
-  const pre = `initialize got no JSON-RPC result (HTTP ${initStatus})`;
   if (!card.ok) return result(ctx, "mcp_server", cardUrl, "unobservable", { note: `${pre}; discovery card: ${FAIL_NOTES[card.reason]}` });
   const cr = card.res;
   const ev = { status: cr.status, contentType: cr.headers.get("content-type") ?? "" };
@@ -1026,67 +1112,47 @@ async function checkMcpTemplate(
     doc = null;
   }
   const d = doc && typeof doc === "object" && !Array.isArray(doc) ? (doc as Record<string, unknown>) : null;
-  if (!d || !Array.isArray(d.tools)) {
+  if (!d || (!Array.isArray(d.tools) && !Array.isArray(d.transports))) {
     return result(ctx, "mcp_server", cardUrl, looksHtml(ev.contentType, body.text) ? "absent" : "mismatch", {
       ...ev,
-      note: `${pre}; /.well-known/mcp.json is not a tools card`,
+      note: `${pre}; /.well-known/mcp.json is not an MCP card`,
     });
   }
-  const identity: string[] = [];
-  const identityMissing: string[] = [];
-  if (exp.brandName) (typeof d.name === "string" && norm(d.name) === norm(exp.brandName) ? identity : identityMissing).push(`name:${exp.brandName}`);
-  if (exp.domain) (typeof d.domain === "string" && norm(d.domain) === norm(exp.domain) ? identity : identityMissing).push(`domain:${exp.domain}`);
 
-  // Behaviour: one delivered tool must answer on /mcp/call.
-  const probe = exp.toolNames[0];
-  let callNote = "no delivered tool to call";
-  let callOk = false;
-  if (probe) {
-    const call = await get(
-      ctx,
-      target.origin + "/mcp/call",
-      { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ tool: probe }) },
-      left(),
-    );
-    if (!call.ok) callNote = `/mcp/call ${probe}: ${FAIL_NOTES[call.reason]}`;
-    else if (call.res.status < 200 || call.res.status >= 300) {
-      call.res.discard();
-      callNote = `/mcp/call ${probe}: HTTP ${call.res.status}`;
-    } else {
-      const b = await call.res.body({ maxBytes: MAX_JSON_BYTES });
-      try {
-        const v = b.complete ? JSON.parse(b.text) : null;
-        callOk = !!v && typeof v === "object" && !Array.isArray(v);
-      } catch {
-        callOk = false;
-      }
-      callNote = callOk ? `/mcp/call ${probe} answered` : `/mcp/call ${probe}: reply is not a JSON object`;
-    }
+  const endpoint = cardEndpoint(d, target);
+  let tried = pre;
+  if (endpoint && endpoint !== target.toString()) {
+    const second = await mcpJsonRpc(ctx, exp, endpoint, left);
+    if ("check" in second) return second.check;
+    tried = `${pre}; card endpoint ${endpoint} got no JSON-RPC result either (HTTP ${second.noRpc})`;
   }
-  const served = toolNames(d.tools);
-  const note = `Astrant template protocol, not MCP JSON-RPC (${pre}); card lists ${served.length} tool(s); ${callNote}`;
-  return toolVerdict(ctx, cardUrl, exp, served, ev, note, { identity, identityMissing, callOk, probe: probe ?? "" });
-}
-
-function toolVerdict(
-  ctx: Ctx,
-  url: string,
-  exp: ExpectedMcpServer,
-  served: string[],
-  ev: { status: number; contentType: string },
-  note: string,
-  tpl: { identity: string[]; identityMissing: string[]; callOk: boolean; probe: string } | null,
-): ArtifactCheck {
+  const served = Array.isArray(d.tools) ? toolNames(d.tools) : [];
   const have = new Set(served);
   const matched: string[] = [];
   const missing: string[] = [];
   for (const t of exp.toolNames) (have.has(t) ? matched : missing).push(`tool:${t}`);
-  if (tpl) {
-    matched.push(...tpl.identity);
-    missing.push(...tpl.identityMissing);
-    if (tpl.probe) (tpl.callOk ? matched : missing).push(`call:${tpl.probe}`);
+  return result(ctx, "mcp_server", cardUrl, "mismatch", {
+    ...ev,
+    matched,
+    missing,
+    note: `legacy non-MCP protocol: no MCP JSON-RPC endpoint answers (${tried}); card lists ${served.length} tool(s)`,
+  });
+}
+
+/** The card's first transports[].url, resolved against the origin; same-origin only. */
+function cardEndpoint(card: Record<string, unknown>, target: URL): string | null {
+  if (!Array.isArray(card.transports)) return null;
+  for (const t of card.transports.slice(0, MAX_LIST)) {
+    const u = (t as { url?: unknown } | null)?.url;
+    if (typeof u !== "string" || u.length > MAX_LINE_CHARS) continue;
+    try {
+      const abs = new URL(u, target.origin);
+      return abs.origin === target.origin ? abs.toString() : null;
+    } catch {
+      return null;
+    }
   }
-  return result(ctx, "mcp_server", url, missing.length === 0 ? "working" : "mismatch", { ...ev, matched, missing, note });
+  return null;
 }
 
 function toolNames(tools: unknown[]): string[] {

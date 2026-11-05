@@ -32,6 +32,8 @@ export interface PatchDeliveryEmailInput {
   brandName: string;
   patchR2Key: string;
   sessionId: string;
+  /** False when the patch carries no OpenAPI spec (no API operations found). */
+  includesOpenApi: boolean;
 }
 
 export async function sendF2PatchDeliveryEmail(
@@ -57,7 +59,7 @@ export async function sendF2PatchDeliveryEmail(
     `What's included:`,
     `  - Customized llms.txt for your brand and domain`,
     `  - Deployable MCP server (TypeScript Worker; your Cloudflare, your control)`,
-    `  - OpenAPI spec scaffold for your category`,
+    ...(input.includesOpenApi ? [`  - OpenAPI spec scaffold for your category`] : []),
     `  - JSON-LD schema blocks for your root layout`,
     `  - Static monitoring scripts`,
     `  - ASTRANT_IMPLEMENTATION.md with per-stack notes`,
@@ -92,7 +94,7 @@ export async function sendF2PatchDeliveryEmail(
         emailList([
           "Customized llms.txt for your brand and domain",
           "Deployable MCP server (TypeScript Worker; your Cloudflare, your control)",
-          "OpenAPI spec scaffold for your category",
+          ...(input.includesOpenApi ? ["OpenAPI spec scaffold for your category"] : []),
           "JSON-LD schema blocks for your root layout",
           "Static monitoring scripts",
           `${emailCode("ASTRANT_IMPLEMENTATION.md")} with per-stack notes`,

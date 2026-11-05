@@ -311,13 +311,18 @@ async function buildAndDeliver(
   // Step 5 — Template-render mcp-server-config JSON → TS Worker artifacts
   const mcpFiles = renderMcpServerWorker(mcpConfig);
 
-  // Step 6 — Patch assembly (git-am mailbox format)
+  // Step 6 — Patch assembly (git-am mailbox format). The OpenAPI spec is
+  // skipped (null) when no API operations were found.
+  const includesOpenApi = openApiContent !== null;
   const allFiles: Record<string, string> = {
     "public/llms.txt": llmsTxtContent,
-    "public/openapi.yaml": openApiContent,
-    "ASTRANT_IMPLEMENTATION.md": buildImplementationReadme(f2.brand_name, f2.customer_domain),
+    ...(includesOpenApi ? { "public/openapi.yaml": openApiContent } : {}),
+    "ASTRANT_IMPLEMENTATION.md": buildImplementationReadme(f2.brand_name, f2.customer_domain, includesOpenApi),
     "monitoring/check-llms-txt.sh": buildLlmsTxtMonitorScript(f2.customer_domain),
-    "monitoring/check-mcp-server.sh": buildMcpServerMonitorScript(f2.brand_name),
+    "monitoring/check-mcp-server.sh": buildMcpServerMonitorScript(
+      f2.brand_name,
+      mcpConfig.capabilities.map((c) => c.name),
+    ),
     "app/layout-jsonld.html": jsonLdContent,  // insertion-instructions in README; not auto-inserted
     ...mcpFiles,
   };
@@ -451,6 +456,7 @@ async function buildAndDeliver(
     brandName: f2.brand_name,
     patchR2Key,
     sessionId,
+    includesOpenApi,
   });
 
   if (!emailResult.ok) {
@@ -495,7 +501,11 @@ function parseCompetitors(raw: string | null): string[] {
   }
 }
 
-function buildImplementationReadme(brandName: string, customerDomain: string): string {
+function buildImplementationReadme(brandName: string, customerDomain: string, includesOpenApi: boolean): string {
+  const openApiAdded = includesOpenApi
+    ? "- `public/openapi.yaml` — OpenAPI 3.1 scaffold (extend paths[] post-deploy)\n"
+    : "";
+  const openApiMove = includesOpenApi ? "- `public/openapi.yaml` → same\n" : "";
   return `# ${brandName} — Astrant Implementation
 
 This patch contains the agent-discoverability stack Astrant generated for ${customerDomain}.
@@ -513,8 +523,7 @@ re-applying.
 ## What was added
 
 - \`public/llms.txt\` — your customized llms.txt content
-- \`public/openapi.yaml\` — OpenAPI 3.1 scaffold (extend paths[] post-deploy)
-- \`mcp-server/\` — deployable Cloudflare Worker for your MCP server
+${openApiAdded}- \`mcp-server/\` — deployable Cloudflare Worker for your MCP server
 - \`monitoring/\` — bash uptime checks for llms.txt + MCP server
 - \`app/layout-jsonld.html\` — JSON-LD blocks to insert into your root layout
 
@@ -539,7 +548,8 @@ npx wrangler login    # one-time, opens browser
 npx wrangler deploy
 \`\`\`
 
-After deploy, your MCP server is live at \`<worker-name>.<your-account>.workers.dev\`.
+After deploy, your MCP server endpoint is
+\`https://<worker-name>.<your-account>.workers.dev/mcp\`.
 
 A one-command \`npx @astrant/deploy-mcp\` wrapper that automates the
 \`login + deploy + mcp.json URL update\` sequence is on the roadmap.
@@ -560,8 +570,7 @@ providers.
 If your project layout differs from the assumed structure (Next.js App Router
 + \`public/\` static-serving), you may need to move:
 - \`public/llms.txt\` → wherever static files are served from
-- \`public/openapi.yaml\` → same
-- \`mcp-server/\` → standalone Worker, deploys independently of your main app
+${openApiMove}- \`mcp-server/\` → standalone Worker, deploys independently of your main app
 
 The Astrant scoring rubric is path-agnostic — it discovers via well-known
 locations + linked references.
@@ -583,17 +592,49 @@ echo "llms.txt healthy: 200 at $URL"
 `;
 }
 
-function buildMcpServerMonitorScript(brandName: string): string {
+// Speaks MCP JSON-RPC to the delivered Worker: initialize ->
+// notifications/initialized -> tools/list (every delivered tool) -> one
+// tools/call. The brand only ever lands inside a single-quoted shell string.
+export function buildMcpServerMonitorScript(brandName: string, toolNames: string[]): string {
+  const tools = toolNames.filter((t) => /^[a-z][a-z0-9_]*$/.test(t));
+  const probe = tools[0] ?? "get_capabilities";
   return `#!/usr/bin/env bash
-# Astrant — MCP server uptime monitor. Edit MCP_URL below to point at your
-# deployed Worker (workers.dev URL OR your CNAME).
+# Astrant — MCP server health check (MCP JSON-RPC over Streamable HTTP).
+# Set MCP_URL to your deployed Worker's MCP endpoint (workers.dev URL OR your
+# CNAME), ending in /mcp.
 set -euo pipefail
-MCP_URL="\${MCP_URL:-https://CHANGE-ME.workers.dev}"
-code=$(curl -s -o /dev/null -w "%{http_code}" "$MCP_URL/.well-known/mcp.json")
-if [ "$code" != "200" ]; then
-  echo "${brandName} MCP unhealthy: HTTP $code at $MCP_URL"
+MCP_URL="\${MCP_URL:-https://CHANGE-ME.workers.dev/mcp}"
+NAME=${shellSingleQuote(brandName)}
+
+rpc() {
+  curl -sS -f --max-time 10 -X POST "$MCP_URL" \\
+    -H "Content-Type: application/json" \\
+    -H "Accept: application/json, text/event-stream" \\
+    "$@"
+}
+fail() {
+  echo "$NAME MCP unhealthy: $1 at $MCP_URL"
   exit 1
-fi
-echo "${brandName} MCP healthy: 200 at $MCP_URL"
+}
+
+init=$(rpc -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"astrant-check","version":"1"}}}') || fail "initialize request failed"
+version=$(grep -o '"protocolVersion":"[^"]*"' <<<"$init" | head -n 1 | cut -d '"' -f 4 || true)
+[[ "$version" =~ ^[A-Za-z0-9._-]+$ ]] || fail "initialize returned no protocolVersion"
+rpc -H "MCP-Protocol-Version: $version" -d '{"jsonrpc":"2.0","method":"notifications/initialized"}' >/dev/null || fail "notifications/initialized failed"
+list=$(rpc -H "MCP-Protocol-Version: $version" -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}') || fail "tools/list request failed"
+for tool in ${tools.join(" ")}; do
+  grep -qF '"name":"'"$tool"'"' <<<"$list" || fail "tools/list is missing $tool"
+done
+call=$(rpc -H "MCP-Protocol-Version: $version" -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"${probe}","arguments":{}}}') || fail "tools/call ${probe} request failed"
+grep -qF '"content":[' <<<"$call" || fail "tools/call ${probe} returned no content"
+echo "$NAME MCP healthy: initialize, tools/list and tools/call OK at $MCP_URL"
 `;
+}
+
+const SHELL_LINE_BREAKS = new RegExp("[" + String.fromCharCode(10, 13, 0x2028, 0x2029) + "]+", "g");
+
+/** A bash single-quoted word: no expansion inside; line terminators collapsed. */
+function shellSingleQuote(s: string): string {
+  const oneLine = s.replace(SHELL_LINE_BREAKS, " ");
+  return "'" + oneLine.replace(/'/g, "'\\''") + "'";
 }

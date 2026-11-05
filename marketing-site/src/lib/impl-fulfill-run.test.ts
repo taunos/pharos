@@ -16,6 +16,8 @@ const h = vi.hoisted(() => ({
   validateThrows: false,
   validatedInputs: [] as unknown[],
   assembleTimes: [] as Date[],
+  assembledFiles: [] as Record<string, string>[],
+  openApi: "openapi: 3.1.0" as string | null,
 }));
 
 vi.mock("resend", () => ({
@@ -36,13 +38,18 @@ vi.mock("./audit-pipeline", () => ({
   runScan: vi.fn(async () => (h.scanImpl ? h.scanImpl() : { composite: { score: 40, grade: "D" } })),
 }));
 vi.mock("./f2-generators/llms-txt", () => ({ generateLlmsTxt: async () => "# llms" }));
-vi.mock("./f2-generators/mcp-server-config", () => ({ generateMcpServerConfig: async () => ({}) }));
-vi.mock("./f2-generators/openapi", () => ({ generateOpenApi: async () => "openapi: 3.1.0" }));
+vi.mock("./f2-generators/mcp-server-config", () => ({
+  generateMcpServerConfig: async () => ({
+    capabilities: [{ name: "get_capabilities" }, { name: "get_pricing" }, { name: "get_case_studies" }, { name: "get_contact_tools" }],
+  }),
+}));
+vi.mock("./f2-generators/openapi", () => ({ generateOpenApi: async () => h.openApi }));
 vi.mock("./f2-generators/jsonld", () => ({ generateJsonLd: async () => "<script></script>" }));
 vi.mock("./f2-mcp-server-template", () => ({ renderMcpServerWorker: () => ({ "mcp-server/index.ts": "x" }) }));
 vi.mock("./f2-patch-assembler", () => ({
-  assembleGitAmPatch: (i: { fulfillment_time: Date }) => {
+  assembleGitAmPatch: (i: { fulfillment_time: Date; files: Record<string, string> }) => {
     h.assembleTimes.push(i.fulfillment_time);
+    h.assembledFiles.push(i.files);
     return "PATCH";
   },
 }));
@@ -131,6 +138,8 @@ beforeEach(() => {
   h.validateThrows = false;
   h.validatedInputs = [];
   h.assembleTimes = [];
+  h.assembledFiles = [];
+  h.openApi = "openapi: 3.1.0";
   vi.mocked(runScan).mockClear();
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(console, "log").mockImplementation(() => {});
@@ -195,6 +204,30 @@ describe("runImplFulfillment — happy path", () => {
     seed();
     await runImplFulfillment(env(), SID, { finalAttempt: false });
     expect(h.assembleTimes).toEqual([new Date(PAID_AT * 1000)]);
+  });
+
+  it("no API operations (generator returns null) → no OpenAPI file, and README + email do not list one", async () => {
+    h.openApi = null;
+    seed();
+    expect(await runImplFulfillment(env(), SID, { finalAttempt: false })).toEqual({ kind: "done" });
+    const files = h.assembledFiles[0];
+    expect(Object.keys(files)).not.toContain("public/openapi.yaml");
+    expect(files["ASTRANT_IMPLEMENTATION.md"]).not.toContain("openapi");
+    expect(patchEmails()[0].text).not.toContain("OpenAPI");
+    // The MCP health check speaks JSON-RPC and checks every delivered tool.
+    const check = files["monitoring/check-mcp-server.sh"];
+    expect(check).toContain('"method":"initialize"');
+    expect(check).toContain("for tool in get_capabilities get_pricing get_case_studies get_contact_tools; do");
+    expect(check).not.toContain("/mcp/call");
+  });
+
+  it("an OpenAPI spec, when generated, is delivered and listed", async () => {
+    seed();
+    await runImplFulfillment(env(), SID, { finalAttempt: false });
+    const files = h.assembledFiles[0];
+    expect(files["public/openapi.yaml"]).toBe("openapi: 3.1.0");
+    expect(files["ASTRANT_IMPLEMENTATION.md"]).toContain("- `public/openapi.yaml` — OpenAPI 3.1 scaffold");
+    expect(patchEmails()[0].text).toContain("  - OpenAPI spec scaffold for your category");
   });
 });
 

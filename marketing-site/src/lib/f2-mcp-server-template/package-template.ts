@@ -4,7 +4,7 @@ export const PACKAGE_TEMPLATE = `{
   "name": "{{worker_name}}",
   "version": "0.1.0",
   "private": true,
-  "description": "Astrant-generated MCP server for {{brand_name}}",
+  "description": {{description_json}},
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev"
