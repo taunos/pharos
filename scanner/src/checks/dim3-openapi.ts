@@ -27,24 +27,20 @@
 
 import type { DimensionResult, Env, SubCheck } from "../types";
 import { dimensionScore, gradeFor } from "../scoring";
+import { MAX_SPEC_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
 
 const FETCH_TIMEOUT_MS = 5000;
 const STATIC_UA = "AstrantScanner-Dim3/1.2.0";
 
-async function timedFetch(
+// Security pass 2026-11-04: validated hops (incl. homepage-discovered spec
+// links), max 3 redirects, one deadline covering headers AND body, capped
+// body (see ../safe-fetch).
+function timedFetch(
   url: string,
   init?: RequestInit,
   timeoutMs: number = FETCH_TIMEOUT_MS
-): Promise<Response | null> {
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...init, signal: ctl.signal });
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(t);
-  }
+): Promise<SafeResponse | null> {
+  return safeFetch(url, init, { timeoutMs });
 }
 
 // SSRF defense-in-depth at the spec-fetch boundary. wrangler.jsonc already
@@ -90,7 +86,7 @@ async function probeWellKnown(origin: string): Promise<DiscoveryHit | null> {
       redirect: "follow",
     });
     if (res && res.ok) {
-      const body = await res.text();
+      const body = (await res.body({ maxBytes: MAX_SPEC_BYTES })).text;
       return {
         url,
         body,
@@ -98,6 +94,7 @@ async function probeWellKnown(origin: string): Promise<DiscoveryHit | null> {
         source: `well-known ${path}`,
       };
     }
+    res?.discard();
   }
   return null;
 }
@@ -114,7 +111,7 @@ async function probeCanonical(origin: string): Promise<DiscoveryHit | null> {
       redirect: "follow",
     });
     if (res && res.ok) {
-      const body = await res.text();
+      const body = (await res.body({ maxBytes: MAX_SPEC_BYTES })).text;
       return {
         url,
         body,
@@ -122,6 +119,7 @@ async function probeCanonical(origin: string): Promise<DiscoveryHit | null> {
         source: `canonical ${path}`,
       };
     }
+    res?.discard();
   }
   return null;
 }
@@ -173,7 +171,7 @@ async function probeHomepageLink(
     redirect: "follow",
   });
   if (res && res.ok) {
-    const body = await res.text();
+    const body = (await res.body({ maxBytes: MAX_SPEC_BYTES })).text;
     return {
       url: candidate,
       body,
@@ -181,6 +179,7 @@ async function probeHomepageLink(
       source: `homepage link ${candidate}`,
     };
   }
+  res?.discard();
   return null;
 }
 

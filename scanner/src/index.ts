@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
 import type { Env, ScanTier } from "./types";
-import { checkRateLimit } from "./ratelimit";
+import { checkBurstLimit, checkRateLimit } from "./ratelimit";
+import { isSafeTargetUrl } from "./safe-fetch";
 import { runScan } from "./run-scan";
 import { SCORING_VERSION } from "./version";
 import { mountScoreAdmin } from "./score-admin";
@@ -66,7 +67,10 @@ app.get("/health", (c) =>
 );
 
 const scanBody = z.object({
-  url: z.string().url(),
+  // Security pass 2026-11-04: only public http(s) hosts on 80/443 (no IP
+  // literals, localhost/internal suffixes, single-label hosts, credentials,
+  // other ports). Rejected with the existing 400 before any KV or D1 write.
+  url: z.string().max(2048).url().refine(isSafeTargetUrl),
   email: z
     .string()
     .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
@@ -75,6 +79,13 @@ const scanBody = z.object({
 });
 
 app.post("/api/scan", async (c) => {
+  // Security pass 2026-11-04: first gate is the atomic Rate Limiting binding
+  // (keyed by IP); the KV daily limits below stay as the second layer. Its
+  // limit (5 per 60 s) is only reachable by a client already over 5 per day,
+  // so the existing message stays accurate.
+  if (!(await checkBurstLimit(c.env.SCAN_RATE_LIMITER, c.req.header("CF-Connecting-IP") ?? "unknown"))) {
+    return c.json({ ok: false, error: "Rate limit: 5 scans per IP per day" }, 429);
+  }
   let body: unknown;
   try {
     body = await c.req.json();

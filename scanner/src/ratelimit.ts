@@ -34,7 +34,9 @@ export async function checkRateLimit(
   const today = new Date().toISOString().slice(0, 10);
   const normIp = ip.trim().toLowerCase();
   const ipKey = `rl:ip:${await hmacHex(env.RATE_LIMIT_HASH_SECRET, normIp)}:${today}`;
-  const urlKey = `rl:url:${await sha256(url)}:${today}`;
+  // Security pass 2026-11-04: key the per-URL limit on origin + path, so
+  // distinct query strings / fragments can't each get a fresh 3/day budget.
+  const urlKey = `rl:url:${await sha256(urlLimitKey(url))}:${today}`;
 
   const ipCount = parseInt((await env.CACHE.get(ipKey)) ?? "0", 10);
   const urlCount = parseInt((await env.CACHE.get(urlKey)) ?? "0", 10);
@@ -48,6 +50,49 @@ export async function checkRateLimit(
   ]);
 
   return { allowed: true };
+}
+
+/** origin + path (no query, no fragment). The URL parser lowercases the host. */
+export function urlLimitKey(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.origin}${u.pathname}`;
+  } catch {
+    return url;
+  }
+}
+
+/** The scan-cache identity: the URL without its fragment (never sent to the site, so it can't change the result). */
+export function urlCacheKey(url: string): string {
+  const i = url.indexOf("#");
+  return i < 0 ? url : url.slice(0, i);
+}
+
+export interface RateLimitBinding {
+  limit(opts: { key: string }): Promise<{ success: boolean }>;
+}
+
+/**
+ * First gate on POST /api/scan: the Cloudflare Rate Limiting binding (atomic
+ * per location, unlike the KV read-modify-write below it). true = allowed.
+ * Fails open (logged) only when the binding is absent or errors; the KV
+ * limits still apply behind it.
+ */
+export async function checkBurstLimit(
+  limiter: RateLimitBinding | undefined,
+  ip: string
+): Promise<boolean> {
+  if (!limiter) {
+    console.error("[scan] SCAN_RATE_LIMITER binding missing; failing open to the KV limits");
+    return true;
+  }
+  try {
+    const { success } = await limiter.limit({ key: `scan:${ip.trim().toLowerCase()}` });
+    return success;
+  } catch (e) {
+    console.error("[scan] SCAN_RATE_LIMITER errored; failing open to the KV limits:", e instanceof Error ? e.message : String(e));
+    return true;
+  }
 }
 
 export async function urlHash(url: string): Promise<string> {

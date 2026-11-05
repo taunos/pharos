@@ -28,6 +28,17 @@
     { "binding": "CACHE", "id": "000bf34df96f4acdb86999854b32ae12" }
   ],
   "ai": { "binding": "AI" },
+  // Security pass 2026-11-04: first, atomic gate on POST /api/scan, keyed by
+  // CF-Connecting-IP (the KV 5/IP and 3/URL daily limits stay as the second
+  // layer). 5 per 60 s: anyone over it is also over the 5-per-day KV limit.
+  // namespace_id is an account-unique integer; mcp-server uses 1001.
+  "ratelimits": [
+    {
+      "name": "SCAN_RATE_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 5, "period": 60 }
+    }
+  ],
   // CF_ACCOUNT_ID is needed by Dim 5's paid-tier Browser Rendering REST call.
   // Same account id used by marketing-site. Not secret (visible in dashboard URLs).
   // CF_API_TOKEN and INTERNAL_FULFILL_KEY are set via `wrangler secret put`.

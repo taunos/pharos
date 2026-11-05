@@ -12,7 +12,7 @@
 // link to a 404 /score/<id>).
 import type { Env, ScanResult, ScanTier } from "./types";
 import { compositeOf } from "./scoring";
-import { urlHash } from "./ratelimit";
+import { urlCacheKey, urlHash } from "./ratelimit";
 import { runDim1 } from "./checks/dim1-llmstxt";
 import { runDim2 } from "./checks/dim2-mcp";
 import { runDim3 } from "./checks/dim3-openapi";
@@ -48,7 +48,10 @@ export async function runScan(
   //    js_vs_no_js_render_diff signal).
   let cacheKey: string | null = null;
   if (opts.useCache) {
-    const hash = await urlHash(`${url}|${tier}`);
+    // Security pass 2026-11-04: the fragment is dropped (never sent to the
+    // site, so it can't change the result). The query string stays: Dims 4/5
+    // fetch the full URL, so it can.
+    const hash = await urlHash(`${urlCacheKey(url)}|${tier}`);
     cacheKey = `scan:v${SCORING_VERSION}:${hash}`;
     const cached = await env.CACHE.get(cacheKey);
     if (cached) {

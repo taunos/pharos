@@ -13,6 +13,7 @@
 
 import type { DimensionResult, Env, ScanTier, SubCheck } from "../types";
 import { dimensionScoreOrThrow, gradeFor } from "../scoring";
+import { MAX_HTML_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
 import {
   DAILY_BR_INVOCATION_CAP,
   getDailyBrCount,
@@ -26,21 +27,29 @@ const STATIC_UA = "AstrantScanner-Static/1.1.0";
 const FREE_TIER_DISCLOSURE =
   "Free-tier signal: static fetch only. Full render diff (Puppeteer-vs-static) available in $79 Audit.";
 
-async function timedFetch(
+// Security pass 2026-11-04: validated hops (incl. homepage-discovered pricing
+// and case-study links), max 3 redirects, one deadline covering headers AND
+// body, capped body (see ../safe-fetch).
+function timedFetch(
   url: string,
   init?: RequestInit,
   timeoutMs: number = FETCH_TIMEOUT_MS
-): Promise<Response | null> {
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...init, signal: ctl.signal, redirect: "follow" });
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(t);
-  }
+): Promise<SafeResponse | null> {
+  return safeFetch(url, init, { timeoutMs });
 }
+
+/** Capped HTML read; "" on a read error or timeout (as a thrown text() was before). */
+async function readHtml(r: SafeResponse): Promise<string> {
+  return (await r.body({ maxBytes: MAX_HTML_BYTES })).text;
+}
+
+// Rendered HTML from Browser Rendering (JSON-wrapped) can be larger than a
+// static page; bounded all the same.
+const MAX_BR_BYTES = 10 * 1024 * 1024;
+// page_weight_lcp buckets are <1MB / <=3MB / >3MB. When there is no
+// Content-Length and the body passes the HTML cap, keep counting (without
+// buffering) to just past 3MB so the bucket is unchanged.
+const PAGE_WEIGHT_COUNT_UP_TO = 3 * 1024 * 1024 + 1;
 
 function stripTags(html: string): string {
   return html
@@ -99,11 +108,18 @@ async function browserRenderHtml(
     },
     BR_TIMEOUT_MS
   );
-  if (!res || !res.ok) return null;
-  const data = (await res.json()) as {
-    success?: boolean;
-    result?: string;
-  };
+  if (!res || !res.ok) {
+    res?.discard();
+    return null;
+  }
+  const b = await res.body({ maxBytes: MAX_BR_BYTES });
+  if (!b.complete) return null;
+  let data: { success?: boolean; result?: string };
+  try {
+    data = JSON.parse(b.text) as { success?: boolean; result?: string };
+  } catch {
+    return null;
+  }
   if (!data.success || typeof data.result !== "string") return null;
   // /content endpoint doesn't expose timing; LCP measurement omitted from v1
   // (see notes on page_weight_lcp).
@@ -266,6 +282,7 @@ async function runMarkdownNegotiation(url: string): Promise<SubCheck> {
     headers: { Accept: "text/markdown", "User-Agent": STATIC_UA },
     redirect: "follow",
   });
+  mdRes?.discard();
   const mdCt = (mdRes?.headers.get("content-type") ?? "").toLowerCase();
   const finalUrlIsMd = (mdRes?.url ?? "").toLowerCase().endsWith(".md");
 
@@ -292,6 +309,7 @@ async function runMarkdownNegotiation(url: string): Promise<SubCheck> {
       headers: { "User-Agent": STATIC_UA },
       redirect: "follow",
     });
+    r?.discard();
     if (r && r.ok) {
       const ct = (r.headers.get("content-type") ?? "").toLowerCase();
       if (ct.includes("text/markdown") || ct.includes("text/plain") || c.endsWith(".md")) {
@@ -312,6 +330,7 @@ async function runMarkdownNegotiation(url: string): Promise<SubCheck> {
     headers: { Accept: "text/html", "User-Agent": STATIC_UA },
     redirect: "follow",
   });
+  htmlRes?.discard();
   if (htmlRes && htmlRes.ok) {
     return {
       id,
@@ -357,6 +376,7 @@ async function findPricingPath(
       headers: { "User-Agent": STATIC_UA },
       redirect: "follow",
     });
+    r?.discard();
     if (r && r.ok) return r.url || c;
   }
   if (homepageHtml) {
@@ -371,6 +391,7 @@ async function findPricingPath(
           headers: { "User-Agent": STATIC_UA },
           redirect: "follow",
         });
+        r?.discard();
         if (r && r.ok) return r.url || resolved;
       } catch {
         // ignore
@@ -407,6 +428,7 @@ async function runPricingTextVisibility(
     redirect: "follow",
   });
   if (!r || !r.ok) {
+    r?.discard();
     return {
       id,
       name,
@@ -416,7 +438,7 @@ async function runPricingTextVisibility(
       notes: `Detected pricing path ${pricingUrl} but it didn't return 200.`,
     };
   }
-  const html = await r.text();
+  const html = await readHtml(r);
   const text = stripTags(html);
   const structuredMatches = (text.match(/\$\d{1,5}(?:[.,]\d{2,3})?\s*(?:\/|per)\s*(?:month|mo|year|yr|user|seat)/gi) ?? []).length;
   const bareMatches = (text.match(PRICE_BARE_RE) ?? []).length;
@@ -471,7 +493,7 @@ async function findCaseStudyPaths(
     });
     if (r && r.ok) {
       // Try to pull up to 2 sample child pages from the index.
-      const html = await r.text();
+      const html = await readHtml(r);
       const childRe =
         /<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>/gi;
       const seen = new Set<string>();
@@ -501,6 +523,7 @@ async function findCaseStudyPaths(
       }
       break;
     }
+    r?.discard();
   }
   // Fallback: probe homepage for case-study anchors.
   if (found.length === 0 && homepageHtml) {
@@ -536,8 +559,11 @@ async function scorePageScannability(
     headers: { "User-Agent": STATIC_UA },
     redirect: "follow",
   });
-  if (!r || !r.ok) return null;
-  const html = await r.text();
+  if (!r || !r.ok) {
+    r?.discard();
+    return null;
+  }
+  const html = await readHtml(r);
 
   const h2h3Count = (html.match(/<h[23]\b[^>]*>/gi) ?? []).length;
   const headings = h2h3Count >= 3;
@@ -637,11 +663,12 @@ export async function runDim5(
     const cl = homeRes.headers.get("content-length");
     contentLength = cl ? parseInt(cl, 10) : null;
     if (Number.isNaN(contentLength)) contentLength = null;
-    try {
-      staticBody = await homeRes.text();
-    } catch {
-      staticBody = null;
-    }
+    const b = await homeRes.body({ maxBytes: MAX_HTML_BYTES, countUpTo: PAGE_WEIGHT_COUNT_UP_TO });
+    // A read error or timeout is null, as a thrown text() was before.
+    staticBody = b.complete || b.truncated ? b.text : null;
+    if (b.truncated && contentLength == null) contentLength = b.bytes;
+  } else {
+    homeRes?.discard();
   }
 
   const subs: SubCheck[] = [];
