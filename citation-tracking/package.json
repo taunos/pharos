@@ -5,6 +5,7 @@
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit",
     "migrate": "wrangler d1 migrations apply pharos-citation-tracking --remote",
     "test": "tsx test/cadence.test.ts && tsx test/detect.test.ts && tsx test/digest.test.ts && tsx test/provider-health.test.ts && tsx test/digest-delivery.test.ts"
   },

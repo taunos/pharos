@@ -20,8 +20,9 @@ jobs:
         include:
           - { dir: scanner,           typecheck: true,  test: true }
           - { dir: marketing-site,    typecheck: true,  test: true }
-          - { dir: citation-tracking, typecheck: false, test: true }
-          - { dir: mcp-server,        typecheck: true,  test: false }
+          - { dir: citation-tracking, typecheck: true,  test: true }
+          - { dir: mcp-server,        typecheck: true,  test: true }
+          - { dir: customer-mcp,      typecheck: true,  test: true }
           - { dir: corpus,            typecheck: true,  test: false }
           - { dir: outreach,          typecheck: true,  test: true }
     defaults:
