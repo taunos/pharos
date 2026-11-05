@@ -12,6 +12,10 @@ export interface Env {
   // Optional internal-auth secret for paid-tier scans. When absent, the scan
   // endpoint silently treats every request as free-tier (graceful degradation).
   INTERNAL_FULFILL_KEY?: string;
+  // E11: authenticates the marketing Score proxy's forwarded client IP
+  // (x-astrant-proxy-key). Rate-limit identity only, never the paid tier.
+  // While unset, INTERNAL_FULFILL_KEY is accepted instead (proxyTrustKey).
+  SCAN_PROXY_KEY?: string;
   // Slice 2b: separate trust domain for Score email-capture admin endpoints.
   // Distinct from INTERNAL_FULFILL_KEY (which gates paid-tier audit/scan flows
   // and money-handling paths) so a single secret compromise no longer breaches

@@ -132,6 +132,50 @@ export function limiterIdentity(
   return connectingIp ?? "unknown";
 }
 
+/**
+ * E11 (code-quality audit 2026-11-05): the secret that authenticates
+ * x-astrant-proxy-key. SCAN_PROXY_KEY when set. Transition fallback:
+ * INTERNAL_FULFILL_KEY, but only while SCAN_PROXY_KEY is unset, so marketing
+ * Workers still sending the old key keep working until the new secret lands.
+ * Removal step (after SCAN_PROXY_KEY is set on both pharos-scanner and
+ * pharos-marketing): return env.SCAN_PROXY_KEY only, and drop marketing's
+ * fallback in api/scan/route.ts. Identity only: the paid tier never reads it.
+ */
+export function proxyTrustKey(env: Pick<Env, "SCAN_PROXY_KEY" | "INTERNAL_FULFILL_KEY">): string | undefined {
+  if (env.SCAN_PROXY_KEY) return env.SCAN_PROXY_KEY;
+  return env.INTERNAL_FULFILL_KEY || undefined;
+}
+
+/**
+ * The two rate-limit layers of a free-tier scan, shared by POST /api/scan and
+ * the ScanRpc Service Binding entrypoint: the best-effort burst binding first,
+ * then the KV daily limits. null = allowed; otherwise the response to return.
+ */
+export async function enforceScanLimits(
+  env: Env,
+  ip: string,
+  url: string
+): Promise<{ status: 429 | 503; body: { ok: false; error?: string } } | null> {
+  // Security pass 2026-11-04: first limit is the best-effort Rate Limiting
+  // binding (keyed by IP; approximate, eventually consistent), ahead of any
+  // KV/D1/fetch work; the KV daily limits below stay as the second layer.
+  // Its limit (5 per 60 s) is normally only reachable by a client already
+  // over 5 per day, so the existing message stays accurate.
+  if (!(await checkBurstLimit(env.SCAN_RATE_LIMITER, ip))) {
+    return { status: 429, body: { ok: false, error: "Rate limit: 5 scans per IP per day" } };
+  }
+
+  const rl = await checkRateLimit(env, ip, url);
+  if (!rl.allowed) {
+    if (rl.misconfigured) {
+      console.error("RATE_LIMIT_MISCONFIGURED: RATE_LIMIT_HASH_SECRET is not set");
+      return { status: 503, body: { ok: false, error: "MISCONFIGURED" } };
+    }
+    return { status: 429, body: { ok: false, error: rl.reason } };
+  }
+  return null;
+}
+
 export interface RateLimitBinding {
   limit(opts: { key: string }): Promise<{ success: boolean }>;
 }
