@@ -146,6 +146,13 @@ export class ZohoMailClient implements MailClient {
       });
       const j = await this.api<{ data: ListRow[] }>(`/api/accounts/${accountId}/messages/view?${q}`);
       const rows = j.data ?? [];
+      if (rows.length === 0 && page === 0 && s > 1) {
+        // Even the OVERLAP re-read is past the end: more than OVERLAP messages were
+        // archived/deleted since the last tick, so the saved position no longer exists
+        // and new mail now sits below it. Restart from the top; seen/isKnown dedupe.
+        s = 1;
+        continue;
+      }
       for (const r of rows) {
         const id = String(r.messageId);
         if (seen.has(id)) continue;

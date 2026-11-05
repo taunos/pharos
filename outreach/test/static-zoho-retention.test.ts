@@ -128,6 +128,33 @@ describe("Zoho client (mocked fetch; never real credentials)", () => {
     expect(calls.filter((c) => c.startsWith("POST https://accounts.zoho.test/oauth/v2/token")).length).toBe(1);
   });
 
+  it("a folder that shrank below the saved position (bulk archive) restarts from the top instead of stalling", async () => {
+    // 100 messages were read (cursor s=101); Bruno archived 60, then 1 new reply arrived → folder holds 41.
+    const folder = Array.from({ length: 41 }, (_, i) => ({ messageId: String(i + 1), receivedTime: String(i) }));
+    const raw = ["From: x@acme.com", "Subject: hi", "Content-Type: text/plain", "", "unsubscribe", ""].join(String.fromCharCode(13, 10));
+    const calls: string[] = [];
+    const f = (async (u: RequestInfo | URL) => {
+      const url = String(u);
+      calls.push(url);
+      if (url.startsWith("https://accounts.zoho.test/oauth/v2/token")) return Response.json({ access_token: "at", expires_in: 3600 });
+      if (url.includes("/folders")) return Response.json({ data: [{ folderId: "7", folderType: "Inbox" }, { folderId: "8", folderType: "Sent" }] });
+      if (url.includes("/messages/view")) {
+        const q = new URL(url).searchParams;
+        const start = Number(q.get("start"));
+        return Response.json({ data: folder.slice(start - 1, start - 1 + Number(q.get("limit"))) });
+      }
+      if (url.includes("/originalmessage")) return Response.json({ data: { content: raw } });
+      if (url.includes("/api/accounts")) return Response.json({ data: [{ accountId: "42", primaryEmailAddress: "bruno@getastrant.com" }] });
+      return new Response("{}", { status: 404 });
+    }) as typeof fetch;
+    const z = new ZohoMailClient(cfg, f);
+    const r = await z.drainInbox(JSON.stringify({ s: 101 }), 3, async (id) => Number(id) <= 40);
+    expect(r.messages.map((m) => m.providerMessageId)).toEqual(["41"]);
+    expect(r.caughtUp).toBe(true);
+    expect(r.cursor).toBe(JSON.stringify({ s: 42 }));
+    expect(calls.filter((c) => c.includes("/messages/view")).map((c) => new URL(c).searchParams.get("start"))).toEqual(["76", "1"]);
+  });
+
   it("listSent reads the Sent folder with recipients and the real Message-ID; createDraft posts mode=draft with threading", async () => {
     const raw = ["From: Bruno <bruno@getastrant.com>", "To: \"Acme\" <Hello@Acme.com>", "Subject: Two fixes for acme.com", "Message-ID: <real-9@mx.zohomail.com>", "", "body", ""].join(String.fromCharCode(13, 10));
     const posts: string[] = [];
