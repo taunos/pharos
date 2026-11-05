@@ -174,4 +174,55 @@ describe("POST /api/audit-create — gate open", () => {
     const { session_id } = (await res.json()) as { session_id: string };
     expect(JSON.parse(state.store.get(`funnel:audit:${session_id}`)!).source_scan_id).toBeNull();
   });
+
+  // Dataset spec v2 §4.3 — P2 opt-in checkbox (unticked by default).
+  it.each([
+    ["absent", undefined],
+    ["false", false],
+    ["string 'true'", "true"],
+    ["number 1", 1],
+    ["object", { yes: true }],
+  ])("consent_sellable %s → 0 on the session record", async (_n, value) => {
+    openEnv();
+    const { POST } = await import("./route");
+    const body: Record<string, unknown> = { ...VALID };
+    if (value !== undefined) body.consent_sellable = value;
+    const res = await POST(req(body));
+    expect(res.status).toBe(200);
+    const { session_id } = (await res.json()) as { session_id: string };
+    const session = JSON.parse(state.store.get(`audit:${session_id}`)!);
+    expect(session.consent_sellable).toBe(0);
+    expect(session.consent_text_version).toBe("p2-sellable-v1-2026-11-05");
+    expect(session.consent_at).toBe(session.created_at);
+  });
+
+  it("consent_sellable true → 1 on the session; no durable rights record before payment", async () => {
+    openEnv();
+    const { POST } = await import("./route");
+    const res = await POST(req({ ...VALID, consent_sellable: true }));
+    const { session_id } = (await res.json()) as { session_id: string };
+    expect(JSON.parse(state.store.get(`audit:${session_id}`)!).consent_sellable).toBe(1);
+    // An abandoned checkout leaves nothing without a TTL except the
+    // pre-existing funnel record (no email/URL).
+    expect(state.puts.some((p) => p.key.startsWith("rights:"))).toBe(false);
+    const noTtl = state.puts.filter((p) => p.opts?.expirationTtl === undefined).map((p) => p.key);
+    expect(noTtl.filter((k) => !k.startsWith("ratelimit") && !k.startsWith("rl:"))).toEqual([
+      `funnel:audit:${session_id}`,
+    ]);
+  });
+
+  it("consent never changes price, product or Dodo metadata", async () => {
+    openEnv();
+    const { POST } = await import("./route");
+    await POST(req({ ...VALID, consent_sellable: true }));
+    await POST(req({ ...VALID, consent_sellable: false }));
+    const [a, b] = createCheckoutSession.mock.calls.map((c) => c[1] as Record<string, unknown>);
+    const strip = (x: Record<string, unknown>) => {
+      const m = { ...(x.metadata as Record<string, string>) };
+      delete m.session_id;
+      return { ...x, metadata: m, return_url: undefined };
+    };
+    expect(strip(a)).toEqual(strip(b));
+    expect(JSON.stringify(a)).not.toContain("consent");
+  });
 });

@@ -96,4 +96,10 @@ export type SessionRecord = {
   enqueued_at?: number;
   // Test C-A (A4): set only after a confirmed standalone buyer-email send.
   email_sent_at?: number;
+  // Dataset spec v2 §4.3 (P2 licensed aggregates): checkout opt-in. Absent on
+  // pre-consent-UI sessions, which count as 0. Evidence also lives, without a
+  // TTL, in the rights registry (lib/dataset-consent.ts).
+  consent_sellable?: 0 | 1;
+  consent_text_version?: string;
+  consent_at?: number;
 };

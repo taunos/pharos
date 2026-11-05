@@ -13,6 +13,7 @@ import { computeNextProbeAt, type ProbeCadence } from "@/lib/cadence";
 import type { AuditFulfillMessage } from "@/lib/audit-fulfill-queue-consumer";
 import type { FulfillMessage } from "@/lib/fulfill-queue-consumer";
 import { updateFunnelStatus } from "@/lib/audit-funnel";
+import { buildRightsRecord, scheduleRightsWrite } from "@/lib/dataset-consent";
 import { AUDIT_PRODUCT_ID } from "@/lib/audit-gate";
 import { isImplementationCheckoutEnabled } from "@/lib/implementation-gate";
 import { isSubscriptionCheckoutEnabled } from "@/lib/subscription-gate";
@@ -231,6 +232,16 @@ async function firstWelcomeFoundingResult(
   return result;
 }
 
+// The request's ExecutionContext.waitUntil, when available.
+function contextWaitUntil(): ((p: Promise<unknown>) => void) | undefined {
+  try {
+    const ctx = (getCloudflareContext() as { ctx?: { waitUntil(p: Promise<unknown>): void } }).ctx;
+    return ctx ? (p) => ctx.waitUntil(p) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function POST(req: Request) {
   const env = getCloudflareContext().env as unknown as WebhookEnv;
 
@@ -435,6 +446,15 @@ export async function POST(req: Request) {
               );
             }
             await updateFunnelStatus(env.SESSIONS, sessionId, "paid");
+          }
+          // Dataset rights registry: durable (no TTL) only for a paid order, so
+          // abandoned checkouts leave nothing behind. Best-effort attempt on
+          // every delivery of this verified payment, enqueue or not; scheduled
+          // off the response path (never awaited). A lost record fails safe
+          // (lib/dataset-consent.ts FAIL-SAFE SEMANTICS).
+          const rights = buildRightsRecord("audit", record);
+          if (rights) {
+            void scheduleRightsWrite(env.SESSIONS, sessionId, rights, contextWaitUntil());
           }
         }
       }

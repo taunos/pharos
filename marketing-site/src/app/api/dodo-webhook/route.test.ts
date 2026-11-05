@@ -208,6 +208,80 @@ describe("POST /api/dodo-webhook — audit tier", () => {
     expect(typeof session().enqueued_at).toBe("number");
   });
 
+  it("dataset: paid → durable rights record from the session's consent fields", async () => {
+    seed("awaiting_payment", {
+      consent_sellable: 1,
+      consent_text_version: "p2-sellable-v1-2026-11-05",
+      consent_at: 7,
+    });
+    const { POST } = await import("./route");
+    expect((await POST(webhook())).status).toBe(200);
+    expect(JSON.parse(state.store.get(`rights:audit:${SID}`)!)).toEqual({
+      tier: "audit",
+      consent_sellable: 1,
+      consent_text_version: "p2-sellable-v1-2026-11-05",
+      consent_at: 7,
+      consent_method: "checkout_checkbox",
+    });
+    expect(state.store.get(`rights:audit:${SID}`)).not.toContain("example.com");
+  });
+
+  it("dataset: an existing consent record is never overwritten; no restriction key written", async () => {
+    seed("fulfilling", { consent_sellable: 1, consent_text_version: "v", consent_at: 1 });
+    const existing = JSON.stringify({ tier: "audit", consent_sellable: 0 });
+    state.store.set(`rights:audit:${SID}`, existing);
+    const { POST } = await import("./route");
+    expect((await POST(webhook())).status).toBe(200);
+    expect(state.store.get(`rights:audit:${SID}`)).toBe(existing);
+    expect([...state.store.keys()].some((k) => k.startsWith("rights-optout:"))).toBe(false);
+  });
+
+  it("dataset: rights write fails on first delivery → a later delivery (no enqueue) retries it, best-effort", async () => {
+    seed("awaiting_payment", { consent_sellable: 1, consent_text_version: "v", consent_at: 7 });
+    const orig = kv.put.getMockImplementation()!;
+    kv.put.mockImplementation(async (k: string, v: string) => {
+      if (k.startsWith("rights:")) throw new Error("kv blip");
+      return orig(k, v);
+    });
+    const { POST } = await import("./route");
+    try {
+      expect((await POST(webhook("wh_r1"))).status).toBe(200);
+    } finally {
+      kv.put.mockImplementation(orig);
+    }
+    expect(state.store.has(`rights:audit:${SID}`)).toBe(false);
+    expect(session().status).toBe("fulfilling");
+    expect((await POST(webhook("wh_r2"))).status).toBe(200);
+    expect(state.send).toHaveBeenCalledTimes(1); // replay does not re-enqueue
+    expect(JSON.parse(state.store.get(`rights:audit:${SID}`)!)).toMatchObject({ consent_sellable: 1, consent_at: 7 });
+  });
+
+  it("dataset: a hung rights write never delays the webhook response", async () => {
+    seed("awaiting_payment", { consent_sellable: 1, consent_text_version: "v", consent_at: 7 });
+    const orig = kv.get.getMockImplementation()!;
+    kv.get.mockImplementation((k: string) =>
+      k.startsWith("rights:") ? new Promise<string | null>(() => {}) : orig(k),
+    );
+    const { POST } = await import("./route");
+    try {
+      const guard = new Promise((r) => setTimeout(() => r("hung"), 1000));
+      const res = await Promise.race([POST(webhook("wh_hang")), guard]);
+      expect(res).toBeInstanceOf(Response);
+      expect((res as Response).status).toBe(200);
+      expect(state.store.has("webhook:wh_hang")).toBe(true);
+      expect(state.send).toHaveBeenCalledTimes(1);
+    } finally {
+      kv.get.mockImplementation(orig);
+    }
+  });
+
+  it("dataset: pre-consent-UI session → no rights record", async () => {
+    seed("awaiting_payment");
+    const { POST } = await import("./route");
+    expect((await POST(webhook())).status).toBe(200);
+    expect(state.store.has(`rights:audit:${SID}`)).toBe(false);
+  });
+
   it.each([
     ["fulfilling", { enqueued_at: 5 }],
     ["ready", {}],

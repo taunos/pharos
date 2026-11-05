@@ -6,6 +6,7 @@ import {
   checkoutErrorMessage,
   parseSourceScanId,
 } from "@/lib/audit-checkout-client";
+import { CONSENT_SELLABLE_TEXT } from "@/lib/dataset-consent";
 
 // Two modes, chosen server-side by isAuditCheckoutEnabled (lib/audit-gate.ts)
 // and passed in as `checkoutEnabled`:
@@ -26,6 +27,8 @@ export default function AuditCheckoutForm({
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [sourceScanId, setSourceScanId] = useState<string | null>(null);
+  // Dataset P2 opt-in: unticked by default, separate from the purchase.
+  const [consentSellable, setConsentSellable] = useState(false);
 
   // The /score/[id] Audit CTA forwards the prior scan as ?source_scan_id=…
   // so the conversion arc is recoverable. Read once at mount (open mode only).
@@ -63,7 +66,11 @@ export default function AuditCheckoutForm({
     setErrorMsg(null);
     if (checkoutEnabled) {
       try {
-        const body: Record<string, string> = { url: normalized, email };
+        const body: Record<string, string | boolean> = {
+          url: normalized,
+          email,
+          consent_sellable: consentSellable,
+        };
         if (sourceScanId) body.source_scan_id = sourceScanId;
         const res = await fetch("/api/audit-create", {
           method: "POST",
@@ -169,6 +176,19 @@ export default function AuditCheckoutForm({
           disabled={disabled}
           className="border border-[var(--color-border)] bg-[var(--color-surface-2)] px-4 py-3 text-base text-[var(--color-fg)] placeholder:text-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none disabled:opacity-60"
         />
+        {checkoutEnabled ? (
+          <label className="flex items-start gap-3 text-sm text-[var(--color-muted)]">
+            <input
+              name="consent_sellable"
+              type="checkbox"
+              checked={consentSellable}
+              onChange={(e) => setConsentSellable(e.target.checked)}
+              disabled={disabled}
+              className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]"
+            />
+            <span>{CONSENT_SELLABLE_TEXT}</span>
+          </label>
+        ) : null}
         <button
           type="submit"
           disabled={disabled}

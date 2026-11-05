@@ -187,6 +187,49 @@ describe("runAuditFulfillment — result kinds", async () => {
 describe("runAuditFulfillment — buyer email (A4 + R2-5)", async () => {
   const { runAuditFulfillment } = await import("./audit-fulfill-run");
 
+  const CONSENT = { consent_sellable: 1, consent_text_version: "v1", consent_at: 3 };
+
+  it("dataset: ready on a paid session writes the missing rights record (second chance)", async () => {
+    seed(SID, "fulfilling", { paid_at: 2, ...CONSENT });
+    await runAuditFulfillment(makeEnv(), SID, "https://astrant.io", { emailCopy: COPY });
+    expect(JSON.parse(store.get(`rights:audit:${SID}`)!)).toMatchObject({ consent_sellable: 1 });
+  });
+
+  it("dataset: a hung rights write never delays the run or the buyer email", async () => {
+    seed(SID, "fulfilling", { paid_at: 2, ...CONSENT });
+    const env = makeEnv();
+    const base = env.SESSIONS;
+    env.SESSIONS = {
+      get: (k: string) => (k.startsWith("rights:") ? new Promise(() => {}) : base.get(k)),
+      put: (k: string, v: string) => base.put(k, v),
+    } as unknown as KVNamespace;
+    const guard = new Promise((r) => setTimeout(() => r("hung"), 1000));
+    const r = await Promise.race([
+      runAuditFulfillment(env, SID, "https://astrant.io", { emailCopy: COPY }),
+      guard,
+    ]);
+    expect(r).toMatchObject({ kind: "done" });
+    expect(h.resendSends).toHaveLength(1);
+    expect(typeof read(SID).email_sent_at).toBe("number");
+  });
+
+  it("dataset: an existing consent record is never rewritten by fulfillment", async () => {
+    seed(SID, "fulfilling", { paid_at: 2, ...CONSENT });
+    const existing = JSON.stringify({ tier: "audit", consent_sellable: 0 });
+    store.set(`rights:audit:${SID}`, existing);
+    await runAuditFulfillment(makeEnv(), SID, "https://astrant.io", { emailCopy: COPY });
+    expect(store.get(`rights:audit:${SID}`)).toBe(existing);
+  });
+
+  it("dataset: no paid_at (operator path) or ap- session → no rights record", async () => {
+    seed(SID, "fulfilling", CONSENT);
+    await runAuditFulfillment(makeEnv(), SID, "https://astrant.io", { emailCopy: COPY });
+    expect(store.has(`rights:audit:${SID}`)).toBe(false);
+    seed(AP, "fulfilling", { paid_at: 2, ...CONSENT });
+    await runAuditFulfillment(makeEnv(), AP, "https://astrant.io", { emailCopy: COPY });
+    expect(store.has(`rights:audit:${AP}`)).toBe(false);
+  });
+
   it("standalone: sends once with reply_to + idempotency key, sets email_sent_at; replay does not resend", async () => {
     seed(SID, "fulfilling");
     store.set(`funnel:audit:${SID}`, JSON.stringify({ created_at: 1, source_scan_id: null, status: "paid" }));

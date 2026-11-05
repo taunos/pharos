@@ -10,6 +10,10 @@ import type { SessionRecord } from "@/lib/audit-types";
 import { AUDIT_PRODUCT_ID, isAuditCheckoutEnabled } from "@/lib/audit-gate";
 import { checkAuditCheckoutCreateRateLimit } from "@/lib/rate-limit-kv";
 import { createFunnelRecord } from "@/lib/audit-funnel";
+import {
+  CONSENT_SELLABLE_TEXT_VERSION,
+  parseConsentSellable,
+} from "@/lib/dataset-consent";
 
 // AUDIT_PRODUCT_ID lives in @/lib/audit-gate (shared with the webhook).
 const SESSION_TTL_SEC = 30 * 24 * 60 * 60;
@@ -128,6 +132,10 @@ export async function POST(req: Request) {
       ? b.source_scan_id.trim()
       : undefined;
 
+  // Dataset P2 opt-in (unticked checkbox). Only literal `true` counts;
+  // anything else is 0. Never affects price, validation or flow.
+  const consentSellable = parseConsentSellable(b.consent_sellable);
+
   if (!env.DODO_API_KEY) {
     return NextResponse.json(
       { ok: false, error: "Server not configured: DODO_API_KEY missing." },
@@ -169,13 +177,17 @@ export async function POST(req: Request) {
     );
   }
 
+  const createdAt = Date.now();
   const record: SessionRecord = {
     session_id,
     url: normalizedUrl,
     email,
     status: "awaiting_payment",
-    created_at: Date.now(),
+    created_at: createdAt,
     ...(sourceScanId ? { source_scan_id: sourceScanId } : {}),
+    consent_sellable: consentSellable,
+    consent_text_version: CONSENT_SELLABLE_TEXT_VERSION,
+    consent_at: createdAt,
   };
   await env.SESSIONS.put(`audit:${session_id}`, JSON.stringify(record), {
     expirationTtl: SESSION_TTL_SEC,
