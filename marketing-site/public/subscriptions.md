@@ -52,6 +52,6 @@ You keep every artifact. MCP server stays live on your Cloudflare account. Month
 ## Related
 
 - Score (free): https://astrant.io/score
-- Audit ($79, instant): https://astrant.io/audit
+- Audit ($79, a few minutes): https://astrant.io/audit
 - Implementation ($1,299, sub-24h automated): https://astrant.io/implementation
 - Custom (bespoke, from $4,999): https://astrant.io/custom

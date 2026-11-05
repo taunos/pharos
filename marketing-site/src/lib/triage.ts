@@ -45,10 +45,10 @@ export type TriageResponse = {
 //   custom:   https://checkout.dodopayments.com/buy/pdt_0NdQEI47SFpulVd0Wo5IP?quantity=1
 export const TRIAGE_CTAS: Record<Recommendation, TriageCta> = {
   standard: {
-    label: "Notify me when Standard Implementation launches",
+    label: "Notify me when Implementation launches",
     url: "/audit#waitlist",
     description:
-      "Pre-launch — drop your URL and email and we'll let you know the moment Standard Implementation opens. Build is delivered within 24 hours of payment as a Git-applicable patch file you apply with `git am` in 5 minutes — no repo access needed from us.",
+      "Pre-launch — drop your URL and email and we'll let you know the moment Implementation opens. Build is delivered within 24 hours of payment as a Git-applicable patch file you apply with `git am` in 5 minutes — no repo access needed from us.",
   },
   custom: {
     label: "Notify me when Custom scoping opens",
@@ -65,7 +65,7 @@ export const TRIAGE_CTAS: Record<Recommendation, TriageCta> = {
 };
 
 export const HEADINGS: Record<Recommendation, string> = {
-  standard: "Standard Implementation fits",
+  standard: "Implementation fits",
   custom: "Custom is the right path",
   not_fit: "We're not the right fit",
 };
@@ -87,7 +87,7 @@ export const COMPLEXITY_FACTORS = [
   "Major content rewrites (20+ pages)",
   "Multi-stakeholder approvals (legal / IT / ops involvement)",
   "Tight deadline (need delivery within 2 weeks)",
-  "None of these — we just want a deeper-than-Standard build",
+  "None of these — we just want a deeper-than-Implementation build",
 ] as const;
 
 export const BUDGET_RANGES = [

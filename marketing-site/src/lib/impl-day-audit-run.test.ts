@@ -9,15 +9,15 @@ import { createSqliteD1, readMigration, type SqliteD1 } from "./test-support/sql
 // SHIPPED stale-claim cleanup SQL, read from its source.
 
 const h = vi.hoisted(() => ({
-  sends: [] as Array<{ subject: string; opts?: { idempotencyKey?: string } }>,
+  sends: [] as Array<{ subject: string; text?: string; html?: string; opts?: { idempotencyKey?: string } }>,
   emailError: null as null | { message: string },
   scanImpl: null as null | (() => Promise<unknown>),
 }));
 vi.mock("resend", () => ({
   Resend: class {
     emails = {
-      send: async (p: { subject: string }, opts?: { idempotencyKey?: string }) => {
-        h.sends.push({ subject: p.subject, opts });
+      send: async (p: { subject: string; text?: string; html?: string }, opts?: { idempotencyKey?: string }) => {
+        h.sends.push({ subject: p.subject, text: p.text, html: p.html, opts });
         return h.emailError ? { data: null, error: h.emailError } : { data: { id: "em_1" }, error: null };
       },
     };
@@ -99,6 +99,16 @@ describe("runImplDayAudit", () => {
     expect(r.succeeded).not.toBeNull();
     expect(h.sends).toHaveLength(1);
     expect(h.sends[0].opts).toEqual({ idempotencyKey: `f2-day30:${SID}` });
+  });
+
+  it("E10: no cite-share delta is shown until real numbers exist (no 0% placeholder)", async () => {
+    seed();
+    expect(await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID })).toEqual({ kind: "done" });
+    const { text, html } = h.sends[0];
+    expect(text).toContain("Scanner score:");
+    for (const body of [text, html]) {
+      expect(body).not.toMatch(/Cite-share:|percentage points|0\.0%/);
+    }
   });
 
   it("CAS lost (already fired, or not active, or no row) → deduped, nothing sent", async () => {

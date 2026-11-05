@@ -54,6 +54,6 @@ No. The patch-file delivery model means we never touch your code directly. Many 
 ## Related
 
 - Score (free): https://astrant.io/score
-- Audit ($79, instant): https://astrant.io/audit
+- Audit ($79, a few minutes): https://astrant.io/audit
 - Custom (bespoke, from $4,999): https://astrant.io/custom
 - Subscriptions: https://astrant.io/subscriptions

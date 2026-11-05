@@ -13,7 +13,7 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "AEO Audit — $79 instant delivery — Astrant",
+  title: "AEO Audit — $79, delivered in a few minutes — Astrant",
   description:
     "Pay $79, paste your URL, get a rich PDF in a few minutes. Six-dimension deep analysis with developer-ready remediation guidance for each gap, plus a machine-readable JSON export.",
   alternates: {
@@ -37,7 +37,7 @@ const serviceLd = {
     priceCurrency: "USD",
     url: "https://astrant.io/audit",
     description:
-      "Instant automated audit. Rich PDF with 6-dimension analysis and developer-ready remediation guidance for each gap, plus machine-readable JSON export. Includes a one-time Citation Visibility snapshot across ChatGPT, Claude, Perplexity, and Gemini. Ongoing citation tracking over time and competitor comparison are coming in a future iteration.",
+      "Automated audit, delivered in a few minutes. Rich PDF with 6-dimension analysis and developer-ready remediation guidance for each gap, plus machine-readable JSON export. Includes a one-time Citation Visibility snapshot across ChatGPT, Claude, Perplexity, and Gemini. Ongoing citation tracking over time and competitor comparison are coming in a future iteration.",
   },
 };
 
@@ -49,7 +49,7 @@ const FAQS: { q: string; a: string; aNode?: React.ReactNode }[] = [
     a: "No. The audit is read-only. Just the URL.",
   },
   {
-    q: "How is this instant if the report is that deep?",
+    q: "How is this automatic if the report is that deep?",
     a: "LLM inference does the analysis and remediation drafting; nothing is human-gated. PDF rendering takes a few extra seconds; the whole pipeline finishes in a few minutes end-to-end.",
   },
   {
@@ -140,7 +140,7 @@ export default async function AuditPage({
           <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start lg:gap-16">
             <div>
               <div className="inline-flex rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm font-mono text-emerald-400">
-                $79 · instant delivery
+                $79 · delivered in a few minutes
               </div>
               <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-6xl">
                 Find out why AI isn&apos;t recommending you yet.

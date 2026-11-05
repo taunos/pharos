@@ -147,8 +147,9 @@ export interface F2DayNAuditEmailInput {
   recs: AuditRecsOutput;
   baselineScore: number;   // composite scanner score, pre-F2
   currentScore: number;    // composite scanner score, current
-  citeShareBaselinePct: number;
-  citeShareCurrentPct: number;
+  // Omitted until real cite-share numbers exist; the row is not rendered without both.
+  citeShareBaselinePct?: number;
+  citeShareCurrentPct?: number;
   autoPilotCheckoutUrl?: string;  // Day-90 only; CTA target
 }
 
@@ -172,6 +173,11 @@ export async function sendF2DayNAuditEmail(
       ? `Your Astrant Implementation — Day 90 audit + what's next`
       : `Your Astrant Implementation — Day ${input.dayN} audit`;
 
+  const citeShare =
+    input.citeShareBaselinePct !== undefined && input.citeShareCurrentPct !== undefined
+      ? { baseline: input.citeShareBaselinePct, current: input.citeShareCurrentPct }
+      : null;
+
   const lines: string[] = [
     input.dayN === 90
       ? `Your 90-day Implementation arc is complete.`
@@ -179,7 +185,9 @@ export async function sendF2DayNAuditEmail(
     ``,
     `What changed:`,
     `  - Scanner score: ${input.baselineScore.toFixed(0)}/100 → ${input.currentScore.toFixed(0)}/100`,
-    `  - Cite-share: ${input.citeShareBaselinePct.toFixed(1)}% → ${input.citeShareCurrentPct.toFixed(1)}% across 4 major-model providers`,
+    ...(citeShare
+      ? [`  - Cite-share: ${citeShare.baseline.toFixed(1)}% → ${citeShare.current.toFixed(1)}% across 4 major-model providers`]
+      : []),
     `  - Trajectory: ${input.recs.trajectoryInterpretation}`,
     ``,
     input.recs.whatChanged,
@@ -216,7 +224,9 @@ export async function sendF2DayNAuditEmail(
       emailStack([
         emailList([
           `Scanner score: ${escapeHtml(input.baselineScore.toFixed(0))}/100 → ${escapeHtml(input.currentScore.toFixed(0))}/100`,
-          `Cite-share: ${escapeHtml(input.citeShareBaselinePct.toFixed(1))}% → ${escapeHtml(input.citeShareCurrentPct.toFixed(1))}% across 4 major-model providers`,
+          ...(citeShare
+            ? [`Cite-share: ${escapeHtml(citeShare.baseline.toFixed(1))}% → ${escapeHtml(citeShare.current.toFixed(1))}% across 4 major-model providers`]
+            : []),
           `Trajectory: ${escapeHtml(input.recs.trajectoryInterpretation)}`,
         ]),
         escapeHtml(input.recs.whatChanged),

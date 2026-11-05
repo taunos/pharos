@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       buildResponse(
         "standard",
-        "Standard Implementation looks like a good fit based on your submission."
+        "Implementation looks like a good fit based on your submission."
       )
     );
   }

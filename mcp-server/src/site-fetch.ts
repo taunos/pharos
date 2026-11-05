@@ -561,3 +561,24 @@ export function shapeScoreDimensions(raw: unknown): {
     site_content_untrusted: { sub_checks: untrusted },
   };
 }
+
+/**
+ * score_url's `note`. The free Score always marks Dim 6 (Citation Visibility)
+ * N/A because it is measured in the paid Audit, so the note says that rather
+ * than implying an unreleased dimension. Any other N/A dimension did not apply.
+ */
+export function scoreUrlNote(raw: unknown, applicable: number, total: number): string {
+  if (applicable >= total) return "All dimensions scored.";
+  const naIds = asArr(raw)
+    .map(asObj)
+    .filter((d) => d.na === true)
+    .map((d) => d.dimension_id);
+  const dim6Na = naIds.includes(6);
+  const otherNa = naIds.some((id) => id !== 6);
+  return (
+    `Scored on ${applicable} of ${total} dimensions applicable to this site` +
+    (otherNa ? " (some did not apply, e.g. no API surface for the OpenAPI dimension)" : "") +
+    "." +
+    (dim6Na ? " Citation Visibility (Dim 6) is measured in the paid $79 Audit, not the free Score." : "")
+  );
+}

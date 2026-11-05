@@ -85,7 +85,7 @@ const CORE_TIERS: Array<{
     price: "$79",
     body: "Rich PDF in minutes. A fix for every gap, plus a Citation Visibility snapshot across 4 AI models.",
     href: "/audit",
-    badge: "Instant",
+    badge: "Automatic",
     badgeKind: "instant",
   },
   {
@@ -366,7 +366,7 @@ export default function Page() {
               From first check to full deployment
             </h2>
             <p className="mt-4 text-lg text-[var(--color-muted)]">
-              Free to start, instant delivery on core tiers. Humans only when the
+              Free to start, automated delivery on core tiers. Humans only when the
               work genuinely requires it.
             </p>
             <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">

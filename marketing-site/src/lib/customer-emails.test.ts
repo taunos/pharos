@@ -38,7 +38,14 @@ import { sendWelcomeEmail, type WelcomeEmailEnv } from "./welcome-email";
 import type { ScanResult } from "./audit-types";
 import type { AssignmentResult } from "./founding-pricing";
 
-type Sent = { replyTo?: string; subject: string; text: string; html: string; headers?: Record<string, string> };
+type Sent = {
+  replyTo?: string;
+  subject: string;
+  text: string;
+  html: string;
+  headers?: Record<string, string>;
+  attachments?: Array<{ filename: string }>;
+};
 
 const scan: ScanResult = {
   id: "11111111-2222-4333-8444-555555555555",
@@ -185,6 +192,7 @@ describe("E1 customer emails", () => {
       sendAutoPilotAuditReadyEmail(env, { toEmail: "jane@acme-analytics.com", sessionId: "ap-sub_123-1", pdfR2Key: "audits/ap-sub_123-1.pdf", origin: "https://astrant.io" }),
     );
     expect(s.replyTo).toBe("contact@astrant.io");
+    expect(s.attachments?.map((a) => a.filename)).toEqual(["astrant-audit-ap-sub_123-1.pdf"]);
     expect(s.text).not.toContain("2026-06-01");
     expect(s.html).not.toContain("2026-06-01");
     expect(s.html).toContain(">Your Astrant Audit is ready</h1>");
