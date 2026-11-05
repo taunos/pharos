@@ -132,7 +132,7 @@ These are the plain-English terms for using Astrant — Agent Discoverability fo
 Astrant provides agent-discoverability tooling for B2B SaaS websites:
 
 - **Score** (free): a URL-input scan that returns a 0–100 composite score across multiple dimensions of agent discoverability, with optional gap-report PDF delivery via email.
-- **Audit** ($79, instant): a deeper automated audit with per-gap remediation guidance.
+- **Audit** ($79, a few minutes): a deeper automated audit with per-gap remediation guidance.
 - **Implementation** ($1,299, <24h delivery): an automated build of llms.txt, MCP server, OpenAPI spec, JSON-LD schema, and baseline monitoring, delivered as a Git-applicable patch.
 - **Custom** (from $4,999): bespoke human-led builds for complex APIs, multi-region content, or unusual MCP tool needs.
 - **Subscriptions** (Standard $149/mo, Pro $899/mo): ongoing rescan + reporting.

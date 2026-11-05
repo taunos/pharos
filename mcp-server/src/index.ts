@@ -21,7 +21,7 @@ import { z } from "zod";
 import { HUMAN_PAGE_HTML } from "./human-page";
 import { pricingNotes } from "./audit-gate";
 import { requestScan, type ScanRpcBinding } from "./scanner-rpc";
-import { checkLlmsTxt, checkRateLimit, RATE_LIMITED_MESSAGE, shapeScoreDimensions, type RateLimitBinding } from "./site-fetch";
+import { checkLlmsTxt, checkRateLimit, RATE_LIMITED_MESSAGE, scoreUrlNote, shapeScoreDimensions, type RateLimitBinding } from "./site-fetch";
 
 interface Env {
   AUDIT_CHECKOUT_ENABLED?: string;
@@ -54,7 +54,7 @@ const SERVICE_CATALOG = {
       id: "audit",
       name: "AEO Audit",
       price_usd: 79,
-      turnaround: "instant",
+      turnaround: "a few minutes",
       description:
         "Automated deep audit delivered as a rich PDF: 6-dimension analysis, per-gap remediation with effort estimates, a one-time Citation Visibility snapshot across 4 AI models, and a JSON export. Self-serve, no human-in-loop.",
     },
@@ -166,7 +166,7 @@ function buildMcpServer(env: Env, clientIp: string | null): McpServer {
   // ─── Tool 4: book_audit ──────────────────────────────────────────────
   server.tool(
     "book_audit",
-    "Returns a checkout URL where the user can purchase the automated AEO Audit ($79, instant delivery). Use this when a user expresses interest in a deeper analysis of their site's agent discoverability.",
+    "Returns a checkout URL where the user can purchase the automated AEO Audit ($79, delivered in a few minutes). Use this when a user expresses interest in a deeper analysis of their site's agent discoverability.",
     {},
     async () => ({
       content: [
@@ -176,7 +176,7 @@ function buildMcpServer(env: Env, clientIp: string | null): McpServer {
             {
               checkout_url: "https://astrant.io/audit",
               price_usd: 79,
-              turnaround: "instant",
+              turnaround: "a few minutes",
               deliverable:
                 "Rich PDF: 6-dimension analysis, per-gap remediation with effort estimates, one-time Citation Visibility snapshot across 4 AI models, JSON export.",
             },
@@ -209,7 +209,7 @@ function buildMcpServer(env: Env, clientIp: string | null): McpServer {
   // ─── Tool 6: score_url (live scanner) ────────────────────────────────
   server.tool(
     "score_url",
-    "Returns the Agent Discoverability Score for a given site URL — a 0–100 score across multiple dimensions of agent discoverability (llms.txt quality, MCP server presence, structured capability data, and more as additional dimensions ship). Calls the live Astrant scanner.",
+    "Returns the Agent Discoverability Score for a given site URL — a 0–100 score across multiple dimensions of agent discoverability (llms.txt quality, MCP server presence, structured capability data, and more; citation visibility is measured in the paid Audit). Calls the live Astrant scanner.",
     {
       url: z.string().url().describe("Site URL to score."),
     },
@@ -266,10 +266,7 @@ function buildMcpServer(env: Env, clientIp: string | null): McpServer {
                   dimensions_scored: data.dimensions_scored,
                   dimensions_applicable: applicable,
                   dimensions_total: data.dimensions_total,
-                  note:
-                    applicable < data.dimensions_total
-                      ? `Scored on ${applicable} of ${data.dimensions_total} dimensions applicable to this site${applicable < data.dimensions_scored ? " (some did not apply, e.g. no API surface for the OpenAPI dimension)" : ""}. Remaining dimensions ship in upcoming releases.`
-                      : "All dimensions scored.",
+                  note: scoreUrlNote(data.dimensions, applicable, data.dimensions_total),
                   full_results_url: `https://astrant.io/score/${data.id}`,
                   // E13: site-derived text goes under site_content_untrusted.
                   ...shapeScoreDimensions(data.dimensions),
@@ -354,7 +351,7 @@ const SERVER_CARD = {
     },
     {
       name: "book_audit",
-      description: "Returns a checkout URL where the user can purchase the automated AEO Audit ($79, instant delivery).",
+      description: "Returns a checkout URL where the user can purchase the automated AEO Audit ($79, delivered in a few minutes).",
       inputSchema: { type: "object", properties: {} },
     },
     {

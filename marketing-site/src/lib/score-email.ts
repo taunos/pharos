@@ -460,7 +460,7 @@ ${digestLine}
       html,
       attachments: [
         {
-          filename: `astrant-autopilot-audit-${input.sessionId}.pdf`,
+          filename: `astrant-audit-${input.sessionId}.pdf`,
           content: pdfBase64,
         },
       ],

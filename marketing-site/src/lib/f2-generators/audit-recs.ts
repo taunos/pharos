@@ -17,8 +17,9 @@ export interface AuditRecsInput {
   day_n: 30 | 60 | 90;
   baseline_scan_summary: string;
   current_scan_summary: string;
-  cite_share_baseline_pct: number;
-  cite_share_current_pct: number;
+  // Omitted until real cite-share numbers exist; no delta sentence without both.
+  cite_share_baseline_pct?: number;
+  cite_share_current_pct?: number;
 }
 
 export interface AuditRecsOutput {
@@ -49,11 +50,16 @@ export async function generateAuditRecs(
 //   - Day 90 framed as "outcome + decision point"
 //   - cite-share trajectory framed honestly (delta + range note, no promises)
 function buildDeterministicRecs(input: AuditRecsInput): AuditRecsOutput {
-  const delta = input.cite_share_current_pct - input.cite_share_baseline_pct;
-  const sign = delta > 0 ? "+" : "";
   const dayLabel = `Day ${input.day_n}`;
 
-  const whatChanged = `Scanner re-scan compared to your pre-implementation baseline. Cite-share across the 4 major-model providers moved ${sign}${delta.toFixed(1)} percentage points (${input.cite_share_baseline_pct.toFixed(1)}% → ${input.cite_share_current_pct.toFixed(1)}%).`;
+  let whatChanged = `Scanner re-scan compared to your pre-implementation baseline.`;
+  const baselinePct = input.cite_share_baseline_pct;
+  const currentPct = input.cite_share_current_pct;
+  if (baselinePct !== undefined && currentPct !== undefined) {
+    const delta = currentPct - baselinePct;
+    const sign = delta > 0 ? "+" : "";
+    whatChanged += ` Cite-share across the 4 major-model providers moved ${sign}${delta.toFixed(1)} percentage points (${baselinePct.toFixed(1)}% → ${currentPct.toFixed(1)}%).`;
+  }
 
   let trajectoryInterpretation: string;
   if (input.day_n === 30) {

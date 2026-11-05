@@ -31,7 +31,7 @@ The free Score gives you a public grade across six dimensions. The Audit goes de
 **Do I need to give you access to my site?**
 No. The audit is read-only. Just the URL.
 
-**How is this instant if the report is that deep?**
+**How is this automatic if the report is that deep?**
 LLM inference does the analysis and remediation drafting; nothing is human-gated. PDF rendering takes a few extra seconds; the whole pipeline finishes in a few minutes end-to-end.
 
 **Can I audit a competitor instead?**

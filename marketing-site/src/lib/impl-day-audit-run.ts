@@ -169,10 +169,8 @@ async function scanAndSend(
   const currentScan = await runScan(f2.customer_domain, env.INTERNAL_FULFILL_KEY);
   const currentScore = currentScan.composite.score;
 
-  // v1.0: cite-share delta values come from citation-tracking probe data; for
-  // now pass 0% placeholders. v1.1+ wires the actual cite-share aggregator.
-  const citeShareBaselinePct = 0;
-  const citeShareCurrentPct = 0;
+  // v1.0: no cite-share numbers yet (v1.1+ wires the citation-tracking
+  // aggregator), so none are passed and no citation delta is shown.
 
   // Generate audit-recs prose (deterministic-fallback path at v1.0)
   const recs = await generateAuditRecs(env, {
@@ -181,8 +179,6 @@ async function scanAndSend(
     day_n,
     baseline_scan_summary: `composite=${baselineScore}`,
     current_scan_summary: `composite=${currentScore}`,
-    cite_share_baseline_pct: citeShareBaselinePct,
-    cite_share_current_pct: citeShareCurrentPct,
   });
 
   // Day-90 includes Standard CTA (D8 spec)
@@ -198,8 +194,6 @@ async function scanAndSend(
     recs,
     baselineScore,
     currentScore,
-    citeShareBaselinePct,
-    citeShareCurrentPct,
     autoPilotCheckoutUrl,
   });
 

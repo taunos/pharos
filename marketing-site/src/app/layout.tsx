@@ -98,7 +98,7 @@ const jsonLd = [
         price: "79",
         priceCurrency: "USD",
         description:
-          "Instant automated audit. Rich PDF with 6-dimension analysis and developer-ready remediation guidance for each gap, plus machine-readable JSON export.",
+          "Automated audit, delivered in a few minutes. Rich PDF with 6-dimension analysis and developer-ready remediation guidance for each gap, plus machine-readable JSON export.",
       },
       {
         "@type": "Offer",

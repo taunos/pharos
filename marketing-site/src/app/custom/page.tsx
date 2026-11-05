@@ -6,7 +6,7 @@ import TriageForm from "@/components/TriageForm";
 export const metadata: Metadata = {
   title: "Custom Implementation — fit check — Astrant",
   description:
-    "Custom Implementation is for B2B SaaS sites that exceed our standard scope — complex APIs, multi-region content, bespoke MCP tools. Take the 2-minute fit check; an LLM triage agent will recommend Standard, Custom, or a different path.",
+    "Custom Implementation is for B2B SaaS sites that exceed our standard scope — complex APIs, multi-region content, bespoke MCP tools. Take the 2-minute fit check; an LLM triage agent will recommend Implementation, Custom, or a different path.",
   alternates: {
     canonical: "/custom",
     types: { "text/markdown": "/custom.md" },
@@ -42,12 +42,12 @@ const FAQS = [
     a: "Within one business day of the deposit clearing. We send a Cal.com link with available 30-minute slots over the following 3–5 business days. Most prospects book within 24 hours of receiving the link.",
   },
   {
-    q: "What happens if my project actually fits Standard Implementation after the scoping call?",
-    a: "We tell you, and credit your $250 deposit toward the Standard build instead of Custom. We'd rather lose Custom-tier margin than sell you a build you don't need — the trust is worth more long-term than the spread.",
+    q: "What happens if my project actually fits Implementation after the scoping call?",
+    a: "We tell you, and credit your $250 deposit toward the Implementation build instead of Custom. We'd rather lose Custom-tier margin than sell you a build you don't need — the trust is worth more long-term than the spread.",
   },
   {
     q: "Can the fit-check be wrong?",
-    a: "It can. Edge cases sometimes route to Standard when they're actually Custom, or to \"not a fit\" when there's a real conversation worth having. If your situation feels different from what the recommendation says, email us — we read every override request, and the form is one input into the decision, not the decision itself.",
+    a: "It can. Edge cases sometimes route to Implementation when they're actually Custom, or to \"not a fit\" when there's a real conversation worth having. If your situation feels different from what the recommendation says, email us — we read every override request, and the form is one input into the decision, not the decision itself.",
   },
   {
     q: "Do you sign NDAs before the scoping call?",
@@ -127,7 +127,7 @@ export default function CustomPage() {
           </div>
           <p className="mt-4 text-sm text-[var(--color-muted)]">
             A 2-minute fit-check — a few questions about your APIs, regions,
-            timeline, and compliance — points you to Standard Implementation,
+            timeline, and compliance — points you to Implementation,
             Custom, or a focused scoping call, so we only spend a call on the
             right problem.
           </p>
@@ -136,7 +136,7 @@ export default function CustomPage() {
           </p>
           {/* Trust row */}
           <p className="mt-6 font-mono text-xs text-[var(--color-muted)]">
-            NDA-first · CTOs welcome (bring security) · Routes to Standard
+            NDA-first · CTOs welcome (bring security) · Routes to
             Implementation if it fits
           </p>
         </section>
@@ -145,10 +145,10 @@ export default function CustomPage() {
         <section className="border-t border-[var(--color-border)]">
           <div className="mx-auto max-w-6xl px-6 py-20">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              When Standard Implementation is enough
+              When Implementation is enough
             </h2>
             <p className="mt-6 text-lg text-[var(--color-muted)]">
-              If you have a typical B2B SaaS site, our $1,299 Standard
+              If you have a typical B2B SaaS site, our $1,299
               Implementation covers it: llms.txt, MCP server, OpenAPI spec,
               JSON-LD schema, baseline monitoring — emailed within 24 hours as a
               Git-applicable patch your developer applies in five minutes. No
