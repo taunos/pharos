@@ -195,6 +195,24 @@ describe("runAuditFulfillment — buyer email (A4 + R2-5)", async () => {
     expect(JSON.parse(store.get(`rights:audit:${SID}`)!)).toMatchObject({ consent_sellable: 1, p1_opt_out: 0 });
   });
 
+  it("dataset: a hung rights write never delays the run or the buyer email", async () => {
+    seed(SID, "fulfilling", { paid_at: 2, ...CONSENT });
+    const env = makeEnv();
+    const base = env.SESSIONS;
+    env.SESSIONS = {
+      get: (k: string) => (k.startsWith("rights:") ? new Promise(() => {}) : base.get(k)),
+      put: (k: string, v: string) => base.put(k, v),
+    } as unknown as KVNamespace;
+    const guard = new Promise((r) => setTimeout(() => r("hung"), 1000));
+    const r = await Promise.race([
+      runAuditFulfillment(env, SID, "https://astrant.io", { emailCopy: COPY }),
+      guard,
+    ]);
+    expect(r).toMatchObject({ kind: "done" });
+    expect(h.resendSends).toHaveLength(1);
+    expect(typeof read(SID).email_sent_at).toBe("number");
+  });
+
   it("dataset: an existing rights record (P1 opt-out) is never reset by fulfillment", async () => {
     seed(SID, "fulfilling", { paid_at: 2, ...CONSENT });
     const existing = JSON.stringify({ tier: "audit", p1_opt_out: 1 });

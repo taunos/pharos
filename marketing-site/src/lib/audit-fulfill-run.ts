@@ -37,7 +37,7 @@ import {
 import { alertOperator } from "./operator-alerts";
 import { isAuditCheckoutEnabled } from "./audit-gate";
 import { updateFunnelStatus } from "./audit-funnel";
-import { buildRightsRecord, writeRightsRecord } from "./dataset-consent";
+import { buildRightsRecord, scheduleRightsWrite } from "./dataset-consent";
 
 export interface AuditRunEnv extends AuditEnv {
   INTERNAL_FULFILL_KEY: string;
@@ -283,11 +283,14 @@ export async function runAuditFulfillment(
   };
   await writeAuditSession(env, next);
   await updateFunnelStatus(env.SESSIONS, sessionId, "ready");
-  // Second chance for the dataset rights record (the webhook writes it
-  // first). Write-if-absent; never throws, never blocks delivery.
+  // Best-effort second attempt at the dataset rights record (the webhook
+  // tries first). Fire-and-forget with a timeout (the queue handler has no
+  // ExecutionContext here); never awaited, so the corpus write and buyer
+  // email below never wait on it. A lost record fails safe
+  // (lib/dataset-consent.ts FAIL-SAFE SEMANTICS).
   if (standalone && typeof record.paid_at === "number") {
     const rights = buildRightsRecord("audit", record);
-    if (rights) await writeRightsRecord(env.SESSIONS, sessionId, rights);
+    if (rights) void scheduleRightsWrite(env.SESSIONS, sessionId, rights);
   }
 
   // ── Corpus write — non-blocking on customer delivery ────────────────────

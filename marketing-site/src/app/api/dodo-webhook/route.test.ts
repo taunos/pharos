@@ -236,7 +236,7 @@ describe("POST /api/dodo-webhook — audit tier", () => {
     expect(state.store.get(`rights:audit:${SID}`)).toBe(existing);
   });
 
-  it("dataset: rights write fails on first delivery → a later delivery (no enqueue) heals it", async () => {
+  it("dataset: rights write fails on first delivery → a later delivery (no enqueue) retries it, best-effort", async () => {
     seed("awaiting_payment", { consent_sellable: 1, consent_text_version: "v", consent_at: 7 });
     const orig = kv.put.getMockImplementation()!;
     kv.put.mockImplementation(async (k: string, v: string) => {
@@ -254,6 +254,25 @@ describe("POST /api/dodo-webhook — audit tier", () => {
     expect((await POST(webhook("wh_r2"))).status).toBe(200);
     expect(state.send).toHaveBeenCalledTimes(1); // replay does not re-enqueue
     expect(JSON.parse(state.store.get(`rights:audit:${SID}`)!)).toMatchObject({ consent_sellable: 1, consent_at: 7 });
+  });
+
+  it("dataset: a hung rights write never delays the webhook response", async () => {
+    seed("awaiting_payment", { consent_sellable: 1, consent_text_version: "v", consent_at: 7 });
+    const orig = kv.get.getMockImplementation()!;
+    kv.get.mockImplementation((k: string) =>
+      k.startsWith("rights:") ? new Promise<string | null>(() => {}) : orig(k),
+    );
+    const { POST } = await import("./route");
+    try {
+      const guard = new Promise((r) => setTimeout(() => r("hung"), 1000));
+      const res = await Promise.race([POST(webhook("wh_hang")), guard]);
+      expect(res).toBeInstanceOf(Response);
+      expect((res as Response).status).toBe(200);
+      expect(state.store.has("webhook:wh_hang")).toBe(true);
+      expect(state.send).toHaveBeenCalledTimes(1);
+    } finally {
+      kv.get.mockImplementation(orig);
+    }
   });
 
   it("dataset: pre-consent-UI session → no rights record", async () => {

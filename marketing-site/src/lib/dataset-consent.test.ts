@@ -1,10 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   CONSENT_SELLABLE_TEXT,
+  RIGHTS_WRITE_TIMEOUT_MS,
   buildRightsRecord,
   parseConsentSellable,
+  readRightsFlags,
   recordP1OptOut,
+  rightsFlagsFrom,
   rightsKey,
+  scheduleRightsWrite,
   writeRightsRecord,
 } from "./dataset-consent";
 import {
@@ -46,15 +50,71 @@ describe("dataset consent", () => {
 
   it("recordP1OptOut sets the flag once and keeps the first time", async () => {
     const { kv, store } = memKv();
-    expect(await recordP1OptOut(kv, "audit", "s1", 5)).toBe(false);
     store.set(
       rightsKey("audit", "s1"),
       JSON.stringify(buildRightsRecord("audit", { consent_sellable: 1, consent_text_version: "v", consent_at: 1 })),
     );
-    expect(await recordP1OptOut(kv, "audit", "s1", 5)).toBe(true);
-    expect(await recordP1OptOut(kv, "audit", "s1", 9)).toBe(true);
+    await recordP1OptOut(kv, "audit", "s1", 5);
+    await recordP1OptOut(kv, "audit", "s1", 9);
     const rec = JSON.parse(store.get("rights:audit:s1")!);
     expect(rec).toMatchObject({ p1_opt_out: 1, p1_opt_out_at: 5, consent_sellable: 1 });
+  });
+
+  it("recordP1OptOut on an order with no record creates one with consent 0 (opt-out never lost)", async () => {
+    const { kv, store } = memKv();
+    await recordP1OptOut(kv, "audit", "lost", 5);
+    expect(JSON.parse(store.get("rights:audit:lost")!)).toMatchObject({
+      consent_sellable: 0,
+      consent_method: "none",
+      p1_opt_out: 1,
+      p1_opt_out_at: 5,
+    });
+  });
+
+  it("fail-safe: an absent or unreadable rights record reads as consent 0, no opt-out", async () => {
+    const { kv, store } = memKv();
+    expect(await readRightsFlags(kv, "audit", "missing")).toEqual({ consent_sellable: 0, p1_opt_out: 0 });
+    expect(rightsFlagsFrom(null)).toEqual({ consent_sellable: 0, p1_opt_out: 0 });
+    expect(rightsFlagsFrom("{not json")).toEqual({ consent_sellable: 0, p1_opt_out: 0 });
+    expect(rightsFlagsFrom(JSON.stringify({ consent_sellable: "1", p1_opt_out: true }))).toEqual({
+      consent_sellable: 0,
+      p1_opt_out: 0,
+    });
+    store.set("rights:audit:s9", JSON.stringify({ consent_sellable: 1, p1_opt_out: 1 }));
+    expect(await readRightsFlags(kv, "audit", "s9")).toEqual({ consent_sellable: 1, p1_opt_out: 1 });
+  });
+
+  it("scheduleRightsWrite: hands the promise to waitUntil and gives up on a hung write after the timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const err = vi.spyOn(console, "error").mockImplementation(() => {});
+      const hung = { get: () => new Promise(() => {}), put: vi.fn() } as unknown as KVNamespace;
+      const waitUntil = vi.fn();
+      const rec = buildRightsRecord("audit", { consent_text_version: "v", consent_at: 1 })!;
+      let settled = false;
+      const p = scheduleRightsWrite(hung, "s3", rec, waitUntil).then(() => {
+        settled = true;
+      });
+      expect(waitUntil).toHaveBeenCalledWith(expect.any(Promise));
+      await vi.advanceTimersByTimeAsync(RIGHTS_WRITE_TIMEOUT_MS - 1);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      await p;
+      expect(settled).toBe(true);
+      expect(err.mock.calls.flat().join(" ")).toContain("RIGHTS_REGISTRY_WRITE_TIMEOUT");
+      err.mockRestore();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("scheduleRightsWrite: a throwing waitUntil still runs the write", async () => {
+    const { kv, store } = memKv();
+    const rec = buildRightsRecord("audit", { consent_text_version: "v", consent_at: 1 })!;
+    await scheduleRightsWrite(kv, "s4", rec, () => {
+      throw new Error("no ctx");
+    });
+    expect(store.has("rights:audit:s4")).toBe(true);
   });
 
   it("buildRightsRecord: null without consent evidence; flag only 1 when stamped 1", () => {
