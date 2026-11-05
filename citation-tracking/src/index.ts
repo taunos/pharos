@@ -197,7 +197,13 @@ export default {
 
     if (url.pathname.startsWith('/api/internal/')) {
       const auth = request.headers.get('Authorization') ?? '';
-      const expected = `Bearer ${env.PROBE_AUTH_TOKEN}`;
+      // Security pass 2026-11-04: fail closed when the secret is missing or
+      // empty (`Bearer ${undefined}` would otherwise be a known token).
+      const token = env.PROBE_AUTH_TOKEN;
+      if (typeof token !== 'string' || token.length < 16) {
+        return new Response('Unauthorized', { status: 401 });
+      }
+      const expected = `Bearer ${token}`;
       if (!constantTimeEqual(auth, expected)) {
         return new Response('Unauthorized', { status: 401 });
       }
@@ -294,7 +300,7 @@ export default {
         const { sendDigestEmail } = await import('./digest-email');
         const pdfBytes = await renderDigestPdf(markdownWithFooter, brandName);
         await sendDigestEmail(env, customerId, email, markdownWithFooter, pdfBytes, periodStart);
-        console.log(`F3_PREVIEW_DIGEST_SENT subscription_id=${subscriptionId.substring(0, 12)} email=${email}`);
+        console.log(`F3_PREVIEW_DIGEST_SENT subscription_id=${subscriptionId.substring(0, 12)} email_domain=${email.split('@')[1] ?? '?'}`);
         return new Response(JSON.stringify({ ok: true, period_start: periodStart, period_end: periodEnd }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
