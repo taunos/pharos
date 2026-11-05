@@ -46,7 +46,6 @@ export async function POST(request: Request) {
       `${env.DODO_API_BASE_URL}/subscriptions/${encodeURIComponent(subscriptionId)}`,
       {
         method: "PATCH",
-        signal: AbortSignal.timeout(15_000),
         headers: {
           Authorization: `Bearer ${env.DODO_API_KEY}`,
           "Content-Type": "application/json",
