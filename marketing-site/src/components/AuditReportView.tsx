@@ -102,7 +102,7 @@ function Dimension({ d }: { d: AuditReportModel["dimensions"][number] }) {
             </span>
           </h3>
           <span className="font-mono text-sm italic text-[var(--color-dim)]">
-            {C.naGrade}
+            {d.unmeasured ? C.naGradeUnmeasured : C.naGrade}
           </span>
         </div>
         <p className="mt-2 text-sm text-[var(--color-muted)]">{d.note}</p>

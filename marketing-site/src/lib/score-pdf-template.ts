@@ -16,7 +16,7 @@
 
 import type { ScanResult, SubCheck } from "./audit-types";
 import { hashEmailForR2Key } from "./score-tokens";
-import { dimensionCountPhrase, applicableDimensionCount } from "./score-display";
+import { dimensionCountPhrase, droppedDimensionsNote } from "./score-display";
 import { isAuditCheckoutEnabled } from "./audit-gate";
 
 export const PDF_TEMPLATE_VERSION = "1.0.0";
@@ -133,7 +133,7 @@ export function renderScoreReportHTML(input: RenderInput): string {
         <div class="dim-head">
           <h3>${escapeHtml(d.dimension_name)} <span style="font-size:9pt;font-family:ui-monospace,monospace;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">N/A</span></h3>
           <div class="dim-score">
-            <span class="dim-grade" style="color:#64748b;font-style:italic;">not applicable</span>
+            <span class="dim-grade" style="color:#64748b;font-style:italic;">${d.unmeasured ? "not measured" : "not applicable"}</span>
           </div>
         </div>
         <p style="font-size:10pt;color:#64748b;margin:6pt 0;">${escapeHtml(naNote)}</p>
@@ -256,7 +256,7 @@ export function renderScoreReportHTML(input: RenderInput): string {
     <span class="composite-num">${scan.composite.score}</span>
     <span class="composite-grade" style="color:${gradeColor(scan.composite.grade)}">${escapeHtml(scan.composite.grade)}</span>
   </div>
-  <p class="scope">Scored on ${dimensionCountPhrase(scan.dimensions_applicable, scan.dimensions_scored, scan.dimensions_total)} dimensions applicable to this site. Citation Visibility ships as a static demo preview on the free Score and runs live with the $79 Audit.${applicableDimensionCount(scan.dimensions_applicable, scan.dimensions_scored) < scan.dimensions_scored ? " Some dimensions did not apply to your site (e.g. no API surface for the OpenAPI dimension) and were dropped from the composite." : ""}</p>
+  <p class="scope">Scored on ${dimensionCountPhrase(scan.dimensions_applicable, scan.dimensions_scored, scan.dimensions_total)} dimensions applicable to this site. Citation Visibility ships as a static demo preview on the free Score and runs live with the $79 Audit.${droppedDimensionsNote(scan)}</p>
 
   <h2>Dimension breakdown</h2>
   ${dimsHtml}

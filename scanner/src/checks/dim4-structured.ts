@@ -2,19 +2,14 @@ import type { DimensionResult, Env, SubCheck, SubCheckEvidence } from "../types"
 import { dimensionScoreOrThrow, gradeFor } from "../scoring";
 import { evalWithCache } from "./llm-eval";
 import { cleanSiteText, detectScoringInjection, randomTag, wrapUntrusted } from "./llm-safety";
+import { MAX_HTML_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
 
 const FETCH_TIMEOUT_MS = 8000;
 
-async function timedFetch(url: string, init?: RequestInit): Promise<Response | null> {
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
-  try {
-    return await fetch(url, { ...init, signal: ctl.signal, redirect: "follow" });
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(t);
-  }
+// Security pass 2026-11-04: validated hops, max 3 redirects, one deadline
+// covering headers AND body, capped body (see ../safe-fetch).
+function timedFetch(url: string, init?: RequestInit): Promise<SafeResponse | null> {
+  return safeFetch(url, init, { timeoutMs: FETCH_TIMEOUT_MS });
 }
 
 // Outreach security round 2: HTML-attribute-tolerant <script> scanning. The old
@@ -189,6 +184,7 @@ Return a single average score 0-100, nothing else.`;
   const { score, cached, fallback } = await evalWithCache(env, {
     prompt,
     cacheKey: `dim4:conversational${NL}${joined}`,
+    metered: true,
   });
   const tag = cached ? " (cached)" : fallback ? " (LLM output unusable; default)" : "";
   return { score, note: `LLM rated ${questions.length} question(s) avg ${score}/100${tag}` };
@@ -210,17 +206,18 @@ export async function runDim4(targetUrl: string, env: Env): Promise<DimensionRes
     requested_url: targetUrl,
     final_url: res?.url ?? "",
     body_complete: false,
+    truncated: false,
     ld_json_absent_proven: false,
   };
   if (res && res.status === 200) {
-    let read = false;
-    try {
-      html = await res.text();
-      read = true;
-    } catch {
-      // body read error: not complete
-    }
-    evidence.body_complete = read;
+    // Capped read under the fetch deadline. A read error / timeout gives ""
+    // and body_complete:false; a truncated body is scored on its prefix but
+    // is never complete, so absence is never proven from it.
+    const b = await res.body({ maxBytes: MAX_HTML_BYTES });
+    const read = b.complete || b.truncated;
+    html = b.text;
+    evidence.body_complete = b.complete;
+    evidence.truncated = b.truncated;
     if (read) {
       try {
         blocks = extractJsonLdBlocks(html);
@@ -229,8 +226,10 @@ export async function runDim4(targetUrl: string, env: Env): Promise<DimensionRes
       } catch {
         // ignore
       }
-      evidence.ld_json_absent_proven = ldJsonAbsentProven(html, evidence.content_type, true);
+      evidence.ld_json_absent_proven = ldJsonAbsentProven(html, evidence.content_type, b.complete);
     }
+  } else {
+    res?.discard();
   }
   const validBlocks = blocks.filter((b) => !(b as { __invalid?: boolean })?.__invalid);
 

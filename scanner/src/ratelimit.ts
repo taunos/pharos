@@ -1,4 +1,5 @@
 import type { Env } from "./types";
+import { constantTimeEqual } from "./auth";
 
 async function sha256(input: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
@@ -34,7 +35,9 @@ export async function checkRateLimit(
   const today = new Date().toISOString().slice(0, 10);
   const normIp = ip.trim().toLowerCase();
   const ipKey = `rl:ip:${await hmacHex(env.RATE_LIMIT_HASH_SECRET, normIp)}:${today}`;
-  const urlKey = `rl:url:${await sha256(url)}:${today}`;
+  // Security pass 2026-11-04: key the per-URL limit on origin + path, so
+  // distinct query strings / fragments can't each get a fresh 3/day budget.
+  const urlKey = `rl:url:${await sha256(urlLimitKey(url))}:${today}`;
 
   const ipCount = parseInt((await env.CACHE.get(ipKey)) ?? "0", 10);
   const urlCount = parseInt((await env.CACHE.get(urlKey)) ?? "0", 10);
@@ -48,6 +51,83 @@ export async function checkRateLimit(
   ]);
 
   return { allowed: true };
+}
+
+/** origin + path (no query, no fragment). The URL parser lowercases the host. */
+export function urlLimitKey(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.origin}${u.pathname}`;
+  } catch {
+    return url;
+  }
+}
+
+/** The scan-cache identity: the URL without its fragment (never sent to the site, so it can't change the result). */
+export function urlCacheKey(url: string): string {
+  const i = url.indexOf("#");
+  return i < 0 ? url : url.slice(0, i);
+}
+
+/** A bare IPv4 (dotted quad, 0-255, no leading zeros) or IPv6 literal. */
+export function isIpLiteral(s: string): boolean {
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(s);
+  if (v4) return v4.slice(1).every((o) => Number(o) <= 255 && (o === "0" || !o.startsWith("0")));
+  if (!s.includes(":") || !/^[0-9a-fA-F:.]{2,45}$/.test(s)) return false;
+  try {
+    new URL(`http://[${s}]/`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The rate-limit identity. The marketing proxy (astrant.io /api/scan) is a
+ * cross-zone Worker subrequest, so Cloudflare replaces its CF-Connecting-IP
+ * with one shared Worker address; the proxy forwards the real client IP in
+ * x-astrant-client-ip, authenticated by x-astrant-proxy-key. The forwarded IP
+ * is used only when that key passes the constant-time check AND the value is
+ * an IP literal; otherwise our own CF-Connecting-IP. Identity only, never tier.
+ */
+export function limiterIdentity(
+  secret: string | undefined,
+  connectingIp: string | undefined,
+  proxyKey: string | undefined,
+  forwardedIp: string | undefined
+): string {
+  const fwd = forwardedIp?.trim() ?? "";
+  if (secret && proxyKey && constantTimeEqual(proxyKey, secret) && isIpLiteral(fwd)) return fwd;
+  return connectingIp ?? "unknown";
+}
+
+export interface RateLimitBinding {
+  limit(opts: { key: string }): Promise<{ success: boolean }>;
+}
+
+/**
+ * First gate on POST /api/scan: the Cloudflare Rate Limiting binding. It is
+ * best-effort (per Cloudflare location, approximate and eventually
+ * consistent), so it blunts bursts rather than enforcing an exact count;
+ * the KV read-modify-write limits stay behind it. true = allowed.
+ * Fails open (logged) only when the binding is absent or errors; the KV
+ * limits still apply behind it.
+ */
+export async function checkBurstLimit(
+  limiter: RateLimitBinding | undefined,
+  ip: string
+): Promise<boolean> {
+  if (!limiter) {
+    console.error("[scan] SCAN_RATE_LIMITER binding missing; failing open to the KV limits");
+    return true;
+  }
+  try {
+    const { success } = await limiter.limit({ key: `scan:${ip.trim().toLowerCase()}` });
+    return success;
+  } catch (e) {
+    console.error("[scan] SCAN_RATE_LIMITER errored; failing open to the KV limits:", e instanceof Error ? e.message : String(e));
+    return true;
+  }
 }
 
 export async function urlHash(url: string): Promise<string> {

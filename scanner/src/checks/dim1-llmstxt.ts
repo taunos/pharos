@@ -2,19 +2,14 @@ import type { DimensionResult, Env, SubCheck } from "../types";
 import { dimensionScoreOrThrow, gradeFor } from "../scoring";
 import { evalWithCache } from "./llm-eval";
 import { cleanSiteText, detectScoringInjection, randomTag, wrapUntrusted } from "./llm-safety";
+import { MAX_TEXT_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
 
 const FETCH_TIMEOUT_MS = 8000;
 
-async function timedFetch(url: string, init?: RequestInit): Promise<Response | null> {
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
-  try {
-    return await fetch(url, { ...init, signal: ctl.signal, redirect: "follow" });
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(t);
-  }
+// Security pass 2026-11-04: validated hops, max 3 redirects, one deadline
+// covering headers AND body (see ../safe-fetch).
+function timedFetch(url: string, init?: RequestInit): Promise<SafeResponse | null> {
+  return safeFetch(url, init, { timeoutMs: FETCH_TIMEOUT_MS });
 }
 
 function isMarkdowny(body: string): boolean {
@@ -76,6 +71,7 @@ Return ONLY a number 0-100, nothing else.`;
   const { score, cached, fallback } = await evalWithCache(env, {
     prompt,
     cacheKey: `dim1:blockquote:${text}`,
+    metered: true,
   });
   const tag = cached ? " (cached)" : fallback ? " (LLM output unusable; default)" : "";
   return { score, note: `LLM rated blockquote ${score}/100${tag}` };
@@ -114,12 +110,17 @@ export async function runDim1(targetUrl: string, env: Env): Promise<DimensionRes
   });
 
   let body = "";
+  const presenceEvidence = subs[subs.length - 1].evidence!;
+  presenceEvidence.body_complete = false;
+  presenceEvidence.truncated = false;
   if (presenceOk) {
-    try {
-      body = await res!.text();
-    } catch {
-      body = "";
-    }
+    // Capped read; a read error or the deadline yields "" (as before).
+    const b = await res!.body({ maxBytes: MAX_TEXT_BYTES });
+    body = b.text;
+    presenceEvidence.body_complete = b.complete;
+    presenceEvidence.truncated = b.truncated;
+  } else {
+    res?.discard();
   }
 
   // 2. spec_compliance
@@ -147,8 +148,11 @@ export async function runDim1(targetUrl: string, env: Env): Promise<DimensionRes
           const url = new URL(l, llmsUrl).toString();
           const r = await timedFetch(url, { headers: { Accept: "text/markdown,text/plain,*/*" } });
           if (!r) return false;
-          if (r.status !== 200) return false;
-          const t = await r.text();
+          if (r.status !== 200) {
+            r.discard();
+            return false;
+          }
+          const t = (await r.body({ maxBytes: MAX_TEXT_BYTES })).text;
           return isMarkdowny(t);
         } catch {
           return false;

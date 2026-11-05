@@ -52,6 +52,8 @@ export const EXEC_SUMMARY_COPY = {
   // Sentence 4 parts (joined with "; " into one sentence).
   naApplied: (names: string, plural: boolean) =>
     `${names} did not apply to this site, so ${plural ? "they are" : "it is"} not counted in your score`,
+  naUnmeasured: (names: string, plural: boolean) =>
+    `${names} could not be measured on this run, so ${plural ? "they are" : "it is"} not counted in your score`,
   naCitationUnmeasured:
     "Citation Visibility could not be measured on this run, so it is not counted in your score",
   citationPartial: (assistants: number, ofAssistants: number, cells: number, ofCells: number) =>
@@ -218,8 +220,15 @@ export function buildExecutiveSummary(
   const caveats: string[] = [];
   const naCitation = naDims.find((d) => d.dimension_id === CITATION_DIM_ID);
   const naOther = naDims.filter((d) => d.dimension_id !== CITATION_DIM_ID);
-  if (naOther.length > 0) {
-    caveats.push(C.naApplied(joinNames(naOther.map((d) => d.dimension_name)), naOther.length > 1));
+  // Unmeasured dimensions applied but could not be read on this run: never
+  // say they "did not apply".
+  const naInapplicable = naOther.filter((d) => !d.unmeasured);
+  const naUnmeasured = naOther.filter((d) => d.unmeasured);
+  if (naInapplicable.length > 0) {
+    caveats.push(C.naApplied(joinNames(naInapplicable.map((d) => d.dimension_name)), naInapplicable.length > 1));
+  }
+  if (naUnmeasured.length > 0) {
+    caveats.push(C.naUnmeasured(joinNames(naUnmeasured.map((d) => d.dimension_name)), naUnmeasured.length > 1));
   }
   if (naCitation) caveats.push(C.naCitationUnmeasured);
   const citation = scored.find((d) => d.dimension_id === CITATION_DIM_ID);

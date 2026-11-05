@@ -1,18 +1,20 @@
 import type { DimensionResult, Env, SubCheck } from "../types";
 import { dimensionScoreOrThrow, gradeFor } from "../scoring";
+import { MAX_JSON_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
 
 const FETCH_TIMEOUT_MS = 5000;
 
-async function timedFetch(url: string, init?: RequestInit, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response | null> {
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...init, signal: ctl.signal, redirect: "follow" });
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(t);
-  }
+// Security pass 2026-11-04: validated hops (incl. the card's transport URL),
+// max 3 redirects, one deadline covering headers AND body (see ../safe-fetch).
+function timedFetch(url: string, init?: RequestInit, timeoutMs = FETCH_TIMEOUT_MS): Promise<SafeResponse | null> {
+  return safeFetch(url, init, { timeoutMs });
+}
+
+/** Capped JSON read; throws (like Response.json) on a read error, truncation or bad JSON. */
+async function readJson(r: SafeResponse): Promise<unknown> {
+  const b = await r.body({ maxBytes: MAX_JSON_BYTES });
+  if (!b.complete) throw new Error("body incomplete");
+  return JSON.parse(b.text);
 }
 
 type ServerCard = {
@@ -29,12 +31,13 @@ async function fetchCard(origin: string): Promise<{ card: ServerCard | null; sta
     if (!r) continue;
     if (r.status === 200) {
       try {
-        const card = (await r.json()) as ServerCard;
+        const card = (await readJson(r)) as ServerCard;
         return { card, status: 200, from: path };
       } catch {
         return { card: null, status: 200, from: path };
       }
     }
+    r.discard();
   }
   return { card: null, status: 0, from: "" };
 }
@@ -45,8 +48,11 @@ async function dnsTxt(host: string): Promise<{ found: boolean; note: string }> {
       `https://cloudflare-dns.com/dns-query?name=_mcp.${encodeURIComponent(host)}&type=TXT`,
       { headers: { Accept: "application/dns-json" } }
     );
-    if (!r || r.status !== 200) return { found: false, note: `DoH status ${r?.status ?? "fetch failed"}` };
-    const j = (await r.json()) as { Answer?: Array<{ data?: string }> };
+    if (!r || r.status !== 200) {
+      r?.discard();
+      return { found: false, note: `DoH status ${r?.status ?? "fetch failed"}` };
+    }
+    const j = (await readJson(r)) as { Answer?: Array<{ data?: string }> };
     const found = !!j.Answer && j.Answer.length > 0;
     return { found, note: found ? `${j.Answer!.length} TXT record(s) at _mcp.${host}` : `no TXT at _mcp.${host}` };
   } catch (e) {
@@ -115,7 +121,7 @@ export async function runDim2(targetUrl: string, env: Env): Promise<DimensionRes
     });
     if (r && r.status === 200) {
       try {
-        const meta = (await r.json()) as { authorization_endpoint?: string; token_endpoint?: string };
+        const meta = (await readJson(r)) as { authorization_endpoint?: string; token_endpoint?: string };
         if (meta.authorization_endpoint && meta.token_endpoint) {
           oauthScore = 100;
           oauthNote = `auth=${card.authentication.type}; OAuth metadata valid`;
@@ -128,6 +134,7 @@ export async function runDim2(targetUrl: string, env: Env): Promise<DimensionRes
         oauthNote = `auth=${card.authentication.type}; OAuth metadata invalid JSON`;
       }
     } else {
+      r?.discard();
       oauthScore = 0;
       oauthNote = `auth=${card.authentication.type}; /.well-known/oauth-authorization-server returned ${r?.status ?? "no response"}`;
     }
@@ -162,7 +169,7 @@ export async function runDim2(targetUrl: string, env: Env): Promise<DimensionRes
         liveNote = `tools/list timed out or failed for ${transportUrl}`;
       } else if (r.status >= 200 && r.status < 300) {
         try {
-          const text = await r.text();
+          const text = (await r.body({ maxBytes: MAX_JSON_BYTES })).text;
           // Streamable HTTP may return JSON or SSE-formatted; look for tools array either way
           const jsonMatch = text.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
@@ -181,6 +188,7 @@ export async function runDim2(targetUrl: string, env: Env): Promise<DimensionRes
           liveNote = `tools/list parse error: ${e instanceof Error ? e.message : String(e)}`;
         }
       } else {
+        r.discard();
         liveNote = `tools/list returned status ${r.status}`;
       }
     }

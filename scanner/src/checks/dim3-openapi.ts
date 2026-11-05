@@ -27,24 +27,23 @@
 
 import type { DimensionResult, Env, SubCheck } from "../types";
 import { dimensionScore, gradeFor } from "../scoring";
+import { MAX_SPEC_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
 
 const FETCH_TIMEOUT_MS = 5000;
+
+export const INCOMPLETE_SPEC_NOTE =
+  "Not measured — the API spec could not be read in full (size or time limit), so this dimension is not counted in your score.";
 const STATIC_UA = "AstrantScanner-Dim3/1.2.0";
 
-async function timedFetch(
+// Security pass 2026-11-04: validated hops (incl. homepage-discovered spec
+// links), max 3 redirects, one deadline covering headers AND body, capped
+// body (see ../safe-fetch).
+function timedFetch(
   url: string,
   init?: RequestInit,
   timeoutMs: number = FETCH_TIMEOUT_MS
-): Promise<Response | null> {
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...init, signal: ctl.signal });
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(t);
-  }
+): Promise<SafeResponse | null> {
+  return safeFetch(url, init, { timeoutMs });
 }
 
 // SSRF defense-in-depth at the spec-fetch boundary. wrangler.jsonc already
@@ -67,6 +66,9 @@ interface DiscoveryHit {
   body: string;
   contentType: string;
   source: string;
+  // false when the body hit the byte cap, timed out or errored: the spec's
+  // content was not measured (security pass 2026-11-04).
+  complete: boolean;
 }
 
 const WELL_KNOWN_CANDIDATES = [
@@ -90,14 +92,17 @@ async function probeWellKnown(origin: string): Promise<DiscoveryHit | null> {
       redirect: "follow",
     });
     if (res && res.ok) {
-      const body = await res.text();
+      const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
+      const body = read.text;
       return {
         url,
         body,
         contentType: (res.headers.get("content-type") ?? "").toLowerCase(),
         source: `well-known ${path}`,
+        complete: read.complete,
       };
     }
+    res?.discard();
   }
   return null;
 }
@@ -114,14 +119,17 @@ async function probeCanonical(origin: string): Promise<DiscoveryHit | null> {
       redirect: "follow",
     });
     if (res && res.ok) {
-      const body = await res.text();
+      const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
+      const body = read.text;
       return {
         url,
         body,
         contentType: (res.headers.get("content-type") ?? "").toLowerCase(),
         source: `canonical ${path}`,
+        complete: read.complete,
       };
     }
+    res?.discard();
   }
   return null;
 }
@@ -173,14 +181,17 @@ async function probeHomepageLink(
     redirect: "follow",
   });
   if (res && res.ok) {
-    const body = await res.text();
+    const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
+    const body = read.text;
     return {
       url: candidate,
       body,
       contentType: (res.headers.get("content-type") ?? "").toLowerCase(),
       source: `homepage link ${candidate}`,
+      complete: read.complete,
     };
   }
+  res?.discard();
   return null;
 }
 
@@ -302,6 +313,42 @@ export async function runDim3(
     };
   }
 
+  // Spec body not read in full (byte cap, deadline or read error): the
+  // dimension was NOT measured. Whole-dimension N/A (dropped from the
+  // composite like the no-API path) with unmeasured:true so consumers don't
+  // call it "no API surface". Discovery alone must not score: a huge or
+  // stalled file at a well-known path would otherwise earn 100. The
+  // discovery result stays as informational text in the first note.
+  if (!hit.complete) {
+    const found = `Found via ${hit.source} at ${hit.url} (content-type=${hit.contentType || "unknown"}).`;
+    for (const [id, name, weight] of [
+      ["discovery", "API spec discovery", 25],
+      ["spec_validity", "Spec validity (parses + has version field)", 25],
+      ["info_completeness", "Spec info completeness (title + version + description)", 15],
+      ["security_schemes", "Security schemes documented", 15],
+      ["operation_coverage", "Operation coverage + per-operation docs", 20],
+    ] as const) {
+      subs.push({
+        id,
+        name,
+        weight,
+        score: 0,
+        passed: false,
+        notes: id === "discovery" ? `${INCOMPLETE_SPEC_NOTE} ${found}` : INCOMPLETE_SPEC_NOTE,
+        na: true,
+      });
+    }
+    return {
+      dimension_id: 3,
+      dimension_name: "OpenAPI / API Catalog",
+      score: 0,
+      grade: gradeFor(0),
+      sub_checks: subs,
+      na: true,
+      unmeasured: true,
+    };
+  }
+
   // ── Sub-check 1: discovery ─────────────────────────────────────────────
   // Well-known → 100. Canonical → 75. Homepage-link fallback → 50.
   let discoveryScore: number;
@@ -316,6 +363,7 @@ export async function runDim3(
     passed: discoveryScore >= 70,
     notes: `Found via ${hit.source} at ${hit.url} (content-type=${hit.contentType || "unknown"}).`,
   });
+
 
   // ── Sub-check 2: spec_validity ────────────────────────────────────────
   const parsed = tryParseSpec(hit.body, hit.contentType);

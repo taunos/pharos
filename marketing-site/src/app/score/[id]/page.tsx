@@ -14,7 +14,7 @@ import type { ScanResult } from "@/lib/audit-types";
 import {
   gradeColorClass,
   dimensionCountPhrase,
-  applicableDimensionCount,
+  droppedDimensionsNote,
   isDim6DemoPreview,
 } from "@/lib/score-display";
 import ScorePanel from "@/components/ScorePanel";
@@ -274,9 +274,7 @@ export default async function ScoreResultsPage({
             (Citation Visibility) shows a demo preview on free Score; the live
             4-model audit ships with the $79 Audit. See{" "}
             <Link href="/score/methodology" className="text-[var(--color-fg)] underline-offset-4 hover:underline">methodology</Link>.
-            {applicableDimensionCount(scan.dimensions_applicable, scan.dimensions_scored) < scan.dimensions_scored
-              ? " Some dimensions did not apply to your site (e.g. no API surface for the OpenAPI dimension) and were dropped from the composite."
-              : ""}
+            {droppedDimensionsNote(scan)}
           </p>
 
           {/* Normal server path: the row exists, so clear any sessionStorage

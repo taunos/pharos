@@ -1,3 +1,5 @@
+import type { RateLimitBinding } from "./ratelimit";
+
 export interface Env {
   DB: D1Database;
   CACHE: KVNamespace;
@@ -20,6 +22,11 @@ export interface Env {
   // Privacy (OD#7): HMAC secret used to pseudonymize the IP in rate-limit KV
   // keys, so no raw IP is stored at rest. Rate limiting fails closed if absent.
   RATE_LIMIT_HASH_SECRET?: string;
+  // Security pass 2026-11-04: Cloudflare Rate Limiting binding (wrangler.jsonc
+  // "ratelimits"), the first, best-effort (approximate, eventually consistent)
+  // gate on POST /api/scan, keyed by the client IP. Optional: when absent the
+  // KV limits still apply.
+  SCAN_RATE_LIMITER?: RateLimitBinding;
   // P0-C2 Chunk C: optional deferred-capture Queue producer binding. Optional so
   // the disabled build typechecks/deploys without a Queue created yet; when
   // absent, the producer still writes the durable outbox job (enqueued_at NULL)
@@ -74,6 +81,8 @@ export type SubCheckEvidence = {
   final_url?: string;
   /** The whole body was read without error (no truncation). */
   body_complete?: boolean;
+  /** The body hit the scanner's byte cap; only a prefix was read (body_complete is then false). */
+  truncated?: boolean;
   /**
    * Dim 4 only: true iff the FULL body was read as UTF-8-compatible text with no
    * decoding errors and, after decoding numeric and &plus;/&sol;/&amp; entities,
@@ -111,6 +120,11 @@ export type DimensionResult = {
   // and dimensions_applicable counts it out so the "Scored on X of Y" copy
   // reflects the user's actual surface, not the catalog.
   na?: boolean;
+  // Security pass 2026-11-04: set (with na:true) when the dimension applies
+  // but could not be measured on this run (e.g. Dim 3 spec too large or too
+  // slow to read in full). Dropped from the composite exactly like na; copy
+  // must say "not measured", never "did not apply" / "no API surface".
+  unmeasured?: boolean;
 };
 
 export type Composite = {

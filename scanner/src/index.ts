@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
 import type { Env, ScanTier } from "./types";
-import { checkRateLimit } from "./ratelimit";
+import { checkBurstLimit, checkRateLimit, limiterIdentity } from "./ratelimit";
+import { isSafeTargetUrl } from "./safe-fetch";
 import { runScan } from "./run-scan";
 import { SCORING_VERSION } from "./version";
 import { mountScoreAdmin } from "./score-admin";
@@ -66,7 +67,10 @@ app.get("/health", (c) =>
 );
 
 const scanBody = z.object({
-  url: z.string().url(),
+  // Security pass 2026-11-04: only public http(s) hosts on 80/443 (no IP
+  // literals, localhost/internal suffixes, single-label hosts, credentials,
+  // other ports). Rejected with the existing 400 before any KV or D1 write.
+  url: z.string().max(2048).url().refine(isSafeTargetUrl),
   email: z
     .string()
     .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
@@ -120,15 +124,35 @@ app.post("/api/scan", async (c) => {
     }
   }
 
-  const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
+  // Authenticated paid calls (audit-fulfill from the marketing Worker, which
+  // forwards no client IP, so every Audit would share one IP key) skip both
+  // rate limits. URL validation above still applies to them. Everything else,
+  // including paid requests degraded to free, goes through both limits.
+  if (tier !== "paid") {
+    const ip = limiterIdentity(
+      c.env.INTERNAL_FULFILL_KEY,
+      c.req.header("CF-Connecting-IP"),
+      c.req.header("x-astrant-proxy-key"),
+      c.req.header("x-astrant-client-ip")
+    );
 
-  const rl = await checkRateLimit(c.env, ip, url);
-  if (!rl.allowed) {
-    if (rl.misconfigured) {
-      console.error("RATE_LIMIT_MISCONFIGURED: RATE_LIMIT_HASH_SECRET is not set");
-      return c.json({ ok: false, error: "MISCONFIGURED" }, 503);
+    // Security pass 2026-11-04: first limit is the best-effort Rate Limiting
+    // binding (keyed by IP; approximate, eventually consistent), ahead of any
+    // KV/D1/fetch work; the KV daily limits below stay as the second layer.
+    // Its limit (5 per 60 s) is normally only reachable by a client already
+    // over 5 per day, so the existing message stays accurate.
+    if (!(await checkBurstLimit(c.env.SCAN_RATE_LIMITER, ip))) {
+      return c.json({ ok: false, error: "Rate limit: 5 scans per IP per day" }, 429);
     }
-    return c.json({ ok: false, error: rl.reason }, 429);
+
+    const rl = await checkRateLimit(c.env, ip, url);
+    if (!rl.allowed) {
+      if (rl.misconfigured) {
+        console.error("RATE_LIMIT_MISCONFIGURED: RATE_LIMIT_HASH_SECRET is not set");
+        return c.json({ ok: false, error: "MISCONFIGURED" }, 503);
+      }
+      return c.json({ ok: false, error: rl.reason }, 429);
+    }
   }
 
   // Outreach slice: the scan body lives in runScan (./run-scan) so the
