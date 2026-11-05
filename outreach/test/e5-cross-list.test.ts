@@ -162,3 +162,49 @@ describe("E5: OPTOUT_LISTS_DB is read-only and used in one place", () => {
     expect(w).toMatch(new RegExp(`"binding":\\s*"OPTOUT_LISTS_DB",\\s*"database_name":\\s*"pharos-citation-tracking",\\s*"database_id":\\s*"${id}"`));
   });
 });
+
+describe("E5 (Codex r1): reply drafts re-check right before and after the provider call", () => {
+  async function interestedLead(db: D1Database) {
+    const id = await insertLead(db, { domain: "example.com", state: "sent", contact_email: "hello@example.com", fact_sheet_json: JSON.stringify({ score_url: "https://astrant.io/score/x" }) });
+    const mid = crypto.randomUUID();
+    await db
+      .prepare("INSERT INTO messages (id, lead_id, kind, subject, body_text, validator_report_json, status, not_before, rfc_message_id, provider_thread_id, sent_at, created_at, updated_at) VALUES (?, ?, 'initial', 's', 'b', '{}', 'sent', 0, ?, 'thr', 1, 0, 0)")
+      .bind(mid, id, `<${mid}@getastrant.com>`)
+      .run();
+    return id;
+  }
+
+  it("an opt-out processed while the reply was being classified ⇒ no reply draft", async () => {
+    const { db } = freshDb();
+    const env = makeEnv(db);
+    const id = await interestedLead(db);
+    const mail = new FakeMail();
+    // The /u/ opt-out lands during the model call: lead opted_out + suppressed.
+    const ai = {
+      run: async () => {
+        await db.prepare("UPDATE leads SET state = 'opted_out' WHERE id = ?").bind(id).run();
+        return { response: JSON.stringify({ class: "interested", confidence: 0.95 }) };
+      },
+    };
+    await handleInbound(env, { mail, ai, alert: noopAlert, now: () => TUE_1400, mailboxWrites: true }, inboundMail({ providerThreadId: "thr", text: "Yes, let's talk." }));
+    expect(mail.drafts).toEqual([]);
+  });
+
+  it("a marketing unsubscribe landing during the provider call ⇒ Bruno is told to delete the draft, not that it's ready", async () => {
+    const { db } = freshDb();
+    const lists = freshOptoutListsDb();
+    const env = makeEnv(db, { OPTOUT_LISTS_DB: lists.db });
+    await interestedLead(db);
+    const mail = new FakeMail();
+    mail.draftImpl = async () => {
+      await lists.db.prepare("INSERT INTO email_suppressions (email_hash, suppressed_at) VALUES (?, 1)").bind(await hashEmailSha256("hello@example.com")).run();
+      return { draftId: "d-race" };
+    };
+    const alerts: string[] = [];
+    const ai = { run: async () => ({ response: JSON.stringify({ class: "interested", confidence: 0.95 }) }) };
+    await handleInbound(env, { mail, ai, alert: async (k: string) => void alerts.push(k), now: () => TUE_1400, mailboxWrites: true }, inboundMail({ providerThreadId: "thr", text: "Yes, let's talk." }));
+    expect(alerts).toContain("Delete the draft to example.com");
+    expect(alerts.some((k) => k.startsWith("Interested reply"))).toBe(false);
+    expect((await db.prepare("SELECT draft_id FROM inbound").first<{ draft_id: string | null }>())!.draft_id).toBeNull();
+  });
+});

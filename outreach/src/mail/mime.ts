@@ -141,6 +141,20 @@ export function extractDsn(p: ParsedPart): DsnInfo | null {
   return { status, finalRecipient, originalMessageId };
 }
 
+/**
+ * Looks like a delivery report even when extractDsn couldn't parse it (truncated or
+ * unsupported delivery-status, a multipart/report that isn't a read receipt). Such
+ * mail is never a bounce automatically, but it always goes to a human (never auto_reply).
+ */
+export function isDeliveryReport(p: ParsedPart): boolean {
+  let found = false;
+  walk(p, (x) => {
+    if (x.contentType === "message/delivery-status" || x.contentType === "message/global-delivery-status") found = true;
+    if (x.contentType === "multipart/report" && (x.params["report-type"] ?? "").toLowerCase() !== "disposition-notification") found = true;
+  });
+  return found;
+}
+
 function depthIsEmbedded(root: ParsedPart, x: ParsedPart): boolean {
   // An embedded original message is a child of a message/rfc822 part.
   let found = false;

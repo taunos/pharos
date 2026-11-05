@@ -43,6 +43,8 @@ export type InboundMail = {
   headers: Record<string, string>; // lowercased names; last value wins
   text: string; // text/plain body, decoded
   dsn: { status: string | null; finalRecipient: string | null; originalMessageId: string | null } | null;
+  /** E7: a delivery report the DSN parser couldn't read (mime.ts isDeliveryReport); needs a human. */
+  deliveryReport?: boolean;
 };
 
 /** A message Bruno sent from the mailbox (read from the Sent folder). */

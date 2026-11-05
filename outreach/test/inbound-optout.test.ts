@@ -230,3 +230,16 @@ describe("S6 opt-out link", () => {
     expect(r.status).toBe(404);
   });
 });
+
+describe("E7: isDeliveryReport", () => {
+  it("true for a truncated delivery-status report; false for a read receipt and a plain reply", async () => {
+    const { isDeliveryReport } = await import("../src/mail/mime");
+    const bounce = ['Content-Type: multipart/report; report-type=delivery-status; boundary="BB"', "", "--BB", "Content-Type: message/delivery-status", "", "Reporting-MTA: dns; mx", "--BB--", ""].join(CRLF);
+    const p = parseMime(bounce);
+    expect(extractDsn(p)).toBeNull();
+    expect(isDeliveryReport(p)).toBe(true);
+    const mdn = ['Content-Type: multipart/report; report-type=disposition-notification; boundary="BB"', "", "--BB", "Content-Type: text/plain", "", "read", "--BB--", ""].join(CRLF);
+    expect(isDeliveryReport(parseMime(mdn))).toBe(false);
+    expect(isDeliveryReport(parseMime(["Content-Type: text/plain", "", "hi", ""].join(CRLF)))).toBe(false);
+  });
+});

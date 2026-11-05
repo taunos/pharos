@@ -151,9 +151,9 @@ export async function POST(req: Request) {
 
   // E5: record the address (SHA-256 hash only, same as email_suppressions) on the
   // outreach do-not-contact list, which the outreach Worker checks before any draft.
-  // It never blocks the deletion itself: if this write fails, deletion still runs
-  // but the page never claims success, so the same link is used again to retry.
-  let dncOk = true;
+  // Written BEFORE anything is destroyed: if it fails, nothing is deleted and the
+  // same link (24h) retries. Deleting first would leave no way to recover the address
+  // for the list once the scan rows are cleared (verify-before-destroy).
   try {
     await env.CITATION_DB.prepare(
       "INSERT OR IGNORE INTO outreach_do_not_contact (email_hash, created_at, source) VALUES (?, ?, 'score-delete-me')"
@@ -161,8 +161,8 @@ export async function POST(req: Request) {
       .bind(await hashEmailSha256(email), Date.now())
       .run();
   } catch (err) {
-    dncOk = false;
     console.error(`[delete-confirm] do-not-contact write failed email_hash=${emailLogHash}: ${err instanceof Error ? err.message : String(err)}`);
+    return errorPage();
   }
 
   const scansRes = await getScansByEmail(env, email);
@@ -173,7 +173,6 @@ export async function POST(req: Request) {
   const scanIds = scansRes.scan_ids;
 
   if (scanIds.length === 0) {
-    if (!dncOk) return errorPage();
     return htmlPage(
       "Astrant — nothing to remove",
       `<h1>No records found for this email.</h1>
@@ -240,7 +239,6 @@ export async function POST(req: Request) {
       500
     );
   }
-  if (!dncOk) return errorPage();
 
   return htmlPage(
     "Astrant — data removed",

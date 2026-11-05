@@ -75,13 +75,28 @@ describe("E5: confirmed deletion puts the address on the outreach do-not-contact
     expect(h.deletePiiForScan).toHaveBeenCalledWith(expect.anything(), "s1");
   });
 
-  it("a failed list write never blocks deletion, but the page never claims success (retry with the same link)", async () => {
-    h.dncRun.mockRejectedValue(new Error("no such table: outreach_do_not_contact"));
+  it("a failed list write destroys nothing (the email stays findable) and the same link retries", async () => {
+    h.dncRun.mockRejectedValueOnce(new Error("no such table: outreach_do_not_contact"));
     const res = await POST(postReq());
-    expect(h.auditsDelete).toHaveBeenCalled();
-    expect(h.deletePiiForScan).toHaveBeenCalled();
     expect(res.status).toBe(502);
     expect(await res.text()).not.toContain("has been removed");
+    expect(h.getScansByEmail).not.toHaveBeenCalled();
+    expect(h.auditsDelete).not.toHaveBeenCalled();
+    expect(h.deletePiiForScan).not.toHaveBeenCalled();
+    // Retry with the same token: list written, then deletion runs.
+    const res2 = await POST(postReq());
+    expect(res2.status).toBe(200);
+    expect(h.dncRun).toHaveBeenCalledTimes(2);
+    expect(h.deletePiiForScan).toHaveBeenCalledWith(expect.anything(), "s1");
+  });
+
+  it("the list write happens before any R2/D1 deletion", async () => {
+    const order: string[] = [];
+    h.dncRun.mockImplementation(async () => void order.push("dnc"));
+    h.auditsDelete.mockImplementation(async () => void order.push("r2"));
+    h.deletePiiForScan.mockImplementation(async () => (order.push("d1"), { ok: true }));
+    await POST(postReq());
+    expect(order).toEqual(["dnc", "r2", "d1"]);
   });
 
   it("no scans + failed list write ⇒ error page, not 'nothing to remove'", async () => {

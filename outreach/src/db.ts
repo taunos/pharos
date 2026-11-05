@@ -58,8 +58,20 @@ export async function resume(db: D1Database, now: number, by: string): Promise<v
     eventStmt(db, now, "resumed", null, { by_admin: by.length > 0, reason: c.pause_reason }),
   ];
   // E6: resuming acknowledges the data behind THIS stop only (stops.ts
-  // stopAcknowledgedAt). No other stop is ever acknowledged implicitly.
-  if (c.pause_reason) stmts.push(eventStmt(db, now, "stop_acknowledged", null, { reason: c.pause_reason }));
+  // stopAcknowledgedAt). No other stop is ever acknowledged implicitly. Inbound
+  // mail is acknowledged by commit order (the highest inbound rowid in this same
+  // transaction), not by time: a complaint whose handling began before the resume
+  // but committed after it has a higher rowid and still counts. inbound rows are
+  // never deleted, so rowids only grow.
+  if (c.pause_reason) {
+    stmts.push(
+      db
+        .prepare(
+          "INSERT INTO events (at, lead_id, kind, detail_json) SELECT ?, NULL, 'stop_acknowledged', json_object('reason', ?, 'inbound_rowid', (SELECT COALESCE(MAX(rowid), 0) FROM inbound))"
+        )
+        .bind(now, c.pause_reason)
+    );
+  }
   await db.batch(stmts);
 }
 

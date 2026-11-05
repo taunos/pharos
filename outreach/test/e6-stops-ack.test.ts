@@ -115,3 +115,25 @@ describe("E6: COMPLAINT_RE matches hostile phrases only", () => {
     expect(await cls(text)).toBe("complaint");
   });
 });
+
+describe("E6 (Codex r1): the complaint watermark is commit order, not wall time", () => {
+  it("a complaint whose handling started before the resume but committed after it still trips", async () => {
+    const { db } = freshDb();
+    const env = makeEnv(db);
+    await db.prepare("UPDATE control SET paused = 0, ramp_start_at = ?").bind(TUE_1400 - 3 * DAY).run();
+    await sends(db, 3, () => TUE_1400 - 2 * HOUR, (i) => (i === 0 ? "complaint" : null));
+    expect((await checkStops(env, TUE_1400 - HOUR, noopAlert))?.reason).toBe("complaints");
+    await resume(db, TUE_1400, "bruno@example.com");
+    // handled_at (captured before classification) is older than the resume; the row commits after it.
+    const id = await insertLead(db, { domain: "late.com", state: "sent" });
+    await db.prepare("INSERT INTO inbound (provider_message_id, lead_id, class, received_at, handled_at) VALUES ('late', ?, 'complaint', ?, ?)").bind(id, TUE_1400 - 5000, TUE_1400 - 5000).run();
+    expect((await evaluateStops(env, TUE_1400 + 1000))?.reason).toBe("complaints");
+  });
+});
+
+describe("E7 (Codex r1): an unparsed delivery report is never an auto_reply", () => {
+  it("delivery report from a non-mailer-daemon sender with Auto-Submitted ⇒ needs_human", async () => {
+    const m = inboundMail({ from: "bounces@mx.example.net", headers: { "auto-submitted": "auto-generated" }, deliveryReport: true, dsn: null });
+    expect((await classify(m, null)).class).toBe("needs_human");
+  });
+});

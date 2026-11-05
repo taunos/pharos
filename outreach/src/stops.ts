@@ -17,7 +17,7 @@ async function lastSends(db: D1Database, n: number): Promise<SentRow[]> {
 
 // Distinct leads among the `n` most recent sends (optionally sent before `before`
 // and after `sentAfter`) with an inbound of one of `classes` (any class when null),
-// optionally handled after `inboundAfter`. The send window is a subquery, not bound
+// optionally with inbound rowid > `inboundAfter` (commit order). The send window is a subquery, not bound
 // lead ids: D1 rejects more than 100 bound parameters, and the 100/300-send windows
 // bind more than that.
 async function countInboundForRecentSends(
@@ -34,7 +34,7 @@ async function countInboundForRecentSends(
     `SELECT lead_id FROM messages WHERE status = 'sent'${before === null ? "" : " AND sent_at < ?"}` +
     `${sentAfter > 0 ? " AND sent_at > ?" : ""} ORDER BY sent_at DESC LIMIT ?`;
   const r = await db
-    .prepare(`SELECT COUNT(DISTINCT lead_id) AS n FROM inbound WHERE lead_id IN (${win})${cls}${inboundAfter > 0 ? " AND handled_at > ?" : ""}`)
+    .prepare(`SELECT COUNT(DISTINCT lead_id) AS n FROM inbound WHERE lead_id IN (${win})${cls}${inboundAfter > 0 ? " AND rowid > ?" : ""}`)
     .bind(
       ...(before === null ? [] : [before]),
       ...(sentAfter > 0 ? [sentAfter] : []),
@@ -47,17 +47,22 @@ async function countInboundForRecentSends(
 }
 
 /**
- * E6: when Bruno last resumed from `reason` (0 = never). The lifetime-count stops
- * (complaints, silent_failure, program_review) count only data after it, so a
- * resume doesn't re-trip on what it just acknowledged. Kept as 'stop_acknowledged'
- * events written by resume() (no control column, so no migration).
+ * E6: the watermark of Bruno's last resume from `reason` (zeros = never). The
+ * lifetime-count stops (complaints, silent_failure, program_review) count only data
+ * after it, so a resume doesn't re-trip on what it just acknowledged. `at` is the
+ * resume time (for sends); `inboundRowid` is the highest inbound row committed when
+ * the resume committed (for replies: commit order, so a complaint handled across the
+ * resume still counts). Kept as 'stop_acknowledged' events written by resume() (no
+ * control column, so no migration). A missing rowid acknowledges no inbound mail.
  */
-export async function stopAcknowledgedAt(db: D1Database, reason: string): Promise<number> {
+export async function stopAcknowledgedAt(db: D1Database, reason: string): Promise<{ at: number; inboundRowid: number }> {
   const r = await db
-    .prepare("SELECT MAX(at) AS t FROM events WHERE kind = 'stop_acknowledged' AND json_extract(detail_json, '$.reason') = ?")
+    .prepare(
+      "SELECT at, json_extract(detail_json, '$.inbound_rowid') AS rid FROM events WHERE kind = 'stop_acknowledged' AND json_extract(detail_json, '$.reason') = ? ORDER BY id DESC LIMIT 1"
+    )
     .bind(reason)
-    .first<{ t: number | null }>();
-  return r?.t ?? 0;
+    .first<{ at: number; rid: number | null }>();
+  return { at: r?.at ?? 0, inboundRowid: typeof r?.rid === "number" ? r.rid : 0 };
 }
 
 export type StopVerdict = { reason: string; detail: Record<string, unknown> } | null;
@@ -81,8 +86,8 @@ export async function evaluateStops(env: Env, now: number): Promise<StopVerdict>
   }
 
   // Complaints: ≥1 in the first 200 sends; ≥0.3% of the last 300 after (i.e. ≥1 in 300).
-  // Both count only complaints handled after the last resume from this stop (E6).
-  const complaintsAck = await stopAcknowledgedAt(db, "complaints");
+  // Both count only complaints committed after the last resume from this stop (E6).
+  const complaintsAck = (await stopAcknowledgedAt(db, "complaints")).inboundRowid;
   const total = (await db.prepare("SELECT COUNT(*) AS n FROM messages WHERE status = 'sent'").first<{ n: number }>())?.n ?? 0;
   const complaints =
     total <= 200
@@ -91,8 +96,8 @@ export async function evaluateStops(env: Env, now: number): Promise<StopVerdict>
         // Live false trip 2026-11-05: a pre-existing inbox email matched the rule.
         (
           await db
-            .prepare("SELECT COUNT(*) AS n FROM inbound WHERE class = 'complaint' AND lead_id IS NOT NULL AND (? = 0 OR handled_at > ?)")
-            .bind(complaintsAck, complaintsAck)
+            .prepare("SELECT COUNT(*) AS n FROM inbound WHERE class = 'complaint' AND lead_id IS NOT NULL AND rowid > ?")
+            .bind(complaintsAck)
             .first<{ n: number }>()
         )?.n ?? 0
       : await countInboundForRecentSends(db, 300, null, ["complaint"], { inboundAfter: complaintsAck });
@@ -107,7 +112,7 @@ export async function evaluateStops(env: Env, now: number): Promise<StopVerdict>
 
   // Silent-failure proxy: 0 replies of any kind across the last 40 sends (each at least 3 days old).
   // After a resume from this stop, only sends made after the resume count (E6).
-  const silentAck = await stopAcknowledgedAt(db, "silent_failure");
+  const silentAck = (await stopAcknowledgedAt(db, "silent_failure")).at;
   const old40 = (
     await db
       .prepare("SELECT lead_id, sent_at FROM messages WHERE status = 'sent' AND sent_at < ? AND sent_at > ? ORDER BY sent_at DESC LIMIT 40")
@@ -127,7 +132,7 @@ export async function evaluateStops(env: Env, now: number): Promise<StopVerdict>
     (
       await db
         .prepare("SELECT COUNT(*) AS n FROM messages WHERE kind = 'initial' AND status = 'sent' AND sent_at > ?")
-        .bind(reviewAck)
+        .bind(reviewAck.at)
         .first<{ n: number }>()
     )?.n ?? 0;
   const pool =
@@ -138,8 +143,8 @@ export async function evaluateStops(env: Env, now: number): Promise<StopVerdict>
     const good =
       (
         await db
-          .prepare("SELECT COUNT(*) AS n FROM inbound WHERE class IN ('interested','question') AND (? = 0 OR handled_at > ?)")
-          .bind(reviewAck, reviewAck)
+          .prepare("SELECT COUNT(*) AS n FROM inbound WHERE class IN ('interested','question') AND rowid > ?")
+          .bind(reviewAck.inboundRowid)
           .first<{ n: number }>()
       )?.n ?? 0;
     if (good === 0) return { reason: "program_review", detail: { initials, pool } };

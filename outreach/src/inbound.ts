@@ -5,7 +5,7 @@ import { fill, INTERESTED_DRAFT_BODY } from "./copy";
 import { stripQuoted } from "./mail/mime";
 import type { InboundMail, MailClient } from "./mail/types";
 import { alertDeleteDraft, cancelOutstandingStmt, mailboxDraftCount } from "./drafts";
-import { requestScanDeletionStmt, suppressStmts } from "./suppression";
+import { isSuppressed, requestScanDeletionStmt, suppressStmts } from "./suppression";
 import { crossListStatus } from "./cross-list";
 import type { AiBinding, Env, LeadRow, LeadState } from "./types";
 /** Workers AI model for reply classification only (enum output). Nothing model-written reaches a draft. */
@@ -97,7 +97,8 @@ export async function classify(m: InboundMail, ai: AiBinding | null): Promise<Cl
     if (st && st.startsWith("4.")) return { class: "bounce_soft", confidence: 1, method: "rule" };
     return { class: "bounce_hard", confidence: 1, method: "rule" }; // 5.x.x or unknown status: stop emailing
   }
-  if (isBounceSender(m)) return { class: "needs_human", confidence: null, method: "rule" };
+  // An unparsed delivery report or a bounce address: never auto_reply, never the model.
+  if (isBounceSender(m) || m.deliveryReport) return { class: "needs_human", confidence: null, method: "rule" };
   const body = stripQuoted(m.text);
   const subj = m.subject.replace(/^\s*(re|aw|fwd?)\s*:\s*/i, "");
   // Explicit opt-out text in the new reply's SUBJECT or BODY wins over auto-reply
@@ -318,26 +319,47 @@ export async function handleInbound(env: Env, deps: InboundDeps, m: InboundMail)
       // only if it is a well-formed id (the gate checks it). Then the reply policy runs.
       const initial = await db.prepare("SELECT subject FROM messages WHERE lead_id = ? AND kind = 'initial' AND status = 'sent'").bind(lead.id).first<{ subject: string }>();
       const scoreUrl = isAstrantUrl(sheet.score_url) ? (sheet.score_url as string) : "";
-      // E5: no reply draft to an address on Astrant's other opt-out lists (or when they can't be read).
-      const crossClear = deps.mailboxWrites && lead.contact_email ? (await crossListStatus(env, lead.contact_email)) === "clear" : false;
-      if (deps.mailboxWrites && replyable && initial && lead.contact_email && crossClear) try {
+      // E5: a reply draft only while the lead is still waiting (fresh read: an opt-out
+      // may have landed while we classified), not suppressed here, and not on Astrant's
+      // other opt-out lists. Checked before AND after the provider call; any error = no.
+      const contact = lead.contact_email;
+      const replyAllowed = async (): Promise<boolean> => {
+        if (!contact) return false;
+        try {
+          const cur = await db.prepare("SELECT state FROM leads WHERE id = ?").bind(lead.id).first<{ state: LeadState }>();
+          if (!cur || !REPLYABLE.includes(cur.state)) return false;
+          if (await isSuppressed(env, { email: contact, domain: lead.domain })) return false;
+          return (await crossListStatus(env, contact)) === "clear";
+        } catch {
+          return false;
+        }
+      };
+      let blockedAfterCreate = false;
+      if (deps.mailboxWrites && replyable && initial && contact && (await replyAllowed())) try {
         const theirId = m.headers["message-id"];
         const d = await gatedCreateDraft(
           deps.mail,
           {
-            to: lead.contact_email,
+            to: contact,
             subject: "Re: " + initial.subject.replace(/^\s*(re:\s*)+/i, ""),
             text: fill(INTERESTED_DRAFT_BODY, { score_url: scoreUrl }),
             inReplyTo: theirId && /^<[^<>\s]{3,250}>$/.test(theirId) ? theirId : undefined,
             references: theirId && /^<[^<>\s]{3,250}>$/.test(theirId) ? theirId : undefined,
           },
-          { kind: "reply", domain: lead.domain, contactEmail: lead.contact_email }
+          { kind: "reply", domain: lead.domain, contactEmail: contact }
         );
         draftId = d.draftId;
+        if (!(await replyAllowed())) blockedAfterCreate = true;
       } catch (e) {
         console.error("draft_failed", e instanceof Error ? e.message : String(e));
       }
       stmts.push(cancelFollowup, moveLeadStmt(db, now, lead.id, from, "replied", klass), eventStmt(db, now, `inbound_${klass}`, lead.id));
+      if (blockedAfterCreate) {
+        // The lead opted out (here or on another Astrant list) while the draft was saved.
+        await alertDeleteDraft(deps.alert, lead.domain, lead.id, "They opted out while the reply draft was being saved.");
+        draftId = null;
+        break;
+      }
       alertAfter = {
         kind: `Interested reply from ${lead.domain}`,
         text: `Interested reply from ${lead.domain}${draftId ? ": a reply draft is ready in the mailbox." : deps.mailboxWrites ? ". The reply draft could not be created; reply from the mailbox." : ". Reply from the mailbox (no draft is written in this mode)."}`,

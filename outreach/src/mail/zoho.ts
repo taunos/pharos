@@ -6,7 +6,7 @@
 // get-original-message.html, post-save-draft-template.html (mode, inReplyTo,
 // refHeader), get-all-folder-details.html (folderType Inbox/Sent/Drafts).
 // Never called with real credentials in this repo's tests.
-import { addrOf, extractDsn, firstTextPlain, parseMime } from "./mime";
+import { addrOf, extractDsn, firstTextPlain, isDeliveryReport, parseMime } from "./mime";
 import { MailboxError, type DrainResult, type InboundMail, type IsKnown, type MailClient, type OutreachDraft, type SentMail, type SentResult } from "./types";
 
 export type ZohoConfig = {
@@ -194,6 +194,7 @@ export class ZohoMailClient implements MailClient {
         headers: p.headers,
         text: firstTextPlain(p),
         dsn: extractDsn(p),
+        deliveryReport: isDeliveryReport(p),
       });
     }
     return { messages, caughtUp: w.caughtUp, cursor: w.cursor };
