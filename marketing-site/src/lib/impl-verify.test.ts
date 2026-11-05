@@ -423,6 +423,27 @@ describe("openapi states", () => {
     const p = parseOpenApi("openapi: 3.1.0\ninfo:\n  description: |\n    title: Acme API\n  title: Real\npaths: {}\n");
     expect(p?.title).toBe("Real");
   });
+  it.each([
+    ["unterminated flow sequence as a method value", "    get: [unterminated"],
+    ["flow mapping as a method value", "    get: {summary: x}"],
+    ["unterminated quoted value", '    get:\n      summary: "open'],
+    ["anchor", "    get: &a x"],
+    ["nested key under a scalar", "    get: x\n      summary: y"],
+    ["second key on one line", "    get: summary: x"],
+    ["line that is not key: value", "    get:\n      just words"],
+  ])("invalid YAML under a path is not a delivered operation: %s", async (_name, op) => {
+    const spec = `openapi: 3.1.0\ninfo:\n  title: "Acme API"\nservers:\n  - url: "https://acme.com"\npaths:\n  "/pets":\n${op}\n`;
+    expect(parseOpenApi(spec)).toBeNull();
+    const exp = expectedFromDelivery({
+      files: { "public/openapi.yaml": `openapi: 3.1.0\ninfo:\n  title: "Acme API"\nservers:\n  - url: "https://acme.com"\npaths:\n  "/pets":\n    get:\n      summary: "list"\n` },
+    });
+    const r = await run(goodSite({ [path]: spec }).fetchImpl, { expected: { engine: exp.engine, openapi: exp.openapi } });
+    expect(r.openapi.state).toBe("mismatch");
+  });
+  it("the generator's own output still parses under the syntax gate", () => {
+    const p = parseOpenApi(OPENAPI_SPEC);
+    expect(p?.paths).toEqual({ "/pets": ["get", "post"], "/pets/{id}": ["delete"] });
+  });
   it("items at the parent's indent are read (servers:\\n- url: x)", () => {
     const p = parseOpenApi("openapi: 3.1.0\ninfo:\n  title: Acme API\nservers:\n- url: https://acme.com\npaths: {}\n");
     expect(p?.servers).toEqual(["https://acme.com"]);
@@ -639,6 +660,23 @@ describe("mcp_server states", () => {
     expect(Date.now() - t0).toBeLessThan(5000);
     expect(["mismatch", "unobservable"]).toContain(r.mcp_server.state);
   });
+  it.each(["initialize", "tools/list", "tools/call"])(
+    "a valid %s reply padded past the cap is mismatch, never working (prefix not parsed)",
+    async (method) => {
+      const server = jsonRpcServer(names);
+      const pad = " ".repeat(3 * 1024 * 1024);
+      const { fetchImpl } = router({
+        [`${MCP}/`]: async (url, init) => {
+          const res = await server(url, init);
+          if (JSON.parse(String(init.body)).method !== method) return res;
+          return new Response((await res.text()) + pad, { headers: res.headers });
+        },
+      });
+      const r = await run(fetchImpl, { expected: ex });
+      expect(r.mcp_server.state).toBe("mismatch");
+      expect(r.mcp_server.evidence.note).toMatch(/reply exceeds \d+ bytes/);
+    },
+  );
 });
 
 // ── Bounded parsers ──────────────────────────────────────────────────────

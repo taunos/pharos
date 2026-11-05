@@ -144,15 +144,7 @@ export async function runImplDayAudit(
       console.log(`F2_AUDIT_DAYN_RESUME_AFTER_SEND session_id=${f2_session_id} day_n=${day_n}`);
     } else {
       if ((await scanAndSend(env, f2, day_n, f2_session_id, deps, copyApproved)) === "held") {
-        // Release the claim without failed_at: once the copy is approved the
-        // next sweep claims again and sends from the stored record.
-        const heldTime = Math.floor(Date.now() / 1000);
-        await env.CITATION_DB.prepare(
-          `UPDATE implementation_sessions SET ${firedAtCol} = NULL, updated_at = ?
-           WHERE session_id = ?`,
-        )
-          .bind(heldTime, f2_session_id)
-          .run();
+        // holdForCopy already released the claim (same batch as the marker).
         console.log(`F2_AUDIT_DAYN_HELD session_id=${f2_session_id} day_n=${day_n} reason=verification_copy_pending`);
         return { kind: "held" };
       }
@@ -310,16 +302,23 @@ async function scanAndSend(
   return "sent";
 }
 
-// Marks the stored Day-30 recheck as held for unapproved copy. Only the call
-// that sets the marker alerts, so the operator gets ONE alert per session.
+// Marks the stored Day-30 recheck as held for unapproved copy and releases the
+// Day-30 claim (no failed_at) in ONE batch: a held marker never lands without
+// the release, so the row cannot be stranded claimed-and-held. Once the copy is
+// approved the next sweep claims again and sends from the stored record.
+// Only the call that sets the marker alerts, so the operator gets ONE alert.
 async function holdForCopy(env: ImplDayRunEnv, f2_session_id: string): Promise<void> {
   const t = Math.floor(Date.now() / 1000);
-  const res = await env.CITATION_DB.prepare(
-    `UPDATE implementation_sessions SET day30_verification_held_at = ?, updated_at = ?
-     WHERE session_id = ? AND day30_verification_held_at IS NULL`,
-  )
-    .bind(t, t, f2_session_id)
-    .run();
+  const [res] = await env.CITATION_DB.batch([
+    env.CITATION_DB.prepare(
+      `UPDATE implementation_sessions SET day30_verification_held_at = ?, updated_at = ?
+       WHERE session_id = ? AND day30_verification_held_at IS NULL`,
+    ).bind(t, t, f2_session_id),
+    env.CITATION_DB.prepare(
+      `UPDATE implementation_sessions SET day30_audit_fired_at = NULL, updated_at = ?
+       WHERE session_id = ?`,
+    ).bind(t, f2_session_id),
+  ]);
   if (res.meta.changes === 1) {
     await alertOperator(
       env,

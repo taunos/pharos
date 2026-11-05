@@ -415,6 +415,23 @@ describe("Day-30 recheck — rescan + acceptance checks vs Day 0 and baseline", 
     expect(row()).toEqual(before);
   });
 
+  it("hold marker and claim release commit together: a failed release leaves no held marker", async () => {
+    await applied(DAY0);
+    const { v } = fakeVerifier(DAY30);
+    sq.failWhen = (sql) => /SET day30_audit_fired_at = NULL, updated_at/.test(sql);
+    expect(await runImplDayAudit(env(), { day_n: 30, f2_session_id: SID }, { verifier: v })).toEqual({
+      kind: "failed_reset",
+    });
+    sq.failWhen = null;
+    const r = row();
+    // Not stranded: never held-while-claimed; the failed reset released the claim.
+    expect(r.day30_verification_held_at).toBeNull();
+    expect(r.day30_audit_fired_at).toBeNull();
+    expect(r.day30_audit_failed_at).not.toBeNull();
+    expect(alerts()).toEqual([]);
+    expect(customer()).toHaveLength(0);
+  });
+
   it("copy approved after a hold → next sweep sends from the stored record (no rescan, no checks)", async () => {
     await applied(DAY0);
     const { v, calls } = fakeVerifier(DAY30);

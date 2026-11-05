@@ -146,6 +146,33 @@ function handleMessage(msg: unknown): Record<string, unknown> | null {
   }
 }
 
+// Reads the body with the byte cap enforced while streaming (a body sent
+// without Content-Length is never buffered past MAX_BODY_BYTES).
+// null = over the cap; the rest of the stream is cancelled.
+async function readBodyCapped(request: Request): Promise<string | null> {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_BODY_BYTES) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  const all = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    all.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(all);
+}
+
 async function handleMcpPost(request: Request): Promise<Response> {
   const version = request.headers.get("mcp-protocol-version");
   if (version !== null && !SUPPORTED_PROTOCOL_VERSIONS.includes(version)) {
@@ -158,8 +185,8 @@ async function handleMcpPost(request: Request): Promise<Response> {
   if (Number(request.headers.get("content-length") ?? "0") > MAX_BODY_BYTES) {
     return json(rpcError(null, -32000, "Request body too large"), 413);
   }
-  const text = await request.text();
-  if (text.length > MAX_BODY_BYTES) {
+  const text = await readBodyCapped(request);
+  if (text === null) {
     return json(rpcError(null, -32000, "Request body too large"), 413);
   }
   let body: unknown;

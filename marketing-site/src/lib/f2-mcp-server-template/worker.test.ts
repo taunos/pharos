@@ -151,6 +151,29 @@ describe("delivered MCP Worker: JSON-RPC over Streamable HTTP", () => {
     expect((await post(JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping", pad: "x".repeat(70000) }))).status).toBe(413);
   });
 
+  it("a body streamed without Content-Length is cut off at the cap, not buffered whole", async () => {
+    const CHUNK = 16 * 1024;
+    const TOTAL_CHUNKS = 256; // 4 MiB offered
+    let pulled = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (pulled === 0) controller.enqueue(new TextEncoder().encode('{"jsonrpc":"2.0","id":1,"method":"ping","pad":"'));
+        if (++pulled >= TOTAL_CHUNKS) controller.close();
+        else controller.enqueue(new Uint8Array(CHUNK).fill(120));
+      },
+    });
+    const req = new Request(ORIGIN + "/mcp", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+      body: stream,
+      duplex: "half",
+    } as RequestInit);
+    expect(req.headers.get("content-length")).toBeNull();
+    const res = await worker.fetch(req, {});
+    expect(res.status).toBe(413);
+    expect(pulled).toBeLessThan(16); // ~64 KiB / 16 KiB, plus stream lookahead
+  });
+
   it("the legacy POST /mcp/call route is gone", async () => {
     const res = await post({ tool: "get_capabilities" }, {}, "/mcp/call");
     expect(res.status).toBe(404);

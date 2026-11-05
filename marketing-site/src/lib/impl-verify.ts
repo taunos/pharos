@@ -644,8 +644,10 @@ function parseOpenApiJson(text: string): ParsedOpenApi | null {
 /**
  * Block-style YAML subset: `key: value` mappings by indentation, `- url: x`
  * sequence items under servers, `|`/`>` block scalars skipped, `{}` / `[]`
- * as empty flow collections. Anything else under paths -> paths null.
- * Per-line work is anchored and bounded (lines over MAX_LINE_CHARS fail).
+ * as empty flow collections. Any other syntax anywhere (other flow
+ * collections, unterminated quotes, anchors/tags, a nested line under a
+ * scalar) -> null (does not parse); a path whose value is not a nested block
+ * -> paths null. Per-line work is anchored and bounded (lines over MAX_LINE_CHARS fail).
  */
 function parseOpenApiYaml(text: string): ParsedOpenApi | null {
   let version: string | null = null;
@@ -659,6 +661,7 @@ function parseOpenApiYaml(text: string): ParsedOpenApi | null {
   let opIndent = -1;
   let blockIndent = -1; // inside a block scalar whose key sat at this indent
   let pathCount = 0;
+  let maxIndent = 0; // deepest indent the next line may use
   let failed = false;
   forEachLine(text, (raw) => {
     if (failed) return;
@@ -679,9 +682,19 @@ function parseOpenApiYaml(text: string): ParsedOpenApi | null {
       failed = true;
       return;
     }
-    const isItem = rest.startsWith("- ");
-    const kv = splitKeyValue(isItem ? rest.slice(2) : rest);
+    const isItem = rest === "-" || rest.startsWith("- ");
+    const content = rest === "-" ? "" : isItem ? rest.slice(2) : rest;
+    const kv = splitKeyValue(content);
+    // Syntax gate: every line is `key: value` (or an item holding one, or a
+    // scalar) whose key and value the subset supports, at an indent its parent
+    // allows. Anything else is not read as fields: the document does not parse.
+    if (indent > maxIndent || (kv ? !kv.valid : !(isItem && readScalar(content).valid))) {
+      failed = true;
+      return;
+    }
     if (kv && /^[|>][-+0-9]*$/.test(kv.value)) blockIndent = indent;
+    // Deeper lines may follow only a key that opens a nested block (empty value).
+    maxIndent = kv && kv.value === "" ? Infinity : isItem && kv ? indent + 2 : indent;
     if (indent === 0 && !isItem) {
       if (!kv) {
         failed = true;
@@ -720,33 +733,59 @@ function parseOpenApiYaml(text: string): ParsedOpenApi | null {
   return { version, title, servers, paths: pathsSeen ? paths : {} };
 }
 
-/** `key: value` / `key:` with an unquoted or quoted key; strips quotes and " #" comments from the value. */
-function splitKeyValue(s: string): { key: string; value: string } | null {
+/**
+ * `key: value` / `key:` with an unquoted or quoted key; strips quotes and " #"
+ * comments from the value. valid = key and value are in the supported subset.
+ */
+function splitKeyValue(s: string): { key: string; value: string; valid: boolean } | null {
   let key: string;
   let after: number;
+  let keyOk = true;
   const q = s[0];
   if (q === '"' || q === "'") {
     const k = readQuoted(s, 0);
     if (!k || s[k.end] !== ":") return null;
     key = k.value;
     after = k.end + 1;
+    keyOk = after === s.length || s[after] === " ";
   } else {
     const colon = s.indexOf(": ");
     const at = colon >= 0 ? colon : s.endsWith(":") ? s.length - 1 : -1;
     if (at <= 0) return null;
     key = s.slice(0, at).trim();
     after = at + 1;
+    keyOk = !PLAIN_BAD_START.test(key) && !key.startsWith("#");
   }
-  let value = s.slice(after).trim();
-  const vq = value[0];
-  if ((vq === '"' || vq === "'") && value.length >= 2) {
-    const v = readQuoted(value, 0);
-    if (v) value = v.value;
-  } else {
-    const hash = value.indexOf(" #");
-    if (hash >= 0) value = value.slice(0, hash).trim();
+  const v = readScalar(s.slice(after));
+  return { key, value: v.value, valid: keyOk && v.valid };
+}
+
+// Plain scalars may not start with a YAML indicator (flow collections, anchors,
+// aliases, tags, block scalars, quotes, reserved) or with "- ", "? ", ": ".
+const PLAIN_BAD_START = /^(?:[[\]{},&*!|>%@`'"]|[-?:](?: |$))/;
+
+/**
+ * A value in the supported subset: empty (or only a comment), a whole quoted
+ * scalar, `{}` / `[]`, a block-scalar header, or a plain scalar that is not
+ * flow syntax and holds no further `key: value`. valid false = anything else
+ * (unterminated quotes or flow collections, anchors, tags, ...).
+ */
+function readScalar(raw: string): { value: string; valid: boolean } {
+  const v = raw.trim();
+  if (v === "" || v.startsWith("#")) return { value: "", valid: true };
+  if (v[0] === '"' || v[0] === "'") {
+    const quoted = readQuoted(v, 0);
+    if (!quoted) return { value: v, valid: false };
+    const tail = v.slice(quoted.end);
+    const valid = tail.trim() === "" || (tail.startsWith(" ") && tail.trim().startsWith("#"));
+    return { value: quoted.value, valid };
   }
-  return { key, value };
+  const hash = v.indexOf(" #");
+  const value = hash >= 0 ? v.slice(0, hash).trim() : v;
+  if (value === "{}" || value === "[]") return { value, valid: true };
+  if (/^[|>][-+0-9]*$/.test(value)) return { value, valid: true };
+  const valid = !PLAIN_BAD_START.test(value) && !value.includes(": ") && !value.endsWith(":");
+  return { value, valid };
 }
 
 /** A YAML flow scalar quoted with " (JSON escapes) or ' ('' is a quote) at s[start]. */
@@ -1002,7 +1041,9 @@ async function mcpJsonRpc(
   let session: Record<string, string> | null = null;
   let serverName: string | null = null;
   if (!initBad) {
-    const { msg } = findJsonRpcResponse((await initRes.body({ maxBytes: MAX_JSON_BYTES })).text, "verify-init");
+    const ib = await rpcBody(initRes, "initialize");
+    if ("state" in ib) return done(ib.state, { status: initRes.status, contentType: initType, note: ib.note });
+    const { msg } = findJsonRpcResponse(ib.text, "verify-init");
     const r = msg?.result as { protocolVersion?: unknown; serverInfo?: { name?: unknown } } | undefined;
     if (r && typeof r === "object") {
       const v =
@@ -1028,7 +1069,9 @@ async function mcpJsonRpc(
     lr.discard();
     return done(lbad.state === "absent" ? "mismatch" : lbad.state, { ...ev, note: `tools/list: ${lbad.note}` });
   }
-  const { msg, exhausted } = findJsonRpcResponse((await lr.body({ maxBytes: MAX_JSON_BYTES })).text, "verify-list");
+  const lb = await rpcBody(lr, "tools/list");
+  if ("state" in lb) return done(lb.state, { ...ev, note: lb.note });
+  const { msg, exhausted } = findJsonRpcResponse(lb.text, "verify-list");
   const tools = (msg?.result as { tools?: unknown } | undefined)?.tools;
   if (!Array.isArray(tools)) {
     return done(exhausted ? "unobservable" : "mismatch", {
@@ -1055,7 +1098,9 @@ async function mcpJsonRpc(
       call = { probe, ok: false };
       callNote = `tools/call ${probe}: ${cbad.note}`;
     } else {
-      const reply = findJsonRpcResponse((await got.res.body({ maxBytes: MAX_JSON_BYTES })).text, "verify-call");
+      const cb = await rpcBody(got.res, `tools/call ${probe}`);
+      if ("state" in cb) return done(cb.state, { ...ev, note: cb.note });
+      const reply = findJsonRpcResponse(cb.text, "verify-call");
       if (reply.exhausted) return done("unobservable", { ...ev, note: `tools/call ${probe}: reply exceeded the scan limit` });
       const r = reply.msg?.result as { content?: unknown; isError?: unknown } | undefined;
       const ok = !!r && Array.isArray(r.content) && r.content.length > 0 && r.isError !== true;
@@ -1078,6 +1123,17 @@ async function mcpJsonRpc(
     missing,
     note: `MCP JSON-RPC: initialize + tools/list returned ${served.length} tool(s); ${callNote}`,
   });
+}
+
+/**
+ * A JSON-RPC reply body, read whole or not at all: a reply over the cap is
+ * mismatch (its prefix is never parsed), a failed read is unobservable.
+ */
+async function rpcBody(res: SafeResponse, step: string): Promise<{ text: string } | { state: ArtifactState; note: string }> {
+  const body = await res.body({ maxBytes: MAX_JSON_BYTES });
+  if (body.truncated) return { state: "mismatch", note: `${step}: reply exceeds ${MAX_JSON_BYTES} bytes` };
+  if (!body.complete) return { state: "unobservable", note: `${step}: body read failed or timed out` };
+  return { text: body.text };
 }
 
 /**
