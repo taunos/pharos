@@ -302,7 +302,3 @@ export function validateSubmission(body: unknown): ValidationResult {
   return { ok: true, value: b as unknown as TriageSubmission };
 }
 
-// Back-compat type-guard wrapper — kept for callers that only need a boolean.
-export function isValidSubmission(body: unknown): body is TriageSubmission {
-  return validateSubmission(body).ok;
-}
