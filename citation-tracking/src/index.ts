@@ -364,7 +364,9 @@ export default {
         }
 
         // CUSTOMER_CEILING_REACHED check (B1.3 v1.1: MAX_PROBE_TARGETS env binding replaces hardcoded 3)
-        const maxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? '30', 10);
+        // Non-numeric → default 30 (a NaN ceiling would compare false and remove the cap); "0" is honoured.
+        const parsedCeiling = parseInt(env.MAX_PROBE_TARGETS ?? '', 10);
+        const maxProbeTargets = Number.isInteger(parsedCeiling) && parsedCeiling >= 0 ? parsedCeiling : 30;
         const countRow = await env.DB.prepare(
           `SELECT COUNT(*) AS c FROM customer_probe_targets WHERE status='active'`
         ).first<{ c: number }>();
@@ -409,6 +411,10 @@ export default {
         }
         if (typeof body.customer_id !== 'string' || body.customer_id === '') {
           return jsonError(400, 'CUSTOMER_ID_REQUIRED', 'customer_id must be a non-empty string');
+        }
+        // Same transport-safe NUL guard as probe-target-add (repo endpoint-validation rule).
+        if (body.customer_id.includes(String.fromCharCode(0))) {
+          return jsonError(400, 'CUSTOMER_ID_NUL_BYTE', 'customer_id must not contain NUL bytes');
         }
 
         const now = Math.floor(Date.now() / 1000);
