@@ -184,7 +184,7 @@ export default function AuditCheckoutForm({
               checked={consentSellable}
               onChange={(e) => setConsentSellable(e.target.checked)}
               disabled={disabled}
-              className="mt-1 size-4 shrink-0 accent-[var(--color-accent)]"
+              className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]"
             />
             <span>{CONSENT_SELLABLE_TEXT}</span>
           </label>

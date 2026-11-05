@@ -74,10 +74,13 @@ function isTerminal(p: StatusPayload | null): boolean {
 export default function AuditResultsPoller({
   sessionId,
   intro,
+  afterPaid,
 }: {
   sessionId: string;
   // The page's "Hold tight…" paragraph: shown until the audit is ready.
   intro?: ReactNode;
+  // Shown under the status once payment is confirmed (fulfilling / ready).
+  afterPaid?: ReactNode;
 }) {
   const [payload, setPayload] = useState<StatusPayload | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
@@ -144,6 +147,8 @@ export default function AuditResultsPoller({
   }
 
   const isReady = !!payload && payload.ok && payload.status === "ready";
+  const isPaid =
+    !!payload && payload.ok && (payload.status === "fulfilling" || payload.status === "ready");
   const frame = (body: ReactNode) => (
     <>
       {isReady ? null : intro}
@@ -151,6 +156,7 @@ export default function AuditResultsPoller({
         Session: {sessionId}
       </p>
       {body}
+      {isPaid ? afterPaid : null}
     </>
   );
 

@@ -87,9 +87,77 @@ export type IntakeRecord = {
   taxonomy_version: string;
   submitted_at: number;
   answers: IntakeAnswers;
-  // Raw free text: operational store only (§3). Absent when not given.
+  // Raw free text: operational store only (§3). Absent when not given, and
+  // removed once coded (scripts/code-intake-notes.mjs).
   notes?: string;
+  // Codes from INTAKE_NOTE_CODES assigned to earlier notes by a human coder.
+  notes_codes?: string[];
+  coded_by?: "human";
+  // Submissions so far for this session (last write wins; capped).
+  write_count: number;
 };
+
+// Per-session submission cap. Best-effort: KV read-then-write is not atomic,
+// so concurrent submits can slip one extra write through. Only the session
+// UUID holder can write at all, so an overwrite is never cross-user.
+export const INTAKE_MAX_WRITES = 3;
+
+// Last write wins for answers and notes; codes already assigned to earlier
+// notes are kept.
+export function nextIntakeRecord(
+  prev: IntakeRecord | null,
+  input: { answers: IntakeAnswers; notes?: string },
+  now: number,
+): IntakeRecord {
+  return {
+    taxonomy_version: INTAKE_TAXONOMY_VERSION,
+    submitted_at: now,
+    answers: input.answers,
+    ...(input.notes !== undefined ? { notes: input.notes } : {}),
+    ...(prev?.notes_codes ? { notes_codes: prev.notes_codes, coded_by: prev.coded_by } : {}),
+    write_count: (prev?.write_count ?? 0) + 1,
+  };
+}
+
+// Codes a human may assign to free text: "<question id>.<option code>" from
+// the same pain taxonomy (spec §3: free text is coded into the same codes).
+export const INTAKE_NOTE_CODES: readonly string[] = INTAKE_QUESTIONS.flatMap((q) =>
+  q.options.map((o) => `${q.id}.${o.code}`),
+);
+
+// Parses a coder's input ("pain.not_mentioned, owner.founder", or empty for
+// none). Any unknown code rejects the whole input.
+export function parseNoteCodes(
+  input: string,
+): { ok: true; codes: string[] } | { ok: false; unknown: string[] } {
+  const parts = input.split(/[\s,]+/).filter((p) => p.length > 0);
+  const unknown = parts.filter((p) => !INTAKE_NOTE_CODES.includes(p));
+  if (unknown.length > 0) return { ok: false, unknown };
+  return { ok: true, codes: [...new Set(parts)] };
+}
+
+// For showing hostile free text in the operator's terminal: control
+// characters (escape sequences included) become "?"; newlines and tabs stay.
+export function terminalSafe(text: string): string {
+  let out = "";
+  for (const ch of text) {
+    const c = ch.codePointAt(0)!;
+    const control = (c < 32 && c !== 10 && c !== 9) || (c >= 127 && c <= 159);
+    out += control ? "?" : ch;
+  }
+  return out;
+}
+
+// The coded record: raw notes removed, codes merged with any earlier ones.
+export function applyNoteCoding(record: IntakeRecord, codes: string[]): IntakeRecord {
+  const { notes: _removed, ...rest } = record;
+  void _removed;
+  return {
+    ...rest,
+    notes_codes: [...new Set([...(record.notes_codes ?? []), ...codes])],
+    coded_by: "human",
+  };
+}
 
 // Standalone Audit sessions are crypto.randomUUID() (UUID v4); ap- and
 // impl-day sessions are not eligible for the intake.

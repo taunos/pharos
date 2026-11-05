@@ -13,6 +13,7 @@ import { computeNextProbeAt, type ProbeCadence } from "@/lib/cadence";
 import type { AuditFulfillMessage } from "@/lib/audit-fulfill-queue-consumer";
 import type { FulfillMessage } from "@/lib/fulfill-queue-consumer";
 import { updateFunnelStatus } from "@/lib/audit-funnel";
+import { buildRightsRecord, writeRightsRecord } from "@/lib/dataset-consent";
 import { AUDIT_PRODUCT_ID } from "@/lib/audit-gate";
 import { isImplementationCheckoutEnabled } from "@/lib/implementation-gate";
 import { isSubscriptionCheckoutEnabled } from "@/lib/subscription-gate";
@@ -435,6 +436,10 @@ export async function POST(req: Request) {
               );
             }
             await updateFunnelStatus(env.SESSIONS, sessionId, "paid");
+            // Dataset rights registry: durable (no TTL) only for a paid order;
+            // abandoned checkouts leave nothing behind. Best-effort.
+            const rights = buildRightsRecord("audit", record);
+            if (rights) await writeRightsRecord(env.SESSIONS, sessionId, rights);
           }
         }
       }

@@ -9,7 +9,8 @@ import {
 } from "@/lib/dataset-intake";
 
 // Dataset spec v2 §3 — optional post-purchase intake on the results page.
-// Every field is skippable; nothing here gates the audit.
+// Every field is skippable; nothing here gates the audit. Rendered by
+// AuditResultsPoller only once payment is confirmed (fulfilling / ready).
 
 type Status = "idle" | "submitting" | "done" | "error";
 
@@ -28,15 +29,19 @@ export default function AuditIntakeForm({ sessionId }: { sessionId: string }) {
         body: JSON.stringify({ session_id: sessionId, ...answers, notes }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
-      setStatus(data.ok || data.error === "ALREADY_SUBMITTED" ? "done" : "error");
+      setStatus(data.ok ? "done" : "error");
     } catch {
       setStatus("error");
     }
   }
 
+  const heading = <h2 className="text-xl font-semibold">A few optional questions</h2>;
   if (status === "done") {
     return (
-      <p className="mt-12 text-sm text-emerald-400">Thanks — saved.</p>
+      <div className="mt-12 border-t border-[var(--color-border)] pt-8">
+        {heading}
+        <p className="mt-2 text-sm text-emerald-400">Thanks — saved.</p>
+      </div>
     );
   }
 
@@ -46,7 +51,7 @@ export default function AuditIntakeForm({ sessionId }: { sessionId: string }) {
 
   return (
     <form onSubmit={onSubmit} className="mt-12 border-t border-[var(--color-border)] pt-8">
-      <h2 className="text-xl font-semibold">A few optional questions</h2>
+      {heading}
       <p className="mt-2 text-sm text-[var(--color-muted)]">Skip any or all of them.</p>
       <div className="mt-6 flex flex-col gap-5">
         {INTAKE_QUESTIONS.map((q) => (
@@ -57,7 +62,7 @@ export default function AuditIntakeForm({ sessionId }: { sessionId: string }) {
               value={answers[q.id] ?? ""}
               onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
               disabled={disabled}
-              className={fieldClass}
+              className={`${fieldClass} truncate pr-8`}
             >
               <option value="">—</option>
               {q.options.map((o) => (

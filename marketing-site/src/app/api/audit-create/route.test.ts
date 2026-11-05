@@ -182,7 +182,7 @@ describe("POST /api/audit-create — gate open", () => {
     ["string 'true'", "true"],
     ["number 1", 1],
     ["object", { yes: true }],
-  ])("consent_sellable %s → 0 on session + rights record", async (_n, value) => {
+  ])("consent_sellable %s → 0 on the session record", async (_n, value) => {
     openEnv();
     const { POST } = await import("./route");
     const body: Record<string, unknown> = { ...VALID };
@@ -194,26 +194,21 @@ describe("POST /api/audit-create — gate open", () => {
     expect(session.consent_sellable).toBe(0);
     expect(session.consent_text_version).toBe("p2-sellable-v1-2026-11-05");
     expect(session.consent_at).toBe(session.created_at);
-    expect(JSON.parse(state.store.get(`rights:audit:${session_id}`)!).consent_sellable).toBe(0);
   });
 
-  it("consent_sellable true → 1; rights record has NO TTL, no email/url, P1 default on", async () => {
+  it("consent_sellable true → 1 on the session; no durable rights record before payment", async () => {
     openEnv();
     const { POST } = await import("./route");
     const res = await POST(req({ ...VALID, consent_sellable: true }));
     const { session_id } = (await res.json()) as { session_id: string };
     expect(JSON.parse(state.store.get(`audit:${session_id}`)!).consent_sellable).toBe(1);
-    const rightsPut = state.puts.find((p) => p.key === `rights:audit:${session_id}`);
-    expect(rightsPut!.opts?.expirationTtl).toBeUndefined();
-    expect(JSON.parse(rightsPut!.value)).toEqual({
-      tier: "audit",
-      consent_sellable: 1,
-      consent_text_version: "p2-sellable-v1-2026-11-05",
-      consent_at: expect.any(Number),
-      consent_method: "checkout_checkbox",
-      p1_opt_out: 0,
-    });
-    expect(rightsPut!.value).not.toContain("example.com");
+    // An abandoned checkout leaves nothing without a TTL except the
+    // pre-existing funnel record (no email/URL).
+    expect(state.puts.some((p) => p.key.startsWith("rights:"))).toBe(false);
+    const noTtl = state.puts.filter((p) => p.opts?.expirationTtl === undefined).map((p) => p.key);
+    expect(noTtl.filter((k) => !k.startsWith("ratelimit") && !k.startsWith("rl:"))).toEqual([
+      `funnel:audit:${session_id}`,
+    ]);
   });
 
   it("consent never changes price, product or Dodo metadata", async () => {

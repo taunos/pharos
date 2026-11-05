@@ -12,9 +12,7 @@ import { checkAuditCheckoutCreateRateLimit } from "@/lib/rate-limit-kv";
 import { createFunnelRecord } from "@/lib/audit-funnel";
 import {
   CONSENT_SELLABLE_TEXT_VERSION,
-  buildRightsRecord,
   parseConsentSellable,
-  writeRightsRecord,
 } from "@/lib/dataset-consent";
 
 // AUDIT_PRODUCT_ID lives in @/lib/audit-gate (shared with the webhook).
@@ -196,12 +194,6 @@ export async function POST(req: Request) {
   });
   // Funnel record — no TTL, no email/URL (best-effort; never blocks checkout).
   await createFunnelRecord(env.SESSIONS, session_id, sourceScanId ?? null);
-  // Rights registry — no TTL, no email/URL (best-effort; never blocks checkout).
-  await writeRightsRecord(
-    env.SESSIONS,
-    session_id,
-    buildRightsRecord("audit", consentSellable, createdAt),
-  );
 
   return NextResponse.json({
     ok: true,

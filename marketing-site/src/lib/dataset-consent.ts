@@ -3,11 +3,13 @@
 // Audit checkout is wired today.
 //
 // Storage (SESSIONS KV):
-// - The consent fields are stamped on the order's session record (30-day TTL).
-// - `rights:{tier}:{session_id}` holds the permission evidence with NO TTL, so
-//   a later withdrawal can still be honored after the order record expires
-//   (§4.1 rights registry). It never stores the buyer email, the URL or any
-//   free text — only flags, the text version shown, timestamps and method.
+// - The consent fields are stamped on the order's session record at checkout
+//   creation (30-day TTL), so an abandoned checkout leaves no lasting record.
+// - `rights:{tier}:{session_id}` holds the permission evidence with NO TTL,
+//   written only once payment is confirmed (dodo-webhook), so a later
+//   withdrawal can still be honored after the order record expires (§4.1
+//   rights registry). It never stores the buyer email, the URL or any free
+//   text — only flags, the text version shown, timestamps and method.
 
 // Exact approved checkbox text (Bruno, 2026-11-05). Changing a single
 // character requires a new CONSENT_SELLABLE_TEXT_VERSION.
@@ -43,29 +45,46 @@ export function rightsKey(tier: ConsentTier, sessionId: string): string {
   return `rights:${tier}:${sessionId}`;
 }
 
+export type SessionConsentFields = {
+  consent_sellable?: ConsentFlag;
+  consent_text_version?: string;
+  consent_at?: number;
+};
+
+// Builds the rights record from the consent fields stamped on a paid order's
+// session. Returns null for sessions created before the consent UI existed:
+// no text was shown, so there is no evidence to record.
 export function buildRightsRecord(
   tier: ConsentTier,
-  consentSellable: ConsentFlag,
-  now: number,
-): RightsRecord {
+  session: SessionConsentFields,
+): RightsRecord | null {
+  if (
+    typeof session.consent_text_version !== "string" ||
+    typeof session.consent_at !== "number"
+  ) {
+    return null;
+  }
   return {
     tier,
-    consent_sellable: consentSellable,
-    consent_text_version: CONSENT_SELLABLE_TEXT_VERSION,
-    consent_at: now,
+    consent_sellable: session.consent_sellable === 1 ? 1 : 0,
+    consent_text_version: session.consent_text_version,
+    consent_at: session.consent_at,
     consent_method: "checkout_checkbox",
     p1_opt_out: 0,
   };
 }
 
-// Best-effort: a rights-registry failure never blocks checkout. The session
-// record still carries the consent fields for its 30-day life.
+// Best-effort: a rights-registry failure never blocks payment handling. The
+// session record still carries the consent fields for its 30-day life.
+// Write-if-absent (KV read-then-write; not atomic, acceptable here).
 export async function writeRightsRecord(
   kv: KVNamespace,
   sessionId: string,
   record: RightsRecord,
 ): Promise<void> {
   try {
+    // Never overwrite: a webhook replay must not reset a recorded opt-out.
+    if (await kv.get(rightsKey(record.tier, sessionId))) return;
     await kv.put(rightsKey(record.tier, sessionId), JSON.stringify(record));
   } catch {
     console.error(`RIGHTS_REGISTRY_WRITE_FAILED tier=${record.tier} session_id=${sessionId}`);

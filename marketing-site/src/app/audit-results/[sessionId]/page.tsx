@@ -37,10 +37,12 @@ export default async function AuditResultsPage({
                 minutes. We&apos;ll also email you the PDF.
               </p>
             }
+            afterPaid={
+              isIntakeSessionId(sessionId) ? (
+                <AuditIntakeForm sessionId={sessionId} />
+              ) : null
+            }
           />
-          {isIntakeSessionId(sessionId) ? (
-            <AuditIntakeForm sessionId={sessionId} />
-          ) : null}
         </section>
       </main>
       <SiteFooter />

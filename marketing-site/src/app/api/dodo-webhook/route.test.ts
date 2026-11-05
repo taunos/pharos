@@ -208,6 +208,41 @@ describe("POST /api/dodo-webhook — audit tier", () => {
     expect(typeof session().enqueued_at).toBe("number");
   });
 
+  it("dataset: paid → durable rights record from the session's consent fields", async () => {
+    seed("awaiting_payment", {
+      consent_sellable: 1,
+      consent_text_version: "p2-sellable-v1-2026-11-05",
+      consent_at: 7,
+    });
+    const { POST } = await import("./route");
+    expect((await POST(webhook())).status).toBe(200);
+    expect(JSON.parse(state.store.get(`rights:audit:${SID}`)!)).toEqual({
+      tier: "audit",
+      consent_sellable: 1,
+      consent_text_version: "p2-sellable-v1-2026-11-05",
+      consent_at: 7,
+      consent_method: "checkout_checkbox",
+      p1_opt_out: 0,
+    });
+    expect(state.store.get(`rights:audit:${SID}`)).not.toContain("example.com");
+  });
+
+  it("dataset: an existing rights record (e.g. P1 opt-out) is never overwritten", async () => {
+    seed("fulfilling", { consent_sellable: 0, consent_text_version: "v", consent_at: 1 });
+    const existing = JSON.stringify({ tier: "audit", p1_opt_out: 1 });
+    state.store.set(`rights:audit:${SID}`, existing);
+    const { POST } = await import("./route");
+    expect((await POST(webhook())).status).toBe(200);
+    expect(state.store.get(`rights:audit:${SID}`)).toBe(existing);
+  });
+
+  it("dataset: pre-consent-UI session → no rights record", async () => {
+    seed("awaiting_payment");
+    const { POST } = await import("./route");
+    expect((await POST(webhook())).status).toBe(200);
+    expect(state.store.has(`rights:audit:${SID}`)).toBe(false);
+  });
+
   it.each([
     ["fulfilling", { enqueued_at: 5 }],
     ["ready", {}],
