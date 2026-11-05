@@ -18,8 +18,10 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { verifyDeletionToken, hashEmailForR2Key, hashEmailForLog } from "@/lib/score-tokens";
 import { DELETE_PII_TIMEOUT_MS, deletePiiForScan, getScansByEmail } from "@/lib/score-scanner-client";
+import { hashEmailSha256 } from "@/lib/email-suppressions";
 
 interface ConfirmEnv {
+  CITATION_DB: D1Database;
   AUDITS: R2Bucket;
   UNSUBSCRIBE_SECRET: string;
   INTERNAL_SCANNER_ADMIN_KEY: string;
@@ -146,6 +148,22 @@ export async function POST(req: Request) {
   // the recovered value is already canonical — no re-normalization needed.
   const email = verified.email;
   const emailLogHash = await hashEmailForLog(email, env.UNSUBSCRIBE_SECRET);
+
+  // E5: record the address (SHA-256 hash only, same as email_suppressions) on the
+  // outreach do-not-contact list, which the outreach Worker checks before any draft.
+  // Written BEFORE anything is destroyed: if it fails, nothing is deleted and the
+  // same link (24h) retries. Deleting first would leave no way to recover the address
+  // for the list once the scan rows are cleared (verify-before-destroy).
+  try {
+    await env.CITATION_DB.prepare(
+      "INSERT OR IGNORE INTO outreach_do_not_contact (email_hash, created_at, source) VALUES (?, ?, 'score-delete-me')"
+    )
+      .bind(await hashEmailSha256(email), Date.now())
+      .run();
+  } catch (err) {
+    console.error(`[delete-confirm] do-not-contact write failed email_hash=${emailLogHash}: ${err instanceof Error ? err.message : String(err)}`);
+    return errorPage();
+  }
 
   const scansRes = await getScansByEmail(env, email);
   if (!scansRes.ok) {

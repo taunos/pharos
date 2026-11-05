@@ -15,6 +15,7 @@ import { finalizeBody, renderInitialBody, type RenderCtx } from "./render";
 import { checkOutboundDraft, isAstrantUrl } from "./safety";
 import { RESCAN_AFTER_MS } from "./research";
 import { isSuppressed } from "./suppression";
+import { crossListStatus } from "./cross-list";
 import type { AiBinding, Env, LeadRow } from "./types";
 import { dailyCap } from "./warmup";
 import { draftEmail } from "./writer";
@@ -109,6 +110,14 @@ export async function buildWeeklyBatch(env: Env, deps: BatchDeps): Promise<{ sta
       await moveLead(db, now, lead.id, "contact_found", "disqualified", "suppressed");
       continue;
     }
+    // E5: not offered for approval if on Astrant's other opt-out lists; skipped (not
+    // disqualified) while those can't be read. createMailboxDraft re-checks anyway.
+    const cross = await crossListStatus(env, lead.contact_email);
+    if (cross === "suppressed") {
+      await moveLead(db, now, lead.id, "contact_found", "disqualified", "suppressed");
+      continue;
+    }
+    if (cross === "unavailable") continue;
     const sheet = JSON.parse(lead.fact_sheet_json ?? "null") as FactSheet | null;
     if (!sheet) continue;
     const out = await draftEmail({ sheet, ctx, templateVariant: variantBase + drafted });

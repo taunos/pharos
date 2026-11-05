@@ -65,6 +65,17 @@ export function makeD1(sqlite: DatabaseSync) {
   return { prepare, batch } as unknown as D1Database;
 }
 
+// E5: the marketing opt-out lists, built from the real citation-tracking migrations.
+const OPTOUT_LIST_MIGRATIONS = ["0011_email_suppressions.sql", "0017_outreach_do_not_contact.sql"].map((f) =>
+  readFileSync(new URL(`../../citation-tracking/migrations/${f}`, import.meta.url), "utf8")
+);
+
+export function freshOptoutListsDb(): { sqlite: DatabaseSync; db: D1Database } {
+  const sqlite = new DatabaseSync(":memory:");
+  for (const m of OPTOUT_LIST_MIGRATIONS) sqlite.exec(m);
+  return { sqlite, db: makeD1(sqlite) };
+}
+
 export function freshDb(): { sqlite: DatabaseSync; db: D1Database } {
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec(MIGRATION);
@@ -148,6 +159,7 @@ export function makeFetch(routes: Record<string, { status: number; body?: string
 export function makeEnv(db: D1Database, over: Partial<Env> = {}): Env & { SCANNER: FakeScanner; AI: FakeAI } {
   return {
     DB: db,
+    OPTOUT_LISTS_DB: freshOptoutListsDb().db,
     SCANNER: new FakeScanner(),
     AI: new FakeAI(),
     OUTREACH_MODE: "gated",

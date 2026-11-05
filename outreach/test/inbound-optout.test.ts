@@ -32,7 +32,9 @@ describe("classification (rules first; safer branch when unsure)", () => {
   it("rules", async () => {
     expect((await c({ from: "mailer-daemon@x.com", dsn: { status: "5.1.1", finalRecipient: null, originalMessageId: null } })).class).toBe("bounce_hard");
     expect((await c({ from: "mailer-daemon@x.com", dsn: { status: "4.2.2", finalRecipient: null, originalMessageId: null } })).class).toBe("bounce_soft");
-    expect((await c({ from: "postmaster@x.com" })).class).toBe("bounce_hard"); // unknown status ⇒ stop emailing
+    expect((await c({ from: "postmaster@x.com", dsn: { status: null, finalRecipient: "a@b.com", originalMessageId: null } })).class).toBe("bounce_hard"); // unknown status ⇒ stop emailing
+    // E7: a bounce address alone (no parsed delivery-status) is not a bounce; a human looks at it.
+    expect((await c({ from: "postmaster@x.com" })).class).toBe("needs_human");
     expect((await c({ headers: { "auto-submitted": "auto-replied" } })).class).toBe("auto_reply");
     expect((await c({ subject: "Out of Office: back Monday" })).class).toBe("auto_reply");
     expect((await c({ text: "Please remove me from your list." })).class).toBe("opt_out");
@@ -90,12 +92,13 @@ describe("S2 inbound actions", () => {
     expect(await isSuppressed(env, { email: "hello@b.com", domain: "unrelated.com" })).toBe(true);
   });
 
-  it("an unmatched DSN is needs_human and pauses sending", async () => {
+  it("an unmatched DSN is needs_human and alerts, but does not pause (E7)", async () => {
     const { db } = freshDb();
     const env = makeEnv(db);
     await db.prepare("UPDATE control SET paused = 0").run();
     await handleInbound(env, d(), inboundMail({ from: "mailer-daemon@mx.net", dsn: { status: "5.1.1", finalRecipient: "who@nowhere.com", originalMessageId: "<zzz@x>" } }));
-    expect(await db.prepare("SELECT paused, pause_reason FROM control").first()).toEqual({ paused: 1, pause_reason: "unmatched_dsn" });
+    expect(await db.prepare("SELECT paused, pause_reason FROM control").first()).toEqual({ paused: 0, pause_reason: null });
+    expect((await db.prepare("SELECT COUNT(*) AS n FROM events WHERE kind = 'inbound_unmatched_dsn'").first<{ n: number }>())!.n).toBe(1);
     expect((await db.prepare("SELECT class FROM inbound").first<{ class: string }>())!.class).toBe("needs_human");
   });
 
@@ -225,5 +228,18 @@ describe("S6 opt-out link", () => {
     const tok = await makeOptoutToken("other-secret", "m");
     const r = await handleFetch(new Request(`https://go.getastrant.com/u/${tok}`, { method: "POST" }), env, { fetch: makeFetch().f, now: () => 1 });
     expect(r.status).toBe(404);
+  });
+});
+
+describe("E7: isDeliveryReport", () => {
+  it("true for a truncated delivery-status report; false for a read receipt and a plain reply", async () => {
+    const { isDeliveryReport } = await import("../src/mail/mime");
+    const bounce = ['Content-Type: multipart/report; report-type=delivery-status; boundary="BB"', "", "--BB", "Content-Type: message/delivery-status", "", "Reporting-MTA: dns; mx", "--BB--", ""].join(CRLF);
+    const p = parseMime(bounce);
+    expect(extractDsn(p)).toBeNull();
+    expect(isDeliveryReport(p)).toBe(true);
+    const mdn = ['Content-Type: multipart/report; report-type=disposition-notification; boundary="BB"', "", "--BB", "Content-Type: text/plain", "", "read", "--BB--", ""].join(CRLF);
+    expect(isDeliveryReport(parseMime(mdn))).toBe(false);
+    expect(isDeliveryReport(parseMime(["Content-Type: text/plain", "", "hi", ""].join(CRLF)))).toBe(false);
   });
 });
