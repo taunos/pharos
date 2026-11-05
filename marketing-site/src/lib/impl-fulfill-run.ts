@@ -279,7 +279,7 @@ async function buildAndDeliver(
   const competitors = parseCompetitors(f2.competitors);
 
   // Step 3 — Baseline pre-F2 scan
-  const baselineScan = await runScan(f2.customer_domain, env.INTERNAL_FULFILL_KEY);
+  const baselineScan = await runScan(f2.customer_domain, env.INTERNAL_FULFILL_KEY, env.SCANNER_SVC);
   const baselineScanId = `f2-baseline-${sessionId}`;
   await env.AUDITS.put(
     `f2-baseline-scans/${baselineScanId}.json`,

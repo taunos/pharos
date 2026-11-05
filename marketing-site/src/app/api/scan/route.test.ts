@@ -84,6 +84,38 @@ describe("POST /api/scan proxy", () => {
     expect(Object.values(sent[0].headers)).not.toContain("fulfill-key");
   });
 
+  it("SCANNER_SVC bound: the same request goes over the Service Binding, never public fetch", async () => {
+    const svcSent: Sent[] = [];
+    state.env = {
+      SCAN_PROXY_KEY: "scan-proxy-key",
+      SCANNER_SVC: {
+        fetch: vi.fn(async (url: string, init: RequestInit) => {
+          svcSent.push({ url: String(url), headers: init.headers as Record<string, string>, body: String(init.body) });
+          return new Response('{"ok":true,"via":"svc"}', { status: 200, headers: { "content-type": "application/json" } });
+        }),
+      },
+    };
+    const res = await POST(req({ "cf-connecting-ip": "203.0.113.7" }));
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('{"ok":true,"via":"svc"}');
+    expect(sent).toHaveLength(0);
+    expect(svcSent).toHaveLength(1);
+    expect(svcSent[0].url).toBe("https://pharos-scanner.pharos-dev.workers.dev/api/scan");
+    expect(svcSent[0].headers).toEqual({
+      "Content-Type": "application/json",
+      "CF-Connecting-IP": "203.0.113.7",
+      "x-astrant-client-ip": "203.0.113.7",
+      "x-astrant-proxy-key": "scan-proxy-key",
+    });
+    expect(JSON.parse(svcSent[0].body)).toEqual({ url: "https://example.com/" });
+  });
+
+  it("SCANNER_SVC absent: falls back to the workers.dev URL over public fetch", async () => {
+    await POST(req({ "cf-connecting-ip": "203.0.113.7" }));
+    expect(sent).toHaveLength(1);
+    expect(sent[0].url).toBe("https://pharos-scanner.pharos-dev.workers.dev/api/scan");
+  });
+
   it("does not relay client-supplied proxy headers", async () => {
     state.env = {};
     await POST(req({ "x-astrant-client-ip": "1.1.1.1", "x-astrant-proxy-key": "guess" }));

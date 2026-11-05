@@ -73,6 +73,7 @@ interface CaptureEnv {
   CAPTURE_PIPELINE_MODE?: string;
   RATE_LIMIT_HASH_SECRET?: string;
   CAPTURE_RATE_LIMITER?: RateLimitBinding;
+  SCANNER_SVC?: Fetcher;
 }
 
 // Honeypot success — byte-identical to a real fresh-capture success. Bots
@@ -340,7 +341,7 @@ export async function POST(req: Request) {
       });
     }
     // Re-send. Need the public scan record for email body composition.
-    const scanFetch = await getPublicScan(scanId);
+    const scanFetch = await getPublicScan(scanId, env);
     if (!scanFetch.ok) {
       console.error(
         `[capture-email] scan fetch failed for resend scan=${scanId} email_hash=${emailLogHash}: ${scanFetch.error}`
@@ -401,7 +402,7 @@ export async function POST(req: Request) {
   }
 
   // Fetch the public scan record (needed for PDF gen + email body).
-  const scanFetch = await getPublicScan(scanId);
+  const scanFetch = await getPublicScan(scanId, env);
   if (!scanFetch.ok) {
     console.error(
       `[capture-email] scan fetch failed scan=${scanId} email_hash=${emailLogHash}: ${scanFetch.error}`

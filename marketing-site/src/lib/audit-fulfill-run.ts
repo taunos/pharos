@@ -211,7 +211,7 @@ export async function runAuditFulfillment(
   // R2-4: peek the Dim 6 daily budget BEFORE spending a scan + LLM calls.
   if (deferOnCap && (await isDim6CapReached(env.SESSIONS))) return { kind: "cap_deferred" };
 
-  const scannerScan = await runScan(record.url, env.INTERNAL_FULFILL_KEY);
+  const scannerScan = await runScan(record.url, env.INTERNAL_FULFILL_KEY, env.SCANNER_SVC);
 
   // Slice 3b: replace the scanner's free-tier Dim 6 demo preview with a
   // real paid Dim 6 audit. runDim6Paid handles its own daily-cap branch

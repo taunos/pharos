@@ -31,6 +31,13 @@
 			"simple": { "limit": 3, "period": 60 }
 		}
 	],
+	// Marketing → scanner calls (Score proxy, Score admin client, Audit /
+	// Implementation scans) go over this Service Binding to pharos-scanner's
+	// default fetch entrypoint (src/lib/scanner-fetch.ts), so they no longer
+	// depend on the scanner's workers.dev route. Absent binding → workers.dev URL.
+	"services": [
+		{ "binding": "SCANNER_SVC", "service": "pharos-scanner" }
+	],
 	"kv_namespaces": [
 		{
 			"binding": "TRIAGE_CACHE",

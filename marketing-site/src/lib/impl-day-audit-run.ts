@@ -166,7 +166,7 @@ async function scanAndSend(
   }
 
   // Re-scan customer domain at Day-N
-  const currentScan = await runScan(f2.customer_domain, env.INTERNAL_FULFILL_KEY);
+  const currentScan = await runScan(f2.customer_domain, env.INTERNAL_FULFILL_KEY, env.SCANNER_SVC);
   const currentScore = currentScan.composite.score;
 
   // v1.0: no cite-share numbers yet (v1.1+ wires the citation-tracking
