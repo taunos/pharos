@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last updated:** 2026-11-04
+**Last updated:** 2026-11-05
 
 **Status:** v1 in good faith. [Subject to legal review pre-launch.]
 
@@ -38,6 +38,18 @@ When you use Astrant's free Score tool or any paid tier:
 - **Payments** are handled by Dodo Payments, our merchant of record. Dodo collects your payment details directly under its own privacy policy; we never see your card number. We receive your email, the purchase and its status.
 - We don't run ads, advertising pixels, or affiliate tracking.
 
+## Business outreach (prospecting)
+
+We sometimes send a short, personal email to B2B software companies whose public website we think Astrant could help. If you received one, this is how it works:
+
+- **Where we got your address.** From your company's own public website: a contact or team page, or similar. We don't buy email lists and we don't scrape personal social profiles.
+- **What we keep.** Your company's domain, the business email address we wrote to, the page where we found it, the free Astrant Score of your public site, and whether you replied or opted out.
+- **Why (legal basis).** Our legitimate interest in offering a relevant service to a business, at a small scale and with an easy opt-out (LGPD Art. 7 IX; and, where applicable, the CAN-SPAM Act). We exclude companies we identify as based in the EU/EEA; if you're there and we reached you anyway, reply "unsubscribe" and we'll stop immediately.
+- **Who sends it.** Each email is written from your site's public scan results and **sent personally by the Founder from his own mailbox** — there is no bulk-mailing system.
+- **How to stop it.** Use the opt-out link in the email, or reply "unsubscribe". We'll never contact that address again. We keep the address on a do-not-contact list only so we can honor that.
+- **How long we keep it.** If you don't reply, the contact details are deleted 60 days after our last email (30 days after you reply and the conversation ends), and the scan record 90 days after our last email. The do-not-contact list is kept indefinitely.
+- **Your rights.** Everything under "Your rights" below applies. Email privacy@astrant.io.
+
 ## Watermarking on PDF gap reports
 
 PDF gap reports include a small watermark with the email address used to request them. This is an anti-abuse measure — if a report is shared without the requester's consent, the watermark identifies the original requester. The email is not visible in the PDF metadata or filename, only in the visual watermark on each page. By submitting your email to receive the PDF, you consent to having your email appear in the watermark on your copy.
@@ -62,7 +74,7 @@ You have the following rights, regardless of where you're located:
 - **Correction:** if we have something wrong, tell us, and we'll fix it.
 - **Deletion:** visit [`/score/delete-me`](/score/delete-me) to remove your personal data from every Score scan record associated with your email. We send a confirmation link valid for 24 hours; opening it shows a confirmation page, and only when you click Delete do we remove the stored email, IP address, unsubscribe token, opt-in state, and personalized report across every record for that email (not just the most recent). The submitted URL and technical scan results remain for calibration. If you've used Astrant from multiple email addresses, submit a request for each. For Audit orders and reports, email privacy@astrant.io.
 - **Portability:** ask us for a JSON export of your data. Email privacy@astrant.io.
-- **Unsubscribe:** every email we send has a one-click unsubscribe link in the header (RFC 8058) and a visible unsubscribe link in the body.
+- **Unsubscribe:** every automated email we send (Score reports, rescans, receipts) has a one-click unsubscribe link in the header (RFC 8058) and a visible unsubscribe link in the body. Personal outreach emails have an opt-out link in the body, and you can also reply "unsubscribe".
 
 ## Cookies
 
@@ -74,7 +86,7 @@ Astrant is not directed at children. If you're under 16, please don't use this s
 
 ## International transfers
 
-Our infrastructure runs on Cloudflare's global network. Your data may be processed in any region Cloudflare operates in, including the United States. Our email delivery (Resend) and the AI model providers used in a paid Audit are US-based, and Dodo Payments may process payment data outside your country. If you're in the EU/UK and want stronger guarantees about data residency, email privacy@astrant.io.
+Our infrastructure runs on Cloudflare's global network. Your data may be processed in any region Cloudflare operates in, including the United States. Our email delivery (Resend) and the AI model providers used in a paid Audit are US-based, our outreach mailbox is hosted by Zoho, and Dodo Payments may process payment data outside your country. If you're in the EU/UK and want stronger guarantees about data residency, email privacy@astrant.io.
 
 ## Contact
 
