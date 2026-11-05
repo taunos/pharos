@@ -52,6 +52,7 @@ describe("sitemap", () => {
       { url: "https://astrant.io/score" },
       { url: "https://astrant.io/score/methodology" },
       { url: "https://astrant.io/methodology/calibration" },
+      { url: "https://astrant.io/research/ai-cited-vendors-2026" },
       { url: "https://astrant.io/privacy" },
       { url: "https://astrant.io/terms" },
     ]);

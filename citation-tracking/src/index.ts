@@ -85,7 +85,15 @@ export default {
       //   A. stale-claim cleanup (D19 MED-1 retriability)
       //   B. Day-N audit dispatch (D19; HTTP to marketing-site /api/audit-fulfill)
       //   C. Day-91 expiration sweep (D7; conditional probe-target pause)
-      await runF2SweepSteps(env);
+      // Isolated: an F2 sweep failure (e.g. migration 0016 not yet applied) must not
+      // stop the cadence sweep or the daily probe enqueue below.
+      try {
+        await runF2SweepSteps(env);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`F2_SWEEP_FAILED err=${msg}`);
+        await sendOperatorAlert(env, `F2_SWEEP_FAILED err=${msg.slice(0, 160)}`).catch(() => {});
+      }
 
       // F4.1 D7.2 (Variant B): period-end cadence-change sweep — flips pending downgrades
       // whose cadence_change_effective_at has elapsed. Reads pending_probe_cadence directly
@@ -189,7 +197,13 @@ export default {
 
     if (url.pathname.startsWith('/api/internal/')) {
       const auth = request.headers.get('Authorization') ?? '';
-      const expected = `Bearer ${env.PROBE_AUTH_TOKEN}`;
+      // Security pass 2026-11-04: fail closed when the secret is missing or
+      // empty (`Bearer ${undefined}` would otherwise be a known token).
+      const token = env.PROBE_AUTH_TOKEN;
+      if (typeof token !== 'string' || token.length < 16) {
+        return new Response('Unauthorized', { status: 401 });
+      }
+      const expected = `Bearer ${token}`;
       if (!constantTimeEqual(auth, expected)) {
         return new Response('Unauthorized', { status: 401 });
       }
@@ -286,7 +300,7 @@ export default {
         const { sendDigestEmail } = await import('./digest-email');
         const pdfBytes = await renderDigestPdf(markdownWithFooter, brandName);
         await sendDigestEmail(env, customerId, email, markdownWithFooter, pdfBytes, periodStart);
-        console.log(`F3_PREVIEW_DIGEST_SENT subscription_id=${subscriptionId.substring(0, 12)} email=${email}`);
+        console.log(`F3_PREVIEW_DIGEST_SENT subscription_id=${subscriptionId.substring(0, 12)} email_domain=${email.split('@')[1] ?? '?'}`);
         return new Response(JSON.stringify({ ok: true, period_start: periodStart, period_end: periodEnd }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
@@ -414,6 +428,12 @@ async function runF2SweepSteps(env: Env): Promise<void> {
   // If a Day-N audit was claimed (fired_at set) but didn't complete (no succeeded_at / no
   // failed_at) and fired_at is older than 30 min, the handler hard-killed mid-pipeline.
   // Reset fired_at to NULL so the due-audit query below picks it up for re-fire.
+  // Slice Q (A6): no failed_at predicate. The failure path always clears fired_at,
+  // and the marketing-site claim now clears failed_at, so a set fired_at with no
+  // succeeded_at is a stale claim even when an earlier attempt left failed_at set
+  // (a re-claim after a failure that then crashed was never reset before).
+  // Slice Q fix round: never reset a day whose email is confirmed sent
+  // (day{N}_audit_email_sent_at, migration 0016) — that would send it twice.
   const STALE_THRESHOLD_SEC = 1800;
   for (const dayN of [30, 60, 90]) {
     await env.DB.prepare(
@@ -422,7 +442,7 @@ async function runF2SweepSteps(env: Env): Promise<void> {
        WHERE day${dayN}_audit_fired_at IS NOT NULL
          AND day${dayN}_audit_fired_at < ?
          AND day${dayN}_audit_succeeded_at IS NULL
-         AND day${dayN}_audit_failed_at IS NULL`,
+         AND day${dayN}_audit_email_sent_at IS NULL`,
     )
       .bind(now - STALE_THRESHOLD_SEC)
       .run();

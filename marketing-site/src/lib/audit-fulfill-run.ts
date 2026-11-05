@@ -129,6 +129,21 @@ export async function writeAuditSession(
 }
 
 // Providers (models) that produced ZERO measurable cells in this Dim 6 run.
+// Provider diagnostics can carry request URLs (Gemini's API key is a URL query
+// param), key-shaped tokens, or email addresses. Strip all three before the
+// text reaches logs or the operator email.
+export function redactDiagnostic(text: string): string {
+  return text
+    .replace(/https?:\/\/\S+/gi, "[url]")
+    .replace(/\bBearer\s+[^\s"',;]+/gi, "Bearer [redacted]")
+    .replace(
+      /("?(?:key|api[_-]?key|apikey|token|access[_-]?token|secret|authorization|x-api-key)"?\s*[:=]\s*"?)[^\s"',&}]+/gi,
+      "$1[redacted]",
+    )
+    .replace(/\b(sk|pk|pplx|AIza|xox[a-z]?|ghp|gho)[-_A-Za-z0-9]{12,}/g, "[redacted]")
+    .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, "[email]");
+}
+
 export function providersWithZeroMeasurableCells(dim6: RunDim6Result): ModelId[] {
   return ALL_MODEL_IDS.filter(
     (m) => !dim6.cells.some((c) => c.modelId === m && !c.result.unmeasurable),
@@ -229,7 +244,7 @@ export async function runAuditFulfillment(
     const reasons = silentProviders
       .map((m) => {
         const cell = dim6.cells.find((c) => c.modelId === m);
-        return `${m}: ${(cell?.result.notes ?? "no cells").slice(0, 200)}`;
+        return `${m}: ${redactDiagnostic(cell?.result.notes ?? "no cells").slice(0, 200)}`;
       })
       .join(" | ");
     console.error(

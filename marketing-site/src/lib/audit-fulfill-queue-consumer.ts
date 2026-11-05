@@ -102,6 +102,23 @@ async function markFailed(
   // fallback copy instead of raw error text (no new user-facing string).
   await writeAuditSession(env, { ...record, status: "error" });
   await updateFunnelStatus(env.SESSIONS, sessionId, "failed");
+  await releaseApAuditClaim(env, sessionId);
+}
+
+// Slice Q (v1.1 A5): an ap- welcome audit that ends in `error` releases the
+// onboarding CAS (subscriptions.audit_fired_at) so a resubmit re-fires it.
+// Keyed on the claim timestamp embedded in the id (ap-{sub}-{audit_fired_at}),
+// so it never clears a newer claim. Throws if the write fails (caller must NOT
+// ack then; the alert has already been sent).
+export async function releaseApAuditClaim(env: AuditRunEnv, sessionId: string): Promise<void> {
+  const m = sessionId.match(/^ap-(sub_[A-Za-z0-9_-]+)-(\d+)$/);
+  if (!m) return;
+  const res = await env.CITATION_DB.prepare(
+    `UPDATE subscriptions SET audit_fired_at = NULL WHERE subscription_id = ? AND audit_fired_at = ?`,
+  )
+    .bind(m[1], Number(m[2]))
+    .run();
+  console.error(`F3_AUDIT_FIRED_AT_RELEASED session_id=${sessionId} changes=${res.meta.changes}`);
 }
 
 export async function auditFulfillQueueHandler(

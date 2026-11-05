@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { verifyWebhook, type DodoEnvBindings } from "@/lib/dodo";
-import { publicOrigin, requestOrigin } from "@/lib/origin";
+import { getPaymentProducts, verifyWebhook, type DodoEnvBindings } from "@/lib/dodo";
+import { publicOrigin } from "@/lib/origin";
 import type { SessionRecord } from "@/lib/audit-types";
 import { alertOperator, sendOperatorAlert } from "@/lib/operator-alerts";
 import {
@@ -11,11 +11,13 @@ import {
 } from "@/lib/founding-pricing";
 import { computeNextProbeAt, type ProbeCadence } from "@/lib/cadence";
 import type { AuditFulfillMessage } from "@/lib/audit-fulfill-queue-consumer";
+import type { FulfillMessage } from "@/lib/fulfill-queue-consumer";
 import { updateFunnelStatus } from "@/lib/audit-funnel";
+import { AUDIT_PRODUCT_ID } from "@/lib/audit-gate";
+import { isImplementationCheckoutEnabled } from "@/lib/implementation-gate";
 
 interface WebhookEnv extends DodoEnvBindings {
   SESSIONS: KVNamespace;
-  INTERNAL_FULFILL_KEY: string;
   // F3 additions:
   CITATION_DB: D1Database;
   ONBOARDING_TOKEN_SECRET: string;
@@ -38,6 +40,11 @@ interface WebhookEnv extends DodoEnvBindings {
   AUDIT_FULFILL_QUEUE?: Queue<AuditFulfillMessage>;
   // Test C-B: canonical public origin for the audit enqueue (wrangler var).
   PUBLIC_ORIGIN?: string;
+  // Security pass 2026-11-04: the Implementation gate is enforced at the
+  // webhook too, not only at checkout creation.
+  IMPLEMENTATION_CHECKOUT_ENABLED?: string;
+  // Slice Q (Q1g): durable Implementation producer (astrant-fulfill).
+  FULFILL_QUEUE?: Queue<FulfillMessage>;
 }
 
 const F2_IMPLEMENTATION_PRODUCT_ID = "pdt_0NdQE5vccUUgOHMsF6Pzz";
@@ -89,6 +96,74 @@ function toUnixSeconds(v: unknown): number | undefined {
   }
   return undefined;
 }
+
+type AuditPaymentCheck =
+  | { kind: "ok" }
+  | { kind: "reject"; reason: string }
+  | { kind: "retry"; reason: string };
+
+// Security pass 2026-11-04. A paid Audit requires: no subscription, and a
+// non-empty cart whose EVERY item is the Audit product. A webhook without a
+// cart is checked against Dodo's API (authoritative); an API failure is
+// retryable, never a silent allow.
+async function verifyAuditPayment(
+  env: WebhookEnv,
+  parsed: DodoWebhookPayload,
+): Promise<AuditPaymentCheck> {
+  const d = parsed.data ?? {};
+  const subscriptionIds = (d as { subscription_ids?: unknown[] }).subscription_ids;
+  if (d.subscription_id || (Array.isArray(subscriptionIds) && subscriptionIds.length > 0)) {
+    return { kind: "reject", reason: "subscription payment" };
+  }
+  let cart: Array<{ product_id?: string }> | null =
+    d.product_cart ?? d.items ?? (d.product_id ? [{ product_id: d.product_id }] : null);
+  if (!cart || cart.length === 0) {
+    const paymentId = d.payment_id;
+    if (!paymentId) return { kind: "reject", reason: "no product evidence and no payment_id" };
+    try {
+      const looked = await getPaymentProducts(env, paymentId);
+      if (looked.subscription_id || looked.subscription_ids.length > 0) {
+        return { kind: "reject", reason: "subscription payment (API)" };
+      }
+      cart = looked.product_cart;
+    } catch (err) {
+      return { kind: "retry", reason: err instanceof Error ? err.message : String(err) };
+    }
+    if (!cart || cart.length === 0) return { kind: "reject", reason: "empty cart (API)" };
+  }
+  const wrong = cart.find((i) => i.product_id !== AUDIT_PRODUCT_ID);
+  if (wrong) return { kind: "reject", reason: `cart contains product ${wrong.product_id ?? "?"}` };
+  return { kind: "ok" };
+}
+
+// Durable record for a payment we took but did not fulfill, so a refund is
+// never left to an email that might not arrive (alerts are fail-open).
+// Returns false if the record could not be written; the caller must then
+// answer 503 without the dedupe key so Dodo redelivers.
+async function recordManualReview(
+  env: WebhookEnv,
+  kind: "manual-review" | "pending-verification",
+  tier: string,
+  paymentRef: string,
+  reason: string,
+): Promise<boolean> {
+  try {
+    await env.SESSIONS.put(
+      `${kind}:${tier}:${paymentRef}`,
+      JSON.stringify({ tier, payment_ref: paymentRef, reason, at: Date.now() }),
+      { expirationTtl: 180 * 24 * 60 * 60 },
+    );
+    return true;
+  } catch (err) {
+    console.error(
+      `[dodo-webhook] ${kind.toUpperCase()}_WRITE_FAILED ${tier} payment_id=${paymentRef}: ${err instanceof Error ? err.message : String(err)}`
+    );
+    return false;
+  }
+}
+
+const retryLater = () =>
+  NextResponse.json({ ok: false, reason: "retry later" }, { status: 503 });
 
 export async function POST(req: Request) {
   const env = getCloudflareContext().env as unknown as WebhookEnv;
@@ -151,7 +226,64 @@ export async function POST(req: Request) {
     const tier = metadata.tier;
     const sessionId = metadata.session_id;
 
-    if (tier === "audit") {
+    // Security pass 2026-11-04: bind "paid" to the product actually bought.
+    // Metadata is buyer-influenceable on some Dodo flows; the cart is not.
+    const paymentRef = parsed.data?.payment_id ?? parsed.data?.id ?? "null";
+    const auditCheck =
+      tier === "audit" ? await verifyAuditPayment(env, parsed) : null;
+
+    if (auditCheck?.kind === "retry") {
+      // Dodo lookup unavailable: no dedupe write, so Dodo redelivers (8
+      // attempts total). Leave a durable trace + one alert so a payment whose
+      // retries all fail is never lost.
+      console.error(
+        `[dodo-webhook] AUDIT_PAYMENT_LOOKUP_FAILED payment_id=${paymentRef}: ${auditCheck.reason}`
+      );
+      const pendingKey = `pending-verification:audit:${paymentRef}`;
+      const alreadyPending = await env.SESSIONS.get(pendingKey).catch(() => null);
+      if (!alreadyPending) {
+        await recordManualReview(env, "pending-verification", "audit", paymentRef, auditCheck.reason);
+        await alertOperator(
+          env,
+          "AUDIT_PAYMENT_LOOKUP_FAILED",
+          sessionId ?? "",
+          `payment_id=${paymentRef}: ${auditCheck.reason} — Dodo will retry; if it never clears, verify and fulfil manually (KV ${pendingKey})`,
+        );
+      }
+      return retryLater();
+    } else if (auditCheck?.kind === "reject") {
+      console.error(
+        `[dodo-webhook] AUDIT_PAYMENT_REJECTED payment_id=${paymentRef} session_id=${sessionId ?? ""}: ${auditCheck.reason}`
+      );
+      if (!(await recordManualReview(env, "manual-review", "audit", paymentRef, auditCheck.reason))) {
+        return retryLater();
+      }
+      await alertOperator(
+        env,
+        "AUDIT_PAYMENT_REJECTED",
+        sessionId ?? "",
+        `payment_id=${paymentRef}: ${auditCheck.reason} — not fulfilled; reconcile/refund manually (KV manual-review:audit:${paymentRef})`,
+      );
+    } else if (tier === "implementation" && !isImplementationCheckoutEnabled(env)) {
+      console.error(
+        `[dodo-webhook] IMPLEMENTATION_PAID_WHILE_CLOSED payment_id=${paymentRef}`
+      );
+      if (!(await recordManualReview(env, "manual-review", "implementation", paymentRef, "gate closed"))) {
+        return retryLater();
+      }
+      await alertOperator(
+        env,
+        "IMPLEMENTATION_PAID_WHILE_CLOSED",
+        "",
+        `payment_id=${paymentRef} — gate closed, not fulfilled; refund manually (KV manual-review:implementation:${paymentRef})`,
+      );
+    } else if (tier === "audit") {
+      // A retry that now verifies clears any earlier pending-verification trace.
+      try {
+        await env.SESSIONS.delete?.(`pending-verification:audit:${paymentRef}`);
+      } catch {
+        // Non-fatal: the record only drives manual reconciliation.
+      }
       if (!sessionId) {
         console.error(
           `[dodo-webhook] payment.succeeded for audit but missing session_id metadata; webhook-id=${webhookId}`
@@ -241,9 +373,11 @@ export async function POST(req: Request) {
         }
       }
     } else if (tier === "implementation") {
-      // F2 v6.1 D9 — webhook-side dispatch into impl-fulfill pipeline.
-      // Within-file pattern: unawaited fetch + .catch (matches audit-tier above at lines 148-165).
-      const f2Result = await handleF2ImplementationPayment(req, env, parsed, webhookId);
+      // F2 v6.1 D9 — webhook-side dispatch into the Implementation pipeline.
+      // Slice Q (Q1g): durable enqueue onto astrant-fulfill (kind "impl").
+      const f2Result = await handleF2ImplementationPayment(env, parsed, webhookId);
+      // Enqueue failed: no dedupe write, so Dodo's retry re-enters and re-sends.
+      if (f2Result.status === 500) return f2Result;
       if (f2Result.status !== 200) {
         // Mark webhook processed before returning (so Dodo retries hit the dedupe).
         // For 503 AT_CAPACITY: Dodo retries; operator manually refunds; alert already fired.
@@ -552,7 +686,6 @@ export async function POST(req: Request) {
 // shared mark-processed footer.
 
 async function handleF2ImplementationPayment(
-  req: Request,
   env: WebhookEnv,
   parsed: DodoWebhookPayload,
   webhookId: string,
@@ -624,6 +757,24 @@ async function handleF2ImplementationPayment(
     return NextResponse.json({ ok: true, error: "MISSING_FIELDS_REPORTED" });
   }
 
+  const sessionId = `impl-${dodoPaymentId}`;
+
+  // Slice Q fix round: a redelivery for a payment we already recorded skips the
+  // capacity gate (the order is already taken). A row still `queued` may have
+  // lost its enqueue (P1b) — re-send; any other status is an idempotent no-op.
+  // Only brand-new purchases reach the Stage-2 gate below.
+  const existing = await env.CITATION_DB.prepare(
+    `SELECT status FROM implementation_sessions WHERE session_id = ?`,
+  )
+    .bind(sessionId)
+    .first<{ status: string }>();
+  if (existing) {
+    if (existing.status !== "queued") {
+      return NextResponse.json({ ok: true, deduped: true });
+    }
+    return enqueueImplementation(env, sessionId);
+  }
+
   // D18 Stage 2 — belt-and-suspenders ceiling check (self-exclusion form per HIGH-1 lock).
   // B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded 3.
   const f2MaxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
@@ -651,7 +802,6 @@ async function handleF2ImplementationPayment(
   }
 
   // INSERT OR IGNORE on dodo_payment_id UNIQUE (idempotent against webhook retry)
-  const sessionId = `impl-${dodoPaymentId}`;
   const now = Math.floor(Date.now() / 1000);
   const paymentTime = parsed.timestamp
     ? Math.floor(new Date(parsed.timestamp).getTime() / 1000)
@@ -681,30 +831,31 @@ async function handleF2ImplementationPayment(
     .run();
 
   if (insertResult.meta.changes !== 1) {
-    // Duplicate webhook delivery; idempotent no-op
+    // A concurrent delivery inserted the row between the lookup above and this
+    // INSERT; it enqueues (or 500s and Dodo retries into the lookup). No-op.
     return NextResponse.json({ ok: true, deduped: true });
   }
 
-  // Fire-and-forget dispatch to /api/impl-fulfill (within-file unawaited fetch + .catch pattern;
-  // matches audit-tier dispatch at lines 148-165).
-  if (env.INTERNAL_FULFILL_KEY) {
-    const origin = requestOrigin(req);
-    const implFulfillUrl = `${origin}/api/impl-fulfill`;
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    fetch(implFulfillUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-internal-fulfill-key": env.INTERNAL_FULFILL_KEY,
-      },
-      body: JSON.stringify({ session_id: sessionId }),
-    }).catch((err) => {
-      console.error(
-        `F2_IMPL_FULFILL_FIRE_FAILED session_id=${sessionId} err=${err instanceof Error ? err.message : String(err)}`,
-      );
-    });
-  } else {
-    console.error(`F2_INTERNAL_FULFILL_KEY_MISSING session_id=${sessionId} — fulfillment dispatch skipped`);
+  return enqueueImplementation(env, sessionId);
+}
+
+// Slice Q (Q1g): durable dispatch via FULFILL_QUEUE. The row is inserted
+// BEFORE the send (D1 is strongly consistent, so the consumer always sees
+// it; the consumer's lease claim makes a duplicate enqueue harmless). On a
+// send failure return 500 with NO dedupe write, so Dodo's retry re-enters,
+// finds the row `queued` and re-sends.
+async function enqueueImplementation(
+  env: WebhookEnv,
+  sessionId: string,
+): Promise<NextResponse | { status: 200 }> {
+  try {
+    if (!env.FULFILL_QUEUE) throw new Error("FULFILL_QUEUE binding missing");
+    await env.FULFILL_QUEUE.send({ kind: "impl", session_id: sessionId });
+  } catch (err) {
+    console.error(
+      `F2_IMPL_ENQUEUE_FAILED session_id=${sessionId} err=${err instanceof Error ? err.message : String(err)}`,
+    );
+    return NextResponse.json({ ok: false, reason: "enqueue failed" }, { status: 500 });
   }
 
   // Caller falls through to shared mark-processed footer + 200 response.

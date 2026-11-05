@@ -7,11 +7,11 @@ import {
 import { normalizeEmail } from "@/lib/email-normalize";
 import { requestOrigin } from "@/lib/origin";
 import type { SessionRecord } from "@/lib/audit-types";
-import { isAuditCheckoutEnabled } from "@/lib/audit-gate";
+import { AUDIT_PRODUCT_ID, isAuditCheckoutEnabled } from "@/lib/audit-gate";
 import { checkAuditCheckoutCreateRateLimit } from "@/lib/rate-limit-kv";
 import { createFunnelRecord } from "@/lib/audit-funnel";
 
-const AUDIT_PRODUCT_ID = "pdt_0NdQDsS4Shhe1BrDzQDaa";
+// AUDIT_PRODUCT_ID lives in @/lib/audit-gate (shared with the webhook).
 const SESSION_TTL_SEC = 30 * 24 * 60 * 60;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Test C-A (A2): server-side field caps + source_scan_id shape.
