@@ -9,6 +9,9 @@
 --                             due date and bundle_expires_at are anchored on it.
 --   applied_by                who marked it applied: 'operator', or 'operator+forced'
 --                             when Day 0 was anchored without a working artifact
+--   mcp_url                   deployed MCP Worker URL the operator gave at mark
+--                             applied (the patch does not fix one); the Day-30
+--                             recheck probes the same URL. NULL = MCP not checked.
 --   day30_verification_held_at  the Day-30 recheck ran and was stored, but its
 --                             email copy is not approved yet: later sweeps skip the
 --                             rescan; once approved the email is sent from the record
@@ -32,6 +35,7 @@
 ALTER TABLE implementation_sessions ADD COLUMN baseline_scoring_version TEXT;
 ALTER TABLE implementation_sessions ADD COLUMN applied_at INTEGER;
 ALTER TABLE implementation_sessions ADD COLUMN applied_by TEXT;
+ALTER TABLE implementation_sessions ADD COLUMN mcp_url TEXT;
 ALTER TABLE implementation_sessions ADD COLUMN day30_verification_held_at INTEGER;
 
 CREATE TABLE IF NOT EXISTS implementation_verifications (

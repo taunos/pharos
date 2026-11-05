@@ -12,9 +12,11 @@
 // Proves delivery, not outcomes: nothing here reads or reports citations,
 // traffic or AI recommendations.
 //
-// The acceptance checker is built on branch claude/impl-verify-checks
-// (./impl-verify). It is injected as an ImplVerifier so this branch commits no
-// stub at that path; lib/impl-verify-adapter.ts wires it after the merge.
+// The acceptance checker (./impl-verify) is injected as an ImplVerifier;
+// lib/impl-verify-adapter.ts supplies the real one. The MCP check needs the
+// deployed Worker URL, which the patch does not fix: the operator passes it at
+// mark applied (stored as mcp_url, reused at Day 30); without it the checker
+// reports mcp_server as unobservable ("no deployed MCP URL reported").
 
 export const AWAITING_APPLICATION = "awaiting_application";
 
@@ -36,6 +38,7 @@ export interface ImplVerifier {
   verifyArtifacts(input: {
     siteUrl: string;
     expected: unknown;
+    mcpUrl?: string;
     fetchImpl?: typeof fetch;
     now?: () => Date;
   }): Promise<VerificationCheck[]>;
@@ -82,11 +85,13 @@ async function runChecks(
   verifier: ImplVerifier,
   delivery: ImplDelivery,
   deps: VerifyDeps,
+  mcpUrl: string | null,
 ): Promise<VerificationCheck[]> {
   const expected = verifier.expectedFromDelivery(delivery);
   return verifier.verifyArtifacts({
     siteUrl: delivery.siteUrl,
     expected,
+    mcpUrl: mcpUrl ?? undefined,
     fetchImpl: deps.fetchImpl,
     now: deps.now,
   });
@@ -124,13 +129,15 @@ const MARKABLE_SQL = MARKABLE_STATUSES.map((s) => `'${s}'`).join(", ");
 // opts.force (operator) anchors it whatever the states; the checks are still
 // stored and applied_by gets a "+forced" marker.
 // Only Day 30 is scheduled: verified sessions get no Day-60/90 audits.
+// opts.mcpUrl: deployed MCP Worker URL; stored with the flip so Day 30 rechecks it.
 export async function markImplementationApplied(
   env: ImplVerificationEnv,
   sessionId: string,
   appliedBy: "operator",
   deps: VerifyDeps,
-  opts: { force?: boolean } = {},
+  opts: { force?: boolean; mcpUrl?: string } = {},
 ): Promise<MarkAppliedResult> {
+  const mcpUrl = opts.mcpUrl ?? null;
   const row = await readAwaitingRow(env, sessionId);
   const early = classify(row);
   if (early) return early;
@@ -139,7 +146,7 @@ export async function markImplementationApplied(
   const delivery = await loadDelivery(env, row!);
   if (!delivery) return { kind: "patch_missing" };
 
-  const checks = await runChecks(deps.verifier, delivery, deps);
+  const checks = await runChecks(deps.verifier, delivery, deps, mcpUrl);
   if (!opts.force && !checks.some((c) => c.state === "working")) return { kind: "not_verified", checks };
 
   const by = opts.force ? `${appliedBy}+forced` : appliedBy;
@@ -157,7 +164,7 @@ export async function markImplementationApplied(
     ).bind(sessionId, JSON.stringify(checks), appliedAt),
     env.CITATION_DB.prepare(
       `UPDATE implementation_sessions
-       SET status = 'active', applied_at = ?1, applied_by = ?2,
+       SET status = 'active', applied_at = ?1, applied_by = ?2, mcp_url = ?4,
            day30_audit_due_at = ?1 + ${30 * DAY},
            day60_audit_due_at = NULL,
            day90_audit_due_at = NULL,
@@ -165,7 +172,7 @@ export async function markImplementationApplied(
            updated_at = ?1
        WHERE session_id = ?3 AND status IN (${MARKABLE_SQL})
          AND applied_at IS NULL AND bundle_expired_at IS NULL`,
-    ).bind(appliedAt, by, sessionId),
+    ).bind(appliedAt, by, sessionId, mcpUrl),
   ]);
 
   if (flip.meta.changes !== 1) {
@@ -264,8 +271,11 @@ export async function runRecheckVerification(
     .bind(input.session_id)
     .first<{ checks_json: string }>();
   const day0 = day0Row ? (JSON.parse(day0Row.checks_json) as VerificationCheck[]) : [];
+  const session = await env.CITATION_DB.prepare(`SELECT mcp_url FROM implementation_sessions WHERE session_id = ?`)
+    .bind(input.session_id)
+    .first<{ mcp_url: string | null }>();
 
-  const checks = await runChecks(deps.verifier, delivery, deps);
+  const checks = await runChecks(deps.verifier, delivery, deps, session?.mcp_url ?? null);
   const verifiedAt = Math.floor((deps.now ? deps.now() : new Date()).getTime() / 1000);
   await env.CITATION_DB.prepare(
     `INSERT OR REPLACE INTO implementation_verifications

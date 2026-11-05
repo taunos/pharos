@@ -1,19 +1,14 @@
-// Wiring point for the Implementation acceptance checker.
+// Wiring point for the Implementation acceptance checker (./impl-verify).
 //
-// WIRE-AT-MERGE: the checker (./impl-verify) is built on branch
-// claude/impl-verify-checks. Once it is merged, replace the body below with:
-//
-//   import { verifyArtifacts, expectedFromDelivery } from "./impl-verify";
-//   export function loadImplVerifier(): ImplVerifier | null {
-//     return { verifyArtifacts, expectedFromDelivery };
-//   }
-//
-// Until then this returns null and every caller fails closed: the mark-applied
-// endpoint answers 503 and a verified session's Day-30 run fails (and is
-// retried by the next sweep) instead of sending.
+// The flow's delivery ({ sessionId, siteUrl, patchR2Key, patch }) is the
+// checker's { patch } delivery shape; the MCP URL travels separately as
+// verifyArtifacts' optional mcpUrl (lib/impl-verification.ts).
+// Callers still handle null (fail closed): the mark-applied endpoint answers
+// 503 and a verified session's Day-30 run fails and is retried.
 
 import type { ImplVerifier } from "./impl-verification";
+import { expectedFromDelivery, verifyArtifacts } from "./impl-verify";
 
 export function loadImplVerifier(): ImplVerifier | null {
-  return null;
+  return { expectedFromDelivery, verifyArtifacts };
 }

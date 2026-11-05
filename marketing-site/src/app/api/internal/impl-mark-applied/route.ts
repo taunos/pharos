@@ -8,7 +8,9 @@
 // (applied_by 'operator+forced'). Idempotent: a repeat call answers
 // already_applied and writes nothing.
 // Auth: x-internal-fulfill-key = INTERNAL_FULFILL_KEY (same as /api/impl-fulfill).
-// Body: { "session_id": "impl-<dodo_payment_id>", "force"?: boolean }
+// Body: { "session_id": "impl-<dodo_payment_id>", "force"?: boolean, "mcp_url"?: string }
+// mcp_url: the customer's deployed MCP Worker endpoint (the patch does not fix
+// one). Stored and reused at Day 30; absent = mcp_server reported unobservable.
 
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
@@ -19,6 +21,17 @@ import { loadImplVerifier } from "@/lib/impl-verify-adapter";
 export const dynamic = "force-dynamic";
 
 const IMPL_ID_RE = /^impl-[A-Za-z0-9_-]+$/;
+
+// Shape check only; the checker re-validates (public host, redirects).
+function isHttpUrl(v: unknown): v is string {
+  if (typeof v !== "string" || v.length > 2048) return false;
+  try {
+    const u = new URL(v);
+    return u.protocol === "https:" || u.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
 
 interface MarkAppliedEnv extends ImplVerificationEnv {
   INTERNAL_FULFILL_KEY: string;
@@ -31,9 +44,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  let body: { session_id?: unknown; force?: unknown };
+  let body: { session_id?: unknown; force?: unknown; mcp_url?: unknown };
   try {
-    body = (await req.json()) as { session_id?: unknown; force?: unknown };
+    body = (await req.json()) as { session_id?: unknown; force?: unknown; mcp_url?: unknown };
   } catch {
     return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400 });
   }
@@ -44,13 +57,16 @@ export async function POST(req: Request) {
   if (body.force !== undefined && typeof body.force !== "boolean") {
     return NextResponse.json({ error: "force must be a boolean" }, { status: 400 });
   }
+  if (body.mcp_url !== undefined && !isHttpUrl(body.mcp_url)) {
+    return NextResponse.json({ error: "mcp_url must be an http(s) URL" }, { status: 400 });
+  }
 
   const result = await markImplementationApplied(
     env,
     sessionId,
     "operator",
     { verifier: loadImplVerifier() },
-    { force: body.force === true },
+    { force: body.force === true, mcpUrl: body.mcp_url as string | undefined },
   );
   switch (result.kind) {
     case "applied":
