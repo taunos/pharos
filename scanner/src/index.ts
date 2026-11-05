@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
 import type { Env, ScanTier } from "./types";
-import { checkBurstLimit, checkRateLimit, limiterIdentity } from "./ratelimit";
-import { isSafeTargetUrl } from "./safe-fetch";
+import { enforceScanLimits, limiterIdentity, proxyTrustKey } from "./ratelimit";
+import { INVALID_SCAN_INPUT, scanUrlSchema } from "./scan-rpc";
 import { runScan } from "./run-scan";
 import { SCORING_VERSION } from "./version";
 import { mountScoreAdmin } from "./score-admin";
@@ -70,7 +70,8 @@ const scanBody = z.object({
   // Security pass 2026-11-04: only public http(s) hosts on 80/443 (no IP
   // literals, localhost/internal suffixes, single-label hosts, credentials,
   // other ports). Rejected with the existing 400 before any KV or D1 write.
-  url: z.string().max(2048).url().refine(isSafeTargetUrl),
+  // E8: the schema is shared with the ScanRpc entrypoint (./scan-rpc).
+  url: scanUrlSchema,
   email: z
     .string()
     .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
@@ -90,8 +91,7 @@ app.post("/api/scan", async (c) => {
     return c.json(
       {
         ok: false,
-        error:
-          "Invalid input: url must be a valid URL; email and tier optional",
+        error: INVALID_SCAN_INPUT,
       },
       400
     );
@@ -129,30 +129,17 @@ app.post("/api/scan", async (c) => {
   // rate limits. URL validation above still applies to them. Everything else,
   // including paid requests degraded to free, goes through both limits.
   if (tier !== "paid") {
+    // E11: x-astrant-proxy-key is checked against SCAN_PROXY_KEY (transition
+    // fallback: INTERNAL_FULFILL_KEY while SCAN_PROXY_KEY is unset).
     const ip = limiterIdentity(
-      c.env.INTERNAL_FULFILL_KEY,
+      proxyTrustKey(c.env),
       c.req.header("CF-Connecting-IP"),
       c.req.header("x-astrant-proxy-key"),
       c.req.header("x-astrant-client-ip")
     );
 
-    // Security pass 2026-11-04: first limit is the best-effort Rate Limiting
-    // binding (keyed by IP; approximate, eventually consistent), ahead of any
-    // KV/D1/fetch work; the KV daily limits below stay as the second layer.
-    // Its limit (5 per 60 s) is normally only reachable by a client already
-    // over 5 per day, so the existing message stays accurate.
-    if (!(await checkBurstLimit(c.env.SCAN_RATE_LIMITER, ip))) {
-      return c.json({ ok: false, error: "Rate limit: 5 scans per IP per day" }, 429);
-    }
-
-    const rl = await checkRateLimit(c.env, ip, url);
-    if (!rl.allowed) {
-      if (rl.misconfigured) {
-        console.error("RATE_LIMIT_MISCONFIGURED: RATE_LIMIT_HASH_SECRET is not set");
-        return c.json({ ok: false, error: "MISCONFIGURED" }, 503);
-      }
-      return c.json({ ok: false, error: rl.reason }, 429);
-    }
+    const limited = await enforceScanLimits(c.env, ip, url);
+    if (limited) return c.json(limited.body, limited.status);
   }
 
   // Outreach slice: the scan body lives in runScan (./run-scan) so the
@@ -199,6 +186,10 @@ app.get("/", (c) =>
 // Named export next to the default object export; reachable only through a
 // Service Binding, so nothing new is exposed on scanner.astrant.io.
 export { ProspectScan } from "./prospect-scan";
+
+// E8: Service-Binding-only RPC entrypoint for pharos-mcp's score_url, keyed on
+// the end-user IP the caller passes. Not reachable on scanner.astrant.io.
+export { ScanRpc } from "./scan-rpc";
 
 // P0-C2 Chunk C: expose fetch (unchanged) + a DORMANT scheduled handler for the
 // capture-outbox watchdog. No cron trigger is declared in wrangler.jsonc in this

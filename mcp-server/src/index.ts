@@ -20,12 +20,15 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { z } from "zod";
 import { HUMAN_PAGE_HTML } from "./human-page";
 import { pricingNotes } from "./audit-gate";
+import { requestScan, type ScanRpcBinding } from "./scanner-rpc";
 import { checkLlmsTxt, checkRateLimit, RATE_LIMITED_MESSAGE, shapeScoreDimensions, type RateLimitBinding } from "./site-fetch";
 
 interface Env {
   AUDIT_CHECKOUT_ENABLED?: string;
   // Per-client-IP limit shared by the tools that fetch a user-supplied site.
   FETCH_RATE_LIMITER?: RateLimitBinding;
+  // E8: Service Binding to pharos-scanner's ScanRpc entrypoint (score_url).
+  SCANNER?: ScanRpcBinding;
 }
 
 const rateLimitedResult = (url: string) => ({
@@ -215,15 +218,11 @@ function buildMcpServer(env: Env, clientIp: string | null): McpServer {
       // tool shares the per-IP fetch budget with check_llms_txt.
       if (!(await checkRateLimit(env.FETCH_RATE_LIMITER, clientIp))) return rateLimitedResult(url);
       try {
-        const res = await fetch("https://pharos-scanner.pharos-dev.workers.dev/api/scan", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url }),
-          // A hung scanner must not hang the agent's tool call; the catch below reports it.
-          signal: AbortSignal.timeout(120_000),
-        });
+        // E8: Service Binding RPC keyed on the end-user IP; a missing binding
+        // or a hung scanner throws and the catch below reports it.
+        const res = await requestScan(env.SCANNER, url, clientIp);
 
-        if (!res.ok) {
+        if (res.status < 200 || res.status > 299) {
           return {
             content: [
               {
@@ -243,7 +242,7 @@ function buildMcpServer(env: Env, clientIp: string | null): McpServer {
           };
         }
 
-        const data = (await res.json()) as {
+        const data = res.body as {
           id: string;
           url: string;
           composite?: { score: number; grade: string };

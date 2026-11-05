@@ -44,6 +44,8 @@
   // Same account id used by marketing-site. Not secret (visible in dashboard URLs).
   // CF_API_TOKEN and INTERNAL_FULFILL_KEY are set via `wrangler secret put`.
   // Until secrets land, paid-tier scans gracefully degrade to free-tier.
+  // E11: SCAN_PROXY_KEY (secret) authenticates the marketing Score proxy's
+  // forwarded client IP; identity only, never the paid tier.
   "vars": {
     "CF_ACCOUNT_ID": "e265950ef2b3e0e186ffe1c4d2bee4be"
   }

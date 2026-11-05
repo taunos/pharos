@@ -60,6 +60,29 @@ describe("POST /api/scan proxy", () => {
     expect(sent[0].headers["x-astrant-proxy-key"]).toBeUndefined();
   });
 
+  it("E11: sends SCAN_PROXY_KEY when set, never the fulfill key", async () => {
+    state.env = { SCAN_PROXY_KEY: "scan-proxy-key", INTERNAL_FULFILL_KEY: "fulfill-key" };
+    await POST(req({ "cf-connecting-ip": "203.0.113.7" }));
+    expect(sent[0].headers).toMatchObject({
+      "x-astrant-client-ip": "203.0.113.7",
+      "x-astrant-proxy-key": "scan-proxy-key",
+    });
+    expect(Object.values(sent[0].headers)).not.toContain("fulfill-key");
+    expect(sent[0].headers["x-internal-fulfill-key"]).toBeUndefined();
+  });
+
+  it("E11: sends SCAN_PROXY_KEY alone when the fulfill key is not configured", async () => {
+    state.env = { SCAN_PROXY_KEY: "scan-proxy-key" };
+    await POST(req({ "cf-connecting-ip": "203.0.113.7" }));
+    expect(sent[0].headers["x-astrant-proxy-key"]).toBe("scan-proxy-key");
+  });
+
+  it("E11: falls back to the fulfill key while SCAN_PROXY_KEY is unset or empty", async () => {
+    state.env = { SCAN_PROXY_KEY: "", INTERNAL_FULFILL_KEY: "fulfill-key" };
+    await POST(req({ "cf-connecting-ip": "203.0.113.7" }));
+    expect(sent[0].headers["x-astrant-proxy-key"]).toBe("fulfill-key");
+  });
+
   it("does not relay client-supplied proxy headers", async () => {
     state.env = {};
     await POST(req({ "x-astrant-client-ip": "1.1.1.1", "x-astrant-proxy-key": "guess" }));

@@ -29,6 +29,12 @@
       "namespace_id": "1001",
       "simple": { "limit": 20, "period": 60 }
     }
+  ],
+  // E8: score_url calls pharos-scanner's ScanRpc entrypoint (RPC only, not
+  // reachable over HTTP) with the end-user IP, so the scanner's per-IP limits
+  // apply per MCP user. Deploy pharos-scanner (which exports ScanRpc) first.
+  "services": [
+    { "binding": "SCANNER", "service": "pharos-scanner", "entrypoint": "ScanRpc" }
   ]
   // NOTE: The original scaffold included a Durable Object binding for
   // `agents/mcp`'s McpAgent session state. It was removed because the
