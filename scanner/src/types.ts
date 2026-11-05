@@ -120,6 +120,11 @@ export type DimensionResult = {
   // and dimensions_applicable counts it out so the "Scored on X of Y" copy
   // reflects the user's actual surface, not the catalog.
   na?: boolean;
+  // Security pass 2026-11-04: set (with na:true) when the dimension applies
+  // but could not be measured on this run (e.g. Dim 3 spec too large or too
+  // slow to read in full). Dropped from the composite exactly like na; copy
+  // must say "not measured", never "did not apply" / "no API surface".
+  unmeasured?: boolean;
 };
 
 export type Composite = {

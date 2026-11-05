@@ -168,8 +168,12 @@ export default function ScorePanel({
                   </span>
                 </div>
                 <p className={`mt-1 italic text-[var(--color-muted)] ${compact ? "text-xs" : "text-sm"}`}>
-                  Doesn&apos;t apply to this site — dropped from the composite, no
-                  penalty.
+                  {/* Unmeasured (applies, but not read in full this run): the
+                      scanner's own note, never "doesn't apply". */}
+                  {d.unmeasured
+                    ? (d.sub_checks.find((s) => s.id !== "discovery")?.notes ?? d.sub_checks[0]?.notes)
+                    : <>Doesn&apos;t apply to this site — dropped from the composite, no
+                  penalty.</>}
                 </p>
               </div>
             );

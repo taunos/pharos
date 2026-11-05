@@ -22,6 +22,10 @@ export type DimensionResult = {
   sub_checks: SubCheck[];
   // Slice 3a: whole-dimension N/A. See scanner/src/types.ts for semantics.
   na?: boolean;
+  // Set with na:true when the dimension applies but could not be measured on
+  // this run (scanner security pass 2026-11-04: Dim 3 spec not read in
+  // full). Dropped from the composite like na; never "did not apply".
+  unmeasured?: boolean;
 };
 
 export type Composite = {

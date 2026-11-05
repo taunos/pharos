@@ -32,7 +32,7 @@ import { MAX_SPEC_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
 const FETCH_TIMEOUT_MS = 5000;
 
 export const INCOMPLETE_SPEC_NOTE =
-  "Not measured — the spec could not be read in full (size or time limit). Weight redistributed across the other Dim 3 sub-checks.";
+  "Not measured — the API spec could not be read in full (size or time limit), so this dimension is not counted in your score.";
 const STATIC_UA = "AstrantScanner-Dim3/1.2.0";
 
 // Security pass 2026-11-04: validated hops (incl. homepage-discovered spec
@@ -313,6 +313,42 @@ export async function runDim3(
     };
   }
 
+  // Spec body not read in full (byte cap, deadline or read error): the
+  // dimension was NOT measured. Whole-dimension N/A (dropped from the
+  // composite like the no-API path) with unmeasured:true so consumers don't
+  // call it "no API surface". Discovery alone must not score: a huge or
+  // stalled file at a well-known path would otherwise earn 100. The
+  // discovery result stays as informational text in the first note.
+  if (!hit.complete) {
+    const found = `Found via ${hit.source} at ${hit.url} (content-type=${hit.contentType || "unknown"}).`;
+    for (const [id, name, weight] of [
+      ["discovery", "API spec discovery", 25],
+      ["spec_validity", "Spec validity (parses + has version field)", 25],
+      ["info_completeness", "Spec info completeness (title + version + description)", 15],
+      ["security_schemes", "Security schemes documented", 15],
+      ["operation_coverage", "Operation coverage + per-operation docs", 20],
+    ] as const) {
+      subs.push({
+        id,
+        name,
+        weight,
+        score: 0,
+        passed: false,
+        notes: id === "discovery" ? `${INCOMPLETE_SPEC_NOTE} ${found}` : INCOMPLETE_SPEC_NOTE,
+        na: true,
+      });
+    }
+    return {
+      dimension_id: 3,
+      dimension_name: "OpenAPI / API Catalog",
+      score: 0,
+      grade: gradeFor(0),
+      sub_checks: subs,
+      na: true,
+      unmeasured: true,
+    };
+  }
+
   // ── Sub-check 1: discovery ─────────────────────────────────────────────
   // Well-known → 100. Canonical → 75. Homepage-link fallback → 50.
   let discoveryScore: number;
@@ -328,36 +364,6 @@ export async function runDim3(
     notes: `Found via ${hit.source} at ${hit.url} (content-type=${hit.contentType || "unknown"}).`,
   });
 
-  // Spec body not read in full (byte cap, deadline or read error): its
-  // content was not measured, so the four content sub-checks are N/A
-  // (weight redistributed, as for other unmeasurable sub-checks) rather than
-  // scored 0 as "invalid".
-  if (!hit.complete) {
-    for (const [id, name] of [
-      ["spec_validity", "Spec validity (parses + has version field)"],
-      ["info_completeness", "Spec info completeness (title + version + description)"],
-      ["security_schemes", "Security schemes documented"],
-      ["operation_coverage", "Operation coverage + per-operation docs"],
-    ] as const) {
-      subs.push({
-        id,
-        name,
-        weight: { spec_validity: 25, info_completeness: 15, security_schemes: 15, operation_coverage: 20 }[id],
-        score: 0,
-        passed: false,
-        notes: INCOMPLETE_SPEC_NOTE,
-        na: true,
-      });
-    }
-    const partialScore = dimensionScore(subs) ?? 0;
-    return {
-      dimension_id: 3,
-      dimension_name: "OpenAPI / API Catalog",
-      score: partialScore,
-      grade: gradeFor(partialScore),
-      sub_checks: subs,
-    };
-  }
 
   // ── Sub-check 2: spec_validity ────────────────────────────────────────
   const parsed = tryParseSpec(hit.body, hit.contentType);

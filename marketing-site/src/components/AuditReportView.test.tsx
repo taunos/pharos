@@ -183,6 +183,35 @@ describe("buildAuditReportModel", () => {
     expect(m.scopeNote).not.toContain("dropped from the composite");
   });
 
+  it("an unmeasured OpenAPI dimension: scope note and summary never claim 'no API surface' / 'did not apply'", () => {
+    const a = fixture();
+    const d3 = a.scan.dimensions[1];
+    d3.unmeasured = true;
+    d3.sub_checks = [
+      {
+        id: "discovery",
+        name: "API spec discovery",
+        weight: 25,
+        score: 0,
+        passed: false,
+        na: true,
+        notes:
+          "Not measured — the API spec could not be read in full (size or time limit), so this dimension is not counted in your score. Found via well-known /.well-known/api-catalog at https://example.com/.well-known/api-catalog (content-type=application/json).",
+      },
+    ];
+    const m = buildAuditReportModel(a, SESSION);
+    expect(m.scopeNote).toBe(
+      "Scored on 2 of 6 dimensions applicable to this site. Some dimensions could not be measured on this run and were dropped from the composite.",
+    );
+    const all = [m.scopeNote, ...m.executiveSummary].join(" ");
+    expect(all).not.toContain("no API surface");
+    expect(all).not.toContain("did not apply");
+    expect(all).toContain("OpenAPI / API Catalog could not be measured on this run, so it is not counted in your score");
+    const naBlock = m.dimensions.find((x) => x.id === 3)!;
+    expect(naBlock).toMatchObject({ kind: "na" });
+    expect((naBlock as { note: string }).note.startsWith("Not measured — the API spec could not be read in full")).toBe(true);
+  });
+
   it("bands scores on the PDF thresholds", () => {
     expect([100, 70, 69, 60, 59, 40, 39, 0].map(scoreBand)).toEqual(["high", "high", "mid", "mid", "low", "low", "fail", "fail"]);
   });

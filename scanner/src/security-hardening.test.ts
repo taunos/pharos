@@ -5,6 +5,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { validateTargetUrl, safeFetch, MAX_HTML_BYTES, MAX_TEXT_BYTES } from "./safe-fetch";
 import { checkBurstLimit, checkRateLimit, isIpLiteral, limiterIdentity, urlCacheKey, urlLimitKey } from "./ratelimit";
 import { runDim3, INCOMPLETE_SPEC_NOTE } from "./checks/dim3-openapi";
+import { compositeOf } from "./scoring";
 import { evalWithCache, aiBudgetKey, DAILY_AI_CALL_CAP, MAX_PROMPT_CHARS } from "./checks/llm-eval";
 import { runDim1, evalBlockquote } from "./checks/dim1-llmstxt";
 import { runDim2 } from "./checks/dim2-mcp";
@@ -685,25 +686,39 @@ describe("truncated or errored reads produce no absence evidence", () => {
   });
 });
 
-describe("Dim 3: an OpenAPI spec not read in full is unmeasured, not invalid", () => {
+describe("Dim 3: an OpenAPI spec not read in full leaves the whole dimension unmeasured", () => {
   const SPEC = JSON.stringify({ openapi: "3.1.0", info: { title: "T", version: "1", description: "x".repeat(30) }, paths: {} });
   const byPath = (wk: () => Response) =>
     vi.fn(async (u: string) => (String(u).endsWith("/.well-known/api-catalog") ? wk() : new Response("", { status: 404 })));
 
-  it("a >10 MB valid spec: discovery scored, content sub-checks N/A with the incomplete note", async () => {
-    const chunk = new Uint8Array(1024 * 1024).fill(32); // whitespace: still valid JSON once complete
+  const expectUnmeasured = (d: Awaited<ReturnType<typeof runDim3>>) => {
+    expect(d).toMatchObject({ na: true, unmeasured: true, score: 0 });
+    expect(d.sub_checks.map((s) => s.id)).toEqual(["discovery", "spec_validity", "info_completeness", "security_schemes", "operation_coverage"]);
+    for (const s of d.sub_checks) expect(s.na, s.id).toBe(true);
+    // Discovery stays as informational text; every other note is the dimension note.
+    expect(d.sub_checks[0].notes.startsWith(INCOMPLETE_SPEC_NOTE + " Found via well-known /.well-known/api-catalog at https://acme.com/.well-known/api-catalog")).toBe(true);
+    for (const s of d.sub_checks.slice(1)) expect(s.notes).toBe(INCOMPLETE_SPEC_NOTE);
+  };
+  const others = [1, 2, 4, 5].map((id) => ({ dimension_id: id, dimension_name: "d" + id, score: 40, grade: "D", sub_checks: [] }));
+
+  it("a >10 MB valid spec: the WHOLE dimension is unmeasured (na) and dropped from the composite", async () => {
+    const chunk = new Uint8Array(1024 * 1024).fill(32); // whitespace: valid JSON if it were complete
     const head = new TextEncoder().encode(SPEC);
     vi.stubGlobal("fetch", byPath(() => new Response(streamOf([head, ...Array(11).fill(chunk)]), { status: 200, headers: { "content-type": "application/json" } })));
     const d = await runDim3("https://acme.com/", kvEnv());
-    expect(d.na).toBeUndefined();
-    const disc = d.sub_checks.find((s) => s.id === "discovery")!;
-    expect(disc.score).toBe(100);
-    for (const id of ["spec_validity", "info_completeness", "security_schemes", "operation_coverage"]) {
-      const s = d.sub_checks.find((x) => x.id === id)!;
-      expect(s, id).toMatchObject({ na: true, score: 0, notes: INCOMPLETE_SPEC_NOTE });
-    }
-    expect(d.sub_checks.map((s) => s.weight)).toEqual([25, 25, 15, 15, 20]);
-    expect(d.score).toBe(100); // discovery only; the unmeasured weight is redistributed
+    expectUnmeasured(d);
+    // Composite is exactly the composite without Dim 3.
+    expect(compositeOf([...others, d])).toEqual(compositeOf(others));
+  });
+
+  it("an oversized garbage file at /.well-known/api-catalog cannot raise the composite", async () => {
+    const junk = new Uint8Array(1024 * 1024).fill(120); // "xxxx..."
+    vi.stubGlobal("fetch", byPath(() => new Response(streamOf(Array(11).fill(junk)), { status: 200, headers: { "content-type": "application/json" } })));
+    const d = await runDim3("https://acme.com/", kvEnv());
+    expectUnmeasured(d);
+    const without = compositeOf(others);
+    expect(without.score).toBe(40);
+    expect(compositeOf([...others, d])).toEqual(without);
   });
 
   it("a spec body that stalls past the deadline is unmeasured too", async () => {
@@ -711,8 +726,7 @@ describe("Dim 3: an OpenAPI spec not read in full is unmeasured, not invalid", (
     vi.stubGlobal("fetch", byPath(() => new Response(streamOf([new TextEncoder().encode('{"openapi":')], { hang: true }), { status: 200 })));
     const p = runDim3("https://acme.com/", kvEnv());
     await vi.advanceTimersByTimeAsync(5001);
-    const d = await p;
-    expect(d.sub_checks.find((s) => s.id === "spec_validity")).toMatchObject({ na: true, notes: INCOMPLETE_SPEC_NOTE });
+    expectUnmeasured(await p);
   });
 
   it("a complete spec is scored exactly as before", async () => {

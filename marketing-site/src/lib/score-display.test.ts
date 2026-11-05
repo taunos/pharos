@@ -3,6 +3,7 @@ import {
   DIM6_DEMO_SUBCHECK_ID,
   applicableDimensionCount,
   dimensionCountPhrase,
+  droppedDimensionsNote,
   gradeColorClass,
   isDim6DemoPreview,
 } from "./score-display";
@@ -43,6 +44,34 @@ describe("gradeColorClass", () => {
   });
   it("maps F to red-400", () => {
     expect(gradeColorClass("F")).toBe("text-red-400");
+  });
+});
+
+describe("droppedDimensionsNote", () => {
+  const LEGACY =
+    " Some dimensions did not apply to your site (e.g. no API surface for the OpenAPI dimension) and were dropped from the composite.";
+  const UNMEASURED = " Some dimensions could not be measured on this run and were dropped from the composite.";
+  const d = (id: number, extra: { na?: boolean; unmeasured?: boolean } = {}) => ({ dimension_id: id, ...extra });
+
+  it("nothing dropped: empty", () => {
+    expect(droppedDimensionsNote({ dimensions_applicable: 2, dimensions_scored: 2, dimensions: [d(1), d(2)] })).toBe("");
+  });
+  it("legacy N/A (incl. scans without the flag): unchanged sentence", () => {
+    expect(droppedDimensionsNote({ dimensions_applicable: 1, dimensions_scored: 2, dimensions: [d(1), d(3, { na: true })] })).toBe(LEGACY);
+    expect(droppedDimensionsNote({ dimensions_applicable: 1, dimensions_scored: 2, dimensions: [] })).toBe(LEGACY);
+  });
+  it("unmeasured OpenAPI only: never mentions 'no API surface' or 'did not apply'", () => {
+    const s = droppedDimensionsNote({ dimensions_applicable: 1, dimensions_scored: 2, dimensions: [d(1), d(3, { na: true, unmeasured: true })] });
+    expect(s).toBe(UNMEASURED);
+  });
+  it("unmeasured OpenAPI plus another N/A dimension: no 'no API surface' example", () => {
+    const s = droppedDimensionsNote({
+      dimensions_applicable: 1,
+      dimensions_scored: 3,
+      dimensions: [d(1), d(3, { na: true, unmeasured: true }), d(6, { na: true })],
+    });
+    expect(s).toBe(" Some dimensions did not apply to your site and were dropped from the composite." + UNMEASURED);
+    expect(s).not.toContain("no API surface");
   });
 });
 

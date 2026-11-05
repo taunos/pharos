@@ -152,6 +152,23 @@ describe("buildExecutiveSummary", () => {
     expect(s.join(" ")).not.toContain("Citation Visibility did not apply");
   });
 
+  it("an unmeasured OpenAPI dimension (spec not read in full) is 'could not be measured', never 'did not apply'", () => {
+    const unmeasured = dim(3, "OpenAPI / API Catalog", 0, { na: true, unmeasured: true });
+    const s = buildExecutiveSummary(audit(90, [dim(1, "llms.txt Quality", 90), unmeasured]), GAPS_HEADING);
+    expectWellFormed(s);
+    expect(s).toContain("OpenAPI / API Catalog could not be measured on this run, so it is not counted in your score.");
+    expect(s.join(" ")).not.toContain("did not apply");
+  });
+
+  it("unmeasured and not-applicable dimensions get separate caveats", () => {
+    const unmeasured = dim(3, "OpenAPI / API Catalog", 0, { na: true, unmeasured: true });
+    const naDim5 = dim(5, "Agent-Parsable Content", 0, { na: true });
+    const s = buildExecutiveSummary(audit(90, [dim(1, "llms.txt Quality", 90), unmeasured, naDim5]), GAPS_HEADING);
+    expect(s).toContain(
+      "Agent-Parsable Content did not apply to this site, so it is not counted in your score; OpenAPI / API Catalog could not be measured on this run, so it is not counted in your score.",
+    );
+  });
+
   it("fully measured Citation Visibility adds no caveat", () => {
     const s = buildExecutiveSummary(
       audit(90, [dim(1, "llms.txt Quality", 90), citationDim(90, citationNotes(40, 40, "openai=90, anthropic=88, google=91, perplexity=92"))]),

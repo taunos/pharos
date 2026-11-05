@@ -12,7 +12,7 @@
 
 import { cleanDisplayText, escapeUnsafeInJson, REMEDIATION_MAX_CHARS } from "./llm-safety";
 import type { AuditResult } from "./audit-types";
-import { applicableDimensionCount, dimensionCountPhrase } from "./score-display";
+import { dimensionCountPhrase, droppedDimensionsNote } from "./score-display";
 import { buildExecutiveSummary, EXEC_SUMMARY_COPY } from "./audit-executive-summary";
 
 // Section headings + fixed copy, verbatim from the PDF. Change here and both
@@ -116,12 +116,7 @@ export function formatReportTimestamp(ms: number): string {
 
 function scopeNote(scan: AuditResult["scan"]): string {
   const base = `Scored on ${dimensionCountPhrase(scan.dimensions_applicable, scan.dimensions_scored, scan.dimensions_total)} dimensions applicable to this site.`;
-  const dropped =
-    applicableDimensionCount(scan.dimensions_applicable, scan.dimensions_scored) <
-    scan.dimensions_scored
-      ? " Some dimensions did not apply to your site (e.g. no API surface for the OpenAPI dimension) and were dropped from the composite."
-      : "";
-  return base + dropped;
+  return base + droppedDimensionsNote(scan);
 }
 
 // Every string that can carry site- or model-derived text goes through
