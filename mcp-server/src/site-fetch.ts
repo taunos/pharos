@@ -468,3 +468,95 @@ function redactForLog(err: unknown): string {
     .replace(/\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b/gi, "<host>");
   return sanitizeUntrusted(masked) ?? "";
 }
+
+// ─── score_url output boundary (E13, code-quality audit 2026-11-05) ───────
+
+/** Cap for a sub-check's notes (scanner prose that quotes site text, e.g. an MCP card name). */
+export const MAX_NOTE_CHARS = 500;
+/** Cap for scanner-computed labels (dimension/sub-check names and ids, grades). */
+const MAX_LABEL_CHARS = 120;
+
+const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+const bool = (v: unknown): boolean | undefined => (typeof v === "boolean" ? v : undefined);
+const label = (v: unknown): string | null => (typeof v === "string" ? sanitizeUntrusted(v, MAX_LABEL_CHARS) : null);
+/**
+ * Sanitizes and caps site text. A pre-cut to 16x the cap (code units) bounds
+ * the CPU spent on a multi-MB value; padding that pushes real text past the
+ * pre-cut only shortens the output. A high surrogate split by the cut is dropped.
+ */
+function siteText(v: unknown, max: number = MAX_FIELD_CHARS): string | undefined {
+  if (typeof v !== "string") return undefined;
+  let s = v.length > max * 16 ? v.slice(0, max * 16) : v;
+  const last = s.charCodeAt(s.length - 1);
+  if (s.length < v.length && last >= 0xd800 && last <= 0xdbff) s = s.slice(0, -1);
+  return sanitizeUntrusted(s, max) ?? undefined;
+}
+const asObj = (v: unknown): Record<string, unknown> =>
+  v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+const asArr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+
+/**
+ * score_url's view of the scanner's `dimensions`. Scanner-computed fields
+ * (ids, names, scores, grades, weights, pass/N/A flags, evidence status and
+ * flags) stay in place, type-checked, with labels sanitized and capped. Every
+ * string that can carry site-controlled text (sub-check notes, evidence
+ * content_type / requested_url / final_url) moves under
+ * site_content_untrusted, sanitized and capped, next to untrusted_content_note:
+ * the same boundary check_llms_txt uses. Unknown fields are dropped.
+ */
+export function shapeScoreDimensions(raw: unknown): {
+  dimensions: Record<string, unknown>[];
+  untrusted_content_note: string;
+  site_content_untrusted: { sub_checks: Record<string, unknown>[] };
+} {
+  const untrusted: Record<string, unknown>[] = [];
+  const dimensions = asArr(raw).map((d) => {
+    const dim = asObj(d);
+    const dimensionId = num(dim.dimension_id);
+    const subChecks = asArr(dim.sub_checks).map((s) => {
+      const sc = asObj(s);
+      const subCheckId = label(sc.id);
+      const out: Record<string, unknown> = {
+        id: subCheckId,
+        name: label(sc.name),
+        weight: num(sc.weight),
+        score: num(sc.score),
+        passed: bool(sc.passed) ?? null,
+        na: bool(sc.na),
+      };
+      const ev = sc.evidence === undefined ? undefined : asObj(sc.evidence);
+      if (ev) {
+        out.evidence = {
+          status: num(ev.status),
+          parsed: bool(ev.parsed) ?? null,
+          body_complete: bool(ev.body_complete),
+          truncated: bool(ev.truncated),
+          ld_json_absent_proven: bool(ev.ld_json_absent_proven),
+        };
+      }
+      untrusted.push({
+        dimension_id: dimensionId,
+        sub_check_id: subCheckId,
+        notes: siteText(sc.notes, MAX_NOTE_CHARS),
+        content_type: siteText(ev?.content_type),
+        requested_url: siteText(ev?.requested_url),
+        final_url: siteText(ev?.final_url),
+      });
+      return out;
+    });
+    return {
+      dimension_id: dimensionId,
+      dimension_name: label(dim.dimension_name),
+      score: num(dim.score),
+      grade: label(dim.grade),
+      na: bool(dim.na),
+      unmeasured: bool(dim.unmeasured),
+      sub_checks: subChecks,
+    };
+  });
+  return {
+    dimensions,
+    untrusted_content_note: UNTRUSTED_NOTE,
+    site_content_untrusted: { sub_checks: untrusted },
+  };
+}

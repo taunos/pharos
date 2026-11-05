@@ -20,7 +20,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { z } from "zod";
 import { HUMAN_PAGE_HTML } from "./human-page";
 import { pricingNotes } from "./audit-gate";
-import { checkLlmsTxt, checkRateLimit, RATE_LIMITED_MESSAGE, type RateLimitBinding } from "./site-fetch";
+import { checkLlmsTxt, checkRateLimit, RATE_LIMITED_MESSAGE, shapeScoreDimensions, type RateLimitBinding } from "./site-fetch";
 
 interface Env {
   AUDIT_CHECKOUT_ENABLED?: string;
@@ -272,7 +272,8 @@ function buildMcpServer(env: Env, clientIp: string | null): McpServer {
                       ? `Scored on ${applicable} of ${data.dimensions_total} dimensions applicable to this site${applicable < data.dimensions_scored ? " (some did not apply, e.g. no API surface for the OpenAPI dimension)" : ""}. Remaining dimensions ship in upcoming releases.`
                       : "All dimensions scored.",
                   full_results_url: `https://astrant.io/score/${data.id}`,
-                  dimensions: data.dimensions,
+                  // E13: site-derived text goes under site_content_untrusted.
+                  ...shapeScoreDimensions(data.dimensions),
                 },
                 null,
                 2
