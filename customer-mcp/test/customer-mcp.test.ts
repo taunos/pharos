@@ -301,6 +301,10 @@ describe("provision", () => {
       "INVALID_SCHEMA_VERSION",
     );
     expect((await (await internal("provision-customer", body({ paid_tier: "enterprise" }))).json<any>()).error).toBe("INVALID_PAID_TIER");
+    for (const pe of ["1767225600", 1.5, true]) {
+      expect((await (await internal("provision-customer", body({ period_end: pe }))).json<any>()).error).toBe("INVALID_PERIOD_END");
+    }
+    expect(sqlite.prepare("SELECT COUNT(*) AS n FROM customers").get()).toEqual({ n: 0 });
   });
 });
 
