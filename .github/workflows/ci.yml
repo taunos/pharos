@@ -41,6 +41,17 @@ jobs:
       - if: ${{ matrix.test }}
         run: npm test
 
+  mirror-check:
+    name: dim6 disclosure mirror (marketing-site ↔ mcp-server)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: node scripts/verify-dim6-mirror.mjs
+
   secret-scan:
     name: secret-scan (mirrors .githooks/pre-commit)
     runs-on: ubuntu-latest
