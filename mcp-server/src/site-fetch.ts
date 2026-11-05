@@ -49,7 +49,12 @@ export function validateTargetUrl(raw: string | URL): URL {
   if (u.username !== "" || u.password !== "") {
     throw new UnsafeUrlError("URLs with credentials are not allowed.");
   }
-  const host = u.hostname.toLowerCase().replace(/\.$/, "");
+  // Strip every trailing dot ("localhost.." is still localhost), then refuse
+  // empty labels anywhere else ("example..com").
+  const host = u.hostname.toLowerCase().replace(/\.+$/, "");
+  if (host.split(".").some((label) => label === "")) {
+    throw new UnsafeUrlError("Local or internal hostnames are not allowed.");
+  }
   // IPv6 literals keep their brackets in .hostname. IPv4 literals in any
   // notation (decimal, hex, octal, short forms) are normalized to dotted quad
   // by the URL parser, so one pattern covers them all.
@@ -139,9 +144,21 @@ export async function safeFetch(
     if (!location || redirects >= maxRedirects) {
       return { res, finalUrl: target, redirects };
     }
-    await res.body?.cancel().catch(() => {});
+    discardBody(res);
     target = validateTargetUrl(new URL(location, target)).toString();
     redirects++;
+  }
+}
+
+/**
+ * Fire-and-forget body cancel: a hostile stream whose cancel() never settles
+ * must not hold the request past the deadline.
+ */
+export function discardBody(res: Response): void {
+  try {
+    res.body?.cancel().catch(() => {});
+  } catch {
+    // cancel() threw synchronously (e.g. locked stream); nothing to release.
   }
 }
 
@@ -176,8 +193,13 @@ export async function readBodyCapped(
       bytes += value.byteLength;
     }
   } finally {
-    if (truncated || deadline.signal.aborted) reader.cancel().catch(() => {});
-    else reader.releaseLock();
+    if (truncated || deadline.signal.aborted) {
+      try {
+        reader.cancel().catch(() => {});
+      } catch {
+        // Synchronous throw from a hostile stream; nothing more to do.
+      }
+    } else reader.releaseLock();
   }
   const all = new Uint8Array(bytes);
   let off = 0;
@@ -283,12 +305,20 @@ const llmsTxtFetch: FetchLike = (target, init) => {
  */
 export async function checkLlmsTxt(
   url: string,
-  opts: { fetchImpl?: FetchLike; deadlineMs?: number; maxBytes?: number } = {}
+  opts: {
+    fetchImpl?: FetchLike;
+    deadlineMs?: number;
+    maxBytes?: number;
+    log?: (msg: string) => void;
+  } = {}
 ): Promise<Record<string, unknown>> {
   const u = new URL(url);
   const llmsTxtUrl = `${u.protocol}//${u.host}/llms.txt`;
   const deadline = new Deadline(opts.deadlineMs ?? FETCH_DEADLINE_MS);
   try {
+    // Validate what the caller actually sent: building the origin below
+    // drops userinfo, which would otherwise slip past the credentials check.
+    validateTargetUrl(u);
     // Historic policy: follow at most one redirect; a second one is reported.
     const { res, finalUrl, redirects } = await safeFetch(llmsTxtUrl, {
       deadline,
@@ -299,7 +329,7 @@ export async function checkLlmsTxt(
     const isRedirect = res.status >= 300 && res.status < 400;
 
     if (res.status !== 200) {
-      await res.body?.cancel().catch(() => {});
+      discardBody(res);
       const message =
         isRedirect && wasRedirected
           ? "llms.txt requires multiple redirects — spec-discouraged."
@@ -313,8 +343,9 @@ export async function checkLlmsTxt(
         exists: false,
         status: res.status,
         was_redirected: wasRedirected,
-        final_url: sanitizeUntrusted(finalUrl),
         message,
+        untrusted_content_note: UNTRUSTED_NOTE,
+        site_content_untrusted: { final_url: sanitizeUntrusted(finalUrl) },
       };
     }
 
@@ -334,7 +365,6 @@ export async function checkLlmsTxt(
       exists: true,
       status: 200,
       was_redirected: wasRedirected,
-      final_url: sanitizeUntrusted(finalUrl),
       bytes: body.length,
       truncated,
       good_content_type: goodContentType,
@@ -343,20 +373,55 @@ export async function checkLlmsTxt(
       note: "For full quality scoring across 6 dimensions, run https://astrant.io/score",
       untrusted_content_note: UNTRUSTED_NOTE,
       site_content_untrusted: {
+        final_url: sanitizeUntrusted(finalUrl),
         h1: sanitizeUntrusted(h1),
         blockquote_summary: sanitizeUntrusted(blockquote),
         content_type: sanitizeUntrusted(contentType),
       },
     };
   } catch (err) {
+    // Never echo exception text to the agent: runtime errors can quote
+    // attacker-controlled URLs. Fixed code + message out, redacted log in.
+    const { code, message } = classifyFetchError(err, deadline);
+    (opts.log ?? ((m: string) => console.error(m)))(
+      `check_llms_txt ${code}: ${redactForLog(err)}`
+    );
     return {
       url: llmsTxtUrl,
       exists: false,
       was_redirected: false,
-      final_url: llmsTxtUrl,
-      error: err instanceof Error ? err.message : String(err),
+      error: code,
+      message,
     };
   } finally {
     deadline.clear();
   }
+}
+
+export const FETCH_ERRORS = {
+  unsafe_url: "The URL or one of its redirects points at a target this tool will not fetch (only public http/https hosts on ports 80/443).",
+  timeout: "The site did not finish responding within the time limit.",
+  fetch_failed: "The site could not be fetched.",
+} as const;
+
+function classifyFetchError(
+  err: unknown,
+  deadline: Deadline
+): { code: keyof typeof FETCH_ERRORS; message: string } {
+  const code: keyof typeof FETCH_ERRORS =
+    err instanceof UnsafeUrlError
+      ? "unsafe_url"
+      : err instanceof DeadlineError || deadline.signal.aborted
+        ? "timeout"
+        : "fetch_failed";
+  return { code, message: FETCH_ERRORS[code] };
+}
+
+/** Error name + message with URLs and hostnames masked, sanitized and capped. */
+function redactForLog(err: unknown): string {
+  const raw = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+  const masked = raw
+    .replace(/[a-z][a-z0-9+.-]*:\/\/\S+/gi, "<url>")
+    .replace(/\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b/gi, "<host>");
+  return sanitizeUntrusted(masked) ?? "";
 }
