@@ -11,10 +11,6 @@ export const TICK_INTERVAL_MS = 15 * MIN;
 export const SEND_WINDOW_START_HOUR = 13; // 13:00 UTC
 export const SEND_WINDOW_END_HOUR = 21; // 21:00 UTC (exclusive)
 
-export function utcDay(ms: number): string {
-  return new Date(ms).toISOString().slice(0, 10);
-}
-
 export function startOfUtcDay(ms: number): number {
   return Math.floor(ms / DAY) * DAY;
 }
@@ -22,12 +18,6 @@ export function startOfUtcDay(ms: number): number {
 export function isWeekday(ms: number): boolean {
   const d = new Date(ms).getUTCDay();
   return d >= 1 && d <= 5;
-}
-
-export function inSendWindow(ms: number): boolean {
-  if (!isWeekday(ms)) return false;
-  const h = new Date(ms).getUTCHours();
-  return h >= SEND_WINDOW_START_HOUR && h < SEND_WINDOW_END_HOUR;
 }
 
 /** ISO-8601 week label, e.g. "2026-W45". */

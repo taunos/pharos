@@ -70,7 +70,6 @@ const UNSAFE_RANGES: [number, number][] = [
   // Tags (U+E0000..E007F) and variation selectors supplement (U+E0100..E01EF).
   [0xe0000, 0xe007f], [0xe0100, 0xe01ef],
 ];
-export const UNSAFE_CODEPOINTS = UNSAFE_RANGES;
 const UNSAFE_CHARS_RE = new RegExp(
   "[" + UNSAFE_RANGES.map(([lo, hi]) => String.fromCodePoint(lo) + "-" + String.fromCodePoint(hi)).join("") + "]",
   "u"
