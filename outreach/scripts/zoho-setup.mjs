@@ -29,7 +29,8 @@ async function token(params) {
 }
 
 function putSecret(name, value) {
-  const r = spawnSync("npx", ["wrangler", "secret", "put", name], { input: value + "\n", stdio: ["pipe", "inherit", "inherit"], shell: true });
+  // name is one of three constants below; the value goes on stdin, never the command line.
+  const r = spawnSync(`npx wrangler secret put ${name}`, { input: value + "\n", stdio: ["pipe", "inherit", "inherit"], shell: true });
   if (r.status !== 0) throw new Error(`wrangler secret put ${name} failed`);
 }
 
