@@ -197,3 +197,119 @@ export async function checkDeleteMeRateLimit(
   }
   return { allowed: true };
 }
+
+// E2 (code-quality audit 2026-11-05) — /api/score/capture-email send limits.
+// Every accepted capture can send Astrant-branded mail, so bound it two ways:
+//   - Per source IP: 10 / hour, 30 / day (HMAC-pseudonymized key).
+//   - Per scan: at most 3 DISTINCT recipient addresses per 24h. Repeat
+//     submissions of an address already seen for the scan don't grow the set,
+//     so a legitimate retry is never blocked by this limit.
+// Check-all-then-increment (delete-me precedent) so a blocked request does not
+// consume budget on the other windows. SESSIONS KV, `rl:capture:` prefix.
+//
+// KV is read-modify-write, so a parallel burst can read the same counter and
+// lose updates. The FIRST layer is therefore the Workers Rate Limiting binding
+// CAPTURE_RATE_LIMITER (3 / 60 s, keyed per IP and per scan; counted by
+// Cloudflare, not by us), the scanner's SCAN_RATE_LIMITER precedent. It is
+// approximate per location, so it blunts bursts rather than enforcing an exact
+// count; the KV windows bound the longer horizon. A missing/erroring binding
+// fails open to the KV layer (logged), never closed.
+export const CAPTURE_IP_HOURLY_LIMIT = 10;
+export const CAPTURE_IP_DAILY_LIMIT = 30;
+export const CAPTURE_SCAN_DISTINCT_RECIPIENT_LIMIT = 3;
+
+export interface RateLimitBinding {
+  limit(opts: { key: string }): Promise<{ success: boolean }>;
+}
+
+async function burstAllowed(limiter: RateLimitBinding | undefined, key: string): Promise<boolean> {
+  if (!limiter) {
+    console.error("[capture-email] CAPTURE_RATE_LIMITER binding missing; failing open to the KV limits");
+    return true;
+  }
+  try {
+    const { success } = await limiter.limit({ key });
+    return success;
+  } catch (e) {
+    console.error("[capture-email] CAPTURE_RATE_LIMITER errored; failing open to the KV limits");
+    return true;
+  }
+}
+
+interface RecipientSet {
+  hashes: string[];
+  resetAt: number; // unix seconds
+}
+
+export async function checkCaptureEmailRateLimit(
+  kv: KVNamespace,
+  ip: string,
+  scanId: string,
+  emailLogHash: string,
+  hashSecret: string | undefined,
+  burst?: RateLimitBinding
+): Promise<RateLimitResult> {
+  if (!hashSecret) return { allowed: false, misconfigured: true }; // fail closed — never key on raw IP
+  const ipHash = await hmacIp(hashSecret, ip);
+  const now = Math.floor(Date.now() / 1000);
+
+  // Layer 1: atomic burst gate (per IP, then per scan). Both are consumed
+  // before the KV layer so a parallel burst cannot race past it.
+  if (!(await burstAllowed(burst, `capture-ip:${ipHash}`))) return { allowed: false, retryAfterSec: 60 };
+  if (!(await burstAllowed(burst, `capture-scan:${scanId}`))) return { allowed: false, retryAfterSec: 60 };
+  const ipChecks: Array<{ key: string; limit: number; windowSec: number }> = [
+    { key: `rl:capture:ip:${ipHash}:hr`, limit: CAPTURE_IP_HOURLY_LIMIT, windowSec: 3600 },
+    { key: `rl:capture:ip:${ipHash}:day`, limit: CAPTURE_IP_DAILY_LIMIT, windowSec: 86400 },
+  ];
+
+  let blockedRetry: number | null = null;
+  const block = (retry: number) => {
+    if (blockedRetry === null || retry > blockedRetry) blockedRetry = retry;
+  };
+  for (const c of ipChecks) {
+    try {
+      const raw = await kv.get(c.key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as CounterValue;
+      if (parsed.resetAt > now && parsed.count >= c.limit) block(parsed.resetAt - now);
+    } catch {
+      // continue
+    }
+  }
+
+  const rcptKey = `rl:capture:scan:${scanId}:rcpts`;
+  let rcpts: RecipientSet = { hashes: [], resetAt: now + 86400 };
+  try {
+    const raw = await kv.get(rcptKey);
+    if (raw) {
+      const parsed = JSON.parse(raw) as RecipientSet;
+      if (parsed.resetAt > now && Array.isArray(parsed.hashes)) rcpts = parsed;
+    }
+  } catch {
+    // corrupt/absent → fresh set
+  }
+  const known = rcpts.hashes.includes(emailLogHash);
+  if (!known && rcpts.hashes.length >= CAPTURE_SCAN_DISTINCT_RECIPIENT_LIMIT) {
+    block(rcpts.resetAt - now);
+  }
+
+  if (blockedRetry !== null) return { allowed: false, retryAfterSec: blockedRetry };
+
+  // Second pass re-reads each counter; honor a denial here too (a concurrent
+  // request may have filled the window since the first pass).
+  for (const c of ipChecks) {
+    const r = await checkAndIncrement(kv, c.key, c.limit, c.windowSec);
+    if (!r.allowed) return r;
+  }
+  if (!known) {
+    rcpts.hashes.push(emailLogHash);
+    try {
+      await kv.put(rcptKey, JSON.stringify(rcpts), {
+        expirationTtl: Math.max(60, rcpts.resetAt - now + 60),
+      });
+    } catch {
+      // KV hiccup — fail-open, same posture as checkAndIncrement
+    }
+  }
+  return { allowed: true };
+}

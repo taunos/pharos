@@ -16,6 +16,7 @@ const state: {
   fulfillBound: boolean;
   maxProbeTargets: string | undefined;
   implGate: string | undefined;
+  subGate: string | undefined;
 } = {
   store: new Map(),
   send: vi.fn(),
@@ -27,6 +28,7 @@ const state: {
   fulfillBound: true,
   maxProbeTargets: undefined,
   implGate: "true",
+  subGate: "true",
 };
 
 const kv = {
@@ -64,6 +66,9 @@ vi.mock("@opennextjs/cloudflare", () => ({
       ...(state.fulfillBound ? { FULFILL_QUEUE: { send: state.fulfillSend } } : {}),
       ...(state.maxProbeTargets !== undefined ? { MAX_PROBE_TARGETS: state.maxProbeTargets } : {}),
       ...(state.implGate !== undefined ? { IMPLEMENTATION_CHECKOUT_ENABLED: state.implGate } : {}),
+      ...(state.subGate !== undefined ? { SUBSCRIPTION_CHECKOUT_ENABLED: state.subGate } : {}),
+      STANDARD_PRODUCT_ID: "pdt_STANDARD",
+      PRO_PRODUCT_ID: "pdt_PRO",
     },
   }),
 }));
@@ -75,6 +80,13 @@ const dodoApi = vi.hoisted(() => ({
     subscription_ids: [] as unknown[],
   })),
 }));
+// E4: the welcome sender is mocked so a test can make it fail; the webhook's
+// own ordering (send → stamp) runs for real.
+const welcome = vi.hoisted(() => ({
+  send: vi.fn(async (..._a: unknown[]) => undefined),
+}));
+vi.mock("@/lib/welcome-email", () => ({ sendWelcomeEmail: welcome.send }));
+
 vi.mock("@/lib/dodo", () => ({
   verifyWebhook: async () => ({ valid: true }),
   getPaymentProducts: dodoApi.getPaymentProducts,
@@ -131,6 +143,9 @@ beforeEach(() => {
   state.fulfillBound = true;
   state.maxProbeTargets = undefined;
   state.implGate = "true";
+  state.subGate = "true";
+  welcome.send.mockReset();
+  welcome.send.mockImplementation(async () => undefined);
   alerts.subjects = [];
   alerts.texts = [];
   kv.get.mockClear();
@@ -559,5 +574,281 @@ describe("POST /api/dodo-webhook — security pass 2026-11-04 (product binding +
     expect(res.status).toBe(503);
     expect(state.store.has("webhook:wh_kvf")).toBe(false);
     if (origPut) kv.put.mockImplementation(origPut);
+  });
+});
+
+// ── E3: every paid-but-unfulfilled payment is recorded + alerted before dedupe ──
+describe("E3 — non-fulfilled payment paths record manual review + alert before the dedupe write", () => {
+  const pay = (id: string, data: Record<string, unknown>) =>
+    new Request("https://astrant.io/api/dodo-webhook", {
+      method: "POST",
+      headers: { "webhook-id": id, "webhook-timestamp": "0", "webhook-signature": "v1,x" },
+      body: JSON.stringify({ type: "payment.succeeded", data }),
+    });
+
+  it("unknown tier → manual-review record + alert + 200 + dedupe", async () => {
+    const { POST } = await import("./route");
+    const res = await POST(pay("wh_u1", { metadata: { tier: "bogus" }, payment_id: "pay_u1" }));
+    expect(res.status).toBe(200);
+    expect(state.store.has("manual-review:unknown:pay_u1")).toBe(true);
+    expect(alerts.subjects.some((s) => s.includes("PAYMENT_UNKNOWN_TIER"))).toBe(true);
+    expect(state.store.has("webhook:wh_u1")).toBe(true);
+  });
+
+  it("missing tier on a one-shot payment → manual-review record + alert", async () => {
+    const { POST } = await import("./route");
+    await POST(pay("wh_u2", { payment_id: "pay_u2" }));
+    expect(state.store.has("manual-review:unknown:pay_u2")).toBe(true);
+    expect(alerts.subjects.some((s) => s.includes("PAYMENT_UNKNOWN_TIER"))).toBe(true);
+  });
+
+  it("a subscription charge with no tier metadata is NOT alerted (handled by subscription.* events)", async () => {
+    const { POST } = await import("./route");
+    const res = await POST(pay("wh_u3", { payment_id: "pay_u3", subscription_id: "sub_x" }));
+    expect(res.status).toBe(200);
+    expect([...state.store.keys()].some((k) => k.startsWith("manual-review:"))).toBe(false);
+    expect(alerts.subjects).toHaveLength(0);
+  });
+
+  it("tier=autopilot on a one-shot payment (no subscription evidence) → manual-review record + alert", async () => {
+    const { POST } = await import("./route");
+    await POST(pay("wh_ap1", { metadata: { tier: "autopilot" }, payment_id: "pay_ap1" }));
+    expect(state.store.has("manual-review:autopilot:pay_ap1")).toBe(true);
+    expect(alerts.subjects.some((s) => s.includes("AUTOPILOT_PAID_NO_SUBSCRIPTION"))).toBe(true);
+  });
+
+  it("tier=autopilot on a subscription charge is left to subscription.active (no alert)", async () => {
+    const { POST } = await import("./route");
+    await POST(pay("wh_ap2", { metadata: { tier: "autopilot" }, payment_id: "pay_ap2", subscription_id: "sub_ap" }));
+    expect([...state.store.keys()].some((k) => k.startsWith("manual-review:"))).toBe(false);
+    expect(alerts.subjects).toHaveLength(0);
+  });
+
+  it("custom and concierge deposits → manual-review record + alert", async () => {
+    const { POST } = await import("./route");
+    await POST(pay("wh_c1", { metadata: { tier: "custom" }, payment_id: "pay_c1" }));
+    await POST(pay("wh_c2", { metadata: { tier: "concierge" }, payment_id: "pay_c2" }));
+    expect(state.store.has("manual-review:custom:pay_c1")).toBe(true);
+    expect(state.store.has("manual-review:concierge:pay_c2")).toBe(true);
+    expect(alerts.subjects.some((s) => s.includes("CUSTOM_DEPOSIT_PAID"))).toBe(true);
+    expect(alerts.subjects.some((s) => s.includes("CONCIERGE_PAID_NO_FLOW"))).toBe(true);
+  });
+
+  it("record write fails on an unknown tier → 503 and NO dedupe key (Dodo redelivers)", async () => {
+    const origPut = kv.put.getMockImplementation();
+    kv.put.mockImplementation(async (k: string, v: string) => {
+      if (k.startsWith("manual-review:")) throw new Error("kv down");
+      state.store.set(k, v);
+    });
+    const { POST } = await import("./route");
+    const res = await POST(pay("wh_u4", { metadata: { tier: "bogus" }, payment_id: "pay_u4" }));
+    expect(res.status).toBe(503);
+    expect(state.store.has("webhook:wh_u4")).toBe(false);
+    if (origPut) kv.put.mockImplementation(origPut);
+  });
+
+  describe("Implementation validation failures", () => {
+    beforeEach(() => {
+      state.sq = createSqliteD1([readMigration("0008_implementation_sessions.sql"), readMigration("0016_dayn_email_sent_at.sql"), PROBE_TARGETS_SQL]);
+    });
+    const impl = (id: string, data: Record<string, unknown>) =>
+      pay(id, { metadata: { tier: "implementation" }, payment_id: `pay_${id}`, ...data });
+    const good = {
+      product_cart: [{ product_id: "pdt_0NdQE5vccUUgOHMsF6Pzz" }],
+      customer: { customer_id: "cus_1", email: "buyer@example.com" },
+      custom_field_responses: [
+        { key: "site_url", value: "https://example.com" },
+        { key: "brand_name", value: "Example" },
+        { key: "category", value: "saas" },
+      ],
+    };
+
+    for (const [name, data, code] of [
+      ["wrong product", { ...good, product_cart: [{ product_id: "pdt_OTHER" }] }, "F2_WRONG_PRODUCT_ID"],
+      ["has a subscription_id", { ...good, subscription_id: "sub_1" }, "F2_UNEXPECTED_SUBSCRIPTION_ID"],
+      ["missing customer email", { ...good, customer: { customer_id: "cus_1" } }, "F2_MISSING_REQUIRED_FIELDS"],
+    ] as const) {
+      it(`${name} → manual-review record + alert, no insert, no enqueue, dedupe after`, async () => {
+        const id = `wh_${code}`;
+        const { POST } = await import("./route");
+        const res = await POST(impl(id, data as Record<string, unknown>));
+        expect(res.status).toBe(200);
+        expect(state.store.has(`manual-review:implementation:pay_${id}`)).toBe(true);
+        expect(alerts.subjects.some((s) => s.includes(code))).toBe(true);
+        expect(state.fulfillSend).not.toHaveBeenCalled();
+        expect(state.store.has(`webhook:${id}`)).toBe(true);
+      });
+    }
+
+    it("missing custom fields → manual-review record (the existing alert still fires)", async () => {
+      const { POST } = await import("./route");
+      await POST(impl("wh_mcf", { ...good, custom_field_responses: [] }));
+      expect(state.store.has("manual-review:implementation:pay_wh_mcf")).toBe(true);
+      expect(alerts.subjects.some((s) => s.includes("F2_MISSING_CUSTOM_FIELDS"))).toBe(true);
+    });
+
+    it("validation failure + record write fails → 500, no dedupe key", async () => {
+      const origPut = kv.put.getMockImplementation();
+      kv.put.mockImplementation(async (k: string, v: string) => {
+        if (k.startsWith("manual-review:")) throw new Error("kv down");
+        state.store.set(k, v);
+      });
+      const { POST } = await import("./route");
+      const res = await POST(impl("wh_wpf", { ...good, product_cart: [{ product_id: "pdt_OTHER" }] }));
+      expect(res.status).toBe(500);
+      expect(state.store.has("webhook:wh_wpf")).toBe(false);
+      if (origPut) kv.put.mockImplementation(origPut);
+    });
+  });
+});
+
+// ── E4: server-side subscription gate + product allow-list + stamp-after-send ──
+describe("E4 — subscription.active gate, product allow-list, welcome stamped only after a successful send", () => {
+  beforeEach(() => {
+    state.sq = createSqliteD1([
+      readMigration("0005_subscriptions.sql"),
+      readMigration("0010_founding_customers.sql"),
+      PROBE_TARGETS_SQL,
+    ]);
+  });
+  const active = (id: string, productId: string, sub = "sub_1") =>
+    new Request("https://astrant.io/api/dodo-webhook", {
+      method: "POST",
+      headers: { "webhook-id": id, "webhook-timestamp": "0", "webhook-signature": "v1,x" },
+      body: JSON.stringify({
+        type: "subscription.active",
+        data: { subscription_id: sub, product_id: productId, customer: { id: "cus_1", email: "buyer@example.com" } },
+      }),
+    });
+  const subRow = (sub = "sub_1") =>
+    state.sq!.db.prepare(`SELECT welcome_email_sent_at FROM subscriptions WHERE subscription_id = ?`).get(sub) as
+      | { welcome_email_sent_at: number | null }
+      | undefined;
+
+  it("gate closed (SUBSCRIPTION_CHECKOUT_ENABLED unset) → manual review + alert, NO row, NO welcome, dedupe", async () => {
+    state.subGate = undefined;
+    const { POST } = await import("./route");
+    const res = await POST(active("wh_s1", "pdt_STANDARD"));
+    expect(res.status).toBe(200);
+    expect(subRow()).toBeUndefined();
+    expect(welcome.send).not.toHaveBeenCalled();
+    expect(state.store.has("manual-review:subscription:sub_1")).toBe(true);
+    expect(alerts.subjects.some((s) => s.includes("SUBSCRIPTION_NOT_PROVISIONED"))).toBe(true);
+    expect(state.store.has("webhook:wh_s1")).toBe(true);
+  });
+
+  it("gate value other than exact \"true\" stays closed", async () => {
+    state.subGate = "TRUE";
+    const { POST } = await import("./route");
+    await POST(active("wh_s1b", "pdt_STANDARD"));
+    expect(subRow()).toBeUndefined();
+    expect(welcome.send).not.toHaveBeenCalled();
+  });
+
+  it("gate open but unknown product → manual review + alert, NO row, NO welcome", async () => {
+    const { POST } = await import("./route");
+    const res = await POST(active("wh_s2", "pdt_UNKNOWN"));
+    expect(res.status).toBe(200);
+    expect(subRow()).toBeUndefined();
+    expect(welcome.send).not.toHaveBeenCalled();
+    expect(state.store.has("manual-review:subscription:sub_1")).toBe(true);
+  });
+
+  it("gate open + Standard → row inserted, welcome sent, THEN stamped", async () => {
+    let rowAtSend: unknown = "unset";
+    welcome.send.mockImplementation(async () => {
+      rowAtSend = subRow();
+    });
+    const { POST } = await import("./route");
+    const res = await POST(active("wh_s3", "pdt_STANDARD"));
+    expect(res.status).toBe(200);
+    expect(welcome.send).toHaveBeenCalledTimes(1);
+    // During the send the row holds only a negative in-flight claim, never a real stamp.
+    expect((rowAtSend as { welcome_email_sent_at: number }).welcome_email_sent_at).toBeLessThan(0);
+    expect(subRow()!.welcome_email_sent_at).toBeGreaterThan(0);
+  });
+
+  it("welcome send fails → NOT stamped, 500, no dedupe, alert; the redelivery sends it and stamps", async () => {
+    welcome.send.mockRejectedValueOnce(new Error("resend down"));
+    const { POST } = await import("./route");
+    const res = await POST(active("wh_s4", "pdt_STANDARD"));
+    expect(res.status).toBe(500);
+    expect(subRow()!.welcome_email_sent_at).toBeNull(); // claim released
+    expect(state.store.has("webhook:wh_s4")).toBe(false);
+    expect(alerts.subjects.some((s) => s.includes("F3_WELCOME_EMAIL_SEND_FAILED"))).toBe(true);
+
+    const retry = await POST(active("wh_s4", "pdt_STANDARD"));
+    expect(retry.status).toBe(200);
+    expect(welcome.send).toHaveBeenCalledTimes(2);
+    expect(subRow()!.welcome_email_sent_at).not.toBeNull();
+    // The retry is still this subscription's first welcome: founding variant, not "welcome back".
+    const founding = welcome.send.mock.calls[1][3] as { kind: string };
+    expect(founding.kind).toBe("newly_assigned");
+  });
+
+  it("two OVERLAPPING deliveries send ONE welcome; the loser answers 503 without dedupe while the winner is mid-send", async () => {
+    let release!: () => void;
+    welcome.send.mockImplementationOnce(() => new Promise<undefined>((r) => { release = () => r(undefined); }));
+    const { POST } = await import("./route");
+    const first = POST(active("wh_s6", "pdt_STANDARD"));
+    await new Promise((r) => setTimeout(r, 20));
+    const second = await POST(active("wh_s6", "pdt_STANDARD"));
+    expect(second.status).toBe(503);
+    expect(state.store.has("webhook:wh_s6")).toBe(false);
+    release();
+    expect((await first).status).toBe(200);
+    expect(welcome.send).toHaveBeenCalledTimes(1);
+    expect(subRow()!.welcome_email_sent_at).toBeGreaterThan(0);
+  });
+
+  it("Codex r2 interleaving: the in-flight claim is released (failed send) between the loser's CAS and its read → loser still answers 503, no dedupe", async () => {
+    const { POST } = await import("./route");
+    const nowS = Math.floor(Date.now() / 1000);
+    state.sq!.db.prepare(
+      `INSERT INTO subscriptions (subscription_id, customer_id, customer_email, product_id, status,
+         current_period_start, current_period_end, created_at, updated_at, welcome_email_sent_at)
+       VALUES ('sub_9', 'cus_1', 'buyer@example.com', 'pdt_STANDARD', 'active', ?, ?, ?, ?, ?)`
+    ).run(nowS, nowS + 86400, nowS, nowS, -nowS); // delivery A holds a fresh claim
+    // A's send fails and releases the claim right after B's CAS lost, before B's read.
+    state.sq!.failWhen = (sql) => {
+      if (sql.includes("SELECT welcome_email_sent_at FROM subscriptions")) {
+        state.sq!.db.prepare(`UPDATE subscriptions SET welcome_email_sent_at = NULL WHERE subscription_id = 'sub_9'`).run();
+      }
+      return false;
+    };
+    const res = await POST(active("wh_s9", "pdt_STANDARD", "sub_9"));
+    state.sq!.failWhen = null;
+    expect(res.status).toBe(503);
+    expect(state.store.has("webhook:wh_s9")).toBe(false);
+    expect(welcome.send).not.toHaveBeenCalled();
+  });
+
+  it("repeated welcome failures alert the operator ONCE per subscription", async () => {
+    welcome.send.mockRejectedValue(new Error("resend down"));
+    const { POST } = await import("./route");
+    for (let i = 0; i < 3; i++) expect((await POST(active("wh_s7", "pdt_STANDARD"))).status).toBe(500);
+    expect(alerts.subjects.filter((s) => s.includes("F3_WELCOME_EMAIL_SEND_FAILED"))).toHaveLength(1);
+    expect(welcome.send).toHaveBeenCalledTimes(3);
+  });
+
+  it("a crashed claim older than 10 minutes is re-claimable", async () => {
+    const { POST } = await import("./route");
+    state.subGate = "true";
+    // Simulate a delivery that inserted the row and crashed mid-send 11 minutes ago.
+    await POST(active("wh_s8a", "pdt_STANDARD", "sub_8"));
+    state.sq!.db.prepare(`UPDATE subscriptions SET welcome_email_sent_at = ? WHERE subscription_id = ?`).run(-(Math.floor(Date.now() / 1000) - 660), "sub_8");
+    welcome.send.mockClear();
+    const res = await POST(active("wh_s8b", "pdt_STANDARD", "sub_8"));
+    expect(res.status).toBe(200);
+    expect(welcome.send).toHaveBeenCalledTimes(1);
+    expect(subRow("sub_8")!.welcome_email_sent_at).toBeGreaterThan(0);
+  });
+
+  it("an already-stamped subscription is not re-sent on redelivery", async () => {
+    const { POST } = await import("./route");
+    await POST(active("wh_s5", "pdt_PRO"));
+    state.store.delete("webhook:wh_s5");
+    await POST(active("wh_s5", "pdt_PRO"));
+    expect(welcome.send).toHaveBeenCalledTimes(1);
   });
 });

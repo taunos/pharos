@@ -20,6 +20,17 @@
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
 	},
+	// E2 (2026-11-05): first, best-effort burst gate on /api/score/capture-email
+	// (3 per 60 s, keyed per IP hash and per scan); the KV hourly/daily limits
+	// stay behind it. namespace_id is account-unique: mcp-server 1001,
+	// scanner 1002.
+	"ratelimits": [
+		{
+			"name": "CAPTURE_RATE_LIMITER",
+			"namespace_id": "1003",
+			"simple": { "limit": 3, "period": 60 }
+		}
+	],
 	"kv_namespaces": [
 		{
 			"binding": "TRIAGE_CACHE",
@@ -75,6 +86,10 @@
 		// Pre-launch gate for paid Implementation checkout. Fail-closed:
 		// only the exact string "true" enables it. Flip to "true" at launch.
 		"IMPLEMENTATION_CHECKOUT_ENABLED": "false",
+		// E4: server-side gate for Standard/Pro subscriptions (webhook
+		// subscription.active). Fail-closed: only "true" opens it. Flip together
+		// with the /subscriptions CTA consts at launch.
+		"SUBSCRIPTION_CHECKOUT_ENABLED": "false",
 		// Pre-launch gate for paid Audit checkout (Test C-A). Fail-closed:
 		// only the exact string "true" enables it. Flip to "true" at launch.
 		"AUDIT_CHECKOUT_ENABLED": "true",
