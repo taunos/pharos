@@ -400,7 +400,7 @@ describe("openapi states", () => {
     ]);
     expect(r.openapi.evidence.note).toBe("byte-identical to the delivered file; 3 operations served, 3 delivered");
   });
-  it("working: the customer extended paths[] and converted it to JSON", async () => {
+  it("mismatch: the customer extended paths[] and converted it to JSON (working needs the delivered bytes)", async () => {
     const json = JSON.stringify({
       openapi: "3.1.0",
       info: { title: "Acme API", version: "1" },
@@ -408,8 +408,36 @@ describe("openapi states", () => {
       paths: { "/pets": { get: {}, post: {}, parameters: [] }, "/pets/{id}": { delete: {}, put: {} } },
     });
     const r = await run(goodSite({ [path]: json }).fetchImpl, { expected: ex });
-    expect(r.openapi.state).toBe("working");
-    expect(r.openapi.evidence.note).toMatch(/4 operations served, 3 delivered/);
+    expect(r.openapi.state).toBe("mismatch");
+    expect(r.openapi.evidence.note).toMatch(/^live file differs from the delivered spec; 4 operations served, 3 delivered/);
+  });
+  it("mismatch: mixed mapping/sequence under a delivered operation (the parser never awards working)", async () => {
+    const served = OPENAPI_SPEC.replace('      summary: "list"\n', '      summary: "list"\n      - broken\n');
+    expect(served).not.toBe(OPENAPI_SPEC);
+    const r = await run(goodSite({ [path]: served }).fetchImpl, { expected: ex });
+    expect(r.openapi.state).toBe("mismatch");
+  });
+  it("mismatch: any edit, even one the parser reads as the same operations", async () => {
+    const served = OPENAPI_SPEC.replace('summary: "list"', 'summary: "list all"');
+    expect(served).not.toBe(OPENAPI_SPEC);
+    const r = await run(goodSite({ [path]: served }).fetchImpl, { expected: ex });
+    expect(r.openapi.state).toBe("mismatch");
+    expect(r.openapi.evidence.missing ?? []).toEqual([]); // the parser sees every delivered operation
+    expect(r.openapi.evidence.note).toMatch(/^live file differs from the delivered spec/);
+  });
+  it("working: CRLF line endings, trailing spaces/tabs and a missing or extra final newline", async () => {
+    const variants = [
+      OPENAPI_SPEC.split("\n").join("\r\n"),
+      OPENAPI_SPEC.split("\n").map((l) => (l ? l + " \t " : l)).join("\n"),
+      OPENAPI_SPEC.replace(/\n+$/, ""),
+      OPENAPI_SPEC + "\n\n",
+    ];
+    for (const served of variants) {
+      expect(served).not.toBe(OPENAPI_SPEC);
+      const r = await run(goodSite({ [path]: served }).fetchImpl, { expected: ex });
+      expect(r.openapi.state, JSON.stringify(served.slice(0, 40))).toBe("working");
+      expect(r.openapi.evidence.note).toMatch(/^(byte-identical to|matches) the delivered file/);
+    }
   });
   it("mismatch: a delivered operation is missing", async () => {
     const served = OPENAPI_SPEC.replace('    post:\n      summary: "add"\n', "");

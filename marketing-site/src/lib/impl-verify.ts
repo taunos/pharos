@@ -5,9 +5,11 @@
 // customer's live site, verifyArtifacts checks each delivered artifact for
 // CONTENT and BEHAVIOUR, not just HTTP 200:
 //   llms_txt    GET <site>/llms.txt: delivered H1, ## sections and links present
-//   openapi     GET <site>/openapi.yaml: parses (JSON, or the block-YAML subset
-//               the generator emits), is ours (title or server URL), and has
-//               every delivered path + operation
+//   openapi     GET <site>/openapi.yaml: working only when it is the delivered
+//               file (CRLF, trailing whitespace and final newlines normalized);
+//               any other content is mismatch. A bounded parser (JSON, or the
+//               block-YAML subset the generator emits) only adds diagnostic
+//               detail (ours by title/server URL, delivered paths/operations)
 //   json_ld     GET <site>/: an application/ld+json node of each delivered
 //               @type with the delivered key fields
 //   mcp_server  the URL the customer reports: MCP JSON-RPC initialize ->
@@ -527,11 +529,18 @@ async function checkOpenApi(ctx: Ctx, exp: ExpectedOpenApi): Promise<ArtifactChe
   const f = await fetchArtifactText(ctx, "openapi", exp.path, MAX_SPEC_BYTES);
   if ("done" in f) return f.done;
   const ev = { status: f.status, contentType: f.contentType };
+  // working = the delivered file itself (line endings, trailing whitespace and
+  // final newlines normalized). The bounded YAML parser below only adds
+  // diagnostic detail; it never awards working.
+  const identical = normalizeSpecText(f.text) === normalizeSpecText(exp.content);
+  const DIFFERS = "live file differs from the delivered spec";
   const spec = parseOpenApi(f.text);
   if (!spec) {
     return applyRobots(
       ctx,
-      result(ctx, "openapi", f.url, "mismatch", { ...ev, note: "does not parse as an OpenAPI 3.x document" }),
+      identical
+        ? result(ctx, "openapi", f.url, "working", { ...ev, note: "matches the delivered file (not traversable by the bounded parser)" })
+        : result(ctx, "openapi", f.url, "mismatch", { ...ev, note: `${DIFFERS}; does not parse as an OpenAPI 3.x document` }),
       exp.path,
     );
   }
@@ -550,7 +559,7 @@ async function checkOpenApi(ctx: Ctx, exp: ExpectedOpenApi): Promise<ArtifactChe
         ...ev,
         matched,
         missing,
-        note: "an OpenAPI document is served but it is not the delivered spec (neither title nor server URL match)",
+        note: `${DIFFERS}; an OpenAPI document is served but it is not the delivered spec (neither title nor server URL match)`,
       }),
       exp.path,
     );
@@ -570,16 +579,19 @@ async function checkOpenApi(ctx: Ctx, exp: ExpectedOpenApi): Promise<ArtifactChe
     }
   }
   const servedOps = spec.paths === null ? null : countOperations(spec.paths);
-  const identical = sameBytes(f.text, exp.content);
   const parts = [
-    identical ? "byte-identical to the delivered file" : "differs from the delivered bytes",
+    identical
+      ? sameBytes(f.text, exp.content)
+        ? "byte-identical to the delivered file"
+        : "matches the delivered file (line endings / trailing whitespace normalized)"
+      : DIFFERS,
     servedOps === null
       ? "paths not traversable by the bounded parser"
       : `${servedOps} operations served, ${exp.operationCount} delivered`,
   ];
   return applyRobots(
     ctx,
-    result(ctx, "openapi", f.url, missing.length === 0 ? "working" : "mismatch", {
+    result(ctx, "openapi", f.url, identical ? "working" : "mismatch", {
       ...ev,
       matched,
       missing,
@@ -1421,6 +1433,20 @@ const CRLF = String.fromCharCode(13, 10);
 const LF = String.fromCharCode(10);
 
 /** Equal up to CRLF line endings (a Windows checkout may serve CRLF). */
+/** CRLF -> LF, trailing spaces/tabs dropped per line, final newlines dropped. Linear (no regex backtracking). */
+function normalizeSpecText(s: string): string {
+  const lines = s.split(CRLF).join(LF).split(LF);
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    let end = l.length;
+    while (end > 0 && (l.charCodeAt(end - 1) === 32 || l.charCodeAt(end - 1) === 9)) end--;
+    if (end !== l.length) lines[i] = l.slice(0, end);
+  }
+  let n = lines.length;
+  while (n > 0 && lines[n - 1] === "") n--;
+  return lines.slice(0, n).join(LF);
+}
+
 function sameBytes(served: string, delivered: string): boolean {
   return served === delivered || served.split(CRLF).join(LF) === delivered;
 }
