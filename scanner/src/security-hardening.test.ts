@@ -84,7 +84,7 @@ const ACCEPTED = [
   "https://www.example.co.uk:443/",
   "http://example.com:80/",
   "https://example.com./",
-  "https://xn--bcher-kva.example/",
+  "https://xn--bcher-kva.example.com/",
   "https://my-site.io/pricing",
 ];
 

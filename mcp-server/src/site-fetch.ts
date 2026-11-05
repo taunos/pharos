@@ -4,7 +4,8 @@
  *
  * - validateTargetUrl: http/https on ports 80/443 only; no credentials, no IP
  *   literals (v4 or v6, which covers private / link-local / metadata ranges),
- *   no localhost / single-label / .local / .internal / .home.arpa hosts.
+ *   no localhost / single-label / internal or reserved-suffix hosts
+ *   (BLOCKED_HOST_SUFFIXES), no characters outside [a-z0-9-] in a label.
  *   DNS names that resolve to private addresses are left to the Workers
  *   network (global_fetch_strictly_public; Workers cannot reach RFC 1918).
  * - safeFetch: manual redirects, each hop re-validated, capped hop count, one
@@ -29,7 +30,14 @@ export const UNTRUSTED_NOTE =
 
 export class UnsafeUrlError extends Error {}
 
-const BLOCKED_HOST_SUFFIXES = [".localhost", ".local", ".internal", ".home.arpa"];
+// E14 (code-quality audit 2026-11-05): the strictest list of the four copies
+// (outreach's). A name matches when it IS the suffix or ends with "." + it.
+// Kept in parity with parity/ssrf-guard-cases.json by test/ssrf-parity.test.ts.
+const BLOCKED_HOST_SUFFIXES = [
+  "localhost", "local", "localdomain", "internal", "intranet", "lan", "home", "corp", "private",
+  "test", "example", "invalid", "onion", "arpa",
+];
+const LABEL_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
 /** Throws UnsafeUrlError unless `raw` is a public http(s) URL on port 80/443. */
 export function validateTargetUrl(raw: string | URL): URL {
@@ -52,20 +60,21 @@ export function validateTargetUrl(raw: string | URL): URL {
   // Strip every trailing dot ("localhost.." is still localhost), then refuse
   // empty labels anywhere else ("example..com").
   const host = u.hostname.toLowerCase().replace(/\.+$/, "");
-  if (host.split(".").some((label) => label === "")) {
-    throw new UnsafeUrlError("Local or internal hostnames are not allowed.");
-  }
   // IPv6 literals keep their brackets in .hostname. IPv4 literals in any
   // notation (decimal, hex, octal, short forms) are normalized to dotted quad
   // by the URL parser, so one pattern covers them all.
   if (host.startsWith("[") || /^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
     throw new UnsafeUrlError("IP address URLs are not allowed; use a domain name.");
   }
+  // E14: labels limited to [a-z0-9-] (no leading/trailing hyphen), and the
+  // last label must contain a letter (scanner safe-fetch.ts parity).
+  const labels = host.split(".");
   if (
     host === "" ||
-    !host.includes(".") ||
-    host === "localhost" ||
-    BLOCKED_HOST_SUFFIXES.some((s) => host.endsWith(s))
+    labels.length < 2 ||
+    labels.some((label) => !LABEL_RE.test(label)) ||
+    !/[a-z]/.test(labels[labels.length - 1]) ||
+    BLOCKED_HOST_SUFFIXES.some((s) => host === s || host.endsWith("." + s))
   ) {
     throw new UnsafeUrlError("Local or internal hostnames are not allowed.");
   }
@@ -107,6 +116,8 @@ export class Deadline {
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
 export interface SafeFetchResult {
   res: Response;
   finalUrl: string;
@@ -140,7 +151,8 @@ export async function safeFetch(
         signal: opts.deadline.signal,
       })
     );
-    const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+    // E14: only the five redirect statuses are followed (not 300/304/305/306).
+    const location = REDIRECT_STATUSES.has(res.status) ? res.headers.get("location") : null;
     if (!location || redirects >= maxRedirects) {
       return { res, finalUrl: target, redirects };
     }
