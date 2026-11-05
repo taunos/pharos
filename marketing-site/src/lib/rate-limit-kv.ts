@@ -34,8 +34,39 @@ export async function hmacIp(secret: string, ip: string): Promise<string> {
     false,
     ["sign"],
   );
-  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(ip.trim().toLowerCase()));
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rateLimitIpKey(ip)));
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * E15 (code-quality audit 2026-11-05): the IP part of every rate-limit key.
+ * One customer usually holds a whole IPv6 /64, so IPv6 keys on that prefix
+ * (expanded, lowercased: "2001:db8:1:2::/64"); a v4-mapped IPv6 address keys
+ * as its IPv4. Everything else, IPv4 included, keeps the pre-E15 input
+ * ip.trim().toLowerCase(), so existing counters stay valid. Copies in scanner
+ * ratelimit.ts and mcp-server site-fetch.ts follow
+ * parity/ip-rate-limit-key-cases.json.
+ */
+export function rateLimitIpKey(ip: string): string {
+  const s = ip.trim().toLowerCase();
+  if (!s.includes(":")) return s;
+  let host: string;
+  try {
+    host = new URL(`http://[${s}]/`).hostname.slice(1, -1);
+  } catch {
+    return s;
+  }
+  // The URL serializer gives the compressed form with hex groups only.
+  const [head, tail] = host.split("::");
+  const left = head ? head.split(":") : [];
+  const right = tail ? tail.split(":") : [];
+  const groups = tail === undefined ? left : [...left, ...Array(8 - left.length - right.length).fill("0"), ...right];
+  if (groups.slice(0, 5).every((g) => g === "0") && groups[5] === "ffff") {
+    const hi = parseInt(groups[6] ?? "0", 16);
+    const lo = parseInt(groups[7] ?? "0", 16);
+    return `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+  }
+  return `${groups.slice(0, 4).join(":")}::/64`;
 }
 
 interface CounterValue {

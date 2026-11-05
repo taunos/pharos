@@ -73,7 +73,7 @@ export function validateTargetUrl(raw: string | URL): URL {
     host === "" ||
     labels.length < 2 ||
     labels.some((label) => !LABEL_RE.test(label)) ||
-    !/[a-z]/.test(labels[labels.length - 1]) ||
+    !/[a-z]/.test(labels[labels.length - 1] ?? "") ||
     BLOCKED_HOST_SUFFIXES.some((s) => host === s || host.endsWith("." + s))
   ) {
     throw new UnsafeUrlError("Local or internal hostnames are not allowed.");
@@ -264,6 +264,37 @@ export function sanitizeUntrusted(input: string | null | undefined, max: number 
   return cps.length > max ? cps.slice(0, max - 3).join("") + "..." : cleaned;
 }
 
+/**
+ * E15 (code-quality audit 2026-11-05): the IP part of the rate-limit key.
+ * One customer usually holds a whole IPv6 /64, so IPv6 keys on that prefix
+ * (expanded, lowercased: "2001:db8:1:2::/64"); a v4-mapped IPv6 address keys
+ * as its IPv4. Everything else, IPv4 included, keeps ip.trim().toLowerCase()
+ * (CF-Connecting-IP IPv4 is already bare dotted-quad, so existing counters
+ * stay valid). Copies in scanner ratelimit.ts and marketing-site
+ * rate-limit-kv.ts follow parity/ip-rate-limit-key-cases.json.
+ */
+export function rateLimitIpKey(ip: string): string {
+  const s = ip.trim().toLowerCase();
+  if (!s.includes(":")) return s;
+  let host: string;
+  try {
+    host = new URL(`http://[${s}]/`).hostname.slice(1, -1);
+  } catch {
+    return s;
+  }
+  // The URL serializer gives the compressed form with hex groups only.
+  const [head, tail] = host.split("::");
+  const left = head ? head.split(":") : [];
+  const right = tail ? tail.split(":") : [];
+  const groups = tail === undefined ? left : [...left, ...Array(8 - left.length - right.length).fill("0"), ...right];
+  if (groups.slice(0, 5).every((g) => g === "0") && groups[5] === "ffff") {
+    const hi = parseInt(groups[6] ?? "0", 16);
+    const lo = parseInt(groups[7] ?? "0", 16);
+    return `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+  }
+  return `${groups.slice(0, 4).join(":")}::/64`;
+}
+
 export interface RateLimitBinding {
   limit(opts: { key: string }): Promise<{ success: boolean }>;
 }
@@ -279,7 +310,7 @@ export async function checkRateLimit(
     return true;
   }
   try {
-    const { success } = await limiter.limit({ key: `fetch-tool:${clientIp ?? "unknown"}` });
+    const { success } = await limiter.limit({ key: `fetch-tool:${rateLimitIpKey(clientIp ?? "unknown")}` });
     return success;
   } catch (err) {
     log("mcp-server rate limiter errored; failing open", err);

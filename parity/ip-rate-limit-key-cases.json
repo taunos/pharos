@@ -1,0 +1,31 @@
+{
+  "_comment": [
+    "E15 (code-quality audit 2026-11-05): ONE table for every copy of rateLimitIpKey.",
+    "Copies: scanner/src/ratelimit.ts, marketing-site/src/lib/rate-limit-kv.ts, mcp-server/src/site-fetch.ts.",
+    "IPv6 keys on its /64 (expanded, lowercased); a v4-mapped IPv6 address keys as its IPv4.",
+    "IPv4 (and anything that is not an IPv6 literal) keeps the pre-E15 key, ip.trim().toLowerCase(),",
+    "so existing counters stay valid. Rows are [input, expected key]."
+  ],
+  "cases": [
+    ["1.2.3.4", "1.2.3.4"],
+    ["203.0.113.7", "203.0.113.7"],
+    [" 198.51.100.1 ", "198.51.100.1"],
+    ["unknown", "unknown"],
+    ["", ""],
+    ["2001:db8:1:2:3:4:5:6", "2001:db8:1:2::/64"],
+    ["2001:db8:1:2:ffff:ffff:ffff:ffff", "2001:db8:1:2::/64"],
+    ["2001:DB8:1:2::1", "2001:db8:1:2::/64"],
+    ["2001:0db8:0001:0002:0000:0000:0000:0001", "2001:db8:1:2::/64"],
+    ["2001:db8::1", "2001:db8:0:0::/64"],
+    ["2001:db8:0:0:1::", "2001:db8:0:0::/64"],
+    ["2001:db8:1:3::1", "2001:db8:1:3::/64"],
+    ["::1", "0:0:0:0::/64"],
+    ["fe80::1", "fe80:0:0:0::/64"],
+    ["::ffff:1.2.3.4", "1.2.3.4"],
+    ["::ffff:102:304", "1.2.3.4"],
+    ["::FFFF:203.0.113.7", "203.0.113.7"],
+    ["0:0:0:0:0:ffff:c633:6401", "198.51.100.1"],
+    [" 2001:db8:1:2::9 ", "2001:db8:1:2::/64"],
+    ["not:an:ip", "not:an:ip"]
+  ]
+}
