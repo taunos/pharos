@@ -301,7 +301,7 @@ describe("POST /api/scan/:id/capture-outbox (through worker.fetch)", () => {
       ),
     );
     const ok = results.filter((r) => r.status === 200);
-    expect(ok.length).toBeLessThanOrEqual(1);
+    expect(ok.length).toBe(1);
     for (const r of results) expect([200, 409, 503]).toContain(r.status);
 
     const jobs = jobsFor(sqlite, "s1");
