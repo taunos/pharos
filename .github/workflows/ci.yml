@@ -23,6 +23,7 @@ jobs:
           - { dir: citation-tracking, typecheck: false, test: true }
           - { dir: mcp-server,        typecheck: true,  test: false }
           - { dir: corpus,            typecheck: true,  test: false }
+          - { dir: outreach,          typecheck: true,  test: true }
     defaults:
       run:
         working-directory: ${{ matrix.dir }}

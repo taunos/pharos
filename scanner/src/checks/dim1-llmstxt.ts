@@ -98,6 +98,14 @@ export async function runDim1(targetUrl: string, env: Env): Promise<DimensionRes
     weight: 25,
     score: presenceScore,
     passed: presenceScore >= 70,
+    // Evidence from this single request (outreach observation-only claims). Scoring unchanged.
+    evidence: {
+      status: res ? res.status : null,
+      content_type: ct,
+      parsed: false,
+      requested_url: llmsUrl,
+      final_url: res?.url ?? "",
+    },
     notes: !res
       ? "fetch failed"
       : res.status !== 200

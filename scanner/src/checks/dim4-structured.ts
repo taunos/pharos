@@ -1,4 +1,4 @@
-import type { DimensionResult, Env, SubCheck } from "../types";
+import type { DimensionResult, Env, SubCheck, SubCheckEvidence } from "../types";
 import { dimensionScoreOrThrow, gradeFor } from "../scoring";
 import { evalWithCache } from "./llm-eval";
 import { cleanSiteText, detectScoringInjection, randomTag, wrapUntrusted } from "./llm-safety";
@@ -17,12 +17,65 @@ async function timedFetch(url: string, init?: RequestInit): Promise<Response | n
   }
 }
 
-function extractJsonLdBlocks(html: string): unknown[] {
+// Outreach security round 2: HTML-attribute-tolerant <script> scanning. The old
+// regex required `type="..."` with no whitespace and quotes, so valid markup
+// such as `<script type = "application/ld+json">` or `type=application/ld+json`
+// was missed, and the page was then reported as having no JSON-LD.
+type ScriptTag = { attrs: Record<string, string>; body: string };
+
+/** Parses `<script ...>body</script>` elements: any case, any attribute order, quoted (' or ") or bare values, `>` inside quotes. */
+export function scanScriptTags(html: string): ScriptTag[] {
+  const out: ScriptTag[] = [];
+  const lower = html.toLowerCase();
+  let i = 0;
+  for (;;) {
+    const start = lower.indexOf("<script", i);
+    if (start < 0) break;
+    const after = lower.charAt(start + 7);
+    if (after && !/[\s>/]/.test(after)) {
+      i = start + 7; // e.g. <scripts>
+      continue;
+    }
+    // Walk the start tag, honouring quotes.
+    let j = start + 7;
+    let quote = "";
+    while (j < html.length) {
+      const c = html.charAt(j);
+      if (quote) {
+        if (c === quote) quote = "";
+      } else if (c === '"' || c === "'") quote = c;
+      else if (c === ">") break;
+      j++;
+    }
+    if (j >= html.length) break;
+    const attrSrc = html.slice(start + 7, j);
+    const attrs: Record<string, string> = {};
+    const ar = /([^\s"'>\/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+    let m: RegExpExecArray | null;
+    while ((m = ar.exec(attrSrc)) !== null) {
+      const name = m[1].toLowerCase();
+      if (!(name in attrs)) attrs[name] = m[2] ?? m[3] ?? m[4] ?? "";
+    }
+    const closeRe = /<\/script\s*>/gi;
+    closeRe.lastIndex = j + 1;
+    const close = closeRe.exec(html);
+    const end = close ? close.index : html.length;
+    out.push({ attrs, body: html.slice(j + 1, end) });
+    i = close ? close.index + close[0].length : html.length;
+  }
+  return out;
+}
+
+export function isJsonLdType(type: string | undefined): boolean {
+  if (type === undefined) return false;
+  return type.split(";")[0].trim().toLowerCase() === "application/ld+json";
+}
+
+export function extractJsonLdBlocks(html: string): unknown[] {
   const out: unknown[] = [];
-  const re = /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html)) !== null) {
-    const raw = m[1].trim();
+  for (const tag of scanScriptTags(html)) {
+    if (!isJsonLdType(tag.attrs.type)) continue;
+    const raw = tag.body.trim();
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) out.push(...parsed);
@@ -32,6 +85,55 @@ function extractJsonLdBlocks(html: string): unknown[] {
     }
   }
   return out;
+}
+
+/** Decodes numeric (&#47; &#x2B;) and the &plus; &sol; &amp; entities, which is all an "ld+json" spelling can need. */
+function decodeAttrEntities(s: string): string {
+  return s
+    // HTML allows any number of leading zeros in character references.
+    .replace(/&#x0*([0-9a-f]{1,6});?/gi, (_, h: string) => safeCodePoint(parseInt(h, 16)))
+    .replace(/&#0*([0-9]{1,7});?/g, (_, d: string) => safeCodePoint(parseInt(d, 10)))
+    .replace(/&plus;/gi, "+")
+    .replace(/&sol;/gi, "/")
+    .replace(/&amp;/gi, "&");
+}
+function safeCodePoint(n: number): string {
+  return n >= 0 && n <= 0x10ffff ? String.fromCodePoint(n) : "";
+}
+const UTF8_COMPATIBLE = /^(utf-?8|us-ascii|ascii|iso-8859-1|latin1|windows-1252)$/i;
+
+/** See SubCheckEvidence.ld_json_absent_proven. Conservative: any doubt => false. */
+// Script types we can confidently classify as NOT JSON-LD (lowercased, exact).
+const KNOWN_NON_JSONLD_TYPES = new Set([
+  "", "text/javascript", "application/javascript", "application/x-javascript", "text/ecmascript",
+  "application/ecmascript", "module", "application/json", "text/json", "importmap", "speculationrules",
+  "text/template", "text/html", "text/plain", "text/x-template",
+]);
+
+/**
+ * Conservative safety net (outreach Codex round 4): absence is unproven when any
+ * <script> type value contains "&", a backslash or a non-ASCII character, or is
+ * not a type we can confidently classify. Decoding tricks then can't matter.
+ */
+function scriptTypesConfidentlyNonJsonLd(html: string): boolean {
+  for (const tag of scanScriptTags(html)) {
+    const t = tag.attrs.type;
+    if (t === undefined) continue; // no type attribute: classic script
+    if (/[&\\]|[^\x20-\x7e]/.test(t)) return false;
+    if (!KNOWN_NON_JSONLD_TYPES.has(t.trim().toLowerCase())) return false;
+  }
+  return true;
+}
+
+export function ldJsonAbsentProven(html: string, contentType: string, bodyComplete: boolean): boolean {
+  if (!bodyComplete) return false;
+  if (!scriptTypesConfidentlyNonJsonLd(html)) return false;
+  const cs = /charset\s*=\s*"?([^";\s]+)/i.exec(contentType)?.[1];
+  if (cs && !UTF8_COMPATIBLE.test(cs)) return false;
+  if (html.includes(String.fromCodePoint(0xfffd))) return false; // decoding errors
+  // Decode twice (handles &amp;#43; style double encoding), then search.
+  const text = decodeAttrEntities(decodeAttrEntities(html));
+  return !/ld\s*\+\s*json/i.test(text);
 }
 
 function findByType(blocks: unknown[], typeName: string): Record<string, unknown>[] {
@@ -99,13 +201,35 @@ export async function runDim4(targetUrl: string, env: Env): Promise<DimensionRes
   let html = "";
   let blocks: unknown[] = [];
   let invalidCount = 0;
+  // Evidence from THIS response, attached to every Dim 4 sub-check, so a consumer
+  // never infers "the homepage had no JSON-LD" from some other request.
+  const evidence: SubCheckEvidence = {
+    status: res ? res.status : null,
+    content_type: res?.headers.get("content-type") ?? "",
+    parsed: false,
+    requested_url: targetUrl,
+    final_url: res?.url ?? "",
+    body_complete: false,
+    ld_json_absent_proven: false,
+  };
   if (res && res.status === 200) {
+    let read = false;
     try {
       html = await res.text();
-      blocks = extractJsonLdBlocks(html);
-      invalidCount = blocks.filter((b) => (b as { __invalid?: boolean })?.__invalid).length;
+      read = true;
     } catch {
-      // ignore
+      // body read error: not complete
+    }
+    evidence.body_complete = read;
+    if (read) {
+      try {
+        blocks = extractJsonLdBlocks(html);
+        invalidCount = blocks.filter((b) => (b as { __invalid?: boolean })?.__invalid).length;
+        evidence.parsed = true;
+      } catch {
+        // ignore
+      }
+      evidence.ld_json_absent_proven = ldJsonAbsentProven(html, evidence.content_type, true);
     }
   }
   const validBlocks = blocks.filter((b) => !(b as { __invalid?: boolean })?.__invalid);
@@ -242,6 +366,7 @@ export async function runDim4(targetUrl: string, env: Env): Promise<DimensionRes
     notes: reviewNote,
   });
 
+  for (const sc of subs) sc.evidence = { ...evidence };
   const score = dimensionScoreOrThrow(subs);
   return {
     dimension_id: 4,

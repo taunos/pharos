@@ -1,15 +1,9 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
-import type { Env, ScanResult, ScanTier } from "./types";
-import { compositeOf } from "./scoring";
-import { checkRateLimit, urlHash } from "./ratelimit";
-import { runDim1 } from "./checks/dim1-llmstxt";
-import { runDim2 } from "./checks/dim2-mcp";
-import { runDim3 } from "./checks/dim3-openapi";
-import { runDim4 } from "./checks/dim4-structured";
-import { runDim5 } from "./checks/dim5-parsable";
-import { runDim6 } from "./checks/dim6-citation";
+import type { Env, ScanTier } from "./types";
+import { checkRateLimit } from "./ratelimit";
+import { runScan } from "./run-scan";
 import { SCORING_VERSION } from "./version";
 import { mountScoreAdmin } from "./score-admin";
 import { mountCaptureOutbox, runCaptureWatchdog } from "./capture-outbox";
@@ -137,92 +131,15 @@ app.post("/api/scan", async (c) => {
     return c.json({ ok: false, error: rl.reason }, 429);
   }
 
-  // Cache check (1h). Cache key incorporates SCORING_VERSION + tier so:
-  //  - SCORING_VERSION bumps invalidate stale entries automatically.
-  //  - Free vs paid scans of the same URL get distinct entries (different
-  //    js_vs_no_js_render_diff signal).
-  const hash = await urlHash(`${url}|${tier}`);
-  const cacheKey = `scan:v${SCORING_VERSION}:${hash}`;
-  const cached = await c.env.CACHE.get(cacheKey);
-  if (cached) {
-    try {
-      const data = JSON.parse(cached) as ScanResult;
-      return c.json(data);
-    } catch {
-      // fall through to fresh scan
-    }
-  }
-
-  // Run dimensions in parallel.
-  // Slice 3b: Dim 6 (Citation Visibility) is the free-tier demo preview only
-  // here. The PAID Dim 6 audit happens in audit-fulfill, which OVERWRITES
-  // this dimension on its scan-result before persisting (see
-  // marketing-site/src/lib/dim6/runDim6.ts). Capability separation per
-  // locked decision 1: scanner has zero of the 4 LLM-provider API keys.
-  const startedAt = Date.now();
-  const [d1, d2, d3, d4, d5, d6] = await Promise.all([
-    runDim1(url, c.env),
-    runDim2(url, c.env),
-    runDim3(url, c.env),
-    runDim4(url, c.env),
-    runDim5(url, c.env, tier),
-    runDim6(url, tier),
-  ]);
-  const dimensions = [d1, d2, d3, d4, d5, d6];
-  const composite = compositeOf(dimensions);
-  const id = crypto.randomUUID();
-  const created_at = startedAt;
-
-  // Slice 3a:
-  //   - dimensions_scored: dimensions ATTEMPTED in this engine version (5/6 in v1.2.0).
-  //   - dimensions_applicable: attempted minus whole-dim N/A (e.g. content-only
-  //     site has Dim 3 N/A, so applicable=4). Counted from the array; never
-  //     extrapolated. Older v1.1.0 scans did not emit this — render-side falls
-  //     back to dimensions_scored when undefined.
-  const dimensionsApplicable = dimensions.filter((d) => !d.na).length;
-
-  const result: ScanResult = {
-    id,
-    url,
-    composite,
-    dimensions,
-    dimensions_scored: dimensions.length,
-    dimensions_total: 6,
-    dimensions_applicable: dimensionsApplicable,
-    created_at,
-    scoring_version: SCORING_VERSION,
-    tier,
-  };
-
-  // Persist to D1 (best-effort; don't fail the scan if D1 hiccups).
-  try {
-    // Privacy (OD#7): do NOT persist raw IP to D1. The user_ip column is left
-    // nullable in the schema (no destructive DROP) but is no longer written.
-    // Rate-limiting uses a short-lived, hashed KV key (see checkRateLimit).
-    await c.env.DB.prepare(
-      `INSERT INTO scans (id, url, composite_score, composite_grade, dimensions_scored, dimensions_total, results_json, email, tier, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-      .bind(
-        id,
-        url,
-        composite.score,
-        composite.grade,
-        result.dimensions_scored,
-        result.dimensions_total,
-        JSON.stringify(result),
-        email ?? null,
-        tier,  // P0-C2 dual-write: first-class column mirrors results_json.$.tier
-        created_at
-      )
-      .run();
-  } catch (e) {
-    console.error("D1 insert failed:", e instanceof Error ? e.message : String(e));
-  }
-
-  // Cache for 1h
-  await c.env.CACHE.put(cacheKey, JSON.stringify(result), { expirationTtl: 3600 });
-
+  // Outreach slice: the scan body lives in runScan (./run-scan) so the
+  // ProspectScan RPC entrypoint can share it. The public route's behaviour is
+  // unchanged: same cache read/write, same INSERT bytes, same swallowed insert
+  // error.
+  const result = await runScan(c.env, url, tier, {
+    email,
+    useCache: true,
+    throwOnInsertFail: false,
+  });
   return c.json(result);
 });
 
@@ -253,6 +170,11 @@ app.get("/", (c) =>
     ].join("\n")
   )
 );
+
+// Outreach slice: Service-Binding-only RPC entrypoint for pharos-outreach.
+// Named export next to the default object export; reachable only through a
+// Service Binding, so nothing new is exposed on scanner.astrant.io.
+export { ProspectScan } from "./prospect-scan";
 
 // P0-C2 Chunk C: expose fetch (unchanged) + a DORMANT scheduled handler for the
 // capture-outbox watchdog. No cron trigger is declared in wrangler.jsonc in this

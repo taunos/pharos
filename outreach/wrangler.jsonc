@@ -1,0 +1,64 @@
+// pharos-outreach — cold-outreach agent (spec: reports/outreach-agent-spec-v1-2026-11-04.md).
+// DRAFTS ONLY (Bruno, 2026-11-04): the agent never sends. It saves emails as
+// drafts in the Zoho mailbox; Bruno sends each one himself.
+// Fail-closed: OUTREACH_MODE absent or any non-exact value resolves to "off"
+// (no scans, fetches, model calls, batches or drafts; inbox + opt-outs still run).
+// Secrets (set by Bruno with `wrangler secret put`, never committed):
+//   POSTAL_ADDRESS, OPTOUT_HMAC_SECRET, SUPPRESSION_HMAC_SECRET,
+//   MAIL_OAUTH_CLIENT_ID, MAIL_OAUTH_CLIENT_SECRET, MAIL_OAUTH_REFRESH_TOKEN
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pharos-outreach",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-12-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "observability": { "enabled": true },
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "go.getastrant.com", "custom_domain": true }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pharos-outreach",
+      // Filled in by Bruno after `wrangler d1 create pharos-outreach` (runbook step 2).
+      "database_id": "REPLACE_WITH_D1_ID_FROM_WRANGLER_D1_CREATE",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "services": [
+    { "binding": "SCANNER", "service": "pharos-scanner", "entrypoint": "ProspectScan" }
+  ],
+  "ai": { "binding": "AI" },
+  "triggers": {
+    "crons": [
+      "5 9 * * 1",
+      "7,22,37,52 * * * *",
+      "5 3 * * *"
+    ]
+  },
+  "vars": {
+    "OUTREACH_MODE": "off",
+    "DAILY_CAP_MAX": "30",
+    // Mailbox drafts per UTC day (follow-ups included). ~10 real sends a week is the plan.
+    "DRAFTS_PER_DAY": "10",
+    // Optional wait after "Mark DNS verified" before the first draft (formal warm-up optional at this volume).
+    "WARMUP_DAYS": "0",
+    // Drafts not sent within this many days expire and the lead closes.
+    "DRAFT_EXPIRE_DAYS": "14",
+    "PROSPECT_SCANS_PER_DAY": "40",
+    "BENCHMARK_URL": "",
+    "OPERATOR_ALERT_TO": "taunos@gmail.com",
+    "MAIL_PROVIDER": "zoho",
+    "MAIL_FROM": "bruno@getastrant.com",
+    "MAIL_FROM_NAME": "Bruno at Astrant",
+    "ZOHO_ACCOUNTS_HOST": "accounts.zoho.com",
+    "ZOHO_MAIL_API_HOST": "mail.zoho.com",
+    "PUBLIC_BASE_URL": "https://go.getastrant.com",
+    "SCORE_BASE_URL": "https://astrant.io/score/",
+    "PRIVACY_URL": "https://astrant.io/privacy#prospecting",
+    "CF_ACCESS_TEAM_DOMAIN": "",
+    "CF_ACCESS_AUD": "",
+    "ADMIN_EMAIL": "taunos@gmail.com"
+  }
+}
