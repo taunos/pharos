@@ -62,6 +62,14 @@ describe("E1 — purpose-bound scan tokens", () => {
     expect(await verifyScanToken(t, SECRET, "unsub")).toMatchObject({ scanId: SCAN });
   });
 
+  it("documented limit: a legacy v1 unsubscribe link works until 31 days before its 365-day expiry, then reads as expired", async () => {
+    const DAY = 86400;
+    // 333 days old → 32 days left: still accepted.
+    expect(await verifyScanToken(await legacyV1(SCAN, 32 * DAY), SECRET, "unsub")).toMatchObject({ scanId: SCAN });
+    // 335 days old → 30 days left: indistinguishable from a v1 report token, so rejected.
+    expect(await verifyScanToken(await legacyV1(SCAN, 30 * DAY), SECRET, "unsub")).toBeNull();
+  });
+
   it("new tokens are v2 and never contain the email or a v1 shape", async () => {
     const t = await issueScanToken(SCAN, PDF_TOKEN_TTL_SECONDS, SECRET, "report");
     expect(t.startsWith("v2.report.")).toBe(true);

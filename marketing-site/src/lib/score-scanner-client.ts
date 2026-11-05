@@ -59,7 +59,7 @@ export async function captureEmail(
     email_opted_in_rescan: boolean;
     unsubscribe_token: string;
   }
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; emailBound?: boolean }> {
   const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/capture-email`, {
     method: "POST",
     headers: authHeaders(env),
@@ -68,7 +68,9 @@ export async function captureEmail(
   if (res === "timeout") return { ok: false, error: "timeout" };
   if (!res.ok) {
     const text = await res.text();
-    return { ok: false, error: `${res.status}: ${text.slice(0, 200)}` };
+    // E1: the scanner refused because the scan is bound to another address.
+    const emailBound = res.status === 409 && /"error"\s*:\s*"email_bound"/.test(text);
+    return { ok: false, error: `${res.status}: ${text.slice(0, 200)}`, emailBound };
   }
   return { ok: true };
 }

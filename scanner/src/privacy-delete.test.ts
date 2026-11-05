@@ -784,7 +784,11 @@ describe("Chunk G tG9–tG17 — replay endpoint, interplay, audits, windows, ma
     expect(CAPTURE_SET_EMAIL_GUARDED_SQL).not.toContain("retention_job_id");
     expect(CAPTURE_SET_EMAIL_GUARDED_SQL).not.toContain("retention_jobs");
     // the guarded statement is the legacy statement + exactly the two predicates
-    expect(CAPTURE_SET_EMAIL_GUARDED_SQL.startsWith(CAPTURE_SET_EMAIL_SQL.replace(/\n  WHERE id = \?$/, ""))).toBe(true);
+    expect(CAPTURE_SET_EMAIL_GUARDED_SQL.startsWith(CAPTURE_SET_EMAIL_SQL.slice(0, CAPTURE_SET_EMAIL_SQL.indexOf("\n  WHERE id = ?")))).toBe(true);
+    // E1 (2026-11-05): both statements bind the scan to its first captured address
+    for (const sql of [CAPTURE_SET_EMAIL_SQL, CAPTURE_SET_EMAIL_GUARDED_SQL]) {
+      expect(sql.trimEnd().endsWith("AND (email IS NULL OR email = '' OR lower(trim(email)) = ?)")).toBe(true);
+    }
     // a4Read bytes identical to the frozen retention machine's A4
     expect(PRIVACY_SQL.a4Read).toBe(RETENTION_SQL.a4Read);
   });
@@ -1094,5 +1098,54 @@ describe("Chunk G tG9–tG17 — replay endpoint, interplay, audits, windows, ma
       expect(((await res.json()) as { error: string }).error).toBe("pd_purge_failed");
       expect(errSpy.mock.calls.map((c) => c.join(" "))).toContain("[privacy-delete] pd_release_failed");
     }
+  });
+});
+
+// ── E1 (code-quality audit 2026-11-05): first-capture binding is atomic ───────
+describe("E1 — capture-email binds a scan to its first captured address (both gate modes)", () => {
+  for (const mode of [undefined, "on"] as const) {
+    const label = mode ? "gate on (guarded)" : "gate off (legacy)";
+    it(`${label}: a second, DIFFERENT address → 409 email_bound; stored email, opt-in and token untouched`, async () => {
+      const sqlite = freshSqlite();
+      const d1 = makeD1(sqlite);
+      const id = uuid();
+      seedScan(sqlite, { id });
+      const env = envOf(d1, mode ? { PRIVACY_INTEGRATION_MODE: mode } : {});
+      expect((await scannerWorker.fetch(captureReq(id, "victim@x.com", 1), env, ctx)).status).toBe(200);
+      const before = scanRow(sqlite, id)!;
+      vi.spyOn(console, "log").mockImplementation(() => {});
+      const res = await scannerWorker.fetch(captureReq(id, "attacker@x.com", 0), env, ctx);
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ ok: false, error: "email_bound" });
+      const after = scanRow(sqlite, id)!;
+      expect(after.email).toBe("victim@x.com");
+      expect(after.email_opted_in_rescan).toBe(before.email_opted_in_rescan);
+      expect(after.unsubscribe_token).toBe(before.unsubscribe_token);
+    });
+
+    it(`${label}: the same address (any casing) is still accepted`, async () => {
+      const sqlite = freshSqlite();
+      const d1 = makeD1(sqlite);
+      const id = uuid();
+      seedScan(sqlite, { id });
+      const env = envOf(d1, mode ? { PRIVACY_INTEGRATION_MODE: mode } : {});
+      expect((await scannerWorker.fetch(captureReq(id, "victim@x.com"), env, ctx)).status).toBe(200);
+      expect((await scannerWorker.fetch(captureReq(id, " Victim@X.com "), env, ctx)).status).toBe(200);
+    });
+  }
+
+  it("two concurrent first captures with different addresses: exactly one wins", async () => {
+    const sqlite = freshSqlite();
+    const d1 = makeD1(sqlite);
+    const id = uuid();
+    seedScan(sqlite, { id });
+    const env = envOf(d1);
+    const [a, b] = await Promise.all([
+      scannerWorker.fetch(captureReq(id, "victim@x.com"), env, ctx),
+      scannerWorker.fetch(captureReq(id, "attacker@x.com"), env, ctx),
+    ]);
+    expect([a.status, b.status].sort()).toEqual([200, 409]);
+    const winner = a.status === 200 ? "victim@x.com" : "attacker@x.com";
+    expect(scanRow(sqlite, id)!.email).toBe(winner);
   });
 });

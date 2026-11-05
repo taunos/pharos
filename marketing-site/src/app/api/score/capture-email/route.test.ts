@@ -418,6 +418,16 @@ describe("E1 — capture-email never returns tokens; a scan only ever mails its 
     expect(input.unsubscribeToken).toBe("tok-unsub");
   });
 
+  it("RACE: both requests saw no captured email, but the scanner's atomic write bound the scan to the other address → 409, nothing rendered or sent", async () => {
+    rec("captureEmail", h.captureEmail, () => ({ ok: false, error: "409: email_bound", emailBound: true }));
+    const r = await post("attacker@evil.test");
+    expect(r.status).toBe(409);
+    expect(((await r.json()) as { error: string }).error).toContain("already been sent to a different address");
+    expect(h.generateScoreReportPDF).not.toHaveBeenCalled();
+    expect(h.sendReady).not.toHaveBeenCalled();
+    expect(h.sendDeferred).not.toHaveBeenCalled();
+  });
+
   it("stored-email read failure → 502, nothing sent (fail closed)", async () => {
     rec("getScanState", h.getScanState, () => readyState());
     rec("getEmailForScan", h.getEmailForScan, () => ({ ok: false, error: "timeout" }));

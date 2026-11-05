@@ -189,6 +189,7 @@ export function mountScoreAdmin(app: Hono<{ Bindings: Env }>): void {
         if (outcome === "captured") return c.json({ ok: true });
         if (outcome === "not_found") return c.json({ ok: false, error: "scan not found" }, 404);
         if (outcome === "tombstoned") return c.json({ ok: false, error: "tombstoned" }, 409);
+        if (outcome === "email_bound") return c.json({ ok: false, error: "email_bound" }, 409);
         return c.json({ ok: false, error: "pd_busy" }, 409);
       } catch {
         console.error(`[capture-email] pd_internal`);
@@ -202,9 +203,14 @@ export function mountScoreAdmin(app: Hono<{ Bindings: Env }>): void {
       // clamped to 0 at the DB until a dedicated resubscribe op clears it. Email
       // capture (for the PDF) still proceeds.
       const res = await c.env.DB.prepare(CAPTURE_SET_EMAIL_SQL)
-        .bind(normalizedEmail, optedIn, b.unsubscribe_token, scanId)
+        .bind(normalizedEmail, optedIn, b.unsubscribe_token, scanId, normalizedEmail)
         .run();
       if (!res.success || (res.meta.changes ?? 0) === 0) {
+        // E1: distinguish "bound to a different address" from "no such scan".
+        const bound = await c.env.DB.prepare("SELECT email FROM scans WHERE id = ?")
+          .bind(scanId)
+          .first<{ email: string | null }>();
+        if (bound?.email) return c.json({ ok: false, error: "email_bound" }, 409);
         return c.json({ ok: false, error: "scan not found" }, 404);
       }
       return c.json({ ok: true });

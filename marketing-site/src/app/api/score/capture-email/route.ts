@@ -381,6 +381,14 @@ export async function POST(req: Request) {
     email_opted_in_rescan: optInRescan,
     unsubscribe_token: scanToken,
   });
+  if (!persist.ok && persist.emailBound) {
+    // E1: lost a concurrent first-capture race to a different address. The
+    // scanner write is atomic; nothing was stored, rendered or sent.
+    return NextResponse.json(
+      { success: false, error: DIFFERENT_EMAIL_ERROR },
+      { status: 409 }
+    );
+  }
   if (!persist.ok) {
     console.error(
       `[capture-email] persist failed scan=${scanId} email_hash=${emailLogHash}: ${persist.error}`
