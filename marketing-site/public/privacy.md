@@ -33,10 +33,14 @@ When you use Astrant's free Score tool or any paid tier:
 
 ## What we don't do with what we collect
 
-- We don't sell your data. Ever.
+- We don't sell your personal data — your email, payment details, or anything that identifies you. If you opt in at checkout, we may include a de-identified record of your project (what we found, what we changed, and what happened to your AI visibility afterwards, with your company name, contact details and your own words removed) in research and data products we license to others.
 - We don't share it beyond the providers who run the service for us: Cloudflare (Workers / D1 / KV / R2, Workers AI, Browser Rendering); Resend, who delivers our transactional emails; OpenAI, Anthropic, Google and Perplexity, which receive your site's domain (never your email) in the prompts of a paid Audit's Citation Visibility check; and Profound, when our paid tiers eventually integrate with their citation-tracking API. These are processors, not partners — they hold data on our behalf, under contract.
 - **Payments** are handled by Dodo Payments, our merchant of record. Dodo collects your payment details directly under its own privacy policy; we never see your card number. We receive your email, the purchase and its status.
 - We don't run ads, advertising pixels, or affiliate tracking.
+
+## How we learn from projects
+
+When you buy an Audit, Implementation or subscription, we keep a separate record of the project — the problems our scan found, the answers you picked in our intake questions, what we recommended and delivered, whether those changes appeared on your site, and how your AI visibility moved over the following 90 days. We use it, within Astrant only, to learn which fixes actually work, so our recommendations improve. This record never contains your email, payment details, competitor list, or the free text you typed; free text is summarized into categories and then deleted. Because public facts about your site could be matched back to you, we treat the record as confidential and never publish or share it as an individual record. You can opt out at any time by emailing privacy@astrant.io, and we'll delete it. If Astrant is acquired, these records may transfer to the new owner, who must use them for the same purposes and honor the same choices.
 
 ## Business outreach (prospecting)
 
@@ -65,6 +69,7 @@ When the system needs to log information about a transactional email (for exampl
 - **Tail logs (IP, User-Agent, hashed email):** retained ~7 days.
 - **Retained scan records** (email, IP, unsubscribe token, and opt-in state removed) may be kept for calibration and aggregate metrics. The submitted URL and technical scan results remain — and because a URL can contain identifying information (names, tenant paths, query parameters), we don't claim these records are fully anonymous.
 - **Audit orders:** the URL and email you submit are kept with your order for 30 days, then deleted automatically. Your Audit PDF and JSON are stored with no automatic expiry so your download link keeps working; email privacy@astrant.io to have them deleted. Anonymized Audit results (no email) may be kept for calibration, as described above.
+- **Implementation orders:** the email, brand details and competitor list you give us at intake are kept for 12 months after delivery, then deleted.
 
 ## Your rights
 
@@ -72,7 +77,7 @@ You have the following rights, regardless of where you're located:
 
 - **Access:** ask us what data we hold about you. Email privacy@astrant.io.
 - **Correction:** if we have something wrong, tell us, and we'll fix it.
-- **Deletion:** visit [`/score/delete-me`](/score/delete-me) to remove your personal data from every Score scan record associated with your email. We send a confirmation link valid for 24 hours; opening it shows a confirmation page, and only when you click Delete do we remove the stored email, IP address, unsubscribe token, opt-in state, and personalized report across every record for that email (not just the most recent). The submitted URL and technical scan results remain for calibration. If you've used Astrant from multiple email addresses, submit a request for each. For Audit orders and reports, email privacy@astrant.io.
+- **Deletion:** visit [`/score/delete-me`](/score/delete-me) to remove your personal data from every Score scan record associated with your email. We send a confirmation link valid for 24 hours; opening it shows a confirmation page, and only when you click Delete do we remove the stored email, IP address, unsubscribe token, opt-in state, and personalized report across every record for that email (not just the most recent). The submitted URL and technical scan results remain for calibration. We keep only a one-way hash of the email address (not the address itself) on a do-not-contact list, so we never email it again, including for business outreach. If you've used Astrant from multiple email addresses, submit a request for each. For Audit orders and reports, email privacy@astrant.io.
 - **Portability:** ask us for a JSON export of your data. Email privacy@astrant.io.
 - **Unsubscribe:** every automated email we send (Score reports, rescans, receipts) has a one-click unsubscribe link in the header (RFC 8058) and a visible unsubscribe link in the body. Personal outreach emails have an opt-out link in the body, and you can also reply "unsubscribe".
 
