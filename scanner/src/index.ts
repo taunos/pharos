@@ -79,13 +79,6 @@ const scanBody = z.object({
 });
 
 app.post("/api/scan", async (c) => {
-  // Security pass 2026-11-04: first gate is the atomic Rate Limiting binding
-  // (keyed by IP); the KV daily limits below stay as the second layer. Its
-  // limit (5 per 60 s) is only reachable by a client already over 5 per day,
-  // so the existing message stays accurate.
-  if (!(await checkBurstLimit(c.env.SCAN_RATE_LIMITER, c.req.header("CF-Connecting-IP") ?? "unknown"))) {
-    return c.json({ ok: false, error: "Rate limit: 5 scans per IP per day" }, 429);
-  }
   let body: unknown;
   try {
     body = await c.req.json();
@@ -131,15 +124,30 @@ app.post("/api/scan", async (c) => {
     }
   }
 
-  const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
+  // Authenticated paid calls (audit-fulfill from the marketing Worker, which
+  // forwards no client IP, so every Audit would share one IP key) skip both
+  // rate limits. URL validation above still applies to them. Everything else,
+  // including paid requests degraded to free, goes through both limits.
+  if (tier !== "paid") {
+    const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
 
-  const rl = await checkRateLimit(c.env, ip, url);
-  if (!rl.allowed) {
-    if (rl.misconfigured) {
-      console.error("RATE_LIMIT_MISCONFIGURED: RATE_LIMIT_HASH_SECRET is not set");
-      return c.json({ ok: false, error: "MISCONFIGURED" }, 503);
+    // Security pass 2026-11-04: first limit is the atomic Rate Limiting
+    // binding (keyed by IP), ahead of any KV/D1/fetch work; the KV daily
+    // limits below stay as the second layer. Its limit (5 per 60 s) is only
+    // reachable by a client already over 5 per day, so the existing message
+    // stays accurate.
+    if (!(await checkBurstLimit(c.env.SCAN_RATE_LIMITER, ip))) {
+      return c.json({ ok: false, error: "Rate limit: 5 scans per IP per day" }, 429);
     }
-    return c.json({ ok: false, error: rl.reason }, 429);
+
+    const rl = await checkRateLimit(c.env, ip, url);
+    if (!rl.allowed) {
+      if (rl.misconfigured) {
+        console.error("RATE_LIMIT_MISCONFIGURED: RATE_LIMIT_HASH_SECRET is not set");
+        return c.json({ ok: false, error: "MISCONFIGURED" }, 503);
+      }
+      return c.json({ ok: false, error: rl.reason }, 429);
+    }
   }
 
   // Outreach slice: the scan body lives in runScan (./run-scan) so the

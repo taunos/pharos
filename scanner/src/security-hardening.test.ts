@@ -217,15 +217,17 @@ describe("burst limiter (first gate)", () => {
     expect(await res.json()).toEqual({ ok: false, error: "Rate limit: 5 scans per IP per day" });
   });
 
-  it("limiter runs before body parsing (junk is limited too)", async () => {
+  it("an unauthenticated request hits the limiter before any KV / D1 / fetch work", async () => {
+    const seen: string[] = [];
+    stub404(seen);
     const limiter = mockLimiter(0);
-    const { env } = makeScanEnv({ limiter });
-    const res = await app.fetch(
-      new Request("https://scanner.astrant.io/api/scan", { method: "POST", body: "{not json" }),
-      env as never
-    );
+    const { env, d1Calls, kvOps } = makeScanEnv({ limiter });
+    const res = await app.fetch(post({ url: "https://example.com/" }), env as never);
     expect(res.status).toBe(429);
-    expect(limiter.calls).toEqual(["scan:unknown"]);
+    expect(limiter.calls).toEqual(["scan:203.0.113.7"]);
+    expect(kvOps).toEqual([]);
+    expect(d1Calls).toEqual([]);
+    expect(seen).toEqual([]);
   });
 
   it("fails open to the KV limits when the binding is missing or throws", async () => {
@@ -236,6 +238,75 @@ describe("burst limiter (first gate)", () => {
     ).toBe(true);
     expect(err).toHaveBeenCalled();
     err.mockRestore();
+  });
+});
+
+describe("authenticated paid-tier calls skip both rate limits", () => {
+  const KEY = "valid-internal-fulfill-key";
+  const paidPost = (url: string, key = KEY) =>
+    new Request("https://scanner.astrant.io/api/scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-internal-fulfill-key": key },
+      body: JSON.stringify({ url, tier: "paid" }),
+    });
+
+  it("10 concurrent paid requests with a valid key all pass, limiter set to deny", async () => {
+    stub404();
+    const limiter = mockLimiter(0);
+    const { env, d1Calls, kvOps } = makeScanEnv({ limiter });
+    (env as Record<string, unknown>).INTERNAL_FULFILL_KEY = KEY;
+    // Same URL every time: the 3/URL/day KV limit would also stop these.
+    const res = await Promise.all(Array.from({ length: 10 }, () => app.fetch(paidPost("https://example.com/"), env as never)));
+    expect(res.map((r) => r.status)).toEqual(Array(10).fill(200));
+    for (const r of res) expect(((await r.json()) as { tier: string }).tier).toBe("paid");
+    expect(limiter.calls).toEqual([]);
+    expect(kvOps.some((k) => k.includes("rl:"))).toBe(false);
+    expect(d1Calls.filter((s) => s.includes("INSERT INTO scans")).length).toBeGreaterThan(0);
+  });
+
+  it("a paid request with a wrong key is degraded to free and limited like free", async () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    const seen: string[] = [];
+    stub404(seen);
+    const limiter = mockLimiter(0);
+    const { env, d1Calls, kvOps } = makeScanEnv({ limiter });
+    (env as Record<string, unknown>).INTERNAL_FULFILL_KEY = KEY;
+    const res = await app.fetch(paidPost("https://example.com/", "wrong-key"), env as never);
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({ ok: false, error: "Rate limit: 5 scans per IP per day" });
+    expect(limiter.calls).toEqual(["scan:unknown"]);
+    expect(kvOps).toEqual([]);
+    expect(d1Calls).toEqual([]);
+    expect(seen).toEqual([]);
+    err.mockRestore();
+  });
+
+  it("a paid request with a wrong key still hits the KV limits when the burst gate allows", async () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => {});
+    stub404();
+    const { env, kvOps } = makeScanEnv({ limiter: mockLimiter(100) });
+    (env as Record<string, unknown>).INTERNAL_FULFILL_KEY = KEY;
+    const res = await app.fetch(paidPost("https://example.com/", "wrong-key"), env as never);
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { tier: string }).tier).toBe("free");
+    expect(kvOps.some((k) => k.startsWith("get:rl:ip:"))).toBe(true);
+    expect(kvOps.some((k) => k.startsWith("get:rl:url:"))).toBe(true);
+    err.mockRestore();
+  });
+
+  it("an unsafe URL is rejected even with a valid key", async () => {
+    const seen: string[] = [];
+    stub404(seen);
+    const { env, d1Calls, kvOps } = makeScanEnv({ limiter: mockLimiter(100) });
+    (env as Record<string, unknown>).INTERNAL_FULFILL_KEY = KEY;
+    for (const u of ["http://169.254.169.254/latest/meta-data/", "http://127.0.0.1:8080/", "http://localhost/"]) {
+      const res = await app.fetch(paidPost(u), env as never);
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ ok: false, error: INVALID_INPUT });
+    }
+    expect(d1Calls).toEqual([]);
+    expect(kvOps).toEqual([]);
+    expect(seen).toEqual([]);
   });
 });
 
