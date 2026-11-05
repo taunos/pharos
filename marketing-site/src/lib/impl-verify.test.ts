@@ -431,6 +431,8 @@ describe("openapi states", () => {
     ["nested key under a scalar", "    get: x\n      summary: y"],
     ["second key on one line", "    get: summary: x"],
     ["line that is not key: value", "    get:\n      just words"],
+    ["dedent to a column that never opened a mapping", "    get:\n      summary: list\n     bad: y"],
+    ["dedent between two open levels", "    get:\n      summary: list\n   post:"],
   ])("invalid YAML under a path is not a delivered operation: %s", async (_name, op) => {
     const spec = `openapi: 3.1.0\ninfo:\n  title: "Acme API"\nservers:\n  - url: "https://acme.com"\npaths:\n  "/pets":\n${op}\n`;
     expect(parseOpenApi(spec)).toBeNull();
@@ -439,6 +441,13 @@ describe("openapi states", () => {
     });
     const r = await run(goodSite({ [path]: spec }).fetchImpl, { expected: { engine: exp.engine, openapi: exp.openapi } });
     expect(r.openapi.state).toBe("mismatch");
+  });
+  it("dedents back to open levels and items at the parent's indent still parse", () => {
+    const p = parseOpenApi(
+      "openapi: 3.1.0\ninfo:\n  title: Acme API\nservers:\n- url: https://acme.com\n  description: Prod\n" +
+        "paths:\n  /pets:\n    get:\n      summary: list\n    post:\n      summary: add\n  /x:\n    get: {}\ncomponents: {}\n",
+    );
+    expect(p?.paths).toEqual({ "/pets": ["get", "post"], "/x": ["get"] });
   });
   it("the generator's own output still parses under the syntax gate", () => {
     const p = parseOpenApi(OPENAPI_SPEC);

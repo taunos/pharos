@@ -42,6 +42,7 @@ const SERVER_VERSION = "1.0.0";
 // here, otherwise with the newest one (MCP lifecycle: version negotiation).
 const SUPPORTED_PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 const MAX_BODY_BYTES = 64 * 1024;
+const BODY_READ_TIMEOUT_MS = 10000;
 
 const TOOLS = Object.keys(TOOL_RESPONSES).map((name) => ({
   name,
@@ -147,22 +148,34 @@ function handleMessage(msg: unknown): Record<string, unknown> | null {
 }
 
 // Reads the body with the byte cap enforced while streaming (a body sent
-// without Content-Length is never buffered past MAX_BODY_BYTES).
-// null = over the cap; the rest of the stream is cancelled.
-async function readBodyCapped(request: Request): Promise<string | null> {
-  if (!request.body) return "";
+// without Content-Length is never buffered past MAX_BODY_BYTES) and one
+// overall deadline raced against every read (a client holding the stream
+// open cannot keep the request alive). On either limit the rest of the
+// stream is cancelled.
+async function readBodyCapped(request: Request): Promise<{ text: string } | { status: 408 | 413 }> {
+  if (!request.body) return { text: "" };
   const reader = request.body.getReader();
+  const deadline = Date.now() + BODY_READ_TIMEOUT_MS;
   const chunks: Uint8Array[] = [];
   let size = 0;
   for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > MAX_BODY_BYTES) {
-      await reader.cancel().catch(() => {});
-      return null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), Math.max(0, deadline - Date.now()));
+    });
+    const next = await Promise.race([reader.read(), timeout]);
+    clearTimeout(timer);
+    if (next === null) {
+      reader.cancel().catch(() => {});
+      return { status: 408 };
     }
-    chunks.push(value);
+    if (next.done) break;
+    size += next.value.byteLength;
+    if (size > MAX_BODY_BYTES) {
+      reader.cancel().catch(() => {});
+      return { status: 413 };
+    }
+    chunks.push(next.value);
   }
   const all = new Uint8Array(size);
   let offset = 0;
@@ -170,7 +183,7 @@ async function readBodyCapped(request: Request): Promise<string | null> {
     all.set(chunk, offset);
     offset += chunk.byteLength;
   }
-  return new TextDecoder().decode(all);
+  return { text: new TextDecoder().decode(all) };
 }
 
 async function handleMcpPost(request: Request): Promise<Response> {
@@ -185,13 +198,14 @@ async function handleMcpPost(request: Request): Promise<Response> {
   if (Number(request.headers.get("content-length") ?? "0") > MAX_BODY_BYTES) {
     return json(rpcError(null, -32000, "Request body too large"), 413);
   }
-  const text = await readBodyCapped(request);
-  if (text === null) {
-    return json(rpcError(null, -32000, "Request body too large"), 413);
+  const read = await readBodyCapped(request);
+  if ("status" in read) {
+    const message = read.status === 408 ? "Request body read timed out" : "Request body too large";
+    return json(rpcError(null, -32000, message), read.status);
   }
   let body: unknown;
   try {
-    body = JSON.parse(text);
+    body = JSON.parse(read.text);
   } catch {
     return json(rpcError(null, -32700, "Parse error"), 400);
   }

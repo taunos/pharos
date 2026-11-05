@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -172,6 +172,37 @@ describe("delivered MCP Worker: JSON-RPC over Streamable HTTP", () => {
     const res = await worker.fetch(req, {});
     expect(res.status).toBe(413);
     expect(pulled).toBeLessThan(16); // ~64 KiB / 16 KiB, plus stream lookahead
+  });
+
+  it("a body held open after its first byte is cut off by the 10s read deadline (408, stream cancelled)", async () => {
+    vi.useFakeTimers();
+    try {
+      let cancelled = false;
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("{"));
+        },
+        cancel() {
+          cancelled = true;
+        },
+      });
+      const req = new Request(ORIGIN + "/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+        body: stream,
+        duplex: "half",
+      } as RequestInit);
+      const pending = worker.fetch(req, {});
+      await vi.advanceTimersByTimeAsync(9_000);
+      expect(await Promise.race([pending.then(() => "settled"), Promise.resolve("pending")])).toBe("pending");
+      await vi.advanceTimersByTimeAsync(1_500);
+      const res = await Promise.race([pending, Promise.resolve(null)]);
+      expect(res?.status).toBe(408);
+      expect(await res!.json()).toMatchObject({ error: { code: -32000 } });
+      expect(cancelled).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("the legacy POST /mcp/call route is gone", async () => {

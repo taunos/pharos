@@ -661,7 +661,8 @@ function parseOpenApiYaml(text: string): ParsedOpenApi | null {
   let opIndent = -1;
   let blockIndent = -1; // inside a block scalar whose key sat at this indent
   let pathCount = 0;
-  let maxIndent = 0; // deepest indent the next line may use
+  const levels = [0]; // open indentation levels, innermost last
+  let opened = false; // the previous line was a key opening a nested block
   let failed = false;
   forEachLine(text, (raw) => {
     if (failed) return;
@@ -688,13 +689,29 @@ function parseOpenApiYaml(text: string): ParsedOpenApi | null {
     // Syntax gate: every line is `key: value` (or an item holding one, or a
     // scalar) whose key and value the subset supports, at an indent its parent
     // allows. Anything else is not read as fields: the document does not parse.
-    if (indent > maxIndent || (kv ? !kv.valid : !(isItem && readScalar(content).valid))) {
+    if (kv ? !kv.valid : !(isItem && readScalar(content).valid)) {
       failed = true;
       return;
     }
+    // Indentation: a deeper line opens a new level, and only right after a key
+    // that opens a nested block (empty value); a dedent must land exactly on
+    // a level that is still open.
+    if (indent > levels[levels.length - 1]) {
+      if (!opened) {
+        failed = true;
+        return;
+      }
+      levels.push(indent);
+    } else {
+      while (levels[levels.length - 1] > indent) levels.pop();
+      if (levels[levels.length - 1] !== indent) {
+        failed = true;
+        return;
+      }
+    }
+    if (isItem && kv) levels.push(indent + 2); // the item's mapping column
+    opened = kv !== null && kv.value === "";
     if (kv && /^[|>][-+0-9]*$/.test(kv.value)) blockIndent = indent;
-    // Deeper lines may follow only a key that opens a nested block (empty value).
-    maxIndent = kv && kv.value === "" ? Infinity : isItem && kv ? indent + 2 : indent;
     if (indent === 0 && !isItem) {
       if (!kv) {
         failed = true;
