@@ -76,6 +76,8 @@ const BIDI_CTRL = new RegExp(
 // Built from code points: escape sequences in source have been silently
 // turned into raw invisible characters by tooling before.
 const BOM = String.fromCharCode(0xfeff);
+// git mailinfo scissors marks (0x2702 is the scissors glyph).
+const SCISSORS_MARKS = [">8", "8<", ">%", "%<", String.fromCharCode(0x2702)];
 const REPLACEMENT_CHAR = String.fromCharCode(0xfffd);
 const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
 
@@ -185,30 +187,29 @@ function run(input: string | Uint8Array, expectedFiles: readonly string[], c: Co
     c.add("mailbox_body", "no `---` message/diff separator");
     return;
   }
+  // ALLOWLIST, not a blocklist: git mailinfo has many body forms with meaning
+  // (patch starts "diff -", "Index: ", "--- ", "+++ "; in-body headers after
+  // "[PATCH]" or blank lines; scissors with 8< >8 %< >% and the scissors
+  // glyph; continuation lines). The assembler's body lines are all either
+  // blank or start with an ASCII letter/digit, so require exactly that; then
+  // reject the few letter-initial forms git still treats specially.
+  if (sepIdx === 5 || lines[5] === "") c.add("mailbox_body", "commit body starts blank or is empty");
   for (let k = 5; k < sepIdx; k++) {
     const l = lines[k];
-    if (l.length > MAX_HEADER_LINE) c.add("mailbox_body", `line${k + 1} too long`);
+    const at = `line${k + 1}`;
+    if (l.length > MAX_HEADER_LINE) c.add("mailbox_body", `${at} too long`);
+    if (l !== "" && !/^[A-Za-z0-9]/.test(l)) {
+      c.add("mailbox_body", `${at} does not start with a letter or digit`);
+      continue;
+    }
     // git mailinfo starts the patch at the first "diff -" / "Index: " line.
-    if (l.startsWith("diff ") || l.startsWith("Index: ")) {
-      c.add("mailbox_body", `line${k + 1} would start the diff early`);
-    }
+    if (/^diff\s/.test(l) || /^Index:/.test(l)) c.add("mailbox_body", `${at} would start the diff early`);
     // git mailsplit cuts a new message at an mbox "From " line.
-    if (l.startsWith("From ") || l.startsWith(">From ")) {
-      c.add("mailbox_body", `line${k + 1} looks like an mbox From line`);
-    }
-    if (l === "-- ") c.add("mailbox_body", `line${k + 1} is a signature delimiter`);
-    // Scissors lines (honoured when the customer has mailinfo.scissors set)
-    // discard everything above them.
-    if (l.includes(">8") || l.includes("8<") || l.includes("✂")) {
-      c.add("mailbox_body", `line${k + 1} could be a scissors line`);
-    }
+    if (l.startsWith("From ")) c.add("mailbox_body", `${at} looks like an mbox From line`);
+    if (SCISSORS_MARKS.some((m) => l.includes(m))) c.add("mailbox_body", `${at} could be a scissors line`);
   }
-  // git mailinfo skips leading blank lines, then reads in-body headers. The
-  // assembler's first body line is never blank, and the first non-blank line
-  // must not look like a header.
-  if (sepIdx === 5 || lines[5] === "") c.add("mailbox_body", "commit body starts blank or is empty");
-  const firstText = lines.slice(5, sepIdx).find((l) => l.trim() !== "");
-  if (firstText !== undefined && /^\s*(From|Subject|Date|Author)\s*:/i.test(firstText)) {
+  // The first body line is read as an in-body header if it is header-shaped.
+  if (/^[A-Za-z][A-Za-z0-9-]*\s*:/.test(lines[5] ?? "")) {
     c.add("mailbox_body", "first body line would be read as an in-body header");
   }
 
