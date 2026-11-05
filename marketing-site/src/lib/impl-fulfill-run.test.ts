@@ -16,6 +16,8 @@ const h = vi.hoisted(() => ({
   validateThrows: false,
   validatedInputs: [] as unknown[],
   assembleTimes: [] as Date[],
+  assembledFiles: [] as Record<string, string>[],
+  openApi: "openapi: 3.1.0" as string | null,
 }));
 
 vi.mock("resend", () => ({
@@ -36,13 +38,18 @@ vi.mock("./audit-pipeline", () => ({
   runScan: vi.fn(async () => (h.scanImpl ? h.scanImpl() : { composite: { score: 40, grade: "D" } })),
 }));
 vi.mock("./f2-generators/llms-txt", () => ({ generateLlmsTxt: async () => "# llms" }));
-vi.mock("./f2-generators/mcp-server-config", () => ({ generateMcpServerConfig: async () => ({}) }));
-vi.mock("./f2-generators/openapi", () => ({ generateOpenApi: async () => "openapi: 3.1.0" }));
+vi.mock("./f2-generators/mcp-server-config", () => ({
+  generateMcpServerConfig: async () => ({
+    capabilities: [{ name: "get_capabilities" }, { name: "get_pricing" }, { name: "get_case_studies" }, { name: "get_contact_tools" }],
+  }),
+}));
+vi.mock("./f2-generators/openapi", () => ({ generateOpenApi: async () => h.openApi }));
 vi.mock("./f2-generators/jsonld", () => ({ generateJsonLd: async () => "<script></script>" }));
 vi.mock("./f2-mcp-server-template", () => ({ renderMcpServerWorker: () => ({ "mcp-server/index.ts": "x" }) }));
 vi.mock("./f2-patch-assembler", () => ({
-  assembleGitAmPatch: (i: { fulfillment_time: Date }) => {
+  assembleGitAmPatch: (i: { fulfillment_time: Date; files: Record<string, string> }) => {
     h.assembleTimes.push(i.fulfillment_time);
+    h.assembledFiles.push(i.files);
     return "PATCH";
   },
 }));
@@ -119,7 +126,7 @@ const patchEmails = () => h.sends.filter((s) => !s.subject.startsWith("[ALERT]")
 const nowSec = () => Math.floor(Date.now() / 1000);
 
 beforeEach(() => {
-  sq = createSqliteD1([readMigration("0008_implementation_sessions.sql"), readMigration("0016_dayn_email_sent_at.sql"), PROBE_TARGETS_SQL]);
+  sq = createSqliteD1([readMigration("0008_implementation_sessions.sql"), readMigration("0016_dayn_email_sent_at.sql"), readMigration("0018_impl_verification.sql"), PROBE_TARGETS_SQL]);
   r2 = new Map();
   r2Puts = [];
   h.sends = [];
@@ -131,6 +138,8 @@ beforeEach(() => {
   h.validateThrows = false;
   h.validatedInputs = [];
   h.assembleTimes = [];
+  h.assembledFiles = [];
+  h.openApi = "openapi: 3.1.0";
   vi.mocked(runScan).mockClear();
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(console, "log").mockImplementation(() => {});
@@ -164,10 +173,10 @@ describe("runImplFulfillment — claim (Q1b)", () => {
   it("processing past the lease → reclaimed and run", async () => {
     seed("processing", { processing_started_at: nowSec() - IMPL_LEASE_SEC - 5 });
     expect(await runImplFulfillment(env(), SID, { finalAttempt: false })).toEqual({ kind: "done" });
-    expect(row().status).toBe("active");
+    expect(row().status).toBe("awaiting_application");
   });
 
-  it.each(["active", "failed", "failed_validation", "active_email_pending"])("%s → noop_terminal", async (s) => {
+  it.each(["active", "awaiting_application", "failed", "failed_validation", "active_email_pending"])("%s → noop_terminal", async (s) => {
     seed(s);
     expect(await runImplFulfillment(env(), SID, { finalAttempt: false })).toEqual({ kind: "noop_terminal", status: s });
     expect(runScan).not.toHaveBeenCalled();
@@ -175,13 +184,19 @@ describe("runImplFulfillment — claim (Q1b)", () => {
 });
 
 describe("runImplFulfillment — happy path", () => {
-  it("active + patch_delivered_at, probe target enrolled, patch email with idempotencyKey f2-patch:{id}", async () => {
+  it("awaiting_application + patch_delivered_at, probe target enrolled, patch email with idempotencyKey f2-patch:{id}", async () => {
     seed();
     expect(await runImplFulfillment(env(), SID, { finalAttempt: false })).toEqual({ kind: "done" });
     const r = row();
-    expect(r.status).toBe("active");
+    expect(r.status).toBe("awaiting_application");
     expect(typeof r.patch_delivered_at).toBe("number");
-    expect(r.day30_audit_due_at).toBe(PAID_AT + 30 * 86400);
+    // Verification v1: Day 0 = verified application, not payment — no Day-N
+    // due dates until the application is marked and verified.
+    expect(r.day30_audit_due_at).toBeNull();
+    expect(r.day60_audit_due_at).toBeNull();
+    expect(r.day90_audit_due_at).toBeNull();
+    expect(r.applied_at).toBeNull();
+    expect(r.bundle_expires_at).toBe(PAID_AT + 91 * 86400);
     expect(r.patch_r2_key).toBe(`f2-patches/${SID}.patch`);
     expect(sq.db.prepare(`SELECT status FROM customer_probe_targets WHERE customer_id='sub_cus1'`).get()).toEqual({
       status: "active",
@@ -191,10 +206,49 @@ describe("runImplFulfillment — happy path", () => {
     expect(alertCodes()).toEqual([]);
   });
 
+  it("baseline scan is kept in R2 before delivery and linked on the row with its scoring_version", async () => {
+    seed();
+    h.scanImpl = async () => ({ composite: { score: 40, grade: "D" }, scoring_version: "1.3.1" });
+    await runImplFulfillment(env(), SID, { finalAttempt: false });
+    const r = row();
+    expect(r.baseline_scan_id).toBe(`f2-baseline-${SID}`);
+    expect(r.baseline_scoring_version).toBe("1.3.1");
+    expect(JSON.parse(r2.get(`f2-baseline-scans/f2-baseline-${SID}.json`) as string)).toMatchObject({
+      scoring_version: "1.3.1",
+    });
+    expect(r2Puts.indexOf(`f2-baseline-scans/f2-baseline-${SID}.json`)).toBeLessThan(
+      r2Puts.indexOf(`f2-patches/${SID}.patch`),
+    );
+  });
+
   it("A3: patch timestamps are deterministic (payment_succeeded_at, not now)", async () => {
     seed();
     await runImplFulfillment(env(), SID, { finalAttempt: false });
     expect(h.assembleTimes).toEqual([new Date(PAID_AT * 1000)]);
+  });
+
+  it("no API operations (generator returns null) → no OpenAPI file, and README + email do not list one", async () => {
+    h.openApi = null;
+    seed();
+    expect(await runImplFulfillment(env(), SID, { finalAttempt: false })).toEqual({ kind: "done" });
+    const files = h.assembledFiles[0];
+    expect(Object.keys(files)).not.toContain("public/openapi.yaml");
+    expect(files["ASTRANT_IMPLEMENTATION.md"]).not.toContain("openapi");
+    expect(patchEmails()[0].text).not.toContain("OpenAPI");
+    // The MCP health check speaks JSON-RPC and checks every delivered tool.
+    const check = files["monitoring/check-mcp-server.sh"];
+    expect(check).toContain('"method":"initialize"');
+    expect(check).toContain("for tool in get_capabilities get_pricing get_case_studies get_contact_tools; do");
+    expect(check).not.toContain("/mcp/call");
+  });
+
+  it("an OpenAPI spec, when generated, is delivered and listed", async () => {
+    seed();
+    await runImplFulfillment(env(), SID, { finalAttempt: false });
+    const files = h.assembledFiles[0];
+    expect(files["public/openapi.yaml"]).toBe("openapi: 3.1.0");
+    expect(files["ASTRANT_IMPLEMENTATION.md"]).toContain("- `public/openapi.yaml` — OpenAPI 3.1 scaffold");
+    expect(patchEmails()[0].text).toContain("  - OpenAPI spec scaffold for your category");
   });
 });
 
@@ -350,7 +404,7 @@ describe("runImplFulfillment — failures (Q1c + A2/A4/A8/A9)", () => {
 describe("runImplFulfillment — A3 re-run safety after the email was sent", () => {
   it("email success → D1 failure → re-run sends nothing and rebuilds nothing", async () => {
     seed();
-    sq.failWhen = (sql) => sql.includes("SET status = 'active'");
+    sq.failWhen = (sql) => sql.includes("SET status = 'awaiting_application'");
     await expect(runImplFulfillment(env(), SID, { finalAttempt: false })).rejects.toThrow(/injected failure/);
     expect(row().status).toBe("queued"); // released
     expect(typeof row().patch_delivered_at).toBe("number");
@@ -363,7 +417,7 @@ describe("runImplFulfillment — A3 re-run safety after the email was sent", () 
     expect(runScan).not.toHaveBeenCalled();
     expect(r2Puts).toEqual([]);
     expect(patchEmails()).toHaveLength(1);
-    expect(row().status).toBe("active");
+    expect(row().status).toBe("awaiting_application");
   });
 
   it("fix round: final attempt, email sent then the marker write fails → F2_DELIVERED_STATE_UNRECORDED, NO failed write", async () => {
@@ -378,7 +432,7 @@ describe("runImplFulfillment — A3 re-run safety after the email was sent", () 
 
   it("fix round: final attempt resuming a delivered row, Step 11 fails → F2_DELIVERED_STATE_UNRECORDED, NO failed write", async () => {
     seed("queued", { patch_delivered_at: 123 });
-    sq.failWhen = (sql) => sql.includes("SET status = 'active'");
+    sq.failWhen = (sql) => sql.includes("SET status = 'awaiting_application'");
     expect(await runImplFulfillment(env(), SID, { finalAttempt: true })).toEqual({ kind: "failed_final" });
     expect(alertCodes()).toEqual(["F2_DELIVERED_STATE_UNRECORDED"]);
     expect(row().status).toBe("processing");

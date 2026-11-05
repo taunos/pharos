@@ -82,7 +82,7 @@ function staleCleanupSql(dayN: number): string {
 }
 
 beforeEach(() => {
-  sq = createSqliteD1([readMigration("0008_implementation_sessions.sql"), readMigration("0016_dayn_email_sent_at.sql")]);
+  sq = createSqliteD1([readMigration("0008_implementation_sessions.sql"), readMigration("0016_dayn_email_sent_at.sql"), readMigration("0018_impl_verification.sql")]);
   h.sends = [];
   h.emailError = null;
   h.scanImpl = null;

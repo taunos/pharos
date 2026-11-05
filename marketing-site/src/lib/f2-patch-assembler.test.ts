@@ -143,3 +143,17 @@ describe("git availability", () => {
     expect(applied.subject).not.toContain("acme.example\r\nX-Evil");
   });
 });
+
+describe("commit body lists only what the patch carries", () => {
+  it("names the OpenAPI spec only when public/openapi.yaml is in the patch", () => {
+    const withSpec = assemble({ "public/llms.txt": "# A\n", "public/openapi.yaml": "openapi: 3.1.0\n" });
+    expect(withSpec).toContain("OpenAPI spec scaffold, JSON-LD schema blocks, static monitoring scripts,");
+    const without = assemble({ "public/llms.txt": "# A\n" });
+    expect(without).not.toContain("OpenAPI");
+    expect(without).toContain(
+      ["Includes: customized llms.txt, deployable MCP server (TypeScript Worker),", "JSON-LD schema blocks, static monitoring scripts,"].join(
+        String.fromCharCode(10),
+      ),
+    );
+  });
+});

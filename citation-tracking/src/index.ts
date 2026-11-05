@@ -479,6 +479,10 @@ async function runF2SweepSteps(env: Env): Promise<void> {
 
   // STEP B — Day-N audit dispatch. Find F2 sessions with due audits + fire HTTP to
   // marketing-site /api/audit-fulfill with `impl-day{N}-{f2_session_id}` discriminator.
+  // Verification report v1 (migration 0018): 'awaiting_application' rows are
+  // excluded on purpose (no Day-N before Day 0); their due dates are NULL until
+  // the application is verified and the row turns 'active'. Verified rows get a
+  // Day-30 due date only (day60/day90 stay NULL).
   const dueAudits = await env.DB.prepare(
     `SELECT session_id,
             day30_audit_due_at, day30_audit_fired_at,
@@ -537,13 +541,16 @@ async function runF2SweepSteps(env: Env): Promise<void> {
 
   // STEP C — Day-91 expiration sweep (D7 + Codex MED v3 + LOW-1 simplification).
   // Pre-query candidates to emit per-category logs (NIT-2 illustrative pattern).
+  // has_unexpired_f2 counts 'awaiting_application' and 'active_email_pending'
+  // too: both are enrolled in probes (impl-fulfill Step 8) and can still be
+  // marked applied (Day 0) and turn 'active'.
   const candidates = await env.DB.prepare(
     `SELECT i.customer_id,
             EXISTS(SELECT 1 FROM subscriptions s
                    WHERE s.customer_id = i.customer_id AND s.status='active') AS has_active_f3,
             EXISTS(SELECT 1 FROM implementation_sessions i2
                    WHERE i2.customer_id = i.customer_id
-                     AND i2.status='active'
+                     AND i2.status IN ('active', 'awaiting_application', 'active_email_pending')
                      AND i2.bundle_expires_at >= ?
                      AND i2.bundle_expired_at IS NULL) AS has_unexpired_f2
      FROM implementation_sessions i

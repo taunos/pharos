@@ -5,6 +5,7 @@
 
 import { Resend } from "resend";
 import type { AuditRecsOutput } from "./f2-generators/audit-recs";
+import type { CheckState, RecheckReport } from "./impl-verification";
 import {
   renderEmailLayout,
   escapeHtml,
@@ -32,6 +33,8 @@ export interface PatchDeliveryEmailInput {
   brandName: string;
   patchR2Key: string;
   sessionId: string;
+  /** False when the patch carries no OpenAPI spec (no API operations found). */
+  includesOpenApi: boolean;
 }
 
 export async function sendF2PatchDeliveryEmail(
@@ -57,7 +60,7 @@ export async function sendF2PatchDeliveryEmail(
     `What's included:`,
     `  - Customized llms.txt for your brand and domain`,
     `  - Deployable MCP server (TypeScript Worker; your Cloudflare, your control)`,
-    `  - OpenAPI spec scaffold for your category`,
+    ...(input.includesOpenApi ? [`  - OpenAPI spec scaffold for your category`] : []),
     `  - JSON-LD schema blocks for your root layout`,
     `  - Static monitoring scripts`,
     `  - ASTRANT_IMPLEMENTATION.md with per-stack notes`,
@@ -92,7 +95,7 @@ export async function sendF2PatchDeliveryEmail(
         emailList([
           "Customized llms.txt for your brand and domain",
           "Deployable MCP server (TypeScript Worker; your Cloudflare, your control)",
-          "OpenAPI spec scaffold for your category",
+          ...(input.includesOpenApi ? ["OpenAPI spec scaffold for your category"] : []),
           "JSON-LD schema blocks for your root layout",
           "Static monitoring scripts",
           `${emailCode("ASTRANT_IMPLEMENTATION.md")} with per-stack notes`,
@@ -151,12 +154,25 @@ export interface F2DayNAuditEmailInput {
   citeShareBaselinePct?: number;
   citeShareCurrentPct?: number;
   autoPilotCheckoutUrl?: string;  // Day-90 only; CTA target
+  // Verification report v1: a verified session's Day-30 recheck. When set, the
+  // email carries check-level results instead of the trajectory line and
+  // recommendations (both make claims the check data cannot back).
+  verification?: RecheckReport;
 }
+
+// COPY-PENDING-BRUNO: the verification section's sentences are not approved.
+// Until they are, a verification email is never sent (fails closed; the Day-N
+// run records the failure and the next sweep retries).
+export const F2_VERIFICATION_COPY_APPROVED = false;
 
 export async function sendF2DayNAuditEmail(
   env: F2EmailEnv,
   input: F2DayNAuditEmailInput,
+  opts: { verificationCopyApproved?: boolean } = {},
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (input.verification && !(opts.verificationCopyApproved ?? F2_VERIFICATION_COPY_APPROVED)) {
+    return { ok: false, error: "verification_copy_pending" };
+  }
   // v1.0: PDF attachment optional. If auditPdfR2Key provided, attach; else send text-only.
   let pdfBase64: string | null = null;
   if (input.auditPdfR2Key) {
@@ -172,6 +188,11 @@ export async function sendF2DayNAuditEmail(
     input.dayN === 90
       ? `Your Astrant Implementation — Day 90 audit + what's next`
       : `Your Astrant Implementation — Day ${input.dayN} audit`;
+
+  if (input.verification) {
+    const body = renderVerificationBody(input, input.verification);
+    return sendDayN(env, input, subject, body.text, body.html, pdfBase64);
+  }
 
   const citeShare =
     input.citeShareBaselinePct !== undefined && input.citeShareCurrentPct !== undefined
@@ -244,6 +265,85 @@ export async function sendF2DayNAuditEmail(
   cards.push(emailStack(["Reply to this email with any questions.", "—Astrant"]));
   const html = renderEmailLayout({ preheader: `${heading}.`, heading, cards, footerLines: [COMPANY_FOOTER] });
 
+  return sendDayN(env, input, subject, lines.join("\n"), html, pdfBase64);
+}
+
+// Every label is data-derived (artifact name, check state, URL, score,
+// scoring version) or an existing approved string; each new sentence/label is
+// marked COPY-PENDING-BRUNO. No outcome claims (citations, traffic, AI
+// recommendations): the check data cannot back them.
+function renderVerificationBody(
+  input: F2DayNAuditEmailInput,
+  v: RecheckReport,
+): { text: string; html: string } {
+  const notChecked = "not checked"; // COPY-PENDING-BRUNO
+  const state = (s: CheckState | null) => s ?? notChecked;
+  // COPY-PENDING-BRUNO: "Astrant Score v<N>: X/100 → Y/100" (one version), or
+  // "Astrant Score v<A>: X/100 → Astrant Score v<B>: Y/100" when the scoring
+  // version changed; "Astrant Score" alone when a version is unknown.
+  const scoreLabel = (ver: string | null) => (ver ? `Astrant Score v${ver}` : "Astrant Score");
+  const before = `${input.baselineScore.toFixed(0)}/100`;
+  const after = `${input.currentScore.toFixed(0)}/100`;
+  const score =
+    v.baselineScoringVersion === v.currentScoringVersion
+      ? `${scoreLabel(v.currentScoringVersion)}: ${before} → ${after}`
+      : `${scoreLabel(v.baselineScoringVersion)}: ${before} → ${scoreLabel(v.currentScoringVersion)}: ${after}`;
+  const checksHeading = `Acceptance checks (Day 0 → Day ${input.dayN})`; // COPY-PENDING-BRUNO
+  const issuesHeading = "Remaining issues"; // COPY-PENDING-BRUNO
+  const noIssues = "None"; // COPY-PENDING-BRUNO
+  const issues = v.rows.filter((r) => r.current !== "working");
+  // Evidence link only for http(s) URLs; anything else renders as escaped text.
+  const link = (url: string) => (/^https?:\/\//i.test(url) ? emailLink(url) : escapeHtml(url));
+
+  const text = [
+    `Your Day ${input.dayN} Implementation audit is ready.`,
+    ``,
+    `What changed:`,
+    `  - ${score}`,
+    ``,
+    input.recs.whatChanged,
+    ``,
+    `${checksHeading}:`,
+    ...v.rows.map((r) => `  - ${r.artifact}: ${state(r.day0)} → ${state(r.current)} (${r.url})`),
+    ``,
+    `${issuesHeading}:`,
+    ...(issues.length ? issues.map((r) => `  - ${r.artifact}: ${state(r.current)} (${r.url})`) : [`  - ${noIssues}`]),
+    ``,
+    `Reply to this email with any questions.`,
+    ``,
+    `—Astrant`,
+  ].join("\n");
+
+  const heading = `Your Day ${input.dayN} Implementation audit is ready`;
+  const cards = [
+    emailCardHeading("What changed") +
+      emailStack([emailList([escapeHtml(score)]), escapeHtml(input.recs.whatChanged)]),
+    emailCardHeading(checksHeading) +
+      emailList(
+        v.rows.map(
+          (r) => `${escapeHtml(r.artifact)}: ${escapeHtml(state(r.day0))} → ${escapeHtml(state(r.current))} (${link(r.url)})`,
+        ),
+      ),
+    emailCardHeading(issuesHeading) +
+      emailList(
+        issues.length
+          ? issues.map((r) => `${escapeHtml(r.artifact)}: ${escapeHtml(state(r.current))} (${link(r.url)})`)
+          : [escapeHtml(noIssues)],
+      ),
+    emailStack(["Reply to this email with any questions.", "—Astrant"]),
+  ];
+  const html = renderEmailLayout({ preheader: `${heading}.`, heading, cards, footerLines: [COMPANY_FOOTER] });
+  return { text, html };
+}
+
+async function sendDayN(
+  env: F2EmailEnv,
+  input: F2DayNAuditEmailInput,
+  subject: string,
+  text: string,
+  html: string,
+  pdfBase64: string | null,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const resend = new Resend(env.RESEND_API_KEY);
   try {
     const sendArgs: Parameters<typeof resend.emails.send>[0] = {
@@ -251,7 +351,7 @@ export async function sendF2DayNAuditEmail(
       to: input.toEmail,
       replyTo: REPLY_TO,
       subject,
-      text: lines.join("\n"),
+      text,
       html,
     };
     if (pdfBase64 !== null) {

@@ -38,7 +38,7 @@ export function renderMcpServerWorker(config: McpServerConfigJSON): RenderedMcpS
 
   // Build the TOOL_RESPONSES object: keyed by tool name, each value carries
   // the tool's static response + an _description meta field consumed by the
-  // template's MCP_DISCOVERY tools listing.
+  // template's tools/list (and discovery card) listing.
   const toolResponses: Record<string, Record<string, unknown>> = {};
   for (const cap of config.capabilities) {
     toolResponses[cap.name] = {
@@ -48,11 +48,18 @@ export function renderMcpServerWorker(config: McpServerConfigJSON): RenderedMcpS
   }
   const tool_responses_json = JSON.stringify(toolResponses, null, 2);
 
+  // Each slot is encoded for where it lands: *_js are complete JSON string
+  // literals (valid JS/TS and JSON), *_comment / *_md are single-line text.
   const ctx: Record<string, string> = {
-    brand_name: escapeForJsonString(config.brand_name),
-    domain: escapeForJsonString(config.domain),
-    category: escapeForJsonString(config.category),
-    tagline: escapeForJsonString(config.tagline),
+    brand_name_comment: singleLine(config.brand_name),
+    tagline_comment: singleLine(config.tagline),
+    brand_name_md: singleLine(config.brand_name),
+    domain_md: singleLine(config.domain),
+    brand_name_js: JSON.stringify(config.brand_name),
+    domain_js: JSON.stringify(config.domain),
+    category_js: JSON.stringify(config.category),
+    tagline_js: JSON.stringify(config.tagline),
+    description_json: JSON.stringify(`Astrant-generated MCP server for ${config.brand_name}`),
     worker_name,
     tool_responses_json,
   };
@@ -81,14 +88,10 @@ function normalizeDomain(domain: string): string {
     .slice(0, 50);  // CF Worker name length cap
 }
 
-// Escape a string so it can safely interpolate into a JSON string literal in the
-// template. Templates use these for fields like brand_name in HTML attributes
-// or JSON literals; defending against `"`, `\`, `</`, and template-literal `${}`.
-function escapeForJsonString(s: string): string {
-  return s
-    .replace(/\\/g, "\\\\")
-    .replace(/"/g, '\\"')
-    .replace(/`/g, "\\`")
-    .replace(/\$\{/g, "\\${")
-    .replace(/<\//g, "<\\/");
+// Collapse every line terminator JS recognises (LF, CR, U+2028, U+2029) so a
+// value can never end a `//` comment or a Markdown line early.
+const LINE_TERMINATORS = new RegExp("[" + String.fromCharCode(10, 13, 0x2028, 0x2029) + "]+", "g");
+
+function singleLine(s: string): string {
+  return s.replace(LINE_TERMINATORS, " ");
 }
