@@ -10,6 +10,7 @@
 // Pure: no Next, no Worker bindings, no DOM — safe in the Worker pipeline and
 // in a client component.
 
+import { cleanDisplayText, escapeUnsafeInJson, REMEDIATION_MAX_CHARS } from "./llm-safety";
 import type { AuditResult } from "./audit-types";
 import { applicableDimensionCount, dimensionCountPhrase } from "./score-display";
 import { buildExecutiveSummary, EXEC_SUMMARY_COPY } from "./audit-executive-summary";
@@ -123,6 +124,12 @@ function scopeNote(scan: AuditResult["scan"]): string {
   return base + dropped;
 }
 
+// Every string that can carry site- or model-derived text goes through
+// cleanDisplayText: invisible / bidi / control characters stripped, one
+// paragraph, length-capped. Rendering then escapes it (renderAuditHtml) or
+// React does (AuditReportView). No raw HTML path exists for these fields.
+const clean = (s: string | undefined, max?: number) => cleanDisplayText(s ?? "", max);
+
 export function buildAuditReportModel(
   audit: AuditResult,
   sessionId: string,
@@ -136,34 +143,37 @@ export function buildAuditReportModel(
       return {
         kind: "na",
         id: d.dimension_id,
-        name: d.dimension_name,
-        note: d.sub_checks[0]?.notes ?? AUDIT_REPORT_COPY.naFallbackNote,
+        name: clean(d.dimension_name, 120),
+        note: clean(d.sub_checks[0]?.notes ?? AUDIT_REPORT_COPY.naFallbackNote),
       };
     }
     return {
       kind: "scored",
       id: d.dimension_id,
-      name: d.dimension_name,
+      name: clean(d.dimension_name, 120),
       score: d.score,
       grade: d.grade,
       barPct: Math.max(0, Math.min(100, d.score)),
       band: scoreBand(d.score),
       checks: d.sub_checks.map((s) => ({
         id: s.id,
-        name: `${s.name}${s.na ? ` · ${AUDIT_REPORT_COPY.naLabel}` : ""}`,
+        name: `${clean(s.name, 120)}${s.na ? ` · ${AUDIT_REPORT_COPY.naLabel}` : ""}`,
         scoreLabel: s.na ? "—" : `${s.score}/100`,
         weightLabel: `${s.weight}%`,
-        notes: s.notes,
+        notes: clean(s.notes),
       })),
     };
   });
 
   return {
     generatedLabel: `Generated ${formatReportTimestamp(scan.created_at)} · session ${sessionId.slice(0, 8)}`,
-    url: scan.url,
+    url: clean(scan.url, 300),
     composite: { score: scan.composite.score, grade: scan.composite.grade },
     scopeNote: scopeNote(scan),
-    executiveSummary: buildExecutiveSummary(audit, AUDIT_REPORT_COPY.gapsHeading),
+    // Deterministic copy, but it interpolates dimension names from the scan.
+    executiveSummary: buildExecutiveSummary(audit, AUDIT_REPORT_COPY.gapsHeading).map((s) =>
+      clean(s, 2000),
+    ),
     dimensions,
     // Lowest score first, as the gaps intro promises. The stored payload is in
     // dimension order (llmEnrichGaps); Array.prototype.sort is stable, so equal
@@ -172,12 +182,12 @@ export function buildAuditReportModel(
       .sort((a, b) => a.score - b.score)
       .map((g, i) => ({
       key: `${g.dimension_id}:${g.check_id}:${i}`,
-      checkName: g.check_name,
-      dimensionName: g.dimension_name,
+      checkName: clean(g.check_name, 120),
+      dimensionName: clean(g.dimension_name, 120),
       metaLabel: `${g.score}/100 · weight ${g.weight}%`,
-      finding: g.notes,
-      remediation: g.remediation,
+      finding: clean(g.notes),
+      remediation: clean(g.remediation, REMEDIATION_MAX_CHARS),
     })),
-    jsonExport: JSON.stringify(audit, null, 2),
+    jsonExport: escapeUnsafeInJson(JSON.stringify(audit, null, 2)),
   };
 }
