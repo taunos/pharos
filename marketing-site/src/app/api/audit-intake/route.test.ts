@@ -72,7 +72,7 @@ describe("POST /api/audit-intake", () => {
     expect(state.puts[0].key).toBe(`intake:audit:${SID}`);
     expect(state.puts[0].opts).toEqual({ expiration: state.expirations.get(`audit:${SID}`) });
     expect(stored()).toEqual({
-      taxonomy_version: "pain-v1",
+      taxonomy_version: "pain-v2",
       submitted_at: expect.any(Number),
       answers: { trigger: "launching_api", owner: "founder" },
       notes: "hello",
@@ -102,7 +102,13 @@ describe("POST /api/audit-intake", () => {
     ["unknown enum value", { trigger: "hacked" }],
     ["label instead of code", { owner: "SEO agency" }],
     ["code from another question", { pain: "founder" }],
-    ["non-string answer", { tried: ["nothing"] }],
+    ["array for a single-choice question", { owner: ["founder"] }],
+    ["single string for the multi-select", { tried: "llms_txt" }],
+    ["unknown code in the multi-select", { tried: ["llms_txt", "hacked"] }],
+    ["duplicate codes in the multi-select", { tried: ["llms_txt", "llms_txt"] }],
+    ["'nothing' combined with another code", { tried: ["nothing", "agency"] }],
+    ["more entries than options", { tried: ["llms_txt", "schema_markup", "aeo_tool", "agency", "content_rewrite", "llms_txt", "agency"] }],
+    ["non-string in the multi-select", { tried: [1] }],
     ["unknown field", { email: "x@example.com" }],
     ["non-string notes", { notes: { a: 1 } }],
     ["NUL in notes", { notes: "a" + String.fromCharCode(0) + "b" }],
@@ -110,6 +116,15 @@ describe("POST /api/audit-intake", () => {
     const r = await post({ session_id: SID, ...extra });
     expect(r.status).toBe(400);
     expect(state.puts).toHaveLength(0);
+  });
+
+  it("multi-select: an array of distinct codes is stored as an array; [] counts as skipped", async () => {
+    expect((await post({ session_id: SID, tried: ["llms_txt", "agency"] })).status).toBe(200);
+    expect(stored().answers).toEqual({ tried: ["llms_txt", "agency"] });
+    expect((await post({ session_id: SID, tried: ["nothing"] })).status).toBe(200);
+    expect(stored().answers).toEqual({ tried: ["nothing"] });
+    expect((await post({ session_id: SID, tried: [], owner: "founder" })).status).toBe(200);
+    expect(stored().answers).toEqual({ owner: "founder" });
   });
 
   it("notes over 1000 chars → 400; exactly 1000 accepted", async () => {

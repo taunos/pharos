@@ -7,6 +7,7 @@ import {
   readRightsFlags,
   recordP1OptOut,
   rightsFlagsFrom,
+  optOutKey,
   rightsKey,
   scheduleRightsWrite,
   writeRightsRecord,
@@ -19,6 +20,7 @@ import {
   intakeUnchanged,
   nextIntakeRecord,
   parseNoteCodes,
+  toggleMultiAnswer,
   terminalSafe,
   type IntakeRecord,
 } from "./dataset-intake";
@@ -48,40 +50,66 @@ describe("dataset consent", () => {
     }
   });
 
-  it("recordP1OptOut sets the flag once and keeps the first time", async () => {
+  it("recordP1OptOut writes only the restriction key, once, keeping the first time", async () => {
     const { kv, store } = memKv();
-    store.set(
-      rightsKey("audit", "s1"),
-      JSON.stringify(buildRightsRecord("audit", { consent_sellable: 1, consent_text_version: "v", consent_at: 1 })),
+    const consent = JSON.stringify(
+      buildRightsRecord("audit", { consent_sellable: 1, consent_text_version: "v", consent_at: 1 }),
     );
+    store.set(rightsKey("audit", "s1"), consent);
     await recordP1OptOut(kv, "audit", "s1", 5);
     await recordP1OptOut(kv, "audit", "s1", 9);
-    const rec = JSON.parse(store.get("rights:audit:s1")!);
-    expect(rec).toMatchObject({ p1_opt_out: 1, p1_opt_out_at: 5, consent_sellable: 1 });
+    expect(JSON.parse(store.get(optOutKey("audit", "s1"))!)).toEqual({ opted_out_at: 5, method: "email_request" });
+    expect(store.get(rightsKey("audit", "s1"))).toBe(consent); // consent record untouched
+    expect(await readRightsFlags(kv, "audit", "s1")).toEqual({ consent_sellable: 0, p1_opt_out: 1 });
   });
 
-  it("recordP1OptOut on an order with no record creates one with consent 0 (opt-out never lost)", async () => {
+  it("recordP1OptOut on an order with no consent record: restriction only, no consent record created", async () => {
     const { kv, store } = memKv();
     await recordP1OptOut(kv, "audit", "lost", 5);
-    expect(JSON.parse(store.get("rights:audit:lost")!)).toMatchObject({
-      consent_sellable: 0,
-      consent_method: "none",
-      p1_opt_out: 1,
-      p1_opt_out_at: 5,
-    });
+    expect(store.has(rightsKey("audit", "lost"))).toBe(false);
+    expect(await readRightsFlags(kv, "audit", "lost")).toEqual({ consent_sellable: 0, p1_opt_out: 1 });
   });
 
-  it("fail-safe: an absent or unreadable rights record reads as consent 0, no opt-out", async () => {
+  it("race: init read pending → opt-out → init write lands → reader says opt-out 1, consent 0", async () => {
+    const { kv: base, store } = memKv();
+    let releaseRead!: () => void;
+    const readGate = new Promise<void>((r) => (releaseRead = r));
+    const kv = {
+      get: async (k: string) => {
+        if (k === rightsKey("audit", "r1")) {
+          const v = store.get(k) ?? null; // init reads "absent" now...
+          await readGate; // ...and resumes later
+          return v;
+        }
+        return base.get(k);
+      },
+      put: base.put,
+    } as unknown as KVNamespace;
+    const rec = buildRightsRecord("audit", { consent_sellable: 1, consent_text_version: "v", consent_at: 1 })!;
+    const init = writeRightsRecord(kv, "r1", rec);
+    await recordP1OptOut(kv, "audit", "r1", 5);
+    releaseRead();
+    await init;
+    expect(JSON.parse(store.get(rightsKey("audit", "r1"))!).consent_sellable).toBe(1); // late init landed
+    expect(await readRightsFlags(kv, "audit", "r1")).toEqual({ consent_sellable: 0, p1_opt_out: 1 });
+  });
+
+  it("fail-safe: an absent or unreadable consent record reads as consent 0, no opt-out", async () => {
     const { kv, store } = memKv();
     expect(await readRightsFlags(kv, "audit", "missing")).toEqual({ consent_sellable: 0, p1_opt_out: 0 });
-    expect(rightsFlagsFrom(null)).toEqual({ consent_sellable: 0, p1_opt_out: 0 });
-    expect(rightsFlagsFrom("{not json")).toEqual({ consent_sellable: 0, p1_opt_out: 0 });
-    expect(rightsFlagsFrom(JSON.stringify({ consent_sellable: "1", p1_opt_out: true }))).toEqual({
+    expect(rightsFlagsFrom(null, null)).toEqual({ consent_sellable: 0, p1_opt_out: 0 });
+    expect(rightsFlagsFrom("{not json", null)).toEqual({ consent_sellable: 0, p1_opt_out: 0 });
+    expect(rightsFlagsFrom(JSON.stringify({ consent_sellable: "1" }), null)).toEqual({
       consent_sellable: 0,
       p1_opt_out: 0,
     });
-    store.set("rights:audit:s9", JSON.stringify({ consent_sellable: 1, p1_opt_out: 1 }));
-    expect(await readRightsFlags(kv, "audit", "s9")).toEqual({ consent_sellable: 1, p1_opt_out: 1 });
+    // Any restriction value, even garbage, forces opt-out + consent 0.
+    expect(rightsFlagsFrom(JSON.stringify({ consent_sellable: 1 }), "x")).toEqual({
+      consent_sellable: 0,
+      p1_opt_out: 1,
+    });
+    store.set("rights:audit:s9", JSON.stringify({ consent_sellable: 1 }));
+    expect(await readRightsFlags(kv, "audit", "s9")).toEqual({ consent_sellable: 1, p1_opt_out: 0 });
   });
 
   it("scheduleRightsWrite: hands the promise to waitUntil and gives up on a hung write after the timeout", async () => {
@@ -126,17 +154,17 @@ describe("dataset consent", () => {
       consent_text_version: "v",
       consent_at: 3,
       consent_method: "checkout_checkbox",
-      p1_opt_out: 0,
     });
   });
 
-  it("writeRightsRecord writes once and never overwrites", async () => {
+  it("writeRightsRecord writes once, never overwrites, never touches the restriction key", async () => {
     const { kv, store } = memKv();
     const rec = buildRightsRecord("audit", { consent_sellable: 1, consent_text_version: "v", consent_at: 1 })!;
     await writeRightsRecord(kv, "s2", rec);
-    store.set("rights:audit:s2", JSON.stringify({ ...rec, p1_opt_out: 1 }));
+    store.set("rights:audit:s2", "existing");
     await writeRightsRecord(kv, "s2", rec);
-    expect(JSON.parse(store.get("rights:audit:s2")!).p1_opt_out).toBe(1);
+    expect(store.get("rights:audit:s2")).toBe("existing");
+    expect([...store.keys()].some((k) => k.startsWith("rights-optout:"))).toBe(false);
   });
 });
 
@@ -184,7 +212,7 @@ describe("intake note coding (operator script helpers)", () => {
   it("nextIntakeRecord: last write wins, counter increments, earlier codes kept", () => {
     const out = nextIntakeRecord(rec, { answers: { pain: "not_mentioned" } }, 9);
     expect(out).toEqual({
-      taxonomy_version: "pain-v1",
+      taxonomy_version: "pain-v2",
       submitted_at: 9,
       answers: { pain: "not_mentioned" },
       notes_codes: ["owner.founder"],
@@ -216,6 +244,24 @@ describe("intake note coding (operator script helpers)", () => {
     expect(terminalSafe(`x${esc}]0;title${bell}y`)).toBe("x?]0;title?y");
     expect(terminalSafe("l1\nl2\tz")).toBe("l1\nl2\tz");
     expect(terminalSafe(`p${c1}q`)).toBe("p?q");
+  });
+});
+
+describe("intake multi-select", () => {
+  const tried = INTAKE_QUESTIONS.find((q) => q.id === "tried")!;
+
+  it("'What have you tried?' is the only multi-select, with 'nothing' exclusive", () => {
+    expect(INTAKE_QUESTIONS.filter((q) => q.multi).map((q) => q.id)).toEqual(["tried"]);
+    expect(tried.exclusive).toBe("nothing");
+  });
+
+  it("toggleMultiAnswer keeps option order and never yields 'nothing' with others", () => {
+    let a = toggleMultiAnswer(tried, [], "agency", true);
+    a = toggleMultiAnswer(tried, a, "llms_txt", true);
+    expect(a).toEqual(["llms_txt", "agency"]);
+    expect(toggleMultiAnswer(tried, a, "nothing", true)).toEqual(["nothing"]);
+    expect(toggleMultiAnswer(tried, ["nothing"], "aeo_tool", true)).toEqual(["aeo_tool"]);
+    expect(toggleMultiAnswer(tried, a, "agency", false)).toEqual(["llms_txt"]);
   });
 });
 

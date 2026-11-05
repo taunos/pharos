@@ -192,7 +192,7 @@ describe("runAuditFulfillment — buyer email (A4 + R2-5)", async () => {
   it("dataset: ready on a paid session writes the missing rights record (second chance)", async () => {
     seed(SID, "fulfilling", { paid_at: 2, ...CONSENT });
     await runAuditFulfillment(makeEnv(), SID, "https://astrant.io", { emailCopy: COPY });
-    expect(JSON.parse(store.get(`rights:audit:${SID}`)!)).toMatchObject({ consent_sellable: 1, p1_opt_out: 0 });
+    expect(JSON.parse(store.get(`rights:audit:${SID}`)!)).toMatchObject({ consent_sellable: 1 });
   });
 
   it("dataset: a hung rights write never delays the run or the buyer email", async () => {
@@ -213,9 +213,9 @@ describe("runAuditFulfillment — buyer email (A4 + R2-5)", async () => {
     expect(typeof read(SID).email_sent_at).toBe("number");
   });
 
-  it("dataset: an existing rights record (P1 opt-out) is never reset by fulfillment", async () => {
+  it("dataset: an existing consent record is never rewritten by fulfillment", async () => {
     seed(SID, "fulfilling", { paid_at: 2, ...CONSENT });
-    const existing = JSON.stringify({ tier: "audit", p1_opt_out: 1 });
+    const existing = JSON.stringify({ tier: "audit", consent_sellable: 0 });
     store.set(`rights:audit:${SID}`, existing);
     await runAuditFulfillment(makeEnv(), SID, "https://astrant.io", { emailCopy: COPY });
     expect(store.get(`rights:audit:${SID}`)).toBe(existing);

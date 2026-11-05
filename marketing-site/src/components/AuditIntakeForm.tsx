@@ -6,6 +6,7 @@ import {
   INTAKE_NOTES_LABEL,
   INTAKE_NOTES_MAX,
   INTAKE_QUESTIONS,
+  toggleMultiAnswer,
 } from "@/lib/dataset-intake";
 
 // Dataset spec v2 §3 — optional post-purchase intake on the results page.
@@ -15,7 +16,7 @@ import {
 type Status = "idle" | "submitting" | "done" | "error";
 
 export default function AuditIntakeForm({ sessionId }: { sessionId: string }) {
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<Status>("idle");
 
@@ -54,12 +55,44 @@ export default function AuditIntakeForm({ sessionId }: { sessionId: string }) {
       {heading}
       <p className="mt-2 text-sm text-[var(--color-muted)]">Skip any or all of them.</p>
       <div className="mt-6 flex flex-col gap-5">
-        {INTAKE_QUESTIONS.map((q) => (
+        {INTAKE_QUESTIONS.map((q) =>
+          q.multi ? (
+            <fieldset key={q.id} className="flex flex-col gap-2 text-sm">
+              <legend className="mb-2 text-[var(--color-fg)]">{q.label}</legend>
+              {q.options.map((o) => {
+                const current = (answers[q.id] as string[] | undefined) ?? [];
+                return (
+                  <label key={o.code} className="flex items-start gap-3 text-[var(--color-muted)]">
+                    <input
+                      type="checkbox"
+                      name={q.id}
+                      value={o.code}
+                      checked={current.includes(o.code)}
+                      onChange={(e) =>
+                        setAnswers((a) => ({
+                          ...a,
+                          [q.id]: toggleMultiAnswer(
+                            q,
+                            (a[q.id] as string[] | undefined) ?? [],
+                            o.code,
+                            e.target.checked,
+                          ),
+                        }))
+                      }
+                      disabled={disabled}
+                      className="mt-0.5 size-5 shrink-0 accent-[var(--color-accent)]"
+                    />
+                    <span>{o.label}</span>
+                  </label>
+                );
+              })}
+            </fieldset>
+          ) : (
           <label key={q.id} className="flex flex-col gap-2 text-sm">
             <span className="text-[var(--color-fg)]">{q.label}</span>
             <select
               name={q.id}
-              value={answers[q.id] ?? ""}
+              value={(answers[q.id] as string | undefined) ?? ""}
               onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
               disabled={disabled}
               className={`${fieldClass} truncate pr-8`}
@@ -72,7 +105,8 @@ export default function AuditIntakeForm({ sessionId }: { sessionId: string }) {
               ))}
             </select>
           </label>
-        ))}
+          ),
+        )}
         <label className="flex flex-col gap-2 text-sm">
           <span className="text-[var(--color-fg)]">{INTAKE_NOTES_LABEL}</span>
           <span className="text-[var(--color-muted)]">{INTAKE_NOTES_HINT}</span>

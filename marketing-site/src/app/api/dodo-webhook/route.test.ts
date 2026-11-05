@@ -222,18 +222,18 @@ describe("POST /api/dodo-webhook — audit tier", () => {
       consent_text_version: "p2-sellable-v1-2026-11-05",
       consent_at: 7,
       consent_method: "checkout_checkbox",
-      p1_opt_out: 0,
     });
     expect(state.store.get(`rights:audit:${SID}`)).not.toContain("example.com");
   });
 
-  it("dataset: an existing rights record (e.g. P1 opt-out) is never overwritten", async () => {
-    seed("fulfilling", { consent_sellable: 0, consent_text_version: "v", consent_at: 1 });
-    const existing = JSON.stringify({ tier: "audit", p1_opt_out: 1 });
+  it("dataset: an existing consent record is never overwritten; no restriction key written", async () => {
+    seed("fulfilling", { consent_sellable: 1, consent_text_version: "v", consent_at: 1 });
+    const existing = JSON.stringify({ tier: "audit", consent_sellable: 0 });
     state.store.set(`rights:audit:${SID}`, existing);
     const { POST } = await import("./route");
     expect((await POST(webhook())).status).toBe(200);
     expect(state.store.get(`rights:audit:${SID}`)).toBe(existing);
+    expect([...state.store.keys()].some((k) => k.startsWith("rights-optout:"))).toBe(false);
   });
 
   it("dataset: rights write fails on first delivery → a later delivery (no enqueue) retries it, best-effort", async () => {

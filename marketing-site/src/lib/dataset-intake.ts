@@ -7,7 +7,8 @@
 // only in the operational store (SESSIONS KV, order TTL), never logged, never
 // sent to an LLM, never written to the corpus.
 
-export const INTAKE_TAXONOMY_VERSION = "pain-v1";
+// pain-v2: "tried" became multi-select (stored as an array of codes).
+export const INTAKE_TAXONOMY_VERSION = "pain-v2";
 export const INTAKE_NOTES_MAX = 1000;
 
 export type IntakeOption = { code: string; label: string };
@@ -15,6 +16,10 @@ export type IntakeQuestion = {
   id: "trigger" | "pain" | "tried" | "owner" | "success";
   label: string;
   options: readonly IntakeOption[];
+  // Multi-select: the answer is an array of distinct codes.
+  multi?: true;
+  // In a multi-select, this code cannot be combined with any other.
+  exclusive?: string;
 };
 
 // Codes never change meaning; new categories get new codes and a new
@@ -46,6 +51,8 @@ export const INTAKE_QUESTIONS: readonly IntakeQuestion[] = [
   {
     id: "tried",
     label: "What have you tried?",
+    multi: true,
+    exclusive: "nothing",
     options: [
       { code: "nothing", label: "nothing" },
       { code: "llms_txt", label: "llms.txt" },
@@ -78,10 +85,26 @@ export const INTAKE_QUESTIONS: readonly IntakeQuestion[] = [
   },
 ];
 
+// Checkbox-group toggle for a multi-select question: checking the exclusive
+// code clears the rest; checking any other code clears the exclusive one.
+// Keeps option order, so the client never sends a combo the server rejects.
+export function toggleMultiAnswer(
+  q: IntakeQuestion,
+  current: readonly string[],
+  code: string,
+  checked: boolean,
+): string[] {
+  let next: string[];
+  if (!checked) next = current.filter((c) => c !== code);
+  else if (code === q.exclusive) next = [code];
+  else next = [...current.filter((c) => c !== q.exclusive), code];
+  return q.options.map((o) => o.code).filter((c) => next.includes(c));
+}
+
 export const INTAKE_NOTES_LABEL = "Anything else we should know?";
 export const INTAKE_NOTES_HINT = "Please don't include personal or sensitive information.";
 
-export type IntakeAnswers = Partial<Record<IntakeQuestion["id"], string>>;
+export type IntakeAnswers = Partial<Record<IntakeQuestion["id"], string | string[]>>;
 
 export type IntakeRecord = {
   taxonomy_version: string;
@@ -205,11 +228,22 @@ export function validateIntake(body: Record<string, unknown>): IntakeValidation 
   const answers: IntakeAnswers = {};
   for (const q of INTAKE_QUESTIONS) {
     const v = body[q.id];
-    if (v === undefined || v === null || v === "") continue;
-    if (typeof v !== "string" || !q.options.some((o) => o.code === v)) {
-      return { ok: false, error: "INVALID_ANSWER" };
+    const isCode = (x: unknown) => typeof x === "string" && q.options.some((o) => o.code === x);
+    if (q.multi) {
+      if (v === undefined || v === null) continue;
+      if (!Array.isArray(v) || v.length > q.options.length || !v.every(isCode)) {
+        return { ok: false, error: "INVALID_ANSWER" };
+      }
+      if (new Set(v).size !== v.length) return { ok: false, error: "INVALID_ANSWER" };
+      if (q.exclusive && v.includes(q.exclusive) && v.length > 1) {
+        return { ok: false, error: "INVALID_ANSWER" };
+      }
+      if (v.length > 0) answers[q.id] = v as string[];
+      continue;
     }
-    answers[q.id] = v;
+    if (v === undefined || v === null || v === "") continue;
+    if (!isCode(v)) return { ok: false, error: "INVALID_ANSWER" };
+    answers[q.id] = v as string;
   }
   let notes: string | undefined;
   const n = body.notes;
