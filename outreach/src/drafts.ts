@@ -17,6 +17,7 @@ import { MailboxError, type MailClient, type SentMail } from "./mail/types";
 import { intEnv, mayCreateDrafts, modeOf } from "./mode";
 import { finalizeBody, renderFollowup } from "./render";
 import { checkOutboundDraft } from "./safety";
+import { DraftRefused, gatedCreateDraft } from "./draft-gate";
 import { isSuppressed } from "./suppression";
 import type { Env, LeadRow, MessageRow } from "./types";
 import { dailyCap, dnsWarmupDone } from "./warmup";
@@ -193,15 +194,25 @@ export async function createMailboxDraft(env: Env, deps: DraftDeps, messageId: s
   const safe = checkOutboundDraft({ to: lead.contact_email, subject: msg.subject, text, domain: lead.domain, postal, optoutUrl });
   if (!safe.ok) {
     await cancel(`unsafe:${safe.reason}`);
-    await deps.alert("Draft blocked by the safety check", `The email for ${lead.domain} failed the safety check (${safe.reason.slice(0, 40)}) and was not drafted.`, lead.id);
+    // Reason category only: the detail can contain hostile text (e.g. the offending URL).
+    await deps.alert("Draft blocked by the safety check", `The email for ${lead.domain} failed the safety check (${safe.reason.split(":")[0]}) and was not drafted.`, lead.id);
     return `cancelled:unsafe:${safe.reason}`;
   }
 
   let result;
   try {
-    result = await deps.mail.createDraft({ to: lead.contact_email, subject: msg.subject, text, inReplyTo, references: inReplyTo });
+    result = await gatedCreateDraft(
+      deps.mail,
+      { to: lead.contact_email, subject: msg.subject, text, inReplyTo, references: inReplyTo },
+      { kind: "outreach", domain: lead.domain, postal, optoutUrl }
+    );
   } catch (e) {
     const now = deps.now();
+    if (e instanceof DraftRefused) {
+      await cancel(`unsafe:${e.reason}`);
+      await deps.alert("Draft blocked by the safety check", `The email for ${lead.domain} failed the safety check (${e.reason.split(":")[0]}) and was not drafted.`, lead.id);
+      return `cancelled:unsafe:${e.reason}`;
+    }
     const auth = (e instanceof MailboxError && e.auth) || e?.constructor?.name === "ZohoAuthError";
     if (e instanceof MailboxError && e.definiteNotCreated && !auth) {
       if (msg.retry_count < 1) {

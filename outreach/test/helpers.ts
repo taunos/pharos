@@ -187,6 +187,9 @@ function dim(id: number, name: string, subs: SubCheck[], extra: Partial<Dimensio
   return { dimension_id: id, dimension_name: name, score: 30, grade: "F", sub_checks: subs, ...extra };
 }
 
+/** Dim 4 same-response evidence as the current scanner emits it for a 200 HTML homepage. */
+export const HOMEPAGE_OK = { status: 200, content_type: "text/html; charset=utf-8", parsed: true };
+
 /** A scan with three claimable gaps: llms.txt 404, no JSON-LD (homepage answered), no Markdown. */
 export function gappyScan(url = "https://example.com/", id = "aaaaaaaa-0000-4000-8000-000000000001"): ScanResult {
   return {
@@ -201,9 +204,9 @@ export function gappyScan(url = "https://example.com/", id = "aaaaaaaa-0000-4000
       dim(2, "MCP Server Discoverability", [sc("well_known", 30, 0, "no /.well-known/mcp")]),
       dim(3, "OpenAPI / API Catalog", [sc("discovery", 1, 0, "n/a", { na: true })], { na: true }),
       dim(4, "Structured Capability Data", [
-        sc("json_ld_present", 25, 0, "no JSON-LD found on homepage"),
-        sc("organization_schema", 20, 0, "no Organization schema"),
-        sc("faq_schema", 20, 0, "0 Q&A pair(s); skipped (no questions)"),
+        sc("json_ld_present", 25, 0, "no JSON-LD found on homepage", { evidence: HOMEPAGE_OK }),
+        sc("organization_schema", 20, 0, "no Organization schema", { evidence: HOMEPAGE_OK }),
+        sc("faq_schema", 20, 0, "0 Q&A pair(s); skipped (no questions)", { evidence: HOMEPAGE_OK }),
       ]),
       dim(5, "Agent Parsability", [sc("markdown_negotiation", 25, 25, "No markdown variant or content negotiation. Agents must fall back to HTML extraction.")]),
       dim(6, "Citation Visibility", [sc("free_tier_dim6_preview", 1, 0, "demo", { na: true })], { na: true }),

@@ -1,5 +1,8 @@
 // Minimal shape of the scanner's ScanResult that this Worker reads
 // (scanner/src/types.ts is the source of truth).
+/** Evidence about the single response a sub-check is based on (scanner Dim 4). */
+export type SubCheckEvidence = { status: number | null; content_type: string; parsed: boolean };
+
 export type SubCheck = {
   id: string;
   name: string;
@@ -8,6 +11,7 @@ export type SubCheck = {
   passed: boolean;
   notes: string;
   na?: boolean;
+  evidence?: SubCheckEvidence;
 };
 export type DimensionResult = {
   dimension_id: number;

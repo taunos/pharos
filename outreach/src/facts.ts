@@ -16,10 +16,12 @@
 //   dim6.*                     D6: free-tier Dim 6 is a demo preview
 //
 // Dim 4 reads the homepage, and its notes say "no JSON-LD found" even when
-// the homepage fetch failed. Dim 4 gaps therefore also need positive proof
-// that the homepage answered: Dim 5 markdown_negotiation either passed or
-// reached its HTML fallback ("No markdown variant ...", which only happens
-// after a 2xx HTML response).
+// the homepage fetch failed. Security round 2: an absence claim needs success
+// evidence from the SAME response that produced the finding. The scanner now
+// attaches `evidence` (status, content type, parsed) to every Dim 4 sub-check;
+// a Dim 4 claim requires status 200 + an HTML content type + a parsed body on
+// that sub-check. No evidence (older scanner) or anything else => no claim
+// (fail closed). Another dimension's request never stands in for it.
 import { UUID_RE, isAstrantUrl, isPublicHostname } from "./safety";
 import type { DimensionResult, ScanResult, SubCheck } from "./types";
 
@@ -57,16 +59,15 @@ function sub(scan: ScanResult, dim: number, id: string): SubCheck | undefined {
   return d?.sub_checks.find((s) => s.id === id);
 }
 
-export function homepageAnswered(scan: ScanResult): boolean {
-  const md = sub(scan, 5, "markdown_negotiation");
-  if (!md || md.na) return false;
-  if (md.passed) return true;
-  return /^No markdown variant or content negotiation\./.test(md.notes);
+/** Same-response success evidence: 200, HTML, body parsed. */
+export function evidenceOk(sc: SubCheck | undefined): boolean {
+  const e = sc?.evidence;
+  return !!e && e.status === 200 && e.parsed === true && /^text\/html\b|^application\/xhtml\+xml\b/i.test(e.content_type.trim());
 }
 
 function jsonLdPresent(scan: ScanResult): boolean {
   const j = sub(scan, 4, "json_ld_present");
-  return !!j && !j.na && j.passed && /valid JSON-LD block\(s\) on homepage/.test(j.notes);
+  return !!j && !j.na && j.passed && evidenceOk(j) && /valid JSON-LD block\(s\) on homepage/.test(j.notes);
 }
 
 export const COPY_RULES: Rule[] = [
@@ -107,11 +108,11 @@ export const COPY_RULES: Rule[] = [
     key: "4.json_ld_present",
     anchor: "JSON-LD",
     variants: {
-      none: "The {domain} homepage has no JSON-LD structured data, so it doesn't describe your company or product in machine-readable form.",
-      invalid: "The JSON-LD on the {domain} homepage doesn't parse as valid JSON, so machines reading it get nothing from it.",
+      none: "No JSON-LD structured data was found in the HTML of the {domain} homepage.",
+      invalid: "The JSON-LD on the {domain} homepage doesn't parse as valid JSON.",
     },
-    pick: (sc, scan) => {
-      if (!homepageAnswered(scan)) return null;
+    pick: (sc) => {
+      if (!evidenceOk(sc)) return null;
       if (sc.notes === "no JSON-LD found on homepage") return { variant: "none", numbers: [] };
       if (/^\d+ JSON-LD block\(s\) present but failed to parse$/.test(sc.notes)) return { variant: "invalid", numbers: [] };
       return null;
@@ -121,10 +122,10 @@ export const COPY_RULES: Rule[] = [
     key: "4.organization_schema",
     anchor: "JSON-LD",
     variants: {
-      missing: "The JSON-LD on the {domain} homepage has no Organization entry, so your company's name, URL and profiles aren't stated in machine-readable form.",
+      missing: "The JSON-LD on the {domain} homepage has no Organization entry.",
     },
     pick: (sc, scan) => {
-      if (!homepageAnswered(scan) || !jsonLdPresent(scan)) return null;
+      if (!evidenceOk(sc) || !jsonLdPresent(scan)) return null;
       return sc.notes === "no Organization schema" ? { variant: "missing", numbers: [] } : null;
     },
   },
@@ -132,10 +133,10 @@ export const COPY_RULES: Rule[] = [
     key: "4.service_offer_schema",
     anchor: "JSON-LD",
     variants: {
-      missing: "The JSON-LD on the {domain} homepage has no Product, Service or Offer entry, so what you sell isn't described in machine-readable form.",
+      missing: "The JSON-LD on the {domain} homepage has no Product, Service or Offer entry.",
     },
     pick: (sc, scan) => {
-      if (!homepageAnswered(scan) || !jsonLdPresent(scan)) return null;
+      if (!evidenceOk(sc) || !jsonLdPresent(scan)) return null;
       return sc.notes === "no Service / Product / Offer schema" ? { variant: "missing", numbers: [] } : null;
     },
   },

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildFactSheet, homepageAnswered, selectGaps } from "../src/facts";
+import { buildFactSheet, selectGaps } from "../src/facts";
 import { draftEmail, fieldsFor, templateFields, WRITER_MODEL } from "../src/writer";
 import { FakeAI, gappyScan } from "./helpers";
 import type { ScanResult } from "../src/types";
@@ -30,14 +30,12 @@ describe("gap selection (§7.1, D6)", () => {
     expect(selectGaps(s, "example.com").some((g) => g.id.startsWith("1.presence"))).toBe(false);
   });
 
-  it("Dim 4 gaps need proof the homepage answered (Dim 5 HTML fallback reached)", () => {
+  it("Dim 4 gaps need same-response evidence; Dim 5 answering is not enough", () => {
     const s = clone(gappyScan());
-    s.dimensions[4].sub_checks[0].notes = "Site did not respond to markdown or HTML requests.";
-    s.dimensions[4].sub_checks[0].score = 0;
-    expect(homepageAnswered(s)).toBe(false);
+    for (const sc of s.dimensions[3].sub_checks) sc.evidence = { status: 403, content_type: "text/html", parsed: false };
     const ids = selectGaps(s, "example.com").map((g) => g.id);
     expect(ids.some((i) => i.startsWith("4."))).toBe(false);
-    expect(ids.some((i) => i.startsWith("5."))).toBe(false);
+    expect(ids.some((i) => i.startsWith("5."))).toBe(true);
   });
 
   it("spec_compliance is only claimed about a file that exists", () => {

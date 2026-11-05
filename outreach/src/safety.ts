@@ -66,7 +66,9 @@ const UNSAFE_RANGES: [number, number][] = [
   [0x0000, 0x0009], [0x000b, 0x001f], [0x007f, 0x009f], [0x00ad, 0x00ad], [0x034f, 0x034f],
   [0x061c, 0x061c], [0x115f, 0x1160], [0x17b4, 0x17b5], [0x180e, 0x180e], [0x200b, 0x200f],
   [0x202a, 0x202e], [0x2028, 0x2029], [0x2060, 0x206f], [0x3164, 0x3164], [0xfe00, 0xfe0f],
-  [0xfeff, 0xfeff], [0xffa0, 0xffa0], [0xfff0, 0xfffc], [0xe0000, 0xe007f],
+  [0xfeff, 0xfeff], [0xffa0, 0xffa0], [0xfff0, 0xfffc],
+  // Tags (U+E0000..E007F) and variation selectors supplement (U+E0100..E01EF).
+  [0xe0000, 0xe007f], [0xe0100, 0xe01ef],
 ];
 export const UNSAFE_CODEPOINTS = UNSAFE_RANGES;
 const UNSAFE_CHARS_RE = new RegExp(
@@ -160,4 +162,14 @@ export function checkOutboundDraft(d: { to: string; subject: string; text: strin
   return { ok: true };
 }
 
-export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+/** Every scheme URL in a text (trailing punctuation trimmed). */
+export function schemeUrls(text: string): string[] {
+  return [...text.matchAll(SCHEME_RE)].map((m) => m[0].replace(/[.,;:!?)]+$/, ""));
+}
+
+/** Bare domain-like tokens (lowercased) in a text, with scheme URLs removed first. */
+export function domainLikeTokens(text: string): string[] {
+  return [...text.replace(SCHEME_RE, " ").matchAll(DOMAIN_LIKE_RE)].map((m) => m[0].toLowerCase());
+}
+
+export const UUID_RE =/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;

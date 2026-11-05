@@ -41,18 +41,22 @@ describe("S7 / drafts-only guarantee (static): nothing in this Worker can send",
     expect(fn).toMatch(/method: "POST"/);
     expect(z).not.toMatch(/mode: "(?!draft")/);
   });
-  it("outreach drafts are created only by createMailboxDraft(); other createDraft callers write to Bruno or reply drafts", () => {
-    const sites: string[] = [];
+  it("every mailbox write goes through gatedCreateDraft; only createMailboxDraft uses the outreach policy", () => {
+    const calls: string[] = [];
+    const outreach: string[] = [];
     for (const f of SRC) {
+      const rel = f.replace(ROOT, "").replace(/\\/g, "/");
       read(f).split("\n").forEach((l, i) => {
-        if (/\.createDraft\s*\(/.test(l)) sites.push(`${f.replace(ROOT, "").replace(/\\/g, "/")}:${i + 1}`);
+        if (/^\s*(\/\/|\*)/.test(l)) return;
+        if (/\bgatedCreateDraft\s*\(/.test(l) && !/export async function gatedCreateDraft/.test(l)) calls.push(`${rel}:${i + 1}`);
       });
+      if (/kind: "outreach"/.test(read(f)) && !rel.endsWith("draft-gate.ts")) outreach.push(rel);
     }
-    const files = sites.map((x) => x.split(":")[0]).sort();
-    expect(files).toEqual(["src/alerts.ts", "src/drafts.ts", "src/inbound.ts"]);
+    expect(calls.map((x) => x.split(":")[0]).sort()).toEqual(["src/alerts.ts", "src/drafts.ts", "src/inbound.ts"]);
+    expect(outreach).toEqual(["src/drafts.ts"]);
     const d = read(join(ROOT, "src", "drafts.ts"));
     const start = d.indexOf("export async function createMailboxDraft(");
-    const call = d.indexOf("deps.mail.createDraft(");
+    const call = d.indexOf("gatedCreateDraft(", start);
     const next = d.indexOf("\nexport ", start + 10);
     expect(call > start && (next === -1 || call < next)).toBe(true);
   });

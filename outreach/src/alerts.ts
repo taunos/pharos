@@ -4,6 +4,7 @@
 // written to the mailbox (Codex review #7); alerts live in D1 and /admin.
 // Best effort: a failed draft never blocks handling.
 import { logEvent } from "./db";
+import { gatedCreateDraft } from "./draft-gate";
 import type { MailClient } from "./mail/types";
 import { mayCreateDrafts, modeOf } from "./mode";
 import type { Env } from "./types";
@@ -24,7 +25,11 @@ export function makeAlerter(env: Env, mail: MailClient | null, now: () => number
     if (today >= MAX_ALERT_DRAFTS_PER_DAY) return;
     try {
       await logEvent(env.DB, now(), "alert_draft", leadId);
-      await mail.createDraft({ to: env.OPERATOR_ALERT_TO, subject: `[Astrant outreach] ${kind.replace(/[\r\n]+/g, " ").slice(0, 100)}`, text });
+      await gatedCreateDraft(
+        mail,
+        { to: env.OPERATOR_ALERT_TO, subject: `[Astrant outreach] ${kind.replace(/[\r\n]+/g, " ").slice(0, 100)}`, text },
+        { kind: "alert", operatorAddress: env.OPERATOR_ALERT_TO }
+      );
     } catch (e) {
       console.error("alert_draft_failed", kind, e instanceof Error ? e.message : String(e));
     }

@@ -1,4 +1,4 @@
-import type { DimensionResult, Env, SubCheck } from "../types";
+import type { DimensionResult, Env, SubCheck, SubCheckEvidence } from "../types";
 import { dimensionScoreOrThrow, gradeFor } from "../scoring";
 import { evalWithCache } from "./llm-eval";
 
@@ -16,12 +16,65 @@ async function timedFetch(url: string, init?: RequestInit): Promise<Response | n
   }
 }
 
-function extractJsonLdBlocks(html: string): unknown[] {
+// Outreach security round 2: HTML-attribute-tolerant <script> scanning. The old
+// regex required `type="..."` with no whitespace and quotes, so valid markup
+// such as `<script type = "application/ld+json">` or `type=application/ld+json`
+// was missed, and the page was then reported as having no JSON-LD.
+type ScriptTag = { attrs: Record<string, string>; body: string };
+
+/** Parses `<script ...>body</script>` elements: any case, any attribute order, quoted (' or ") or bare values, `>` inside quotes. */
+export function scanScriptTags(html: string): ScriptTag[] {
+  const out: ScriptTag[] = [];
+  const lower = html.toLowerCase();
+  let i = 0;
+  for (;;) {
+    const start = lower.indexOf("<script", i);
+    if (start < 0) break;
+    const after = lower.charAt(start + 7);
+    if (after && !/[\s>/]/.test(after)) {
+      i = start + 7; // e.g. <scripts>
+      continue;
+    }
+    // Walk the start tag, honouring quotes.
+    let j = start + 7;
+    let quote = "";
+    while (j < html.length) {
+      const c = html.charAt(j);
+      if (quote) {
+        if (c === quote) quote = "";
+      } else if (c === '"' || c === "'") quote = c;
+      else if (c === ">") break;
+      j++;
+    }
+    if (j >= html.length) break;
+    const attrSrc = html.slice(start + 7, j);
+    const attrs: Record<string, string> = {};
+    const ar = /([^\s"'>\/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+    let m: RegExpExecArray | null;
+    while ((m = ar.exec(attrSrc)) !== null) {
+      const name = m[1].toLowerCase();
+      if (!(name in attrs)) attrs[name] = m[2] ?? m[3] ?? m[4] ?? "";
+    }
+    const closeRe = /<\/script\s*>/gi;
+    closeRe.lastIndex = j + 1;
+    const close = closeRe.exec(html);
+    const end = close ? close.index : html.length;
+    out.push({ attrs, body: html.slice(j + 1, end) });
+    i = close ? close.index + close[0].length : html.length;
+  }
+  return out;
+}
+
+export function isJsonLdType(type: string | undefined): boolean {
+  if (type === undefined) return false;
+  return type.split(";")[0].trim().toLowerCase() === "application/ld+json";
+}
+
+export function extractJsonLdBlocks(html: string): unknown[] {
   const out: unknown[] = [];
-  const re = /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html)) !== null) {
-    const raw = m[1].trim();
+  for (const tag of scanScriptTags(html)) {
+    if (!isJsonLdType(tag.attrs.type)) continue;
+    const raw = tag.body.trim();
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) out.push(...parsed);
@@ -74,11 +127,15 @@ export async function runDim4(targetUrl: string, env: Env): Promise<DimensionRes
   let html = "";
   let blocks: unknown[] = [];
   let invalidCount = 0;
+  // Evidence from THIS response, attached to every Dim 4 sub-check, so a consumer
+  // never infers "the homepage had no JSON-LD" from some other request.
+  const evidence: SubCheckEvidence = { status: res ? res.status : null, content_type: res?.headers.get("content-type") ?? "", parsed: false };
   if (res && res.status === 200) {
     try {
       html = await res.text();
       blocks = extractJsonLdBlocks(html);
       invalidCount = blocks.filter((b) => (b as { __invalid?: boolean })?.__invalid).length;
+      evidence.parsed = true;
     } catch {
       // ignore
     }
@@ -217,6 +274,7 @@ export async function runDim4(targetUrl: string, env: Env): Promise<DimensionRes
     notes: reviewNote,
   });
 
+  for (const sc of subs) sc.evidence = { ...evidence };
   const score = dimensionScoreOrThrow(subs);
   return {
     dimension_id: 4,

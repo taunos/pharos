@@ -8,7 +8,8 @@ import { alertDeleteDraft, cancelOutstandingStmt, mailboxDraftCount } from "./dr
 import { requestScanDeletionStmt, suppressStmts } from "./suppression";
 import type { AiBinding, Env, LeadRow, LeadState } from "./types";
 import { WRITER_MODEL } from "./writer";
-import { hasUnsafeChars } from "./safety";
+import { hasUnsafeChars, isAstrantUrl } from "./safety";
+import { gatedCreateDraft } from "./draft-gate";
 import { startOfUtcDay } from "./clock";
 
 export const MAX_INBOX_PAGES = 10;
@@ -63,11 +64,11 @@ export async function classify(m: InboundMail, ai: AiBinding | null): Promise<Cl
     return { class: "bounce_hard", confidence: 1, method: "rule" }; // 5.x.x or unknown status: stop emailing
   }
   const body = stripQuoted(m.text);
-  // Codex review #4: explicit opt-out text in the new reply body wins over
-  // auto-reply markers (a person can type "unsubscribe" into an auto-replied thread).
-  if (OPT_OUT_RE.test(body)) return { class: "opt_out", confidence: 1, method: "rule" };
-  if (isAutoReply(m)) return { class: "auto_reply", confidence: 1, method: "rule" };
   const subj = m.subject.replace(/^\s*(re|aw|fwd?)\s*:\s*/i, "");
+  // Explicit opt-out text in the new reply's SUBJECT or BODY wins over auto-reply
+  // markers (Codex #4, security round 2 #4): never let an auto-reply header hide it.
+  if (OPT_OUT_RE.test(subj) || OPT_OUT_RE.test(body)) return { class: "opt_out", confidence: 1, method: "rule" };
+  if (isAutoReply(m)) return { class: "auto_reply", confidence: 1, method: "rule" };
   const text = `${subj}\n${body}`;
   if (COMPLAINT_RE.test(text)) return { class: "complaint", confidence: 1, method: "rule" };
   if (OPT_OUT_RE.test(text)) return { class: "opt_out", confidence: 1, method: "rule" };
@@ -274,15 +275,26 @@ export async function handleInbound(env: Env, deps: InboundDeps, m: InboundMail)
     case "question": {
       const sheet = lead.fact_sheet_json ? (JSON.parse(lead.fact_sheet_json) as { score_url?: string }) : {};
       // One reply draft per lead: only while the lead is still waiting (a repeat reply makes none).
-      if (deps.mailboxWrites && replyable) try {
-        const d = await deps.mail.createDraft({
-          to: m.from,
-          subject: /^re:/i.test(m.subject) ? m.subject : `Re: ${m.subject}`,
-          text: fill(INTERESTED_DRAFT_BODY, { score_url: sheet.score_url ?? "" }),
-          // Threads Bruno's reply draft under their message.
-          inReplyTo: m.headers["message-id"] || undefined,
-          references: [m.headers["references"], m.headers["message-id"]].filter(Boolean).join(" ") || undefined,
-        });
+      // Security round 2 #3: the reply draft is built ONLY from trusted stored data.
+      // Recipient = the stored contact (never the inbound From); subject = "Re: " + the
+      // subject of the outreach email we sent (never the inbound Subject); body = the
+      // fixed skeleton + the stored Score URL. Threading uses the inbound Message-ID
+      // only if it is a well-formed id (the gate checks it). Then the reply policy runs.
+      const initial = await db.prepare("SELECT subject FROM messages WHERE lead_id = ? AND kind = 'initial' AND status = 'sent'").bind(lead.id).first<{ subject: string }>();
+      const scoreUrl = isAstrantUrl(sheet.score_url) ? (sheet.score_url as string) : "";
+      if (deps.mailboxWrites && replyable && initial && lead.contact_email) try {
+        const theirId = m.headers["message-id"];
+        const d = await gatedCreateDraft(
+          deps.mail,
+          {
+            to: lead.contact_email,
+            subject: "Re: " + initial.subject.replace(/^\s*(re:\s*)+/i, ""),
+            text: fill(INTERESTED_DRAFT_BODY, { score_url: scoreUrl }),
+            inReplyTo: theirId && /^<[^<>\s]{3,250}>$/.test(theirId) ? theirId : undefined,
+            references: theirId && /^<[^<>\s]{3,250}>$/.test(theirId) ? theirId : undefined,
+          },
+          { kind: "reply", domain: lead.domain, contactEmail: lead.contact_email }
+        );
         draftId = d.draftId;
       } catch (e) {
         console.error("draft_failed", e instanceof Error ? e.message : String(e));
