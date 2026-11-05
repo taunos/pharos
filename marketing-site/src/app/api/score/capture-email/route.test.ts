@@ -328,6 +328,49 @@ describe("E2 — capture-email send limits (rate-limit-kv)", () => {
     expect(h.sendReady.mock.calls.length).toBeLessThanOrEqual(3);
   });
 
+  it("E1 makes the recipient cap's KV race moot: 20 PARALLEL first captures with different addresses mail exactly ONE address", async () => {
+    // Scanner stand-in with E1's semantics: CAPTURE_SET_EMAIL_SQL binds the
+    // scan to its first address in one statement; a different address is a
+    // 0-row no-op → 409 email_bound. State reads race ahead of every write.
+    let bound: string | null = null;
+    const tick = () => new Promise((r) => setTimeout(r, 5));
+    rec("getScanState", h.getScanState, async () => {
+      const s = { ...freshState(), has_email_captured: bound !== null };
+      await tick();
+      return s;
+    });
+    rec("getEmailForScan", h.getEmailForScan, () => ({ ok: true, email: bound }));
+    rec("captureEmail", h.captureEmail, (_env: unknown, _id: unknown, p: unknown) => {
+      const email = (p as { email: string }).email;
+      if (bound === null || bound === email) {
+        bound = email;
+        return { ok: true };
+      }
+      return { ok: false, error: "409: email_bound", emailBound: true };
+    });
+    h.hashEmailForLog.mockImplementation(async (e: string) => `h-${e}`);
+    // No burst gate, and KV that loses every update: the distinct-recipient
+    // cap cannot hold here, so only the scanner's atomic binding is tested.
+    h.burstLimit = 1000;
+    const slow = new Map<string, string>();
+    h.env.SESSIONS = {
+      get: async (k: string) => { const v = slow.get(k) ?? null; await tick(); return v; },
+      put: async (k: string, v: string) => { slow.set(k, v); },
+    };
+
+    const results = await Promise.all(
+      Array.from({ length: 20 }, (_, i) => send(`p${i}@example.com`, `192.0.2.${i}`))
+    );
+    const statuses = results.map((r) => r.status);
+    expect(statuses.filter((s) => s === 200)).toHaveLength(1);
+    expect(statuses.filter((s) => s === 409)).toHaveLength(19);
+    const recipients = new Set(
+      [...h.sendReady.mock.calls, ...h.sendDeferred.mock.calls].map((c) => (c[1] as { toEmail: string }).toEmail)
+    );
+    expect([...recipients]).toEqual([bound]);
+    expect(h.generateScoreReportPDF).toHaveBeenCalledTimes(1);
+  });
+
   it("missing CAPTURE_RATE_LIMITER binding fails open to the KV limits (still enforced)", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     delete h.env.CAPTURE_RATE_LIMITER;
@@ -427,6 +470,20 @@ describe("E1 — capture-email never returns tokens; a scan only ever mails its 
     expect(h.generateScoreReportPDF).not.toHaveBeenCalled();
     expect(h.sendReady).not.toHaveBeenCalled();
     expect(h.sendDeferred).not.toHaveBeenCalled();
+  });
+
+  it("RACE: state says captured + PDF ready but the stored email reads back null/empty (concurrent delete) → 502, nothing mailed, no fallback to the request's address", async () => {
+    for (const email of [null, ""]) {
+      rec("getScanState", h.getScanState, () => readyState());
+      rec("getEmailForScan", h.getEmailForScan, () => ({ ok: true, email }));
+      const r = await post("attacker@evil.test");
+      expect(r.status).toBe(502);
+      expect(await r.json()).toEqual({ success: false, error: "Could not load scan." });
+      expect(h.sendReady).not.toHaveBeenCalled();
+      expect(h.sendDeferred).not.toHaveBeenCalled();
+      expect(h.getPublicScan).not.toHaveBeenCalled();
+      expect(h.kvPut).not.toHaveBeenCalled();
+    }
   });
 
   it("stored-email read failure → 502, nothing sent (fail closed)", async () => {

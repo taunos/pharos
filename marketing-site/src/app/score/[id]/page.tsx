@@ -57,6 +57,7 @@ interface ScoreEnv {
   UNSUBSCRIBE_SECRET: string;
   INTERNAL_SCANNER_ADMIN_KEY: string;
   AUDIT_CHECKOUT_ENABLED?: string;
+  SCANNER_SVC?: Fetcher;
 }
 
 // Citation Visibility (Dim 6) urgency bridge — keyed on the composite (0-100),
@@ -95,7 +96,7 @@ export default async function ScoreResultsPage({
   // just-scanned user may carry a sessionStorage stash (the rare best-effort-
   // persist failure). The client fallback shell reads it and renders a degraded
   // score-only view, or the not-found UI if there's nothing stashed.
-  const scanFetch = await getPublicScan(scanId);
+  const scanFetch = await getPublicScan(scanId, env);
   if (!scanFetch.ok) {
     return (
       <div className="min-h-screen">

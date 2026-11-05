@@ -149,6 +149,57 @@ describe("tC11 — DELETE_PII_TIMEOUT_MS single source of truth", () => {
   });
 });
 
+describe("SCANNER_SVC Service Binding", () => {
+  const helpers = (e: typeof env & { SCANNER_SVC?: unknown }): Array<() => Promise<unknown>> => {
+    const x = e as Parameters<typeof captureEmail>[0];
+    return [
+      () => captureEmail(x, "s", { email: "a@b.co", email_opted_in_rescan: true, unsubscribe_token: "t" }),
+      () => markPdfGenerated(x, "s", { pdf_template_version: "v" }),
+      () => unsubscribeScan(x, "s"),
+      () => deletePiiForScan(x, "s"),
+      () => getEmailForScan(x, "s"),
+      () => getScansByEmail(x, "a@b.co"),
+      () => getScanState(x, "s"),
+      () => getPublicScan("s", x),
+      () => captureOutbox(x, "s", { email: "a@b.co", email_opted_in_rescan: false, unsubscribe_token: "t" }),
+      () => getPdfKey(x, "s"),
+    ];
+  };
+
+  it("bound: every helper calls the binding with the same URL/method/headers/body it would send over HTTP, and never public fetch", async () => {
+    const httpCalls: Array<[string, RequestInit]> = [];
+    for (const call of helpers(env)) {
+      fetchMock.mockResolvedValueOnce(json({}, 404));
+      await call().catch(() => undefined);
+    }
+    for (const [u, init] of fetchMock.mock.calls) httpCalls.push([String(u), init as RequestInit]);
+    fetchMock.mockReset();
+
+    const svcFetch = vi.fn(async () => json({}, 404));
+    for (const call of helpers({ ...env, SCANNER_SVC: { fetch: svcFetch } })) await call().catch(() => undefined);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(svcFetch).toHaveBeenCalledTimes(httpCalls.length);
+    svcFetch.mock.calls.forEach((c, i) => {
+      const [u, init] = c as unknown as [string, RequestInit];
+      expect(u).toBe(httpCalls[i][0]);
+      expect(init.method).toBe(httpCalls[i][1].method);
+      expect(init.headers).toEqual(httpCalls[i][1].headers);
+      expect(init.body).toEqual(httpCalls[i][1].body);
+      expect(init.signal).toBeInstanceOf(AbortSignal);
+    });
+  });
+
+  it("absent: falls back to the workers.dev URL over public fetch", async () => {
+    for (const call of helpers(env)) {
+      fetchMock.mockResolvedValueOnce(json({}, 404));
+      await call().catch(() => undefined);
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(10);
+    for (const [u] of fetchMock.mock.calls) expect(String(u).startsWith("https://pharos-scanner.pharos-dev.workers.dev/api/")).toBe(true);
+  });
+});
+
 describe("scan id is a single encoded path segment (admin-key requests can't be retargeted)", () => {
   const HOSTILE = "../internal/scan/victim/email?x=#";
   const calls: Array<() => Promise<unknown>> = [

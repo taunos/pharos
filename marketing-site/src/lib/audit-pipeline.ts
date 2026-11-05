@@ -32,9 +32,9 @@ import {
   sanitizeNotesForModel,
   SITE_VALUE_PLACEHOLDER,
 } from "./llm-safety";
+import { DEFAULT_SCANNER_URL, scannerFetch } from "./scanner-fetch";
 
-const SCANNER_URL =
-  "https://pharos-scanner.pharos-dev.workers.dev/api/scan";
+const SCANNER_URL = `${DEFAULT_SCANNER_URL}/api/scan`;
 
 const REMEDIATION_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
 const REMEDIATION_CACHE_TTL = 30 * 24 * 60 * 60;
@@ -271,11 +271,14 @@ export type AuditEnv = {
   ANTHROPIC_API_KEY?: string;
   GOOGLE_AI_API_KEY?: string;
   PERPLEXITY_API_KEY?: string;
+  // Service Binding to pharos-scanner (./scanner-fetch); absent → workers.dev URL.
+  SCANNER_SVC?: Fetcher;
 };
 
 export async function runScan(
   url: string,
-  internalFulfillKey?: string
+  internalFulfillKey?: string,
+  scannerSvc?: Fetcher
 ): Promise<ScanResult> {
   // audit-fulfill is a paid-tier scan: full Browser Rendering for Dim 5's
   // js_vs_no_js_render_diff. We send tier="paid" plus the same internal
@@ -285,7 +288,7 @@ export async function runScan(
   if (internalFulfillKey) {
     headers["x-internal-fulfill-key"] = internalFulfillKey;
   }
-  const res = await fetch(SCANNER_URL, {
+  const res = await scannerFetch(scannerSvc, SCANNER_URL, {
     method: "POST",
     headers,
     body: JSON.stringify({ url, tier: internalFulfillKey ? "paid" : "free" }),

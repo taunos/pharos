@@ -4,11 +4,11 @@
 // guarded by INTERNAL_SCANNER_ADMIN_KEY. This module wraps them with typed
 // helpers so the route handlers stay readable.
 //
-// Note: scanner is reached via the internal workers.dev URL (not via the
-// public scanner.astrant.io custom domain). Keeps marketing-site → scanner
-// traffic on the Cloudflare backbone and avoids a public DNS round-trip.
+// Note: scanner is reached over the SCANNER_SVC Service Binding when bound,
+// else the internal workers.dev URL (never the public scanner.astrant.io
+// custom domain). See ./scanner-fetch.
 
-const SCANNER_BASE = "https://pharos-scanner.pharos-dev.workers.dev";
+import { DEFAULT_SCANNER_URL as SCANNER_BASE, scannerFetch, type ScannerServiceEnv } from "./scanner-fetch";
 
 // P0-C2 capture cutover (spec CD7 / GD13): caller-side bounds. Every helper's
 // fetch carries AbortSignal.timeout; abort/timeout normalizes to the helper's
@@ -31,16 +31,21 @@ function isTimeoutError(e: unknown): boolean {
 }
 
 // fetch with a timeout signal; timeout/abort → "timeout", anything else rethrows.
-async function boundedFetch(url: string, init: RequestInit, timeoutMs: number): Promise<Response | "timeout"> {
+async function boundedFetch(
+  svc: Fetcher | undefined,
+  url: string,
+  init: RequestInit,
+  timeoutMs: number
+): Promise<Response | "timeout"> {
   try {
-    return await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+    return await scannerFetch(svc, url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
   } catch (e) {
     if (isTimeoutError(e)) return "timeout";
     throw e;
   }
 }
 
-export interface ScannerEnv {
+export interface ScannerEnv extends ScannerServiceEnv {
   INTERNAL_SCANNER_ADMIN_KEY: string;
 }
 
@@ -60,7 +65,7 @@ export async function captureEmail(
     unsubscribe_token: string;
   }
 ): Promise<{ ok: boolean; error?: string; emailBound?: boolean }> {
-  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/capture-email`, {
+  const res = await boundedFetch(env.SCANNER_SVC, `${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/capture-email`, {
     method: "POST",
     headers: authHeaders(env),
     body: JSON.stringify(payload),
@@ -80,7 +85,7 @@ export async function markPdfGenerated(
   scanId: string,
   payload: { pdf_template_version: string; pdf_deferred_until_tomorrow?: boolean }
 ): Promise<{ ok: boolean; error?: string }> {
-  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/pdf-generated`, {
+  const res = await boundedFetch(env.SCANNER_SVC, `${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/pdf-generated`, {
     method: "POST",
     headers: authHeaders(env),
     body: JSON.stringify(payload),
@@ -97,7 +102,7 @@ export async function unsubscribeScan(
   env: ScannerEnv,
   scanId: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/unsubscribe`, {
+  const res = await boundedFetch(env.SCANNER_SVC, `${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/unsubscribe`, {
     method: "POST",
     headers: authHeaders(env),
   }, SCANNER_CLIENT_TIMEOUT_MS);
@@ -113,7 +118,7 @@ export async function deletePiiForScan(
   env: ScannerEnv,
   scanId: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/delete-pii`, {
+  const res = await boundedFetch(env.SCANNER_SVC, `${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/delete-pii`, {
     method: "POST",
     headers: authHeaders(env),
   }, DELETE_PII_TIMEOUT_MS);
@@ -129,7 +134,7 @@ export async function getEmailForScan(
   env: ScannerEnv,
   scanId: string
 ): Promise<{ ok: true; email: string | null } | { ok: false; error: string }> {
-  const res = await boundedFetch(`${SCANNER_BASE}/api/internal/scan/${encodeURIComponent(scanId)}/email`, {
+  const res = await boundedFetch(env.SCANNER_SVC, `${SCANNER_BASE}/api/internal/scan/${encodeURIComponent(scanId)}/email`, {
     method: "GET",
     headers: authHeaders(env),
   }, SCANNER_CLIENT_TIMEOUT_MS);
@@ -147,7 +152,7 @@ export async function getScansByEmail(
   env: ScannerEnv,
   email: string
 ): Promise<{ ok: true; scan_ids: string[] } | { ok: false; error: string }> {
-  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/by-email-internal`, {
+  const res = await boundedFetch(env.SCANNER_SVC, `${SCANNER_BASE}/api/scan/by-email-internal`, {
     method: "POST",
     headers: authHeaders(env),
     body: JSON.stringify({ email }),
@@ -178,7 +183,7 @@ export async function getScanState(
     }
   | { ok: false; error: string }
 > {
-  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/state`, {
+  const res = await boundedFetch(env.SCANNER_SVC, `${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/state`, {
     method: "GET",
     headers: authHeaders(env),
   }, SCANNER_CLIENT_TIMEOUT_MS);
@@ -208,9 +213,10 @@ export async function getScanState(
 // Returns the same ScanResult shape audit-pipeline.runScan returns. Caller
 // must validate the `id` matches what they expect.
 export async function getPublicScan(
-  scanId: string
+  scanId: string,
+  env?: ScannerServiceEnv
 ): Promise<{ ok: true; data: unknown } | { ok: false; error: string }> {
-  const res = await boundedFetch(`${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}`, {
+  const res = await boundedFetch(env?.SCANNER_SVC, `${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}`, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
   }, SCANNER_CLIENT_TIMEOUT_MS);
@@ -243,7 +249,7 @@ export async function captureOutbox(
 ): Promise<CaptureOutboxOutcome> {
   let res: Response;
   try {
-    res = await fetch(`${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/capture-outbox`, {
+    res = await scannerFetch(env.SCANNER_SVC, `${SCANNER_BASE}/api/scan/${encodeURIComponent(scanId)}/capture-outbox`, {
       method: "POST",
       headers: authHeaders(env),
       body: JSON.stringify(payload),
@@ -275,7 +281,7 @@ export async function getPdfKey(
 ): Promise<{ ok: true; pdf_r2_key: string | null } | { ok: false }> {
   let res: Response;
   try {
-    res = await fetch(`${SCANNER_BASE}/api/internal/scan/${encodeURIComponent(scanId)}/pdf-key`, {
+    res = await scannerFetch(env.SCANNER_SVC, `${SCANNER_BASE}/api/internal/scan/${encodeURIComponent(scanId)}/pdf-key`, {
       method: "GET",
       headers: authHeaders(env),
       signal: AbortSignal.timeout(SCANNER_CLIENT_TIMEOUT_MS),

@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { DEFAULT_SCANNER_URL, scannerFetch, type ScannerServiceEnv } from "@/lib/scanner-fetch";
 
-type ScanProxyEnv = { SCAN_PROXY_KEY?: string };
-
-const DEFAULT_SCANNER_URL = "https://pharos-scanner.pharos-dev.workers.dev";
+type ScanProxyEnv = { SCAN_PROXY_KEY?: string } & ScannerServiceEnv;
 
 export async function POST(req: Request) {
   const scannerBase = process.env.SCANNER_URL || DEFAULT_SCANNER_URL;
@@ -20,11 +19,13 @@ export async function POST(req: Request) {
   // travels in x-astrant-client-ip, authenticated by x-astrant-proxy-key (the
   // scanner ignores the IP without a valid key). Only the incoming
   // cf-connecting-ip is used: x-forwarded-for is client-spoofable. The key
-  // proves forwarding only; it grants no paid tier.
+  // proves forwarding only; it grants no paid tier. Over the SCANNER_SVC
+  // Service Binding the scanner likewise never sees the visitor's own
+  // CF-Connecting-IP, so the same authenticated header carries it.
   const clientIp = req.headers.get("cf-connecting-ip") ?? "";
   // E11: the dedicated SCAN_PROXY_KEY only (the INTERNAL_FULFILL_KEY
   // transition fallback was removed 2026-11-05).
-  const { SCAN_PROXY_KEY } = getCloudflareContext().env as unknown as ScanProxyEnv;
+  const { SCAN_PROXY_KEY, SCANNER_SVC } = getCloudflareContext().env as unknown as ScanProxyEnv;
   const proxyKey = SCAN_PROXY_KEY;
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const upstream = await fetch(`${scannerBase}/api/scan`, {
+    const upstream = await scannerFetch(SCANNER_SVC, `${scannerBase}/api/scan`, {
       method: "POST",
       headers,
       body: JSON.stringify(body),

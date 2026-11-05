@@ -288,6 +288,28 @@ describe("POST /api/scan/:id/capture-outbox (through worker.fetch)", () => {
     expect(jobsFor(sqlite, "s1")).toHaveLength(1);
     expect(q.sent.length).toBe(sentBefore); // no new message
   });
+
+  it("E1: 10 PARALLEL first captures with different emails → at most one address bound, one job, one Queue message", async () => {
+    const sqlite = freshSqlite();
+    seedScan(sqlite, { id: "s1" });
+    const q = makeQueue();
+    const env = makeEnv(sqlite, [], { queue: q.ok, adminKey: "admin-key" });
+
+    const results = await Promise.all(
+      Array.from({ length: 10 }, (_, i) =>
+        call(env, "s1", { ...goodBody, email: `p${i}@example.com` }, { "x-internal-scanner-admin-key": "admin-key" }),
+      ),
+    );
+    const ok = results.filter((r) => r.status === 200);
+    expect(ok.length).toBe(1);
+    for (const r of results) expect([200, 409, 503]).toContain(r.status);
+
+    const jobs = jobsFor(sqlite, "s1");
+    expect(new Set(jobs.map((j) => j.email)).size).toBeLessThanOrEqual(1);
+    expect(jobs.length).toBe(ok.length);
+    expect(q.sent.length).toBe(ok.length);
+    if (jobs.length === 1) expect(scanRow(sqlite, "s1")!.email).toBe(jobs[0].email);
+  });
 });
 
 // ── producer branch logic (direct) ───────────────────────────────────────────
