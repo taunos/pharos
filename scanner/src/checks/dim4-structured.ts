@@ -90,8 +90,9 @@ export function extractJsonLdBlocks(html: string): unknown[] {
 /** Decodes numeric (&#47; &#x2B;) and the &plus; &sol; &amp; entities, which is all an "ld+json" spelling can need. */
 function decodeAttrEntities(s: string): string {
   return s
-    .replace(/&#x([0-9a-f]{1,6});?/gi, (_, h: string) => safeCodePoint(parseInt(h, 16)))
-    .replace(/&#([0-9]{1,7});?/g, (_, d: string) => safeCodePoint(parseInt(d, 10)))
+    // HTML allows any number of leading zeros in character references.
+    .replace(/&#x0*([0-9a-f]{1,6});?/gi, (_, h: string) => safeCodePoint(parseInt(h, 16)))
+    .replace(/&#0*([0-9]{1,7});?/g, (_, d: string) => safeCodePoint(parseInt(d, 10)))
     .replace(/&plus;/gi, "+")
     .replace(/&sol;/gi, "/")
     .replace(/&amp;/gi, "&");
@@ -102,8 +103,31 @@ function safeCodePoint(n: number): string {
 const UTF8_COMPATIBLE = /^(utf-?8|us-ascii|ascii|iso-8859-1|latin1|windows-1252)$/i;
 
 /** See SubCheckEvidence.ld_json_absent_proven. Conservative: any doubt => false. */
+// Script types we can confidently classify as NOT JSON-LD (lowercased, exact).
+const KNOWN_NON_JSONLD_TYPES = new Set([
+  "", "text/javascript", "application/javascript", "application/x-javascript", "text/ecmascript",
+  "application/ecmascript", "module", "application/json", "text/json", "importmap", "speculationrules",
+  "text/template", "text/html", "text/plain", "text/x-template",
+]);
+
+/**
+ * Conservative safety net (outreach Codex round 4): absence is unproven when any
+ * <script> type value contains "&", a backslash or a non-ASCII character, or is
+ * not a type we can confidently classify. Decoding tricks then can't matter.
+ */
+function scriptTypesConfidentlyNonJsonLd(html: string): boolean {
+  for (const tag of scanScriptTags(html)) {
+    const t = tag.attrs.type;
+    if (t === undefined) continue; // no type attribute: classic script
+    if (/[&\\]|[^\x20-\x7e]/.test(t)) return false;
+    if (!KNOWN_NON_JSONLD_TYPES.has(t.trim().toLowerCase())) return false;
+  }
+  return true;
+}
+
 export function ldJsonAbsentProven(html: string, contentType: string, bodyComplete: boolean): boolean {
   if (!bodyComplete) return false;
+  if (!scriptTypesConfidentlyNonJsonLd(html)) return false;
   const cs = /charset\s*=\s*"?([^";\s]+)/i.exec(contentType)?.[1];
   if (cs && !UTF8_COMPATIBLE.test(cs)) return false;
   if (html.includes(String.fromCodePoint(0xfffd))) return false; // decoding errors

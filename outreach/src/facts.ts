@@ -84,7 +84,8 @@ export const COPY_RULES: Rule[] = [
     anchor: "llms.txt",
     variants: {
       not_found: "When we requested {domain}/llms.txt, the server answered with a 404 (not found).",
-      html: "When we requested {domain}/llms.txt, the server returned an HTML page (content type text/html), not a text file.",
+      // States only the DECLARED content type (headers), not what the body is.
+      html: "When we requested {domain}/llms.txt, the server answered with a page declared as HTML (content type text/html), not a plain-text file.",
     },
     pick: (sc, domain) => {
       if (!ownSiteRequest(sc, domain, "/llms.txt")) return null;

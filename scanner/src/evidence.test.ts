@@ -69,6 +69,34 @@ describe("Dim 4 evidence: final URL, body completeness, proven JSON-LD absence",
       expect(d.sub_checks[0].evidence?.ld_json_absent_proven, name).toBe(false);
     });
   }
+  // Codex round 4: character references with extra leading zeros, and type values
+  // the parser can't confidently classify, must never yield proven absence.
+  for (const [name, type] of [
+    ["exact repro: decimal with many leading zeros", "application/&#0000000108;d+json"],
+    ["hex with leading zeros", "application/&#x00000006C;d+json"],
+    ["hex lowercase", "application/&#x6c;d+json"],
+    ["hex uppercase X", "application/&#X6C;d+json"],
+    ["named entity in value", "application/ld&plus;json"],
+    ["mixed case value", "Application/LD+Json"],
+    ["whitespace inside value", "application/ ld+json"],
+    ["tab inside value", "application/ld" + String.fromCharCode(9) + "+json"],
+    ["backslash in value", "application" + String.fromCharCode(92) + "/ld+json"],
+    ["non-ASCII in value", "application/ld+js" + String.fromCodePoint(0x00f6) + "n"],
+    ["fullwidth plus", "application/ld" + String.fromCodePoint(0xff0b) + "json"],
+    ["unknown script type", "text/x-unknown-kind"],
+  ] as const) {
+    it(`not proven absent: ${name}`, async () => {
+      stub(() => ({ status: 200, url: "https://acme.com/", body: `<html><script type="${type}">{"@type":"Organization"}</script></html>` }));
+      const d = await runDim4("https://acme.com/", env);
+      expect(d.sub_checks[0].evidence?.ld_json_absent_proven, name).toBe(false);
+    });
+  }
+  it("ordinary script types still allow proven absence", async () => {
+    const body = '<html><script>var a=1</script><script type="text/javascript">1</script><script type="module">2</script><script type="application/json">{}</script></html>';
+    stub(() => ({ status: 200, url: "https://acme.com/", body }));
+    const d = await runDim4("https://acme.com/", env);
+    expect(d.sub_checks[0].evidence?.ld_json_absent_proven).toBe(true);
+  });
   it("non-200 ⇒ not proven absent", async () => {
     stub(() => ({ status: 403, url: "https://acme.com/", body: "<html></html>" }));
     const d = await runDim4("https://acme.com/", env);

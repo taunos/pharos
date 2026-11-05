@@ -45,6 +45,14 @@ describe("only the three observation findings exist", () => {
     const codes = COPY_RULES.flatMap((r) => Object.keys(r.variants).map((v) => `${r.key}.${v}`)).sort();
     expect(codes).toEqual(["1.presence.html", "1.presence.not_found", "4.json_ld_present.none"]);
   });
+  it("the finding sentences are exactly the approved observation wording (round 4)", () => {
+    const all = Object.fromEntries(COPY_RULES.flatMap((r) => Object.entries(r.variants).map(([v, t]) => [`${r.key}.${v}`, t])));
+    expect(all).toEqual({
+      "1.presence.not_found": "When we requested {domain}/llms.txt, the server answered with a 404 (not found).",
+      "1.presence.html": "When we requested {domain}/llms.txt, the server answered with a page declared as HTML (content type text/html), not a plain-text file.",
+      "4.json_ld_present.none": "When we requested the {domain} homepage, its HTML had no JSON-LD block (no script of type application/ld+json).",
+    });
+  });
   it("the valid base evidence produces exactly the two expected findings", () => {
     expect(ids(gappyScan()).sort()).toEqual(["1.presence.not_found", "4.json_ld_present.none"]);
   });
