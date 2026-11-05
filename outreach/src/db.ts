@@ -51,12 +51,16 @@ export async function resume(db: D1Database, now: number, by: string): Promise<v
   const c = await getControl(db);
   if (!c.paused) return;
   const add = c.ramp_start_at != null && c.paused_at != null && c.paused_at > c.ramp_start_at ? now - c.paused_at : 0;
-  await db.batch([
+  const stmts = [
     db
       .prepare("UPDATE control SET paused = 0, pause_reason = NULL, paused_at = NULL, ramp_paused_ms = ramp_paused_ms + ? WHERE id = 1 AND paused = 1")
       .bind(add),
-    eventStmt(db, now, "resumed", null, { by_admin: by.length > 0 }),
-  ]);
+    eventStmt(db, now, "resumed", null, { by_admin: by.length > 0, reason: c.pause_reason }),
+  ];
+  // E6: resuming acknowledges the data behind THIS stop only (stops.ts
+  // stopAcknowledgedAt). No other stop is ever acknowledged implicitly.
+  if (c.pause_reason) stmts.push(eventStmt(db, now, "stop_acknowledged", null, { reason: c.pause_reason }));
+  await db.batch(stmts);
 }
 
 /** CAS lead transition. Returns true iff exactly one row moved from `from` to `to`. */
