@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "AEO Audit — $79 instant delivery — Astrant",
   description:
-    "Pay $79, paste your URL, get a rich PDF in about 60 seconds. Six-dimension deep analysis with developer-ready remediation guidance for each gap, plus a machine-readable JSON export.",
+    "Pay $79, paste your URL, get a rich PDF in a few minutes. Six-dimension deep analysis with developer-ready remediation guidance for each gap, plus a machine-readable JSON export.",
   alternates: {
     canonical: "/audit",
     types: { "text/markdown": "/audit.md" },
@@ -50,7 +50,7 @@ const FAQS: { q: string; a: string; aNode?: React.ReactNode }[] = [
   },
   {
     q: "How is this instant if the report is that deep?",
-    a: "LLM inference does the analysis and remediation drafting; nothing is human-gated. PDF rendering takes a few extra seconds; the whole pipeline finishes in about 60 seconds end-to-end.",
+    a: "LLM inference does the analysis and remediation drafting; nothing is human-gated. PDF rendering takes a few extra seconds; the whole pipeline finishes in a few minutes end-to-end.",
   },
   {
     q: "Can I audit a competitor instead?",
@@ -106,7 +106,7 @@ const STEPS = [
   },
   {
     title: "Get your report",
-    body: "We redirect you to a results page that polls until your PDF is ready — usually about 60 seconds. JSON export available alongside the PDF.",
+    body: "We redirect you to a results page that polls until your PDF is ready — usually 2–4 minutes. JSON export available alongside the PDF.",
   },
 ];
 
@@ -150,7 +150,7 @@ export default async function AuditPage({
                 — or never bring your name up — the Audit shows what&apos;s
                 missing and how to fix it. A deep six-dimension read of what agents can and can&apos;t parse
                 on your site, with a specific, developer-ready fix for every gap
-                &#8212; delivered as a PDF in about 60 seconds. No call required.
+                &#8212; delivered as a PDF in a few minutes. No call required.
               </p>
               {showCanceled ? (
                 <div className="mt-10 border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4 text-sm text-[var(--color-fg)]">

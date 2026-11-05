@@ -26,7 +26,7 @@ Cloudflare shipped a free Agent Readiness Score tool in 2026 that does pass/fail
 
 ## Want the deeper analysis now?
 
-The $79 Audit delivers the full 6-dimension report with live citation data in 60 seconds — no waitlist. See https://astrant.io/audit
+The $79 Audit delivers the full 6-dimension report with live citation data in a few minutes — no waitlist. See https://astrant.io/audit
 
 ## FAQ
 

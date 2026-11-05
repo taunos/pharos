@@ -31,8 +31,8 @@ export default async function AuditResultsPage({
             intro={
               <p className="mt-6 text-lg text-[var(--color-muted)]">
                 Hold tight — we&apos;re scanning your site, generating remediation
-                guidance for each gap, and rendering your PDF. Usually about 60
-                seconds. We&apos;ll also email you the PDF.
+                guidance for each gap, and rendering your PDF. Usually 2–4
+                minutes. We&apos;ll also email you the PDF.
               </p>
             }
           />

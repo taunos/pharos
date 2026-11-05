@@ -163,7 +163,7 @@ export default function ScorePage() {
           </div>
           <p className="mx-auto mt-6 max-w-xl text-sm italic text-[var(--color-muted)]">
             Want the deeper analysis now? The $79 Audit delivers a full report
-            with live citation data in 60 seconds.{" "}
+            with live citation data in a few minutes.{" "}
             {/* Logo + Foundation slice: inline upsell link demoted accent → fg;
                 underline-on-hover preserved as the affordance. */}
             <Link
@@ -202,7 +202,7 @@ export default function ScorePage() {
             <p className="mt-4 text-lg text-[var(--color-muted)]">
               The free Score tells you where you stand. The $79 Audit gives you a
               prioritized action plan and a Citation Visibility snapshot across 4
-              AI models — delivered as a PDF in 60 seconds.
+              AI models — delivered as a PDF in a few minutes.
             </p>
             <div className="mt-8">
               <Link

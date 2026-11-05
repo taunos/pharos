@@ -1,10 +1,10 @@
 # AEO Audit
 
 **Price:** $79 one-time
-**Delivery:** Instant (~60 seconds)
+**Delivery:** Automatic (a few minutes)
 **Checkout:** https://astrant.io/audit
 
-Pay, paste your URL, get a rich PDF analysis of your site's agent discoverability in about 60 seconds. Six-dimension deep analysis with developer-ready remediation guidance for each gap, plus a machine-readable JSON export. No call required — the scoring engine does the work.
+Pay, paste your URL, get a rich PDF analysis of your site's agent discoverability in a few minutes. Six-dimension deep analysis with developer-ready remediation guidance for each gap, plus a machine-readable JSON export. No call required — the scoring engine does the work.
 
 ## The full analysis includes
 
@@ -20,7 +20,7 @@ Includes a one-time Citation Visibility snapshot across ChatGPT, Claude, Perplex
 
 1. **Submit URL + email.** Two fields, one form. We email the PDF to that address as soon as it's ready.
 2. **Pay.** Dodo Payments handles USD billing and tax as Merchant of Record. Delivery triggers the moment payment confirms.
-3. **Get your report.** We redirect you to a results page that polls until your PDF is ready — usually about 60 seconds. JSON export available alongside the PDF.
+3. **Get your report.** We redirect you to a results page that polls until your PDF is ready — usually 2–4 minutes. JSON export available alongside the PDF.
 
 ## What the Audit adds (over the free Score)
 
@@ -32,7 +32,7 @@ The free Score gives you a public grade across six dimensions. The Audit goes de
 No. The audit is read-only. Just the URL.
 
 **How is this instant if the report is that deep?**
-LLM inference does the analysis and remediation drafting; nothing is human-gated. PDF rendering takes a few extra seconds; the whole pipeline finishes in about 60 seconds end-to-end.
+LLM inference does the analysis and remediation drafting; nothing is human-gated. PDF rendering takes a few extra seconds; the whole pipeline finishes in a few minutes end-to-end.
 
 **Can I audit a competitor instead?**
 Only sites you own or have permission to analyze — see [our terms](https://astrant.io/terms).

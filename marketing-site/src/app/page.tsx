@@ -83,7 +83,7 @@ const CORE_TIERS: Array<{
   {
     name: "Audit",
     price: "$79",
-    body: "Rich PDF in 60 seconds. A fix for every gap, plus a Citation Visibility snapshot across 4 AI models.",
+    body: "Rich PDF in minutes. A fix for every gap, plus a Citation Visibility snapshot across 4 AI models.",
     href: "/audit",
     badge: "Instant",
     badgeKind: "instant",
@@ -141,7 +141,7 @@ const FAQS = [
   },
   {
     q: "What's the difference between the free Score and the paid Audit?",
-    a: "The free Score gives you a public 0–100 grade across multiple dimensions of agent discoverability with summary findings. The $79 Audit goes deeper: a one-time Citation Visibility snapshot across ChatGPT, Claude, Gemini, and Perplexity, a specific fix and effort estimate for every gap, and a machine-readable JSON export. Audit is delivered in about 60 seconds.",
+    a: "The free Score gives you a public 0–100 grade across multiple dimensions of agent discoverability with summary findings. The $79 Audit goes deeper: a one-time Citation Visibility snapshot across ChatGPT, Claude, Gemini, and Perplexity, a specific fix and effort estimate for every gap, and a machine-readable JSON export. Audit is delivered in a few minutes.",
   },
   {
     q: "Will my customers see anything change on my site?",
