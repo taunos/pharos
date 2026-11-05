@@ -801,6 +801,28 @@ describe("E4 — subscription.active gate, product allow-list, welcome stamped o
     expect(subRow()!.welcome_email_sent_at).toBeGreaterThan(0);
   });
 
+  it("Codex r2 interleaving: the in-flight claim is released (failed send) between the loser's CAS and its read → loser still answers 503, no dedupe", async () => {
+    const { POST } = await import("./route");
+    const nowS = Math.floor(Date.now() / 1000);
+    state.sq!.db.prepare(
+      `INSERT INTO subscriptions (subscription_id, customer_id, customer_email, product_id, status,
+         current_period_start, current_period_end, created_at, updated_at, welcome_email_sent_at)
+       VALUES ('sub_9', 'cus_1', 'buyer@example.com', 'pdt_STANDARD', 'active', ?, ?, ?, ?, ?)`
+    ).run(nowS, nowS + 86400, nowS, nowS, -nowS); // delivery A holds a fresh claim
+    // A's send fails and releases the claim right after B's CAS lost, before B's read.
+    state.sq!.failWhen = (sql) => {
+      if (sql.includes("SELECT welcome_email_sent_at FROM subscriptions")) {
+        state.sq!.db.prepare(`UPDATE subscriptions SET welcome_email_sent_at = NULL WHERE subscription_id = 'sub_9'`).run();
+      }
+      return false;
+    };
+    const res = await POST(active("wh_s9", "pdt_STANDARD", "sub_9"));
+    state.sq!.failWhen = null;
+    expect(res.status).toBe(503);
+    expect(state.store.has("webhook:wh_s9")).toBe(false);
+    expect(welcome.send).not.toHaveBeenCalled();
+  });
+
   it("repeated welcome failures alert the operator ONCE per subscription", async () => {
     welcome.send.mockRejectedValue(new Error("resend down"));
     const { POST } = await import("./route");

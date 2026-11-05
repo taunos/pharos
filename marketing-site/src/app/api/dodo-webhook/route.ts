@@ -629,14 +629,17 @@ export async function POST(req: Request) {
         .bind(Math.floor(Date.now() / 1000), subscriptionId, -claimedAt)
         .run();
     } else {
-      // Lost the claim. If another delivery is mid-send, do NOT write the
-      // dedupe key: if that send fails, this webhook must still be retryable.
+      // Lost the claim. Acknowledge (and so dedupe) ONLY after observing a
+      // real positive stamp. Anything else — another delivery mid-send, or a
+      // claim released after a failed send between our CAS and this read
+      // (Codex r2) — answers 503 without dedupe so this webhook stays
+      // retryable until the welcome is actually sent.
       const cur = await env.CITATION_DB.prepare(
         `SELECT welcome_email_sent_at FROM subscriptions WHERE subscription_id = ?`
       )
         .bind(subscriptionId)
         .first<{ welcome_email_sent_at: number | null }>();
-      if (cur && cur.welcome_email_sent_at !== null && cur.welcome_email_sent_at < 0) {
+      if (!cur || cur.welcome_email_sent_at === null || cur.welcome_email_sent_at <= 0) {
         return retryLater();
       }
     }
