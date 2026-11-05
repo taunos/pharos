@@ -3,6 +3,7 @@ import { Fragment } from "react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { parseMaxProbeTargets } from "@/lib/probe-ceiling";
 
 // Force dynamic rendering: capacity-gate read at §3.10 requires runtime D1 access
 // (not available during static prerender).
@@ -24,7 +25,7 @@ async function getActiveCustomerCountAndCeiling(): Promise<{ count: number; ceil
   let ceiling = 30;
   try {
     const env = getCloudflareContext().env as unknown as CapacityCheckEnv;
-    ceiling = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
+    ceiling = parseMaxProbeTargets(env.MAX_PROBE_TARGETS);
     const row = await env.CITATION_DB.prepare(
       `SELECT COUNT(*) AS c FROM customer_probe_targets WHERE status='active'`
     ).first<{ c: number }>();

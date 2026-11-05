@@ -28,6 +28,7 @@ import { validateGitAmPatch } from "./f2-patch-validate";
 import { sendF2PatchDeliveryEmail } from "./f2-email";
 import { sendOperatorAlert } from "./operator-alerts";
 import type { ProbeCadence } from "./cadence";
+import { parseMaxProbeTargets } from "@/lib/probe-ceiling";
 
 export interface ImplRunEnv extends AuditEnv {
   INTERNAL_FULFILL_KEY: string;
@@ -369,7 +370,7 @@ async function buildAndDeliver(
   // B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded ceiling=3.
   // F4.1 D9 Site 2: append probe_cadence + next_probe_at. F2 customers default
   // 'twice_weekly' per Bruno lock #14. ON CONFLICT does NOT touch cadence per MED-NEW-O.
-  const maxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
+  const maxProbeTargets = parseMaxProbeTargets(env.MAX_PROBE_TARGETS);
   const probeInsertTime = nowSec();
   const competitorsJson = JSON.stringify(competitors);
   const cadence: ProbeCadence = 'twice_weekly';

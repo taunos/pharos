@@ -15,6 +15,7 @@ import type { FulfillMessage } from "@/lib/fulfill-queue-consumer";
 import { updateFunnelStatus } from "@/lib/audit-funnel";
 import { AUDIT_PRODUCT_ID } from "@/lib/audit-gate";
 import { isImplementationCheckoutEnabled } from "@/lib/implementation-gate";
+import { parseMaxProbeTargets } from "@/lib/probe-ceiling";
 
 interface WebhookEnv extends DodoEnvBindings {
   SESSIONS: KVNamespace;
@@ -429,7 +430,7 @@ export async function POST(req: Request) {
     const now = Math.floor(Date.now() / 1000);
 
     // 2. Belt-and-suspenders ceiling check. B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded 3.
-    const maxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
+    const maxProbeTargets = parseMaxProbeTargets(env.MAX_PROBE_TARGETS);
     const countRow = await env.CITATION_DB.prepare(
       `SELECT COUNT(*) AS c FROM customer_probe_targets WHERE status='active'`
     ).first<{ c: number }>();
@@ -777,7 +778,7 @@ async function handleF2ImplementationPayment(
 
   // D18 Stage 2 — belt-and-suspenders ceiling check (self-exclusion form per HIGH-1 lock).
   // B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded 3.
-  const f2MaxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
+  const f2MaxProbeTargets = parseMaxProbeTargets(env.MAX_PROBE_TARGETS);
   const ceilingCheck = await env.CITATION_DB.prepare(
     `SELECT COUNT(*) AS count FROM customer_probe_targets
      WHERE status='active' AND customer_id != ?`,

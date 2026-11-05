@@ -14,6 +14,7 @@ import type { ProbeCadence } from "@/lib/cadence";
 import { publicOrigin } from "@/lib/origin";
 import { alertOperator } from "@/lib/operator-alerts";
 import { errorClass, type AuditFulfillMessage } from "@/lib/audit-fulfill-queue-consumer";
+import { parseMaxProbeTargets } from "@/lib/probe-ceiling";
 
 interface SubmitEnv extends OnboardingTokenEnv {
   CITATION_DB: D1Database;
@@ -183,7 +184,7 @@ export async function POST(request: Request): Promise<Response> {
     // Atomic INSERT-with-ceiling-check (per feedback_d1_vs_sqlite_semantics.md).
     // B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded CUSTOMER_CEILING=3.
     // F4.1: append probe_cadence + next_probe_at (immediate per Codex #6).
-    const maxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
+    const maxProbeTargets = parseMaxProbeTargets(env.MAX_PROBE_TARGETS);
     const result = await env.CITATION_DB.prepare(
       `INSERT INTO customer_probe_targets
        (customer_id, domain, category, competitors, status, created_at, updated_at, brand_name, probe_cadence, next_probe_at)

@@ -6,6 +6,7 @@ import SiteFooter from "@/components/SiteFooter";
 import { ImplementationCheckoutForm } from "@/components/ImplementationCheckoutForm";
 import { ImplPatchEvidence } from "@/components/ImplPatchEvidence";
 import { isImplementationCheckoutEnabled } from "@/lib/implementation-gate";
+import { parseMaxProbeTargets } from "@/lib/probe-ceiling";
 
 // F2 v6.1 — page renders D1 ceiling state per request (D18 Stage 1 page-CTA gate).
 // Force-dynamic ensures the SELECT COUNT(*) check runs on every load, not at build time.
@@ -177,7 +178,7 @@ export default async function ImplementationPage() {
 
   // D18 Stage 1 — server-side ceiling check at render-time.
   // B1.3 v1.1 — MAX_PROBE_TARGETS env binding replaces hardcoded 3.
-  const maxProbeTargets = parseInt(env.MAX_PROBE_TARGETS ?? "30", 10);
+  const maxProbeTargets = parseMaxProbeTargets(env.MAX_PROBE_TARGETS);
   const ceilingResult = await env.CITATION_DB.prepare(
     `SELECT COUNT(*) AS count FROM customer_probe_targets WHERE status='active'`,
   ).first<{ count: number }>();
