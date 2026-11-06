@@ -15,7 +15,9 @@
 //   - Concurrency: INSERT OR IGNORE then read back. Two first Audits of one
 //     domain at once both use whichever row won the primary key.
 //   - Validation: a set is stored only after isValidQuestionSet passes, and
-//     every read-back is re-validated. An invalid stored row is never used.
+//     every read-back is re-validated. An invalid stored row is never used;
+//     it is repaired by compare-and-swap (UPDATE ... WHERE queries_json =
+//     the exact invalid payload read), so concurrent repairers converge.
 //   - Pure bank fallback (generator failed) is NOT stored, so a transient
 //     Workers AI failure doesn't pin the domain to the bank for the version.
 //   - Fail-open: any D1 error (including the table not existing before the
@@ -56,14 +58,23 @@ const SELECT_SQL =
   "SELECT queries_json FROM dim6_question_set WHERE canonical_domain = ? AND question_set_version = ?";
 const INSERT_SQL =
   "INSERT OR IGNORE INTO dim6_question_set (canonical_domain, question_set_version, queries_json, source, created_at) VALUES (?, ?, ?, ?, ?)";
+// Compare-and-swap repair of an invalid row: only replaces the exact payload
+// this run read and rejected.
+const REPAIR_SQL =
+  "UPDATE dim6_question_set SET queries_json = ?, source = ?, created_at = ? WHERE canonical_domain = ? AND question_set_version = ? AND queries_json = ?";
 
-// null = no usable row. Throws on D1 error (caller fails open).
-async function readStored(db: D1Database, domain: string): Promise<PromptSetQuery[] | null> {
+// queries: the validated set, or null. invalidRaw: the stored payload when a
+// row exists but fails validation (for the CAS repair). Throws on D1 error
+// (caller fails open).
+async function readStored(
+  db: D1Database,
+  domain: string
+): Promise<{ queries: PromptSetQuery[] | null; invalidRaw: string | null }> {
   const row = await db
     .prepare(SELECT_SQL)
     .bind(domain, DIM6_QUESTION_SET_VERSION)
     .first<{ queries_json: string }>();
-  if (!row) return null;
+  if (!row) return { queries: null, invalidRaw: null };
   let parsed: unknown;
   try {
     parsed = JSON.parse(row.queries_json);
@@ -72,11 +83,11 @@ async function readStored(db: D1Database, domain: string): Promise<PromptSetQuer
   }
   if (!isValidQuestionSet(parsed)) {
     console.error(
-      `[dim6/question-set] stored set failed validation; using a fresh set. domain=${domain} version=${DIM6_QUESTION_SET_VERSION}`
+      `[dim6/question-set] stored set failed validation; not used. domain=${domain} version=${DIM6_QUESTION_SET_VERSION}`
     );
-    return null;
+    return { queries: null, invalidRaw: row.queries_json };
   }
-  return parsed;
+  return { queries: parsed, invalidRaw: null };
 }
 
 /**
@@ -98,9 +109,9 @@ export async function resolveQuestionSet(
 
   try {
     const stored = await readStored(env.questionSetDb, domain);
-    if (stored) {
+    if (stored.queries) {
       console.log(`[dim6/question-set] reuse domain=${domain} version=${DIM6_QUESTION_SET_VERSION}`);
-      return stored;
+      return stored.queries;
     }
   } catch (e) {
     console.error(
@@ -111,20 +122,30 @@ export async function resolveQuestionSet(
 
   const fresh = await generatePromptSet(env, domain, signals);
   try {
-    if (fresh.source !== "bank" && isValidQuestionSet(fresh.queries)) {
+    const storable = fresh.source !== "bank" && isValidQuestionSet(fresh.queries);
+    const payload = JSON.stringify(fresh.queries);
+    if (storable) {
       await env.questionSetDb
         .prepare(INSERT_SQL)
-        .bind(domain, DIM6_QUESTION_SET_VERSION, JSON.stringify(fresh.queries), fresh.source, Date.now())
+        .bind(domain, DIM6_QUESTION_SET_VERSION, payload, fresh.source, Date.now())
         .run();
     }
     // Read back even after a bank fallback: a concurrent Audit may have
     // stored a set meanwhile, and every run of the domain should use it.
-    const winner = await readStored(env.questionSetDb, domain);
-    if (winner) {
+    let winner = await readStored(env.questionSetDb, domain);
+    if (!winner.queries && winner.invalidRaw !== null && storable) {
+      await env.questionSetDb
+        .prepare(REPAIR_SQL)
+        .bind(payload, fresh.source, Date.now(), domain, DIM6_QUESTION_SET_VERSION, winner.invalidRaw)
+        .run();
+      console.warn(`[dim6/question-set] repair CAS on invalid stored set domain=${domain}`);
+      winner = await readStored(env.questionSetDb, domain);
+    }
+    if (winner.queries) {
       console.log(
         `[dim6/question-set] resolved domain=${domain} version=${DIM6_QUESTION_SET_VERSION} source=${fresh.source}`
       );
-      return winner;
+      return winner.queries;
     }
   } catch (e) {
     console.error(

@@ -21,7 +21,7 @@
 //     persistence layer.
 
 import { runLadder, type LadderEnv } from "./ladder";
-import { resolveQuestionSet, type QuestionSetEnv } from "./question-set";
+import { canonicalDomain, resolveQuestionSet, type QuestionSetEnv } from "./question-set";
 import {
   ALL_MODEL_IDS,
   DIM6_ENGINE_VERSION,
@@ -97,6 +97,11 @@ export async function runDim6Orchestrator(
 
   // Prompt set (Task 7): stored per canonical domain, generated on first use.
   const queries = await resolveQuestionSet(env, scanUrl, signals);
+  // Score and judge against the SAME canonical identity the question set is
+  // keyed on (Codex r1 HIGH): `https://x.com./` or `https://x.com:8443/`
+  // must not be scored as a different host from x.com.
+  const domain = canonicalDomain(scanUrl);
+  const targetUrl = domain ? `https://${domain}` : scanUrl;
 
   // Build the (model × query) task list. Tasks are DEFERRED (function returning
   // a promise) — NOT pre-created promises. This is load-bearing for the
@@ -121,7 +126,7 @@ export async function runDim6Orchestrator(
           runLadder(env, {
             modelId,
             prompt: query.text,
-            targetUrl: scanUrl,
+            targetUrl,
             competitorHosts,
           }),
       });

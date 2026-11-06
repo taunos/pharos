@@ -5,9 +5,10 @@
 //   2. Validators (response non-empty, refusal pattern check, score parser)
 //   3. Retry-once-with-feedback on validator failure
 //   4. Templated fallback (returns unmeasurable cell — locked decision 4)
-//   5. Cache (KV, key shape `<DIM6_ENGINE_VERSION>:<model_id>:<sha256(prompt)>`,
-//      currently `dim6:v3:...`; 24h TTL, independent of SCORING_VERSION/
-//      REMEDIATION_ENGINE_VERSION per locked decision 5)
+//   5. Cache (KV, key shape `<DIM6_ENGINE_VERSION>:<model_id>:<sha256(
+//      target + competitors + prompt)>`, currently `dim6:v3:...`; 24h TTL,
+//      independent of SCORING_VERSION/REMEDIATION_ENGINE_VERSION per locked
+//      decision 5)
 //   6. Engine versioning (DIM6_ENGINE_VERSION constant stamped on rows)
 //
 // Three retry paths per Task 6:
@@ -57,6 +58,7 @@ const RETRY_AFTER_CAP_SEC = 30;
 // stable per-domain question sets (question-set.ts) the prompt hash repeats,
 // so a long TTL would hide real site improvements.
 export const CACHE_TTL_SEC = 24 * 60 * 60;
+const FUTURE_SKEW_MS = 5 * 60 * 1000;
 
 export interface LadderEnv extends AdapterEnv, JudgeEnv {
   // KV namespace used for the Dim 6 cell cache. Reuses SESSIONS by default
@@ -79,9 +81,18 @@ async function sha256Hex(input: string): Promise<string> {
     .join("");
 }
 
-function cacheKey(modelId: ModelId, prompt: string, hash: string): string {
-  void prompt; // hash already encodes prompt; modelId in key keeps adapters separate
-  return `${DIM6_ENGINE_VERSION}:${modelId}:${hash}`;
+// The cached cell is a SCORED result, so the key covers every scoring input:
+// the target the parser/judge score against and the competitor list, not
+// just the prompt (Codex r1 HIGH: a cell scored for `x.com.` must never be
+// replayed for `x.com`). modelId in the key keeps adapters separate.
+export async function cellCacheKey(
+  modelId: ModelId,
+  prompt: string,
+  targetUrl: string,
+  competitorHosts: string[] = []
+): Promise<string> {
+  const identity = JSON.stringify([targetUrl, [...competitorHosts].sort(), prompt]);
+  return `${DIM6_ENGINE_VERSION}:${modelId}:${await sha256Hex(identity)}`;
 }
 
 interface CachedCell {
@@ -107,12 +118,14 @@ async function readCache(
     // not replay into later audits of the same domain for the full TTL.
     // Also neutralizes unmeasurable entries written before this guard.
     if (cached.unmeasurable) return null;
-    // Age guard on top of the KV TTL: entries written under the old 30-day
-    // TTL (or any entry KV hasn't evicted yet) are a miss once older than
-    // CACHE_TTL_SEC.
+    // Age guard on top of the KV TTL: entries KV hasn't evicted yet are a
+    // miss once older than CACHE_TTL_SEC, and a cached_at more than
+    // FUTURE_SKEW_MS in the future is a miss too.
+    const now = Date.now();
     if (
       typeof cached.cached_at !== "number" ||
-      !(Date.now() - cached.cached_at < CACHE_TTL_SEC * 1000)
+      !(now - cached.cached_at < CACHE_TTL_SEC * 1000) ||
+      cached.cached_at > now + FUTURE_SKEW_MS
     ) {
       return null;
     }
@@ -321,12 +334,12 @@ export async function runLadder(
   const { modelId, prompt, targetUrl, competitorHosts = [] } = input;
 
   // Cache check (rung 5).
-  const promptHash = await sha256Hex(prompt);
-  const key = cacheKey(modelId, prompt, promptHash);
+  const key = await cellCacheKey(modelId, prompt, targetUrl, competitorHosts);
+  const cellHash = key.slice(key.lastIndexOf(":") + 1);
   const cached = await readCache(env.cacheKv, key);
   if (cached) {
     console.log(
-      `[dim6] cache=hit model=${modelId} hash=${promptHash.slice(0, 12)}`
+      `[dim6] cache=hit model=${modelId} hash=${cellHash.slice(0, 12)}`
     );
     return {
       text: cached.text,
@@ -337,7 +350,7 @@ export async function runLadder(
     };
   }
   console.log(
-    `[dim6] cache=miss model=${modelId} hash=${promptHash.slice(0, 12)}`
+    `[dim6] cache=miss model=${modelId} hash=${cellHash.slice(0, 12)}`
   );
 
   // Initial call.

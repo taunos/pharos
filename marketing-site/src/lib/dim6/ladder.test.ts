@@ -1,14 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { runLadder, type LadderEnv } from "./ladder";
-import { DIM6_ENGINE_VERSION } from "./types";
-
-async function keyFor(modelId: string, prompt: string): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(prompt));
-  const hex = Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return `${DIM6_ENGINE_VERSION}:${modelId}:${hex}`;
-}
+import { cellCacheKey, runLadder, type LadderEnv } from "./ladder";
 
 function fakeKv(seed: Record<string, unknown>) {
   const store = new Map(Object.entries(seed).map(([k, v]) => [k, JSON.stringify(v)]));
@@ -24,7 +15,7 @@ const MODEL = "openai:gpt-4o" as const;
 
 describe("dim6 ladder cache: failures are never replayed", () => {
   it("ignores a cached unmeasurable cell and does not cache the new failure", async () => {
-    const key = await keyFor(MODEL, PROMPT);
+    const key = await cellCacheKey(MODEL, PROMPT, "https://example.com");
     const { kv, put } = fakeKv({
       [key]: {
         text: null,
@@ -45,7 +36,7 @@ describe("dim6 ladder cache: failures are never replayed", () => {
   });
 
   it("still serves a cached measured cell", async () => {
-    const key = await keyFor(MODEL, PROMPT);
+    const key = await cellCacheKey(MODEL, PROMPT, "https://example.com");
     const { kv, put } = fakeKv({
       [key]: {
         text: "Example does things.",

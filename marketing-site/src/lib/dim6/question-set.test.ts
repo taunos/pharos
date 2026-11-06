@@ -130,6 +130,40 @@ describe("resolveQuestionSet", () => {
     expect(g.calls()).toBe(1);
     expect(out.some((q) => /tell me everything/i.test(q.text))).toBe(false);
     expect(isValidQuestionSet(out)).toBe(true);
+    // Repaired by CAS: the row now holds the set this run used.
+    expect(rows()).toHaveLength(1);
+    expect(JSON.parse(rows()[0].queries_json)).toEqual(out);
+    // ...so the next Audit reuses it without generating.
+    const again = await resolveQuestionSet(env(g.ai), "https://example.com/");
+    expect(again).toEqual(out);
+    expect(g.calls()).toBe(1);
+  });
+
+  it("concurrent repairs of an invalid row converge on one set", async () => {
+    sq.db
+      .prepare("INSERT INTO dim6_question_set VALUES (?, ?, ?, ?, ?)")
+      .run("example.com", DIM6_QUESTION_SET_VERSION, "{not json", "generated", 1);
+    const g = makeAi({ delayMs: () => Math.floor(Math.random() * 5) });
+    const results = await Promise.all(
+      Array.from({ length: 4 }, () => resolveQuestionSet(env(g.ai), "https://example.com/"))
+    );
+    expect(g.calls()).toBeGreaterThan(1);
+    for (const r of results) expect(r).toEqual(results[0]);
+    expect(rows()).toHaveLength(1);
+    expect(JSON.parse(rows()[0].queries_json)).toEqual(results[0]);
+  });
+
+  it("the CAS repair never overwrites a row that is no longer the invalid payload", async () => {
+    sq.db
+      .prepare("INSERT INTO dim6_question_set VALUES (?, ?, ?, ?, ?)")
+      .run("example.com", DIM6_QUESTION_SET_VERSION, "{not json", "generated", 1);
+    const winner = await resolveQuestionSet(env(makeAi().ai), "https://example.com/");
+    // A stale repairer still holding the old invalid payload changes nothing.
+    const updates = sq.calls.filter((c) => c.sql.startsWith("UPDATE"));
+    expect(updates).toHaveLength(1);
+    const r = sq.db.prepare(updates[0].sql).run(...(["[]", ...updates[0].params.slice(1)] as never[]));
+    expect(Number(r.changes)).toBe(0);
+    expect(JSON.parse(rows()[0].queries_json)).toEqual(winner);
   });
 
   it("rejects malformed stored JSON / wrong count", () => {

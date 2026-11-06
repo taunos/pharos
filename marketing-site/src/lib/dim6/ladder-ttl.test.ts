@@ -19,19 +19,10 @@ vi.mock("./affirmation-judge", () => ({
   judgeAffirmation: async () => ({ kind: "affirm" }),
 }));
 
-import { runLadder, CACHE_TTL_SEC, type LadderEnv } from "./ladder";
-import { DIM6_ENGINE_VERSION } from "./types";
+import { cellCacheKey, runLadder, CACHE_TTL_SEC, type LadderEnv } from "./ladder";
 
 const PROMPT = "What does example.com do?";
 const MODEL = "openai:gpt-4o" as const;
-
-async function keyFor(prompt: string): Promise<string> {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(prompt));
-  const hex = Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return `${DIM6_ENGINE_VERSION}:${MODEL}:${hex}`;
-}
 
 function fakeKv(seed: Record<string, unknown> = {}) {
   const store = new Map(Object.entries(seed).map(([k, v]) => [k, JSON.stringify(v)]));
@@ -73,13 +64,13 @@ describe("dim6 ladder cache TTL", () => {
     expect(cell.unmeasurable).toBe(false);
     expect(h.calls).toBe(1);
     expect(put).toHaveBeenCalledTimes(1);
-    expect(put.mock.calls[0][0]).toBe(await keyFor(PROMPT));
+    expect(put.mock.calls[0][0]).toBe(await cellCacheKey(MODEL, PROMPT, "https://example.com"));
     expect(put.mock.calls[0][2]).toEqual({ expirationTtl: 24 * 60 * 60 });
   });
 
   it("does not reuse a cell older than the TTL (e.g. written under the old 30-day TTL)", async () => {
     const { kv, put } = fakeKv({
-      [await keyFor(PROMPT)]: cached(Date.now() - CACHE_TTL_SEC * 1000 - 1000),
+      [await cellCacheKey(MODEL, PROMPT, "https://example.com")]: cached(Date.now() - CACHE_TTL_SEC * 1000 - 1000),
     });
     const cell = await run(kv);
     expect(h.calls).toBe(1);
@@ -90,13 +81,29 @@ describe("dim6 ladder cache TTL", () => {
   it("does not reuse a cell with no cached_at", async () => {
     const entry: Record<string, unknown> = cached(0);
     delete entry.cached_at;
-    const { kv } = fakeKv({ [await keyFor(PROMPT)]: entry });
+    const { kv } = fakeKv({ [await cellCacheKey(MODEL, PROMPT, "https://example.com")]: entry });
     await run(kv);
     expect(h.calls).toBe(1);
   });
 
+  it("does not reuse a cell whose cached_at is more than 5 min in the future", async () => {
+    const { kv } = fakeKv({
+      [await cellCacheKey(MODEL, PROMPT, "https://example.com")]: cached(Date.now() + 6 * 60 * 1000),
+    });
+    await run(kv);
+    expect(h.calls).toBe(1);
+  });
+
+  it("tolerates small clock skew (cached_at 1 min in the future is a hit)", async () => {
+    const { kv } = fakeKv({
+      [await cellCacheKey(MODEL, PROMPT, "https://example.com")]: cached(Date.now() + 60 * 1000),
+    });
+    await run(kv);
+    expect(h.calls).toBe(0);
+  });
+
   it("still reuses a cell inside the TTL (covers queue retries of one fulfillment)", async () => {
-    const { kv, put } = fakeKv({ [await keyFor(PROMPT)]: cached(Date.now() - 60 * 60 * 1000) });
+    const { kv, put } = fakeKv({ [await cellCacheKey(MODEL, PROMPT, "https://example.com")]: cached(Date.now() - 60 * 60 * 1000) });
     const cell = await run(kv);
     expect(h.calls).toBe(0);
     expect(cell.text).toBe("OLD ANSWER");
