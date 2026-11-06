@@ -23,7 +23,7 @@ Most agentic-discoverability scores are black boxes. Astrant's isn't. This page 
 
 Dim 6 measures whether AI models recognize and name your domain when asked about it directly. The Dim 6 pipeline runs in three stages:
 
-1. **Prompt generation.** For each audited domain, Dim 6 generates a short-answer query set that names the domain (for example, "What does {domain} do?"), with a fixed domain-named fallback. Queries are deterministic (same domain produces the same prompts on repeat runs) and validated before being sent to citation-target models.
+1. **Prompt generation.** For each audited domain, Dim 6 generates a short-answer query set that names the domain (for example, "What does {domain} do?"), with a fixed domain-named fallback. The same domain gets the same question set on repeat Audits within a methodology version. Model answers are requested at temperature 0 and reused for up to 24 hours, which covers automatic retries of a single Audit, so an Audit run a day or more later asks every model afresh and reflects your site's current visibility. Fresh answers are not guaranteed identical from run to run.
 
 2. **Citation querying.** Each prompt is sent to four major language models. Perplexity answers using live web search; GPT-4o, Claude, and Gemini are queried without web search, so their answers reflect what each model already knows (brand recall). Responses are captured verbatim into Dim 6's audit corpus.
 

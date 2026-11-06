@@ -120,7 +120,7 @@ export default function MethodologyPage() {
             — OpenAI and Perplexity do, Anthropic and Gemini don&apos;t),
             structural validators, retry-once-with-feedback on validator
             failure, templated fallback to <code className="font-mono bg-[var(--color-surface)] px-1">unmeasurable: true</code>{" "}
-            (never a fake 0), 30-day cache, and engine versioning so
+            (never a fake 0), 24-hour cache, and engine versioning so
             engine-version bumps invalidate stale cells automatically.
           </p>
 

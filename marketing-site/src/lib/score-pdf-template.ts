@@ -48,11 +48,11 @@ export function liftBucket(subCheckScore: number): LiftBucket {
 function liftLabel(bucket: LiftBucket): string {
   switch (bucket) {
     case "high":
-      return "High lift";
+      return "High priority";
     case "medium":
-      return "Medium lift";
+      return "Medium priority";
     case "low":
-      return "Low lift";
+      return "Low priority";
   }
 }
 
@@ -98,7 +98,7 @@ function renderSubCheck(sub: SubCheck): string {
       <td class="check-name">${escapeHtml(sub.name)}${naLabel}</td>
       <td class="check-score">${sub.na ? "—" : `${sub.score}/100`}</td>
       <td class="check-weight">${sub.weight}%</td>
-      <td class="check-lift" style="color:${liftColor(bucket)}">${sub.na ? "—" : liftLabel(bucket)}</td>
+      <td class="check-lift" style="color:${liftColor(sub.passed ? "low" : bucket)}">${sub.na ? "—" : sub.passed ? "Passing" : liftLabel(bucket)}</td>
       <td class="check-notes">${escapeHtml(sub.notes)}</td>
     </tr>`;
 }
@@ -155,7 +155,7 @@ export function renderScoreReportHTML(input: RenderInput): string {
               <th>Check</th>
               <th>Score</th>
               <th>Weight</th>
-              <th>Lift</th>
+              <th>Priority</th>
               <th>Notes</th>
             </tr>
           </thead>
@@ -262,7 +262,7 @@ export function renderScoreReportHTML(input: RenderInput): string {
   ${dimsHtml}
 
   <p class="lift-disclosure">
-    Lift estimates are conservative ranges based on score gaps, not guaranteed outcomes. We refine these against observed conversion data — see methodology when published.
+    Priority reflects how far each check is from passing. It is not a forecast of traffic or citations.
   </p>
 
   <div class="upsell">

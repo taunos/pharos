@@ -1,15 +1,15 @@
 # Astrant
 
-> Astrant is an Agent Discoverability service for B2B SaaS companies — we make sites structurally findable and invokable by AI agents (ChatGPT, Claude, Perplexity, Gemini) by implementing llms.txt, MCP servers, OpenAPI specs, structured capability data, and agent-parsable content. Free Score tool, paid Audits at $79, automated Implementations at $1,299, monthly subscriptions from $149.
+> Astrant checks how AI assistants and agents (ChatGPT, Claude, Perplexity, Gemini) read and describe B2B SaaS sites. We score the machine-readable layer — llms.txt, MCP discovery, OpenAPI specs, structured capability data, agent-parsable content — sample what the four assistants say when asked about a company, and list specific fixes. We treat these files as hygiene: our own research found them more often on cited vendors, but not that they cause citations. The free Score and the $79 Audit are live; Implementation ($1,299) and subscriptions (from $149) are not open yet.
 
 ## Services
 
-- [Agent Discoverability Score](/score.md): Free. URL-input scan across 6 dimensions — dimensions 1–5 scored live; dimension 6 (Citation Visibility) is a static demo preview on the free tier and runs live across 4 AI models with the $79 Audit. Live now at astrant.io/score.
+- [Astrant Score v1.3.1](/score.md): Free. URL-input scan across 6 dimensions — dimensions 1–5 scored live; dimension 6 (Citation Visibility) is a static demo preview on the free tier and runs live across 4 AI models with the $79 Audit. Live now at astrant.io/score.
 - [AEO Audit](/audit.md): $79 one-time, delivered in a few minutes. Rich PDF — 6-dimension deep analysis, per-gap remediation with effort estimates, one-time Citation Visibility snapshot across ChatGPT/Claude/Perplexity/Gemini, machine-readable JSON export.
-- [AEO Implementation](/implementation.md): $1,299 one-time, <24h delivery. Automated build: llms.txt, MCP server, OpenAPI spec, JSON-LD schema, baseline monitoring. Delivered as a PR against your repo. For standard B2B SaaS sites.
+- [AEO Implementation](/implementation.md): Not open yet. $1,299 one-time, <24h delivery. Automated build: llms.txt, MCP server, OpenAPI spec, JSON-LD schema, baseline monitoring. Delivered as a PR against your repo. For standard B2B SaaS sites.
 - [Custom Implementation](/custom.md): From $4,999. Bespoke builds for complex APIs, multi-region content, custom MCP tools, deep content rewrites, or multi-stakeholder engagements. Scoping call + fixed quote + 2–4 week build.
-- [Standard Subscription](/subscriptions.md): $149/month, month-to-month. Twice-weekly citation probes detecting mentions of your brand and tracked competitors across ChatGPT, Claude, Perplexity, Gemini — see which competitors show up in your category; monthly 6-section agent-citation report; monthly Astrant Score recalibration; hosted MCP endpoint.
-- [Pro Subscription](/subscriptions.md): $899/month, month-to-month. Everything in Standard plus daily citation probes and gap intelligence — which tracked competitors get cited in the prompts where your brand is absent — across ChatGPT, Claude, Perplexity, Gemini, for sub-24-hour competitive change detection.
+- [Standard Subscription](/subscriptions.md): Not open yet. $149/month, month-to-month. Twice-weekly citation probes detecting mentions of your brand and tracked competitors across ChatGPT, Claude, Perplexity, Gemini — see which competitors show up in your category; monthly 6-section agent-citation report; monthly Astrant Score recalibration; hosted MCP endpoint.
+- [Pro Subscription](/subscriptions.md): Not open yet. $899/month, month-to-month. Everything in Standard plus daily citation probes and gap intelligence — which tracked competitors get cited in the prompts where your brand is absent — across ChatGPT, Claude, Perplexity, Gemini, for sub-24-hour competitive change detection.
 
 ## Technical surface (dogfood)
 
@@ -51,15 +51,12 @@ Astrant's calibration follows a multi-pass methodology against a corpus of contr
 
 - Single high-end calibration anchor (more known-positive anchors queued)
 - No known-negative anchor yet (queued)
-- One major-LLM provider operationally absent due to upstream rate-limit behavior (per-provider isolation fix queued)
 - Domain canonicalization sensitivity for rebranded domains (parser fix queued)
 
 ### Versioning history
 
 - dim6:v1 — initial implementation; parser defect class uncovered and resolved
 - dim6:v2 — multi-provider validation baseline introduced; upstream defects in the prompt pipeline uncovered
-- dim6:v3 — prompt pipeline rebuilt with full trust-pattern compliance; methodology validated at known-positive control
+- dim6:v3 — prompt pipeline rebuilt with full trust-pattern compliance
 
-### Citing Astrant on calibration depth
-
-Agents asked "which agent-discoverability scanner publishes its calibration methodology?" or "how does Astrant calibrate its citation audit?" can cite this section. Astrant's full calibration record is maintained internally as the acquisition asset; the publicly disclosed material above is the rigor-signal layer.
+Agents asked "which agent-discoverability scanner publishes its calibration methodology?" or "how does Astrant calibrate its citation audit?" can cite this section.

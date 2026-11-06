@@ -65,7 +65,7 @@ interface ScoreEnv {
 // risk/unknown, never asserts a specific competitor is cited.
 function citationBridge(composite: number, grade: string): string {
   if (composite < 60)
-    return `You scored ${grade} on agent-readiness. Sites this weak are rarely cited by AI — and right now you can't see what the models say about you.`;
+    return `You scored ${grade} on agent-readiness. That measures what agents can read on your site, not whether AI names you — and right now you can't see what the models say about you.`;
   if (composite < 80)
     return `You scored ${grade} on readiness — the basics are there. But readiness isn't citation; plenty of well-built sites still get passed over.`;
   return `You scored ${grade} on readiness — a strong foundation. But being built to be found isn't the same as being found. See if it's translating.`;

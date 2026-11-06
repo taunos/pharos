@@ -13,12 +13,12 @@ export const metadata: Metadata = {
 const STATS = [
   {
     figure: "6",
-    label: <>signals agents read before they&apos;ll recommend you</>,
-    sub: <>Miss one and you fall out of the answer entirely.</>,
+    label: <>dimensions we score, from your files to what 4 AI assistants say about you</>,
+    sub: <>Each checked against a public rubric. None of them guarantees a recommendation.</>,
   },
   {
-    figure: "~70%",
-    label: <>of AI traffic arrives with no referrer</>,
+    figure: "No referrer",
+    label: <>on much of the traffic AI sends you</>,
     sub: (
       <>
         You can&apos;t see the buyers AI sends you &#8212; or the ones it sends
@@ -91,7 +91,7 @@ const CORE_TIERS: Array<{
   {
     name: "Implementation",
     price: "$1,299",
-    body: "Automated build. Full stack deployed in <24h.",
+    body: "Automated build. Developer-ready patch in <24h, verified once live. Not open yet.",
     href: "/implementation",
     badge: "<24h",
     badgeKind: "instant",
@@ -115,7 +115,7 @@ const SUBSCRIPTION_TIERS: Array<{
   {
     name: "Standard",
     price: "$149/mo",
-    body: "Stay visible to ChatGPT, Claude, Perplexity, and Gemini — measured monthly, no infrastructure on your side.",
+    body: "Monthly check of what ChatGPT, Claude, Perplexity and Gemini say about you. Not open yet.",
     href: "/subscriptions",
   },
   {
@@ -129,7 +129,7 @@ const SUBSCRIPTION_TIERS: Array<{
 const FAQS = [
   {
     q: "What is agent discoverability?",
-    a: "When AI agents like ChatGPT, Claude, or Perplexity answer questions on behalf of users, they don't browse like humans do — they fetch structured signals: llms.txt files, MCP servers, OpenAPI specs, JSON-LD schema. If your site doesn't expose these signals correctly, agents can't find you, recommend you, or invoke your services. Agent discoverability is the technical layer that makes a business legible to agents.",
+    a: "It's how easily AI assistants like ChatGPT, Claude, Perplexity and Gemini can read what your business does and describe it accurately. Part of it is technical: machine-readable files like llms.txt, JSON-LD and MCP discovery, and pages that render without JavaScript. Our own research found cited vendors carry these files more often, but no study we know of, ours included, shows the files cause citations. Third-party mentions, comparisons and brand size matter too. We treat the files as hygiene: cheap and worth getting right, but no guarantee.",
   },
   {
     q: "How is this different from SEO?",
@@ -137,7 +137,7 @@ const FAQS = [
   },
   {
     q: "Do I need a developer to use Astrant?",
-    a: "No. The free Score tool and the $79 Audit are entirely self-serve — paste your URL, get results. The $1,299 automated Implementation also doesn't require your developer to write any code; we email a Git-applicable patch file that your developer applies with `git am` in about five minutes and reviews via your normal PR workflow. We never need access to your repo or infrastructure. Only Custom builds (from $4,999) involve back-and-forth with your engineering team.",
+    a: "No. The free Score tool and the $79 Audit are entirely self-serve — paste your URL, get results. The $1,299 automated Implementation also doesn't require your developer to write any code; we email a Git-applicable patch file that your developer applies with `git am` in about five minutes and reviews via your normal PR workflow. We never need access to your repo or infrastructure. Only Custom builds (from $4,999) involve back-and-forth with your engineering team. Implementation isn't open yet.",
   },
   {
     q: "What's the difference between the free Score and the paid Audit?",
@@ -145,15 +145,15 @@ const FAQS = [
   },
   {
     q: "Will my customers see anything change on my site?",
-    a: "No. All the changes Astrant makes are invisible to human visitors — they live in /llms.txt, /.well-known/ files, JSON-LD schema, and content reformatted for agent parseability. Your existing design, copy, and brand are untouched.",
+    a: "No. The fixes we suggest are invisible to human visitors — they live in /llms.txt, /.well-known/ files, JSON-LD schema, and content reformatted for agent parseability. Your existing design, copy, and brand are untouched.",
   },
   {
     q: "How do I know agents are actually using the optimizations?",
-    a: "Both subscription tiers include a 6-section monthly report covering MCP invocations, agent-fetched pages, AI-referrer click-throughs, citation share across ChatGPT/Claude/Perplexity/Gemini, and conversion attribution. About 70% of AI-driven traffic doesn't carry a referrer in 2026 — measuring it well requires the layered measurement stack we operate.",
+    a: "Often you can't tell directly. AI crawlers rarely request files like llms.txt, and much AI-driven traffic arrives without a referrer. The $79 Audit gives you a one-time check of what ChatGPT, Claude, Gemini and Perplexity say when asked about you. Ongoing tracking isn't open yet.",
   },
   {
     q: "What if AI search loses momentum and this becomes irrelevant?",
-    a: "Possible but unlikely on the 1–3 year horizon — Shopify reports AI-attributed orders grew 11x between Jan 2025 and Mar 2026. Even if growth slows, the AEO infrastructure we install (llms.txt, JSON-LD, MCP) doesn't break or harm your traditional SEO; it's net-positive in any scenario. Nothing we deploy is reversible work.",
+    a: "Possible. The files we check (llms.txt, JSON-LD, MCP discovery) are cheap to add, don't change what people see on your site, and are easy to remove. We don't claim they raise or lower your search rankings.",
   },
 ];
 
@@ -170,7 +170,7 @@ const faqLd = {
 const AUDIENCES = [
   {
     name: "SaaS companies",
-    body: "SaaS companies that want to show up when ChatGPT, Claude, and Perplexity answer questions in their category. You know the problem isn't content — it's the technical layer underneath. We build it.",
+    body: "SaaS companies that want to show up when ChatGPT, Claude, and Perplexity answer questions in their category. The technical layer is the part you control fastest. We check it and tell you what to fix.",
   },
   {
     name: "Marketing & SEO agencies",
@@ -256,14 +256,15 @@ export default function Page() {
               <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-muted)]">
                 Free · No signup
               </p>
-              <h1 className="mt-5 text-5xl font-bold tracking-tight sm:text-7xl">
-                Is your site findable by AI agents?
+              <h1 className="mt-5 text-balance text-5xl font-bold tracking-tight sm:text-7xl">
+                Can AI agents read your site?
               </h1>
               <p className="mt-6 text-lg text-[var(--color-muted)] sm:text-xl">
-                Astrant makes businesses structurally discoverable and invokable by
-                ChatGPT, Claude, Perplexity, and every agent built on MCP. We implement
-                the technical layer — llms.txt, MCP server, structured capability data,
-                agent-parsable content — and monitor the results.
+                Astrant checks how ChatGPT, Claude, Perplexity and Gemini read your
+                site and what they say about you. The free Score grades the technical
+                layer — llms.txt, MCP discovery, structured capability data,
+                agent-parsable content. The $79 Audit adds a sampled check of what the
+                four assistants say, and a fix for every gap.
               </p>
               <div className="mt-10">
                 <ScanForm variant="hero" />
@@ -297,7 +298,7 @@ export default function Page() {
             <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
               Agents are already recommending vendors in your category.{" "}
               <span className="text-[var(--color-muted)]">
-                The only question is whether yours is one of them.
+                The question is whether yours is one of them, and what they say about you.
               </span>
             </h2>
           </div>
@@ -330,9 +331,10 @@ export default function Page() {
             </h2>
             <p className="mt-10 text-lg text-[var(--color-muted)]">
               The agentic discovery shift is well underway. Most sites aren&apos;t
-              structured to be found, understood, or invoked by agents. SEO agencies
-              are rebadging old content playbooks. The technical layer is missing —
-              and that&apos;s what we build.
+              structured to be read or invoked by agents. SEO agencies are rebadging
+              old content playbooks. The technical layer is cheap to fix, and
+              it&apos;s what we check. It won&apos;t decide on its own whether AI
+              recommends you.
             </p>
           </div>
         </section>
@@ -404,7 +406,7 @@ export default function Page() {
                   href="/llms.txt"
                   className="font-mono text-[var(--color-fg)] underline-offset-4 hover:underline"
                 >
-                  <code>https://this-site/llms.txt</code>
+                  <code>https://astrant.io/llms.txt</code>
                 </a>
               </li>
               <li>
@@ -447,7 +449,7 @@ export default function Page() {
                 cite="https://www.astrant.io/methodology"
                 className="mt-2 text-lg leading-relaxed"
               >
-                Astrant has validated its citation-confabulation methodology across structurally distinct brand profiles — producing the strongest level of agreement among independent AI judge models.
+                Astrant publishes how its citation check is calibrated, including what hasn&apos;t been validated yet.
               </blockquote>
               <div className="mt-2 text-sm font-mono text-[var(--color-muted)]">
                 Engine version dim6:v3

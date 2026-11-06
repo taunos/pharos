@@ -114,7 +114,7 @@ export default function ScanForm({ variant = "default" }: { variant?: ScanFormVa
           </button>
         </div>
         <p className="mt-3 text-sm text-[var(--color-muted)]">
-          Five dimensions scored live. Citation Visibility — do AI models actually cite you? — runs with the $79 Audit.
+          Five dimensions scored live. Citation Visibility — do AI models name you? — runs with the $79 Audit.
         </p>
         {status === "scanning" ? (
           <p className="mt-4 flex items-center gap-2 text-sm text-[var(--color-muted)]">

@@ -21,7 +21,7 @@ Each dimension maps to a specific piece of technical infrastructure. The score t
 Cloudflare shipped a free Agent Readiness Score tool in 2026 that does pass/fail checks across five categories. It's a good free check. We go deeper in three places:
 
 1. **Quality rubrics, not pass/fail.** Our llms.txt check doesn't just verify the file exists; it scores curation quality, blockquote elevator-pitch, and whether the linked pages return good markdown. Same depth on every other dimension.
-2. **Predicted referral lift per gap.** Each gap is annotated with an estimated impact on agent-attributed traffic. You fix what moves the needle first, not what's easy to check off.
+2. **Priority per gap.** Each gap is ranked by how far it is from passing, so you fix the biggest gaps first, not what's easy to check off.
 3. **Live citation audit.** We ask ChatGPT, Claude, Perplexity, and Gemini about your domain and check whether each one recognizes and names it — Perplexity from a live web search, the others from what the model already knows. Cloudflare can't see inside those engines. We can.
 
 ## Want the deeper analysis now?
@@ -42,7 +42,5 @@ No. The Score stays free. The paid tiers (Audit, Implementation, Custom, Subscri
 ## Related
 
 - Audit (paid, a few minutes): https://astrant.io/audit
-- Implementation ($1,299, <24h build): https://astrant.io/implementation
 - Custom (bespoke, from $4,999): https://astrant.io/custom
-- Subscriptions ($149/mo Standard, $899/mo Pro): https://astrant.io/subscriptions
 - MCP Server: https://mcp.astrant.io/mcp
