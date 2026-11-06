@@ -1,7 +1,67 @@
 // node --test scripts/weekly-scorecard.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assertReadOnly, hostOf, isExternalHost, scannerMetrics } from "./weekly-scorecard.mjs";
+import {
+  assertKvCommand,
+  assertReadOnly,
+  funnelMetrics,
+  hostOf,
+  isExternalHost,
+  kvGetCommand,
+  kvListCommand,
+  scannerMetrics,
+} from "./weekly-scorecard.mjs";
+
+test("KV allowlist accepts only funnel list/get on SESSIONS", () => {
+  assert.equal(
+    kvListCommand(),
+    'npx wrangler kv key list --binding SESSIONS --remote --prefix "funnel:audit:"',
+  );
+  assert.equal(
+    kvGetCommand("funnel:audit:cks_AbC-123_x"),
+    'npx wrangler kv key get "funnel:audit:cks_AbC-123_x" --binding SESSIONS --remote',
+  );
+});
+
+test("KV allowlist refuses put/delete, other keys, bindings and injection", () => {
+  for (const key of [
+    "audit:cks_1", // session record (holds email + URL)
+    "funnel:audit:",
+    'funnel:audit:x" && npx wrangler kv key delete "funnel:audit:y',
+    "funnel:audit:x --binding WAITLIST",
+    "funnel:audit:$(whoami)",
+    "funnel:audit:a/b",
+  ]) {
+    assert.throws(() => kvGetCommand(key), /refused/, key);
+  }
+  for (const cmd of [
+    'npx wrangler kv key put "funnel:audit:x" "{}" --binding SESSIONS --remote',
+    'npx wrangler kv key delete "funnel:audit:x" --binding SESSIONS --remote',
+    'npx wrangler kv bulk delete keys.json --binding SESSIONS --remote',
+    'npx wrangler kv key list --binding SESSIONS --remote --prefix "audit:"',
+    'npx wrangler kv key list --binding SESSIONS --remote',
+    'npx wrangler kv key get "funnel:audit:x" --binding WAITLIST --remote',
+    'npx wrangler kv key get "funnel:audit:x" --binding SESSIONS --remote && echo',
+    'npx wrangler kv key get "funnel:audit:x" --binding SESSIONS',
+  ]) {
+    assert.throws(() => assertKvCommand(cmd), /refused/, cmd);
+  }
+});
+
+test("funnelMetrics windows each state by its own timestamp; untimed go to all-time", () => {
+  const recs = [
+    { created_at: 10, status: "checkout_created" },
+    { created_at: 11, status: "paid", paid_at: 20 },
+    { created_at: 12, status: "ready", paid_at: 21, ready_at: 30 },
+    { created_at: 13, status: "failed", paid_at: 22, failed_at: 60 },
+    { created_at: 5, status: "ready", ready_at: 25 }, // paid write lost: paid by ready_at
+    { status: "paid" }, // no timestamps at all
+  ];
+  const m = funnelMetrics(recs, 10, 50);
+  assert.deepEqual(m.windowed, { checkoutStarts: 4, paid: 4, ready: 2, failed: 0 });
+  assert.deepEqual(m.allTime, { checkoutStarts: 6, paid: 5, ready: 2, failed: 1 });
+  assert.equal(m.untimed, 1);
+});
 
 test("assertReadOnly accepts single read statements", () => {
   assert.ok(assertReadOnly("SELECT COUNT(*) FROM scans WHERE created_at >= 1"));

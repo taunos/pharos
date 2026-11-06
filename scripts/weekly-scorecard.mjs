@@ -5,12 +5,18 @@
 //   node scripts/weekly-scorecard.mjs                       # last 7 days + since launch
 //   node scripts/weekly-scorecard.mjs --since 2026-11-10    # since that date + since launch
 //   node scripts/weekly-scorecard.mjs --exclude-domain mysite.com,friend.io
+//   node scripts/weekly-scorecard.mjs --no-kv               # skip the KV Audit funnel
 //
-// READ-ONLY. The only command this script runs is
+// READ-ONLY. The only commands this script runs are
 //   npx wrangler d1 execute <db> --remote --json --command "<SELECT ...>"
-// from the worker folder that owns the DB (so wrangler resolves the binding).
-// runQuery() refuses any SQL that is not a single SELECT/WITH/PRAGMA statement.
-// Output is aggregate counts only: no URLs, domains, emails or IPs are printed.
+//     from the worker folder that owns the DB (so wrangler resolves it), and
+//   npx wrangler kv key list --binding SESSIONS --remote --prefix "funnel:audit:"
+//   npx wrangler kv key get "funnel:audit:<session>" --binding SESSIONS --remote
+//     from marketing-site/ (the Audit funnel records, at most KV_GET_CAP gets).
+// assertReadOnly() refuses any SQL that is not a single SELECT/WITH/PRAGMA
+// statement; assertKvCommand() refuses any KV command but those two shapes.
+// Output is aggregate counts only: no URLs, domains, emails, IPs or session
+// ids are printed.
 //
 // "External scan" = a row in pharos-scanner.scans that is
 //   - not an outreach prospect scan (source IS NULL),
@@ -71,14 +77,31 @@ export function isExternalHost(host, extraExcluded = []) {
   return true;
 }
 
-function runQuery(db, sql) {
-  // Collapse whitespace so multi-line SQL fits on one command line.
-  const safe = assertReadOnly(String(sql).replace(/\s+/g, " "));
-  const cmd = `npx wrangler d1 execute ${db.name} --remote --json --command "${safe}"`;
-  let out;
+// KV: Audit funnel records (marketing-site/src/lib/audit-funnel.ts), no TTL,
+// no email or URL. Only these two exact command shapes may run.
+const KV_DIR = "marketing-site";
+const KV_PREFIX = "funnel:audit:";
+export const KV_GET_CAP = 500;
+const KV_LIST_CMD = `npx wrangler kv key list --binding SESSIONS --remote --prefix "${KV_PREFIX}"`;
+const KV_GET_RE = /^npx wrangler kv key get "funnel:audit:[A-Za-z0-9_-]{1,128}" --binding SESSIONS --remote$/;
+
+export function assertKvCommand(cmd) {
+  if (cmd === KV_LIST_CMD || KV_GET_RE.test(cmd)) return cmd;
+  throw new Error("refused: only 'kv key list' / 'kv key get' on funnel:audit: keys in SESSIONS");
+}
+
+export function kvListCommand() {
+  return assertKvCommand(KV_LIST_CMD);
+}
+
+export function kvGetCommand(key) {
+  return assertKvCommand(`npx wrangler kv key get "${key}" --binding SESSIONS --remote`);
+}
+
+function runWrangler(cmd, dir, label) {
   try {
-    out = execSync(cmd, {
-      cwd: join(REPO, db.dir),
+    return execSync(cmd, {
+      cwd: join(REPO, dir),
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
       maxBuffer: 64 * 1024 * 1024,
@@ -86,8 +109,40 @@ function runQuery(db, sql) {
   } catch (err) {
     // Never echo stderr wholesale (it can carry account details); keep the first line.
     const first = String(err.stderr || err.stdout || err.message).split("\n").find((l) => l.trim()) || "";
-    throw new Error(`${db.name}: wrangler failed: ${first.slice(0, 200)}`);
+    throw new Error(`${label}: wrangler failed: ${first.slice(0, 200)}`);
   }
+}
+
+// Returns { records, listed, capped, unreadable }. Key names (session ids)
+// never leave this function.
+function readFunnel() {
+  const out = runWrangler(kvListCommand(), KV_DIR, "kv list");
+  const keys = JSON.parse(out.slice(out.indexOf("["))).map((k) => k.name);
+  const records = [];
+  let unreadable = 0;
+  for (const key of keys.slice(0, KV_GET_CAP)) {
+    let cmd;
+    try {
+      cmd = kvGetCommand(key);
+    } catch {
+      unreadable++; // unexpected key shape: skipped, never echoed
+      continue;
+    }
+    try {
+      const raw = runWrangler(cmd, KV_DIR, "kv get");
+      records.push(JSON.parse(raw.slice(raw.indexOf("{"))));
+    } catch {
+      unreadable++;
+    }
+  }
+  return { records, listed: keys.length, capped: keys.length > KV_GET_CAP, unreadable };
+}
+
+function runQuery(db, sql) {
+  // Collapse whitespace so multi-line SQL fits on one command line.
+  const safe = assertReadOnly(String(sql).replace(/\s+/g, " "));
+  const cmd = `npx wrangler d1 execute ${db.name} --remote --json --command "${safe}"`;
+  const out = runWrangler(cmd, db.dir, db.name);
   const start = out.indexOf("[");
   const parsed = JSON.parse(out.slice(start));
   if (!parsed[0]?.success) throw new Error(`${db.name}: query failed`);
@@ -104,7 +159,7 @@ function tryQuery(db, sql) {
 }
 
 function parseArgs(argv) {
-  const args = { since: null, exclude: [] };
+  const args = { since: null, exclude: [], kv: true };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--since") {
       const v = argv[++i];
@@ -112,6 +167,8 @@ function parseArgs(argv) {
       args.since = Date.parse(v + "T00:00:00Z");
     } else if (argv[i] === "--exclude-domain") {
       args.exclude.push(...String(argv[++i] || "").split(",").map((d) => d.trim().toLowerCase()).filter(Boolean));
+    } else if (argv[i] === "--no-kv") {
+      args.kv = false;
     } else if (argv[i] === "-h" || argv[i] === "--help") {
       args.help = true;
     } else {
@@ -138,6 +195,32 @@ export function scannerMetrics(rows, from, to, exclude = []) {
     paidScans: paidExternal.length,
     paidDomains: new Set(paidExternal.map((r) => hostOf(r.url))).size,
   };
+}
+
+// Each state counts by its own timestamp. A record that reached a state but
+// lacks that timestamp is "untimed": counted in all-time only.
+export function funnelMetrics(records, from, to) {
+  const at = {
+    checkoutStarts: (r) => [true, r.created_at],
+    paid: (r) => [r.paid_at != null || ["paid", "ready"].includes(r.status), r.paid_at ?? r.ready_at],
+    ready: (r) => [r.ready_at != null || r.status === "ready", r.ready_at],
+    failed: (r) => [r.failed_at != null || r.status === "failed", r.failed_at],
+  };
+  const res = { windowed: {}, allTime: {}, untimed: 0 };
+  const untimed = new Set();
+  for (const [k, f] of Object.entries(at)) {
+    res.windowed[k] = 0;
+    res.allTime[k] = 0;
+    records.forEach((r, i) => {
+      const [reached, ts] = f(r);
+      if (!reached) return;
+      res.allTime[k]++;
+      if (typeof ts !== "number") untimed.add(i);
+      else if (ts >= from && ts < to) res.windowed[k]++;
+    });
+  }
+  res.untimed = untimed.size;
+  return res;
 }
 
 function windowSql(from, to) {
@@ -194,7 +277,7 @@ function render(windows, sections, notes) {
 function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
-    console.log("node scripts/weekly-scorecard.mjs [--since YYYY-MM-DD] [--exclude-domain a.com,b.com]");
+    console.log("node scripts/weekly-scorecard.mjs [--since YYYY-MM-DD] [--exclude-domain a.com,b.com] [--no-kv]");
     return;
   }
   const now = Date.now();
@@ -217,6 +300,18 @@ function main() {
     out: tryQuery(DBS.outreach, outreachSql(w.from, w.to)),
     cit: tryQuery(DBS.citation, citationSql(w.from, w.to)),
   }));
+
+  let funnel = null;
+  let funnelError = null;
+  if (args.kv) {
+    try {
+      funnel = readFunnel();
+    } catch (err) {
+      funnelError = err.message;
+    }
+  }
+  const fm = funnel ? windows.map((w) => funnelMetrics(funnel.records, w.from, w.to)) : null;
+  const fv = (k) => windows.map((_, i) => (fm ? fm[i].windowed[k] : args.kv ? "ERR" : "skipped"));
 
   const sv = (k) => perWin.map((p) => (p.scan ? p.scan[k] : "ERR"));
   const ov = (k) => perWin.map((p) => (p.out.rows ? p.out.rows[0][k] : "ERR"));
@@ -243,8 +338,10 @@ function main() {
       title: "Buying",
       rows: [
         ["Qualified buyers who saw the offer", ...nm()],
-        ["Audit checkout starts", ...nm()],
-        ["Paid Audits (Dodo)", ...nm()],
+        ["Audit checkout starts (KV funnel)", ...fv("checkoutStarts")],
+        ["Audits paid (KV funnel)", ...fv("paid")],
+        ["Audits ready / delivered (KV funnel)", ...fv("ready")],
+        ["Audits failed (KV funnel)", ...fv("failed")],
         ["Refunds", ...nm()],
         ["Proxy: paid-tier scans, ext. hosts", ...sv("paidScans")],
         ["Proxy: paid-tier scans, ext. domains", ...sv("paidDomains")],
@@ -278,21 +375,31 @@ function main() {
       title: `Targets (launch window, ${daysLeft} days left to ${fmtDate(LAUNCH_END)})`,
       rows: [
         ["External scans >= 50", `${ext} / ${TARGETS.externalScans}`, `(${extDom} unique domains)`],
-        ["Checkout starts >= 5", `${NM} / ${TARGETS.checkoutStarts}`, ""],
-        ["Purchases >= 1", `${NM} / ${TARGETS.purchases}`, ""],
+        ["Checkout starts >= 5", `${fv("checkoutStarts")[1]} / ${TARGETS.checkoutStarts}`, ""],
+        ["Purchases >= 1", `${fv("paid")[1]} / ${TARGETS.purchases}`, "(incl. test buys)"],
       ],
     },
   ];
 
   const errors = [
     scan.error && `scanner: ${scan.error}`,
+    funnelError && `kv funnel: ${funnelError}`,
     ...perWin.flatMap((p) => [p.out.error && `outreach: ${p.out.error}`, p.cit.error && `citation: ${p.cit.error}`]),
   ].filter(Boolean);
 
   const notes = [
     `Windows are UTC, end = now (${new Date(now).toISOString().slice(0, 16)}Z).`,
-    `n/m = not measurable from D1 today:`,
-    `  - checkout starts / paid / refunds: Audit funnel lives in KV SESSIONS (funnel:audit:<session>), not D1; amounts, discounts and refunds only in the Dodo dashboard.`,
+    ...(funnel
+      ? [
+          `KV funnel: ${funnel.listed} records listed, ${funnel.records.length} read${funnel.unreadable ? `, ${funnel.unreadable} unreadable/skipped` : ""}${funnel.capped ? `, CAPPED at ${KV_GET_CAP} gets` : ""}. All-time: starts ${fm[1].allTime.checkoutStarts}, paid ${fm[1].allTime.paid}, ready ${fm[1].allTime.ready}, failed ${fm[1].allTime.failed}.`,
+          fm[1].untimed
+            ? `  ${fm[1].untimed} record(s) lack the timestamp for a state they reached: counted in all-time only.`
+            : `  Every record has its timestamps; windows use created_at / paid_at / ready_at / failed_at.`,
+          `  The funnel holds no amount or discount, so test purchases (e.g. 100%-off codes) are included.`,
+        ]
+      : []),
+    `n/m = not measurable today:`,
+    `  - refunds, amounts, discounts: only in the Dodo dashboard (no webhook records refunds).`,
     `  - qualified buyers who saw the offer: no page-view or offer-impression record exists (Cloudflare Web Analytics is outside D1).`,
     `  - report opens/downloads and buyers acting on the report: not tracked anywhere.`,
     `Proxy rows: a paid-tier scan is one Audit fulfillment run; it counts retries and test purchases on non-Astrant hosts.`,
