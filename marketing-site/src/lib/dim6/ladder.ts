@@ -5,9 +5,9 @@
 //   2. Validators (response non-empty, refusal pattern check, score parser)
 //   3. Retry-once-with-feedback on validator failure
 //   4. Templated fallback (returns unmeasurable cell — locked decision 4)
-//   5. Cache (KV, key shape `dim6:v1:<model_id>:<sha256(prompt)>`, 30d TTL,
-//      independent of SCORING_VERSION/REMEDIATION_ENGINE_VERSION per locked
-//      decision 5)
+//   5. Cache (KV, key shape `<DIM6_ENGINE_VERSION>:<model_id>:<sha256(prompt)>`,
+//      currently `dim6:v3:...`; 24h TTL, independent of SCORING_VERSION/
+//      REMEDIATION_ENGINE_VERSION per locked decision 5)
 //   6. Engine versioning (DIM6_ENGINE_VERSION constant stamped on rows)
 //
 // Three retry paths per Task 6:
@@ -49,10 +49,17 @@ import {
 import { DIM6_ENGINE_VERSION } from "./types";
 
 const RETRY_AFTER_CAP_SEC = 30;
-const CACHE_TTL_SEC = 30 * 24 * 60 * 60; // 30 days per locked decision 5
+// 24 hours (was 30 days). Long enough to cover every automatic re-run of
+// one fulfillment (queue retries at +60/+120/+180 s, each run bounded by the
+// Worker wall time, so well under an hour; the DLQ consumer only marks the
+// session failed and never re-runs Dim 6), short enough that a re-Audit a day
+// or more later asks the models again instead of replaying old answers. Since
+// stable per-domain question sets (question-set.ts) the prompt hash repeats,
+// so a long TTL would hide real site improvements.
+export const CACHE_TTL_SEC = 24 * 60 * 60;
 
 export interface LadderEnv extends AdapterEnv, JudgeEnv {
-  // KV namespace used for the dim6:vN cache. Reuses SESSIONS by default
+  // KV namespace used for the Dim 6 cell cache. Reuses SESSIONS by default
   // (audit-fulfill already binds it). Caller may pass a different KV for tests.
   cacheKv: KVNamespace;
 }
@@ -83,7 +90,8 @@ interface CachedCell {
   unmeasurable: boolean;
   truncated: boolean;
   notes: string;
-  // Audit trail — when this was cached. Not load-bearing for correctness.
+  // When this was cached (epoch ms). readCache treats entries older than
+  // CACHE_TTL_SEC as a miss.
   cached_at: number;
 }
 
@@ -99,6 +107,15 @@ async function readCache(
     // not replay into later audits of the same domain for the full TTL.
     // Also neutralizes unmeasurable entries written before this guard.
     if (cached.unmeasurable) return null;
+    // Age guard on top of the KV TTL: entries written under the old 30-day
+    // TTL (or any entry KV hasn't evicted yet) are a miss once older than
+    // CACHE_TTL_SEC.
+    if (
+      typeof cached.cached_at !== "number" ||
+      !(Date.now() - cached.cached_at < CACHE_TTL_SEC * 1000)
+    ) {
+      return null;
+    }
     return cached;
   } catch {
     return null;

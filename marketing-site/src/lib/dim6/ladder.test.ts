@@ -53,7 +53,7 @@ describe("dim6 ladder cache: failures are never replayed", () => {
         unmeasurable: false,
         truncated: false,
         notes: "measured",
-        cached_at: 1,
+        cached_at: Date.now(),
       },
     });
     const env = { cacheKv: kv } as unknown as LadderEnv;
