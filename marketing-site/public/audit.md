@@ -46,6 +46,4 @@ Full refund, no questions, first 30 days. We'd rather have the feedback than the
 ## Related
 
 - Score (free, live): https://astrant.io/score
-- Implementation ($1,299, <24h automated build): https://astrant.io/implementation
 - Custom (bespoke, from $4,999): https://astrant.io/custom
-- Subscriptions: https://astrant.io/subscriptions

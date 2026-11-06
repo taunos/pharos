@@ -89,7 +89,7 @@ const faqLd = {
 };
 
 const INCLUDES = [
-  "Every gap explained in plain language — what it is and why it costs you agent visibility",
+  "Every gap explained in plain language — what it is and what agents can't read because of it",
   "An effort estimate on every fix, so you can hand it straight to a developer",
   "A composite score + grade you can share with stakeholders",
   "A machine-readable JSON export — for agents or programmatic workflows",
@@ -143,14 +143,16 @@ export default async function AuditPage({
                 $79 · delivered in a few minutes
               </div>
               <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-6xl">
-                Find out why AI isn&apos;t recommending you yet.
+                See what AI says about you, and what to fix.
               </h1>
               <p className="mt-6 text-lg text-[var(--color-muted)] sm:text-xl">
-                When ChatGPT, Claude, or Perplexity can&apos;t say what you do
-                — or never bring your name up — the Audit shows what&apos;s
-                missing and how to fix it. A deep six-dimension read of what agents can and can&apos;t parse
-                on your site, with a specific, developer-ready fix for every gap
-                &#8212; delivered as a PDF in a few minutes. No call required.
+                We ask ChatGPT, Claude, Gemini and Perplexity a sample of
+                questions about you and your category, and record whether they
+                name you. We also check what agents can and can&apos;t read on
+                your site, and give a specific, developer-ready fix for every
+                gap, biggest gaps first. Delivered as a PDF in a few minutes. No
+                call required. The fixes make your site easier for agents to
+                read; they can&apos;t guarantee AI will recommend you.
               </p>
               {showCanceled ? (
                 <div className="mt-10 border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4 text-sm text-[var(--color-fg)]">

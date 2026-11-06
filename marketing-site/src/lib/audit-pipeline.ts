@@ -104,7 +104,7 @@ export const CHECK_SUBJECTS: Record<string, string> = {
   // Profound-swap path emits the SAME ids — only the corpus row's `source`
   // field changes (`diy` vs `profound`). Don't rename without coordinating.
   citation_domain_named_rate:
-    "the rate at which OpenAI GPT-4o, Anthropic Claude, Google Gemini, and Perplexity Sonar name your domain when asked about it directly",
+    "the rate at which OpenAI GPT-4o, Anthropic Claude, Google Gemini, and Perplexity Sonar name your domain when asked about it and about its category",
   citation_url_referenced_rate:
     "the rate at which the four hosted models include a URL on your domain when answering relevant questions",
   citation_context_relevant_rate:

@@ -91,7 +91,7 @@ export default function EmailGate({
         Get the full PDF gap report
       </h3>
       <p className="mt-2 text-base text-[var(--color-muted)]">
-        Your full report: predicted lift per gap, remediation paths, and your
+        Your full report: priority per gap, remediation paths, and your
         score across {dimensionsLine} dimensions.
       </p>
 

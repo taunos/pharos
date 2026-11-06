@@ -69,8 +69,8 @@ const DIFFERENTIATORS = [
     body: "Our llms.txt check doesn't just verify the file exists; it scores curation quality, blockquote elevator-pitch, and whether the linked pages return good markdown. Same depth on every other dimension.",
   },
   {
-    name: "Predicted referral lift per gap",
-    body: "Each gap is annotated with an estimated impact on agent-attributed traffic. You fix what moves the needle first, not what's easy to check off.",
+    name: "Priority per gap",
+    body: "Each gap is ranked by how far it is from passing, so you fix the biggest gaps first, not what's easy to check off.",
   },
   {
     name: "Live citation audit",
