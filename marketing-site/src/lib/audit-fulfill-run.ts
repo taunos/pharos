@@ -230,6 +230,8 @@ export async function runAuditFulfillment(
       // Distinct key prefixes (`dim6:v1:` for cache, `dim6:budget:` for the
       // counter) ensure no collision with audit-fulfill's session keys.
       cacheKv: env.SESSIONS,
+      // Stable Dim 6 question set per canonical domain (dim6/question-set.ts).
+      questionSetDb: env.PHAROS_CORPUS,
     },
     record.url,
   );

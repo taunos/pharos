@@ -279,12 +279,19 @@ function filterValid(parsed: PromptSetQuery[]): PromptSetQuery[] {
  * v3 retry path (Slice 3b Task 7 spec compliance): on first-miss validator
  * rejection, retry once with prepended rejection reason. Bank fallback
  * fires only on second miss.
+ *
+ * `source` says which path produced the set: "generated" (all from the
+ * model), "padded" (5-9 model queries topped up from the bank) or "bank"
+ * (generation failed; pure bank). question-set.ts persists only the first
+ * two, so a transient generator outage never pins a domain to the bank.
  */
+export type PromptSetSource = "generated" | "padded" | "bank";
+
 export async function generatePromptSet(
   env: PromptSetGenEnv,
   scanUrl: string,
   signals: { homepageHtml?: string | null; titleTag?: string | null } = {}
-): Promise<PromptSetQuery[]> {
+): Promise<{ queries: PromptSetQuery[]; source: PromptSetSource }> {
   const category = deriveCategoryFromSignals(scanUrl, signals);
   const initialPrompt = buildGenPrompt(scanUrl, category);
 
@@ -297,7 +304,7 @@ export async function generatePromptSet(
       console.log(
         `[dim6/promptset] generated ${valid1.length}/${TARGET_QUERY_COUNT} valid queries on first attempt`
       );
-      return valid1.slice(0, TARGET_QUERY_COUNT);
+      return { queries: valid1.slice(0, TARGET_QUERY_COUNT), source: "generated" };
     }
     if (valid1.length >= MIN_VALID_QUERIES) {
       // Got at least half — pad up from the bank. Deterministic cost ceiling.
@@ -305,7 +312,7 @@ export async function generatePromptSet(
       console.log(
         `[dim6/promptset] generated ${valid1.length} valid queries on first attempt; padded to ${padded.length} from bank`
       );
-      return padded;
+      return { queries: padded, source: "padded" };
     }
 
     // First-miss retry-with-feedback (TP-7 ladder rung).
@@ -326,14 +333,14 @@ Regenerate the JSON array. Keep every query under 30 words, focused on a single 
         console.log(
           `[dim6/promptset] generated ${valid2.length}/${TARGET_QUERY_COUNT} valid queries on retry`
         );
-        return valid2.slice(0, TARGET_QUERY_COUNT);
+        return { queries: valid2.slice(0, TARGET_QUERY_COUNT), source: "generated" };
       }
       if (valid2.length >= MIN_VALID_QUERIES) {
         const padded = padFromBank(valid2, scanUrl);
         console.log(
           `[dim6/promptset] generated ${valid2.length} valid queries on retry; padded to ${padded.length} from bank`
         );
-        return padded;
+        return { queries: padded, source: "padded" };
       }
       console.warn(
         `[dim6/promptset] retry produced ${valid2.length} valid queries; using bank fallback.`
@@ -349,7 +356,28 @@ Regenerate the JSON array. Keep every query under 30 words, focused on a single 
     );
   }
 
-  return buildBankQueries(scanUrl);
+  return { queries: buildBankQueries(scanUrl), source: "bank" };
+}
+
+/**
+ * True when `v` is a complete question set that passes the same validator
+ * the generator applies (length budget, AVOID list), plus shape, exact
+ * count and unique ids. question-set.ts runs it before storing a set AND
+ * on every read-back, so a stored row is never trusted just because it
+ * was stored.
+ */
+export function isValidQuestionSet(v: unknown): v is PromptSetQuery[] {
+  if (!Array.isArray(v) || v.length !== TARGET_QUERY_COUNT) return false;
+  const ids = new Set<string>();
+  for (const q of v) {
+    if (typeof q !== "object" || q === null) return false;
+    const { id, text, rationale } = q as GeneratedQuery;
+    if (typeof id !== "string" || id.length === 0 || ids.has(id)) return false;
+    if (typeof text !== "string" || text !== text.trim()) return false;
+    if (rationale !== null && typeof rationale !== "string") return false;
+    ids.add(id);
+  }
+  return filterValid(v as PromptSetQuery[]).length === v.length;
 }
 
 function padFromBank(
