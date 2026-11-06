@@ -375,8 +375,8 @@ function main() {
       title: `Targets (launch window, ${daysLeft} days left to ${fmtDate(LAUNCH_END)})`,
       rows: [
         ["External scans >= 50", `${ext} / ${TARGETS.externalScans}`, `(${extDom} unique domains)`],
-        ["Checkout starts >= 5", `${fv("checkoutStarts")[1]} / ${TARGETS.checkoutStarts}`, ""],
-        ["Purchases >= 1", `${fv("paid")[1]} / ${TARGETS.purchases}`, "(incl. test buys)"],
+        ["Checkout starts >= 5", `${fv("checkoutStarts")[1]} / ${TARGETS.checkoutStarts}`, "(incl. test buys; verify in Dodo)"],
+        ["Purchases >= 1", `${fv("paid")[1]} / ${TARGETS.purchases}`, "(incl. test buys; verify in Dodo)"],
       ],
     },
   ];
