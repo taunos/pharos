@@ -5,8 +5,8 @@
 // helpers so the route handlers stay readable.
 //
 // Note: scanner is reached over the SCANNER_SVC Service Binding when bound,
-// else the internal workers.dev URL (never the public scanner.astrant.io
-// custom domain). See ./scanner-fetch.
+// else the scanner.astrant.io custom domain (the scanner's workers.dev route
+// is off). See ./scanner-fetch.
 
 import { DEFAULT_SCANNER_URL as SCANNER_BASE, scannerFetch, type ScannerServiceEnv } from "./scanner-fetch";
 

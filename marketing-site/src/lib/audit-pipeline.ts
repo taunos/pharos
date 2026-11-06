@@ -271,7 +271,7 @@ export type AuditEnv = {
   ANTHROPIC_API_KEY?: string;
   GOOGLE_AI_API_KEY?: string;
   PERPLEXITY_API_KEY?: string;
-  // Service Binding to pharos-scanner (./scanner-fetch); absent → workers.dev URL.
+  // Service Binding to pharos-scanner (./scanner-fetch); absent → scanner.astrant.io.
   SCANNER_SVC?: Fetcher;
 };
 

@@ -19,7 +19,6 @@ const VERSION = "0.2.0";
 const ALLOWED_ORIGINS = new Set([
   "https://astrant.io",
   "https://www.astrant.io",
-  "https://pharos-marketing.pharos-dev.workers.dev",
   "http://localhost:3000",
   "http://localhost:3001",
   "http://localhost:3002",
