@@ -98,7 +98,7 @@ function renderSubCheck(sub: SubCheck): string {
       <td class="check-name">${escapeHtml(sub.name)}${naLabel}</td>
       <td class="check-score">${sub.na ? "—" : `${sub.score}/100`}</td>
       <td class="check-weight">${sub.weight}%</td>
-      <td class="check-lift" style="color:${liftColor(bucket)}">${sub.na ? "—" : liftLabel(bucket)}</td>
+      <td class="check-lift" style="color:${liftColor(sub.passed ? "low" : bucket)}">${sub.na ? "—" : sub.passed ? "Passing" : liftLabel(bucket)}</td>
       <td class="check-notes">${escapeHtml(sub.notes)}</td>
     </tr>`;
 }

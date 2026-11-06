@@ -21,7 +21,7 @@ Most agentic-discoverability scores are black boxes. Astrant's isn't. This page 
 
 ## How Dim 6 is measured
 
-Dim 6 measures whether AI models recognize and name your domain when asked about it and about its category. The Dim 6 pipeline runs in three stages:
+Dim 6 measures whether AI models recognize and name your domain when asked about it directly. The Dim 6 pipeline runs in three stages:
 
 1. **Prompt generation.** For each audited domain, Dim 6 generates a short-answer query set that names the domain (for example, "What does {domain} do?"), with a fixed domain-named fallback. The same domain gets the same question set on repeat Audits within a methodology version. Model answers are requested at temperature 0 and reused for up to 24 hours, which covers automatic retries of a single Audit, so an Audit run a day or more later asks every model afresh and reflects your site's current visibility. Fresh answers are not guaranteed identical from run to run.
 

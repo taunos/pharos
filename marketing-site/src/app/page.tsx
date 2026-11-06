@@ -17,8 +17,8 @@ const STATS = [
     sub: <>Each checked against a public rubric. None of them guarantees a recommendation.</>,
   },
   {
-    figure: "Much",
-    label: <>of AI traffic arrives with no referrer</>,
+    figure: "No referrer",
+    label: <>on much of the traffic AI sends you</>,
     sub: (
       <>
         You can&apos;t see the buyers AI sends you &#8212; or the ones it sends
@@ -91,7 +91,7 @@ const CORE_TIERS: Array<{
   {
     name: "Implementation",
     price: "$1,299",
-    body: "Automated build. Full stack deployed in <24h.",
+    body: "Automated build. Developer-ready patch in <24h, verified once live. Not open yet.",
     href: "/implementation",
     badge: "<24h",
     badgeKind: "instant",
@@ -115,7 +115,7 @@ const SUBSCRIPTION_TIERS: Array<{
   {
     name: "Standard",
     price: "$149/mo",
-    body: "Stay visible to ChatGPT, Claude, Perplexity, and Gemini — measured monthly, no infrastructure on your side.",
+    body: "Monthly check of what ChatGPT, Claude, Perplexity and Gemini say about you. Not open yet.",
     href: "/subscriptions",
   },
   {
@@ -137,7 +137,7 @@ const FAQS = [
   },
   {
     q: "Do I need a developer to use Astrant?",
-    a: "No. The free Score tool and the $79 Audit are entirely self-serve — paste your URL, get results. The $1,299 automated Implementation also doesn't require your developer to write any code; we email a Git-applicable patch file that your developer applies with `git am` in about five minutes and reviews via your normal PR workflow. We never need access to your repo or infrastructure. Only Custom builds (from $4,999) involve back-and-forth with your engineering team.",
+    a: "No. The free Score tool and the $79 Audit are entirely self-serve — paste your URL, get results. The $1,299 automated Implementation also doesn't require your developer to write any code; we email a Git-applicable patch file that your developer applies with `git am` in about five minutes and reviews via your normal PR workflow. We never need access to your repo or infrastructure. Only Custom builds (from $4,999) involve back-and-forth with your engineering team. Implementation isn't open yet.",
   },
   {
     q: "What's the difference between the free Score and the paid Audit?",
@@ -256,7 +256,7 @@ export default function Page() {
               <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-muted)]">
                 Free · No signup
               </p>
-              <h1 className="mt-5 text-5xl font-bold tracking-tight sm:text-7xl">
+              <h1 className="mt-5 text-balance text-5xl font-bold tracking-tight sm:text-7xl">
                 Can AI agents read your site?
               </h1>
               <p className="mt-6 text-lg text-[var(--color-muted)] sm:text-xl">
@@ -298,7 +298,7 @@ export default function Page() {
             <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
               Agents are already recommending vendors in your category.{" "}
               <span className="text-[var(--color-muted)]">
-                The only question is whether yours is one of them.
+                The question is whether yours is one of them, and what they say about you.
               </span>
             </h2>
           </div>
@@ -406,7 +406,7 @@ export default function Page() {
                   href="/llms.txt"
                   className="font-mono text-[var(--color-fg)] underline-offset-4 hover:underline"
                 >
-                  <code>https://this-site/llms.txt</code>
+                  <code>https://astrant.io/llms.txt</code>
                 </a>
               </li>
               <li>

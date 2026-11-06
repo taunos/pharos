@@ -42,7 +42,5 @@ No. The Score stays free. The paid tiers (Audit, Implementation, Custom, Subscri
 ## Related
 
 - Audit (paid, a few minutes): https://astrant.io/audit
-- Implementation ($1,299, <24h build): https://astrant.io/implementation
 - Custom (bespoke, from $4,999): https://astrant.io/custom
-- Subscriptions ($149/mo Standard, $899/mo Pro): https://astrant.io/subscriptions
 - MCP Server: https://mcp.astrant.io/mcp

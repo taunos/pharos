@@ -259,3 +259,38 @@ describe("Score PDF: N/A grade label and scope note", () => {
     expect(html).toContain(" Some dimensions could not be measured on this run and were dropped from the composite.</p>");
   });
 });
+
+describe("Score PDF: Priority column", () => {
+  const withSubs = (subs: ScanResult["dimensions"][number]["sub_checks"]): ScanResult => ({
+    ...scan,
+    dimensions: [{ ...scan.dimensions[0], sub_checks: subs }],
+  });
+  const sub = { id: "s", name: "c", weight: 10, notes: "n" };
+
+  it("passed check shows 'Passing', not a priority label", () => {
+    const html = renderScoreReportHTML({
+      scan: withSubs([{ ...sub, score: 100, passed: true }]),
+      email: "a@b.com",
+      scoringVersion: "1.1.0",
+    });
+    expect(html).toContain(">Passing</td>");
+    expect(html).not.toMatch(/(High|Medium|Low) priority/);
+    expect(html).toContain("<th>Priority</th>");
+    expect(html).toContain("Priority reflects how far each check is from passing. It is not a forecast of traffic or citations.");
+  });
+
+  it("failing checks show a priority label", () => {
+    const html = renderScoreReportHTML({
+      scan: withSubs([
+        { ...sub, score: 30, passed: false },
+        { ...sub, score: 70, passed: false },
+      ]),
+      email: "a@b.com",
+      scoringVersion: "1.1.0",
+    });
+    expect(html).toContain(">High priority</td>");
+    expect(html).toContain(">Medium priority</td>");
+    expect(html).not.toContain(">Passing</td>");
+    expect(html).not.toMatch(/Lift estimates|>Lift<| lift</);
+  });
+});

@@ -273,8 +273,7 @@ export default function ScorePage() {
               Built the way we build for clients
             </h2>
             <p className="mt-4 text-lg text-[var(--color-muted)]">
-              The scanner runs on Cloudflare Workers. Citation audits go through
-              Profound&apos;s enterprise API. Everything is MCP-callable — agents
+              The scanner runs on Cloudflare Workers. Everything is MCP-callable — agents
               can invoke the scanner against any URL programmatically, the same way
               our clients&apos; MCPs are invoked. The Score is live now — and we
               score ourselves first: astrant.io&apos;s own Astrant Score is the

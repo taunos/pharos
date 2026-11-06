@@ -142,17 +142,17 @@ export default async function AuditPage({
               <div className="inline-flex rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm font-mono text-emerald-400">
                 $79 · delivered in a few minutes
               </div>
-              <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-6xl">
+              <h1 className="mt-6 text-balance text-4xl font-bold tracking-tight sm:text-6xl">
                 See what AI says about you, and what to fix.
               </h1>
               <p className="mt-6 text-lg text-[var(--color-muted)] sm:text-xl">
                 We ask ChatGPT, Claude, Gemini and Perplexity a sample of
-                questions about you and your category, and record whether they
-                name you. We also check what agents can and can&apos;t read on
-                your site, and give a specific, developer-ready fix for every
-                gap, biggest gaps first. Delivered as a PDF in a few minutes. No
-                call required. The fixes make your site easier for agents to
-                read; they can&apos;t guarantee AI will recommend you.
+                questions about you, and record whether they name you. We also
+                check what agents can and can&apos;t read on your site, and give
+                a specific, developer-ready fix for every gap, biggest gaps
+                first. Delivered as a PDF in a few minutes. Fixes make your site
+                easier for agents to read; they can&apos;t guarantee a
+                recommendation.
               </p>
               {showCanceled ? (
                 <div className="mt-10 border border-[var(--color-border)] bg-[var(--color-surface-2)] p-4 text-sm text-[var(--color-fg)]">
