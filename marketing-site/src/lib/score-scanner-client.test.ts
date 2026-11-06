@@ -109,7 +109,7 @@ describe("tC9 — captureOutbox never throws", () => {
     fetchMock.mockResolvedValueOnce(json({ ok: true, status: "something_else" }));
     expect(await captureOutbox(env, "s", payload)).toEqual({ status: "transport_error" });
     expect(new Set(timeoutArgs)).toEqual(new Set([10_000]));
-    expect(fetchMock.mock.calls[2][0]).toBe("https://pharos-scanner.pharos-dev.workers.dev/api/scan/s/capture-outbox");
+    expect(fetchMock.mock.calls[2][0]).toBe("https://scanner.astrant.io/api/scan/s/capture-outbox");
     expect(JSON.parse(String(fetchMock.mock.calls[2][1].body))).toEqual(payload);
     for (const c of fetchMock.mock.calls) expect((c[1] as RequestInit).signal).toBeInstanceOf(AbortSignal);
   });
@@ -136,7 +136,7 @@ describe("tC9 — getPdfKey never throws", () => {
     fetchMock.mockResolvedValueOnce(json({ ok: true, pdf_r2_key: 42 }));
     expect(await getPdfKey(env, "s")).toEqual({ ok: false });
     expect(new Set(timeoutArgs)).toEqual(new Set([10_000]));
-    expect(fetchMock.mock.calls[2][0]).toBe("https://pharos-scanner.pharos-dev.workers.dev/api/internal/scan/s/pdf-key");
+    expect(fetchMock.mock.calls[2][0]).toBe("https://scanner.astrant.io/api/internal/scan/s/pdf-key");
     for (const c of fetchMock.mock.calls) expect((c[1] as RequestInit).signal).toBeInstanceOf(AbortSignal);
   });
 });
@@ -190,13 +190,13 @@ describe("SCANNER_SVC Service Binding", () => {
     });
   });
 
-  it("absent: falls back to the workers.dev URL over public fetch", async () => {
+  it("absent: falls back to scanner.astrant.io over public fetch", async () => {
     for (const call of helpers(env)) {
       fetchMock.mockResolvedValueOnce(json({}, 404));
       await call().catch(() => undefined);
     }
     expect(fetchMock).toHaveBeenCalledTimes(10);
-    for (const [u] of fetchMock.mock.calls) expect(String(u).startsWith("https://pharos-scanner.pharos-dev.workers.dev/api/")).toBe(true);
+    for (const [u] of fetchMock.mock.calls) expect(String(u).startsWith("https://scanner.astrant.io/api/")).toBe(true);
   });
 });
 

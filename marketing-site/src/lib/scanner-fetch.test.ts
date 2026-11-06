@@ -1,6 +1,10 @@
 // SCANNER_SVC Service Binding: marketing → scanner calls prefer the binding and
-// fall back to the workers.dev URL when it is absent (local dev, tests, a
-// deploy that predates the binding). Request bytes are identical either way.
+// fall back to the scanner.astrant.io custom domain when it is absent (local
+// dev, tests); the scanner's workers.dev route is off. Request bytes are
+// identical either way.
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { DEFAULT_SCANNER_URL, scannerFetch } from "./scanner-fetch";
 import { runScan } from "./audit-pipeline";
@@ -15,6 +19,25 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("scannerFetch", () => {
+  it("the fallback URL is the scanner.astrant.io custom domain, never workers.dev", () => {
+    expect(DEFAULT_SCANNER_URL).toBe("https://scanner.astrant.io");
+  });
+
+  it("no marketing source file (src/, worker.ts, wrangler.jsonc) names the scanner's workers.dev host", () => {
+    const root = fileURLToPath(new URL("../..", import.meta.url));
+    const files = [join(root, "worker.ts"), join(root, "wrangler.jsonc")];
+    const walk = (dir: string): void => {
+      for (const name of readdirSync(dir)) {
+        const p = join(dir, name);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name)) files.push(p);
+      }
+    };
+    walk(join(root, "src"));
+    expect(files.length).toBeGreaterThan(50);
+    expect(files.filter((p) => readFileSync(p, "utf8").includes("pharos-scanner.pharos-dev"))).toEqual([]);
+  });
+
   it("binding present → binding.fetch with the given url + init; public fetch untouched", async () => {
     const svc = { fetch: vi.fn(async () => ok()) };
     const init = { method: "POST", headers: { a: "b" }, body: "x" };
@@ -46,9 +69,9 @@ describe("runScan (Audit / Implementation paid scans)", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("binding absent → the same request to the workers.dev URL", async () => {
+  it("binding absent → the same request to scanner.astrant.io", async () => {
     fetchMock.mockResolvedValueOnce(ok());
     await runScan("https://example.com", "fk");
-    expect(fetchMock).toHaveBeenCalledWith(`${DEFAULT_SCANNER_URL}/api/scan`, expected);
+    expect(fetchMock).toHaveBeenCalledWith("https://scanner.astrant.io/api/scan", expected);
   });
 });

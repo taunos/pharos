@@ -100,7 +100,7 @@ describe("POST /api/scan proxy", () => {
     expect(await res.text()).toBe('{"ok":true,"via":"svc"}');
     expect(sent).toHaveLength(0);
     expect(svcSent).toHaveLength(1);
-    expect(svcSent[0].url).toBe("https://pharos-scanner.pharos-dev.workers.dev/api/scan");
+    expect(svcSent[0].url).toBe("https://scanner.astrant.io/api/scan");
     expect(svcSent[0].headers).toEqual({
       "Content-Type": "application/json",
       "CF-Connecting-IP": "203.0.113.7",
@@ -110,10 +110,10 @@ describe("POST /api/scan proxy", () => {
     expect(JSON.parse(svcSent[0].body)).toEqual({ url: "https://example.com/" });
   });
 
-  it("SCANNER_SVC absent: falls back to the workers.dev URL over public fetch", async () => {
+  it("SCANNER_SVC absent: falls back to scanner.astrant.io over public fetch", async () => {
     await POST(req({ "cf-connecting-ip": "203.0.113.7" }));
     expect(sent).toHaveLength(1);
-    expect(sent[0].url).toBe("https://pharos-scanner.pharos-dev.workers.dev/api/scan");
+    expect(sent[0].url).toBe("https://scanner.astrant.io/api/scan");
   });
 
   it("does not relay client-supplied proxy headers", async () => {
