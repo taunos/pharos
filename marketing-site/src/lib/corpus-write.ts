@@ -149,8 +149,8 @@ export async function writeAuditToCorpus(
     recommendationsFromAudit(audit, findingIdByKey)
   );
 
-  // Slice 3b — Dim 6 cells. Distinct engine_version (DIM6_ENGINE_VERSION =
-  // "dim6:v1") so the citation_audit_response rows are recoverable
+  // Slice 3b — Dim 6 cells. Distinct engine_version (DIM6_ENGINE_VERSION,
+  // currently "dim6:v3") so the citation_audit_response rows are recoverable
   // independently of audit-fulfill's REMEDIATION_ENGINE_VERSION_TAG. Use a
   // separate CorpusClient instance so the engine_version stamping stays
   // correct.

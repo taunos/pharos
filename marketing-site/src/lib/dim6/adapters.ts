@@ -228,7 +228,7 @@ export async function callAnthropic(
           // Use the current-latest sonnet alias. Anthropic publishes a stable
           // alias `claude-sonnet-4-5` (the "current latest" as of model release
           // notes). If the alias rotates between deploys we accept the lift —
-          // dim6:v1 cache key invalidates per-prompt anyway.
+          // Dim 6 cell cache key invalidates per-prompt anyway.
           model: "claude-sonnet-4-5",
           messages: [{ role: "user", content: prompt }],
           max_tokens: 1024, // REQUIRED for Anthropic — distinct from the other 3

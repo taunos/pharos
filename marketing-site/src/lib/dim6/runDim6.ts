@@ -186,7 +186,7 @@ export async function isDim6CapReached(kv: KVNamespace): Promise<boolean> {
 }
 
 export interface Dim6PaidEnv extends OrchestratorEnv {
-  // Same KV used for the dim6:v1 cache; we also use it for the daily-cap
+  // Same KV used for the Dim 6 cell cache; we also use it for the daily-cap
   // counter. Distinct key prefix `dim6:budget:` so cache eviction never
   // bumps the counter.
 }
