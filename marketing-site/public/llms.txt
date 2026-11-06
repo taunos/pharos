@@ -1,6 +1,6 @@
 # Astrant
 
-> Astrant checks how AI assistants and agents (ChatGPT, Claude, Perplexity, Gemini) read and describe B2B SaaS sites. We score the machine-readable layer — llms.txt, MCP discovery, OpenAPI specs, structured capability data, agent-parsable content — sample what the four assistants say when asked about a company and its category, and list specific fixes. We treat these files as hygiene: our own research found them more often on cited vendors, but not that they cause citations. The free Score and the $79 Audit are live; Implementation ($1,299) and subscriptions (from $149) are not open yet.
+> Astrant checks how AI assistants and agents (ChatGPT, Claude, Perplexity, Gemini) read and describe B2B SaaS sites. We score the machine-readable layer — llms.txt, MCP discovery, OpenAPI specs, structured capability data, agent-parsable content — sample what the four assistants say when asked about a company, and list specific fixes. We treat these files as hygiene: our own research found them more often on cited vendors, but not that they cause citations. The free Score and the $79 Audit are live; Implementation ($1,299) and subscriptions (from $149) are not open yet.
 
 ## Services
 

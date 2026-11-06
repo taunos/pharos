@@ -149,7 +149,7 @@ const FAQS = [
   },
   {
     q: "How do I know agents are actually using the optimizations?",
-    a: "Often you can't tell directly. AI crawlers rarely request files like llms.txt, and much AI-driven traffic arrives without a referrer. The $79 Audit gives you a one-time check of what ChatGPT, Claude, Gemini and Perplexity say when asked about you and your category. Ongoing tracking isn't open yet.",
+    a: "Often you can't tell directly. AI crawlers rarely request files like llms.txt, and much AI-driven traffic arrives without a referrer. The $79 Audit gives you a one-time check of what ChatGPT, Claude, Gemini and Perplexity say when asked about you. Ongoing tracking isn't open yet.",
   },
   {
     q: "What if AI search loses momentum and this becomes irrelevant?",
