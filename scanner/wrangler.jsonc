@@ -20,6 +20,8 @@
   // Binding, mcp-server and outreach over RPC bindings; the public surface is
   // scanner.astrant.io only.
   "workers_dev": false,
+  // Version preview URLs live on workers.dev too; close them explicitly.
+  "preview_urls": false,
   "d1_databases": [
     {
       "binding": "DB",
