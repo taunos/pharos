@@ -486,8 +486,12 @@ export async function runDim2(
     const described = tools.filter((t) => typeof t.description === "string" && t.description.trim().length > 0);
     const withSchema = tools.filter((t) => t.inputSchema !== undefined || t.input_schema !== undefined).length;
     const qualified = described.filter((t) => t.inputSchema !== undefined || t.input_schema !== undefined).length;
+    // 1.4.0: a card that describes 3+ tools passes (70) without schemas —
+    // schemas are also available from tools/list once connected; full marks
+    // need both. 12 described tools must never score 0 (resend.com).
     if (qualified >= 3) toolScore = 100;
-    else if (qualified >= 1) toolScore = 50;
+    else if (described.length >= 3) toolScore = 70;
+    else if (qualified >= 1 || described.length >= 1) toolScore = 50;
     toolNote = `${tools.length} tool(s) declared: ${described.length} with a description, ${withSchema} with an input schema (inputSchema); ${qualified} have both`;
   } else if (card) {
     toolNote = "card has no tools[] field (may be a minimal/discovery-only card)";

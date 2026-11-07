@@ -123,7 +123,7 @@ export const T = {
     noToolsField:
       "Your discovery card has no tools array. If your server's tools can be listed publicly, add a tools array with each tool's name, a plain-language description and an inputSchema (a JSON Schema for its inputs). If you'd rather agents see tools only after connecting, this check can stay below passing. Estimated effort: 30 minutes to 1 hour.",
     counts: (qualified: number, total: number) =>
-      `${qualified} of the ${total} tools in your discovery card have both a description and an inputSchema field (the field names this check reads); it passes at 3 or more. Add a plain-language description and an inputSchema to each tool that lacks one. If your server has fewer than 3 tools, describe the ones it has; don't list tools it doesn't offer. Estimated effort: 30 minutes to 1 hour.`,
+      `${qualified} of the ${total} tools in your discovery card have both a description and an inputSchema field (the field names this check reads). It passes when 3 or more tools have a description, and scores full marks when they also have an inputSchema. Add a plain-language description and an inputSchema to each tool that lacks one. If your server has fewer than 3 tools, describe the ones it has; don't list tools it doesn't offer. Estimated effort: 30 minutes to 1 hour.`,
   },
   oauth_metadata: {
     failed: (o: string, state: string) =>
