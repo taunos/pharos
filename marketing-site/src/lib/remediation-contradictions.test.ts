@@ -94,7 +94,7 @@ const CURRENT: Array<[string, string, string, SubCheck[]]> = [
   [
     "faq_schema",
     "6 Q&A pair(s); 1 is phrased as a question and has an answer of reasonable length. 5 entries are missing a question or an answer.",
-    "entries are missing a question or an answer.",
+    "missing a question or an answer.",
     [],
   ],
   [
