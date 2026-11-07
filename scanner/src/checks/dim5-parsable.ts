@@ -298,12 +298,13 @@ async function runMarkdownNegotiation(url: string): Promise<SubCheck> {
   }
 
   // 2. Try common .md slugs.
+  // 1.3.3: the root path has no "<path>.md" sibling (it used to build
+  // "https://host.md", another host), and /llms.txt is Dim 1's file, not a
+  // markdown variant of this page.
   const u = new URL(url);
-  const candidates = [
-    `${u.origin}/index.md`,
-    `${u.origin}${u.pathname.replace(/\/$/, "")}.md`,
-    `${u.origin}/llms.txt`, // sites using llms.txt as their canonical machine-readable file
-  ];
+  const pagePath = u.pathname.replace(/\/$/, "");
+  const candidates = [`${u.origin}/index.md`];
+  if (pagePath) candidates.push(`${u.origin}${pagePath}.md`);
   for (const c of candidates) {
     const r = await timedFetch(c, {
       headers: { "User-Agent": STATIC_UA },
@@ -355,8 +356,24 @@ async function runMarkdownNegotiation(url: string): Promise<SubCheck> {
 
 // ── Sub-check 4: pricing_text_visibility ─────────────────────────────────
 
-const PRICE_TEXT_RE = /\$\d{1,5}(?:[.,]\d{2,3})?\s*(?:\/|per)\s*(?:month|mo|year|yr|user|seat)/i;
-const PRICE_BARE_RE = /\$\d{1,5}(?:[.,]\d{2,3})?(?!\d)/g;
+// 1.3.3: any common currency, not just "$": R$ / US$ / $ / euro / pound /
+// yen / rupee signs or an ISO code, before the amount (optional space) or,
+// for the euro / pound signs and ISO codes, after it ("99,90 EUR"). Both
+// decimal styles (99.90 / 99,90).
+const EURO = String.fromCharCode(0x20ac);
+const POUND = String.fromCharCode(0xa3);
+const YEN = String.fromCharCode(0xa5);
+const RUPEE = String.fromCharCode(0x20b9);
+const ISO_CURRENCY = "(?:USD|EUR|BRL|GBP|JPY|INR|CAD|AUD|CHF|MXN|ARS|CLP|COP|NZD|SEK|NOK|DKK|PLN|ZAR)";
+const PRICE_AMOUNT = String.raw`(?:\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\d{1,5}(?:[.,]\d{2,3})?)`;
+const PRICE_TOKEN =
+  String.raw`(?:(?:R\$|US\$|\$|${EURO}|${POUND}|${YEN}|${RUPEE}|\b${ISO_CURRENCY})\s?${PRICE_AMOUNT}(?!\d)` +
+  String.raw`|(?<![\d.,])${PRICE_AMOUNT}\s?(?:${EURO}|${POUND}|${ISO_CURRENCY}\b))`;
+export const PRICE_TEXT_RE = new RegExp(
+  String.raw`${PRICE_TOKEN}\s*(?:\/|per)\s*(?:month|mo|year|yr|user|seat)`,
+  "gi"
+);
+export const PRICE_BARE_RE = new RegExp(PRICE_TOKEN, "g");
 const MODAL_CLASS_RE = /\b(modal|dialog|popup|paywall|login-required|gated)\b/i;
 
 async function findPricingPath(
@@ -440,7 +457,7 @@ async function runPricingTextVisibility(
   }
   const html = await readHtml(r);
   const text = stripTags(html);
-  const structuredMatches = (text.match(/\$\d{1,5}(?:[.,]\d{2,3})?\s*(?:\/|per)\s*(?:month|mo|year|yr|user|seat)/gi) ?? []).length;
+  const structuredMatches = (text.match(PRICE_TEXT_RE) ?? []).length;
   const bareMatches = (text.match(PRICE_BARE_RE) ?? []).length;
   const totalPriceTokens = bareMatches; // structured is a subset of bare
 
@@ -546,7 +563,6 @@ async function findCaseStudyPaths(
 interface ScannabilityBreakdown {
   url: string;
   headings: boolean;
-  metrics: boolean;
   lists: boolean;
   bold: boolean;
   score: number;
@@ -568,22 +584,19 @@ async function scorePageScannability(
   const h2h3Count = (html.match(/<h[23]\b[^>]*>/gi) ?? []).length;
   const headings = h2h3Count >= 3;
 
-  const text = stripTags(html);
-  const metricRe =
-    /\b\d+(?:\.\d+)?\s*(?:%|x faster|×|x|hours? saved|users?\b|customers?\b)/gi;
-  const metricCount = (text.match(metricRe) ?? []).length;
-  const metrics = metricCount >= 2;
-
   const lists = /<ul\b|<ol\b/i.test(html);
   const bold = /<(strong|b)\b[^>]*>\s*\S/i.test(html);
 
-  let score = 0;
-  if (headings) score += 30;
-  if (metrics) score += 30;
-  if (lists) score += 20;
-  if (bold) score += 20;
+  // 1.3.3: the "metrics" criterion (%, "x faster", "hours saved") is gone;
+  // it rewarded numbers whether or not they were real. The remaining three
+  // keep their 30/20/20 proportions, renormalized to 100.
+  let raw = 0;
+  if (headings) raw += 30;
+  if (lists) raw += 20;
+  if (bold) raw += 20;
+  const score = Math.round((raw * 100) / 70);
 
-  return { url: pageUrl, headings, metrics, lists, bold, score };
+  return { url: pageUrl, headings, lists, bold, score };
 }
 
 async function runCaseStudyScannability(
@@ -631,7 +644,7 @@ async function runCaseStudyScannability(
   const breakdownStr = breakdowns
     .map(
       (b) =>
-        `${b.url} → ${b.score} (h:${b.headings ? "✓" : "✗"} m:${b.metrics ? "✓" : "✗"} l:${b.lists ? "✓" : "✗"} b:${b.bold ? "✓" : "✗"})`
+        `${b.url} → ${b.score} (h:${b.headings ? "✓" : "✗"} l:${b.lists ? "✓" : "✗"} b:${b.bold ? "✓" : "✗"})`
     )
     .join("; ");
 

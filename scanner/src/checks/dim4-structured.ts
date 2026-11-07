@@ -10,6 +10,14 @@ const FETCH_TIMEOUT_MS = 8000;
 export const REVIEW_SCHEMA_NA_NOTE =
   "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. Weight redistributed across other Dim 4 sub-checks.";
 
+/** faq_schema N/A note (1.3.3): no FAQPage markup on the homepage. */
+export const FAQ_SCHEMA_NA_NOTE =
+  "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. Weight redistributed across other Dim 4 sub-checks.";
+
+/** faq_schema note (1.3.3) when the AI rating of the questions could not run. */
+export const FAQ_UNMEASURED_NOTE =
+  "Not measured: the AI rating of the FAQ questions was unavailable on this run. Weight redistributed across other Dim 4 sub-checks.";
+
 // Security pass 2026-11-04: validated hops, max 3 redirects, one deadline
 // covering headers AND body, capped body (see ../safe-fetch).
 function timedFetch(url: string, init?: RequestInit): Promise<SafeResponse | null> {
@@ -135,17 +143,88 @@ export function ldJsonAbsentProven(html: string, contentType: string, bodyComple
   return !/ld\s*\+\s*json/i.test(text);
 }
 
-function findByType(blocks: unknown[], typeName: string): Record<string, unknown>[] {
+// 1.3.3: schema.org subtypes count. A Dentist, Bakery or Corporation is an
+// Organization; exact-type matching scored such sites "no Organization schema".
+export const ORGANIZATION_TYPES: ReadonlySet<string> = new Set([
+  "Organization", "Corporation", "NGO", "GovernmentOrganization",
+  "EducationalOrganization", "CollegeOrUniversity", "School", "ElementarySchool", "HighSchool",
+  "MiddleSchool", "Preschool", "MedicalOrganization", "Hospital", "Pharmacy", "Physician",
+  "Dentist", "MedicalClinic", "DiagnosticLab", "VeterinaryCare", "NewsMediaOrganization",
+  "SportsOrganization", "SportsTeam", "PerformingGroup", "ResearchOrganization", "Consortium",
+  "Cooperative", "WorkersUnion", "LibrarySystem", "Airline", "OnlineBusiness", "OnlineStore",
+  "LocalBusiness", "ProfessionalService", "LegalService", "Attorney", "Notary", "AccountingService",
+  "FinancialService", "BankOrCreditUnion", "InsuranceAgency", "RealEstateAgent", "TravelAgency",
+  "EmploymentAgency", "MedicalBusiness", "Optician", "HealthAndBeautyBusiness", "BeautySalon",
+  "DaySpa", "HairSalon", "NailSalon", "TattooParlor", "HealthClub", "SportsActivityLocation",
+  "ExerciseGym", "FoodEstablishment", "Restaurant", "Bakery", "CafeOrCoffeeShop", "BarOrPub",
+  "Brewery", "FastFoodRestaurant", "IceCreamShop", "Winery", "Store", "AutoPartsStore",
+  "BikeStore", "BookStore", "ClothingStore", "ComputerStore", "ConvenienceStore",
+  "DepartmentStore", "ElectronicsStore", "Florist", "FurnitureStore", "GardenStore",
+  "GroceryStore", "HardwareStore", "HobbyShop", "HomeGoodsStore", "JewelryStore",
+  "LiquorStore", "MensClothingStore", "MobilePhoneStore", "MusicStore", "OfficeEquipmentStore",
+  "OutletStore", "PawnShop", "PetStore", "ShoeStore", "SportingGoodsStore", "TireShop",
+  "ToyStore", "WholesaleStore", "HomeAndConstructionBusiness", "Electrician", "GeneralContractor",
+  "HVACBusiness", "HousePainter", "Locksmith", "MovingCompany", "Plumber", "RoofingContractor",
+  "AutomotiveBusiness", "AutoDealer", "AutoRepair", "AutoRental", "AutoWash", "LodgingBusiness",
+  "Hotel", "Motel", "BedAndBreakfast", "Hostel", "Resort", "ChildCare", "DryCleaningOrLaundry",
+  "EntertainmentBusiness", "SelfStorage", "ShoppingCenter", "AnimalShelter", "Library",
+  "RadioStation", "TelevisionStation", "TouristInformationCenter", "InternetCafe",
+]);
+
+// Service / Product / Offer and their common subtypes (software included).
+export const SERVICE_OFFER_TYPES: ReadonlySet<string> = new Set([
+  "Service", "BroadcastService", "CableOrSatelliteService", "FinancialProduct", "FoodService",
+  "GovernmentService", "TaxiService", "WebAPI", "Product", "IndividualProduct", "ProductGroup",
+  "ProductModel", "SomeProducts", "Vehicle", "SoftwareApplication", "WebApplication",
+  "MobileApplication", "VideoGame", "Offer", "AggregateOffer", "OfferForLease", "OfferForPurchase",
+]);
+
+const REVIEW_TYPES: ReadonlySet<string> = new Set([
+  "Review", "AggregateRating", "CriticReview", "EmployerReview", "UserReview", "Recommendation",
+]);
+
+/** "https://schema.org/Dentist" and "schema:Dentist" match as "Dentist". */
+function typeNames(t: unknown): string[] {
+  const arr = Array.isArray(t) ? t : [t];
+  return arr
+    .filter((x): x is string => typeof x === "string")
+    .map((x) => x.trim().replace(/^(?:https?:\/\/(?:www\.)?schema\.org\/|schema:)/i, ""));
+}
+
+const MAX_JSONLD_DEPTH = 32;
+
+/**
+ * Blocks whose @type (string or array) is in `types`. Always descends into
+ * @graph. With `deep`, also descends into every nested object/array value,
+ * so Product.aggregateRating or Product.review is found.
+ */
+function findByType(
+  blocks: unknown[],
+  types: string | ReadonlySet<string>,
+  deep = false,
+  depth = 0
+): Record<string, unknown>[] {
   const matches: Record<string, unknown>[] = [];
+  if (depth > MAX_JSONLD_DEPTH) return matches;
+  const wanted = typeof types === "string" ? new Set([types]) : types;
   for (const b of blocks) {
     if (!b || typeof b !== "object") continue;
+    if (Array.isArray(b)) {
+      if (deep) matches.push(...findByType(b, wanted, deep, depth + 1));
+      continue;
+    }
     const obj = b as Record<string, unknown>;
-    const t = obj["@type"];
-    if (typeof t === "string" && t === typeName) matches.push(obj);
-    else if (Array.isArray(t) && t.includes(typeName)) matches.push(obj);
-    // also descend into @graph if present
-    const graph = obj["@graph"];
-    if (Array.isArray(graph)) matches.push(...findByType(graph, typeName));
+    if (typeNames(obj["@type"]).some((n) => wanted.has(n))) matches.push(obj);
+    if (deep) {
+      for (const [k, v] of Object.entries(obj)) {
+        if (k === "@type" || !v || typeof v !== "object") continue;
+        matches.push(...findByType([v], wanted, deep, depth + 1));
+      }
+    } else {
+      // also descend into @graph if present
+      const graph = obj["@graph"];
+      if (Array.isArray(graph)) matches.push(...findByType(graph, wanted, deep, depth + 1));
+    }
   }
   return matches;
 }
@@ -154,7 +233,10 @@ const NL = String.fromCharCode(10);
 const QUESTION_MAX_CHARS = 300;
 const QUESTIONS_SAMPLED = 8;
 
-export async function evalConversational(env: Env, questions: string[]): Promise<{ score: number; note: string }> {
+export async function evalConversational(
+  env: Env,
+  questions: string[]
+): Promise<{ score: number; note: string; unmeasured?: true }> {
   if (questions.length === 0) return { score: 0, note: "no questions to evaluate" };
   // FAQ questions are site-controlled text: clean them, screen them, fence them.
   const sample = questions
@@ -190,7 +272,9 @@ Return a single average score 0-100, nothing else.`;
     cacheKey: `dim4:conversational${NL}${joined}`,
     metered: true,
   });
-  const tag = cached ? " (cached)" : fallback ? " (LLM output unusable; default)" : "";
+  // 1.3.3: an AI failure or spent budget is "not measured", never a default score.
+  if (fallback) return { score: 0, note: FAQ_UNMEASURED_NOTE, unmeasured: true };
+  const tag = cached ? " (cached)" : "";
   return { score, note: `LLM rated ${questions.length} question(s) avg ${score}/100${tag}` };
 }
 
@@ -266,18 +350,20 @@ export async function runDim4(
   });
 
   // 2. organization_schema
-  const orgs = findByType(validBlocks, "Organization");
+  const orgs = findByType(validBlocks, ORGANIZATION_TYPES);
   let orgScore = 0;
   let orgNote = "no Organization schema";
   if (orgs.length > 0) {
     const o = orgs[0];
-    let s = 0;
-    if (typeof o.name === "string" && o.name) s += 20;
-    if (typeof o.url === "string" && o.url) s += 20;
-    if (typeof o.description === "string" && o.description) s += 20;
-    const sameAs = Array.isArray(o.sameAs) ? o.sameAs : [];
-    if (sameAs.length >= 3) s += 40;
-    else if (sameAs.length >= 1) s += Math.round((sameAs.length / 3) * 40);
+    // 1.3.3: name + url + description pass (90); sameAs is a bonus only
+    // (+10 on a complete block), so a business with no social profiles is
+    // never pushed to invent some.
+    const hasName = typeof o.name === "string" && !!o.name;
+    const hasUrl = typeof o.url === "string" && !!o.url;
+    const hasDesc = typeof o.description === "string" && !!o.description;
+    const sameAs = Array.isArray(o.sameAs) ? o.sameAs : typeof o.sameAs === "string" && o.sameAs ? [o.sameAs] : [];
+    let s = [hasName, hasUrl, hasDesc].filter(Boolean).length * 30;
+    if (s === 90 && sameAs.length >= 1) s += 10;
     orgScore = s;
     orgNote = `Organization found: name=${!!o.name}, url=${!!o.url}, description=${!!o.description}, sameAs=${sameAs.length}`;
   }
@@ -291,35 +377,24 @@ export async function runDim4(
   });
 
   // 3. service_offer_schema
-  const services = [
-    ...findByType(validBlocks, "Service"),
-    ...findByType(validBlocks, "Product"),
-    ...findByType(validBlocks, "Offer"),
-  ];
+  const services = findByType(validBlocks, SERVICE_OFFER_TYPES);
   let svcScore = 0;
   let svcNote = "no Service / Product / Offer schema";
   if (services.length > 0) {
+    // 1.3.3: price is not required. Quote-based businesses publish no price,
+    // and requiring one pushed them to invent it.
     let bestPartial = 0;
-    let bestFull = false;
     for (const s of services) {
       const hasName = typeof s.name === "string" && !!s.name;
       const hasDesc = typeof s.description === "string" && !!s.description;
-      const hasProvider = !!s.provider || !!s.brand;
-      const offers = s.offers;
-      const offerArr = Array.isArray(offers) ? offers : offers ? [offers] : [];
-      const hasPrice = offerArr.some(
-        (o: unknown) =>
-          typeof o === "object" &&
-          o !== null &&
-          ("price" in o || "priceSpecification" in o || "priceCurrency" in o)
-      );
-      const fullyMet = hasName && hasDesc && hasProvider && hasPrice;
-      const partials = [hasName, hasDesc, hasProvider, hasPrice].filter(Boolean).length;
-      if (fullyMet) bestFull = true;
+      const hasProvider =
+        !!s.provider || !!s.brand || !!s.seller || !!s.offeredBy || !!s.publisher ||
+        !!s.author || !!s.creator || !!s.manufacturer;
+      const partials = [hasName, hasDesc, hasProvider].filter(Boolean).length;
       if (partials > bestPartial) bestPartial = partials;
     }
-    svcScore = bestFull ? 100 : bestPartial >= 2 ? 50 : 0;
-    svcNote = `${services.length} Service/Product/Offer block(s); best match has ${bestPartial}/4 required fields`;
+    svcScore = bestPartial === 3 ? 100 : bestPartial === 2 ? 50 : 0;
+    svcNote = `${services.length} Service/Product/Offer block(s); best match has ${bestPartial}/3 required fields`;
   }
   subs.push({
     id: "service_offer_schema",
@@ -344,26 +419,40 @@ export async function runDim4(
     }
   }
   const qCount = questions.length;
-  let countScore = 0;
-  if (qCount >= 5) countScore = 100;
-  else if (qCount >= 3) countScore = 60;
-  else if (qCount >= 1) countScore = 30;
-  let conv = { score: 0, note: "skipped (no questions)" };
+  // 1.3.3: N/A without FAQPage markup (weight redistributed). When present,
+  // one or more Q&A earns the full count term (no >=5 ladder pushing sites to
+  // pad); an unavailable AI rating leaves the sub-check not measured.
+  const countScore = qCount >= 1 ? 100 : 0;
+  let conv: { score: number; note: string; unmeasured?: true } = { score: 0, note: "skipped (no questions)" };
   if (qCount > 0) conv = await evalConversational(env, questions);
-  const faqScore = Math.round(countScore * 0.6 + conv.score * 0.4);
-  subs.push({
-    id: "faq_schema",
-    name: "FAQPage schema (count + conversational LLM eval)",
-    weight: 20,
-    score: faqScore,
-    passed: faqScore >= 70,
-    notes: `${qCount} Q&A pair(s); ${conv.note}`,
-  });
+  const faqName = "FAQPage schema (count + conversational LLM eval)";
+  if (faqPages.length === 0 || conv.unmeasured) {
+    subs.push({
+      id: "faq_schema",
+      name: faqName,
+      weight: 20,
+      score: 0,
+      passed: false,
+      notes: faqPages.length === 0 ? FAQ_SCHEMA_NA_NOTE : `${qCount} Q&A pair(s); ${conv.note}`,
+      na: true,
+    });
+  } else {
+    const faqScore = Math.round(countScore * 0.6 + conv.score * 0.4);
+    subs.push({
+      id: "faq_schema",
+      name: faqName,
+      weight: 20,
+      score: faqScore,
+      passed: faqScore >= 70,
+      notes: `${qCount} Q&A pair(s); ${conv.note}`,
+    });
+  }
 
   // 5. review_schema. 1.3.2: N/A when no Review/AggregateRating markup is
   // present (weight redistributed, like Dim 5 pricing_text_visibility).
   // Scoring its absence pushed sites without real ratings to invent them.
-  const reviews = [...findByType(validBlocks, "Review"), ...findByType(validBlocks, "AggregateRating")];
+  // 1.3.3: nested ratings count too (Product.aggregateRating, Product.review).
+  const reviews = findByType(validBlocks, REVIEW_TYPES, true);
   if (reviews.length > 0) {
     const wellFormed = reviews.some((r) => typeof r.ratingValue !== "undefined" || typeof r.reviewRating !== "undefined" || typeof r.author !== "undefined");
     const reviewScore = wellFormed ? 100 : 50;

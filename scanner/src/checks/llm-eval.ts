@@ -25,7 +25,9 @@ export const MAX_PROMPT_CHARS = 6000;
 // Security pass 2026-11-04: global soft cap on billable Workers AI calls per
 // UTC day (KV read-modify-write, so concurrent bursts can overshoot a little;
 // the best-effort IP rate limits only reduce that). Cache hits don't count. When spent,
-// the sub-check gets the same default score / note as an AI failure.
+// the call returns fallback:true exactly like an AI failure. Since 1.3.3 the
+// scan-path callers (Dim 1 blockquote, Dim 4 FAQ) then mark the sub-check
+// N/A "not measured" and ignore the default score.
 export const DAILY_AI_CALL_CAP = 1000;
 
 export function aiBudgetKey(now: Date = new Date()): string {

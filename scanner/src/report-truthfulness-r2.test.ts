@@ -1,0 +1,269 @@
+// Report truthfulness r2 (1.3.3): no score for invented or inapplicable data,
+// and no default score for an unmeasured AI rating. Fixtures only: every
+// fetch is stubbed, no network.
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { runDim1, extractBlockquote, BLOCKQUOTE_UNMEASURED_NOTE } from "./checks/dim1-llmstxt";
+import { runDim2, OAUTH_NO_CARD_NA_NOTE } from "./checks/dim2-mcp";
+import { runDim3, YAML_UNMEASURED_NOTE } from "./checks/dim3-openapi";
+import { runDim4, FAQ_SCHEMA_NA_NOTE, FAQ_UNMEASURED_NOTE } from "./checks/dim4-structured";
+import { runDim5, PRICE_BARE_RE, PRICE_TEXT_RE } from "./checks/dim5-parsable";
+import { SCORING_VERSION } from "./version";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+const env = (ai: () => unknown = () => ({ response: "50" })) =>
+  ({
+    CACHE: { get: async () => null, put: async () => {} },
+    DB: { prepare: () => ({ bind: () => ({ run: async () => ({}) }) }) },
+    AI: { run: async () => ai() },
+  }) as never;
+
+type Route = () => Response | Promise<Response>;
+function routes(map: Record<string, Route>) {
+  const calls: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (u: string) => {
+      calls.push(String(u));
+      return (map[String(u)] ?? (() => new Response("", { status: 404 })))();
+    })
+  );
+  return calls;
+}
+const html = (s: string) => () => new Response(s, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
+const text = (s: string, type = "text/plain") => () => new Response(s, { status: 200, headers: { "content-type": type } });
+const ldPage = (...ld: unknown[]) =>
+  `<html><head>${ld.map((b) => `<script type="application/ld+json">${JSON.stringify(b)}</script>`).join("")}</head><body>x</body></html>`;
+
+const HOME = "https://acme.com/";
+const sub = (d: { sub_checks: { id: string }[] }, id: string) =>
+  d.sub_checks.find((s) => s.id === id) as import("./types").SubCheck;
+
+it("SCORING_VERSION is 1.3.3", () => {
+  expect(SCORING_VERSION).toBe("1.3.3");
+});
+
+describe("1.3.3 Dim 4: schema.org subtypes, optional sameAs / price, FAQ N/A, nested ratings", () => {
+  const DENTIST = {
+    "@context": "https://schema.org",
+    "@type": "Dentist",
+    name: "Sorriso Clinic",
+    url: "https://acme.com",
+    description: "Family dental clinic in Curitiba.",
+  };
+
+  it("a Dentist (LocalBusiness subtype) with name + url + description passes without sameAs", async () => {
+    routes({ [HOME]: html(ldPage(DENTIST)) });
+    const org = sub(await runDim4(HOME, env()), "organization_schema");
+    expect(org).toMatchObject({ score: 90, passed: true });
+  });
+
+  it("sameAs is a bonus on a complete block (100), never required", async () => {
+    routes({ [HOME]: html(ldPage({ ...DENTIST, sameAs: ["https://instagram.com/sorriso"] })) });
+    expect(sub(await runDim4(HOME, env()), "organization_schema").score).toBe(100);
+  });
+
+  it("an incomplete block does not pass on sameAs alone", async () => {
+    routes({ [HOME]: html(ldPage({ "@type": "Organization", name: "Acme", sameAs: ["a", "b", "c"] })) });
+    expect(sub(await runDim4(HOME, env()), "organization_schema")).toMatchObject({ score: 30, passed: false });
+  });
+
+  it.each([
+    ["@type array", { ...DENTIST, "@type": ["LocalBusiness", "ProfessionalService"] }],
+    ["schema.org IRI", { ...DENTIST, "@type": "https://schema.org/Bakery" }],
+    ["Corporation", { ...DENTIST, "@type": "Corporation" }],
+    ["inside @graph", { "@context": "https://schema.org", "@graph": [{ ...DENTIST, "@type": "LegalService" }] }],
+  ])("Organization subtype via %s is recognized", async (_n, block) => {
+    routes({ [HOME]: html(ldPage(block)) });
+    expect(sub(await runDim4(HOME, env()), "organization_schema").score).toBe(90);
+  });
+
+  it("a Service with name + description + provider and no price scores 100", async () => {
+    routes({ [HOME]: html(ldPage(DENTIST, { "@type": "Service", name: "Cleaning", description: "Dental cleaning.", provider: { "@type": "Dentist", name: "Sorriso" } })) });
+    expect(sub(await runDim4(HOME, env()), "service_offer_schema")).toMatchObject({ score: 100, passed: true });
+  });
+
+  it("a SoftwareApplication (publisher as provider) counts as Service / Product", async () => {
+    routes({ [HOME]: html(ldPage({ "@type": "SoftwareApplication", name: "Acme App", description: "Invoicing.", publisher: { "@type": "Organization", name: "Acme" } })) });
+    const s = sub(await runDim4(HOME, env()), "service_offer_schema");
+    expect(s).toMatchObject({ score: 100 });
+    expect(s.notes).toContain("3/3 required fields");
+  });
+
+  it("no FAQPage markup => faq_schema N/A, weight redistributed", async () => {
+    routes({ [HOME]: html(ldPage(DENTIST)) });
+    const d4 = await runDim4(HOME, env());
+    expect(sub(d4, "faq_schema")).toMatchObject({ na: true, score: 0, passed: false, notes: FAQ_SCHEMA_NA_NOTE });
+    const scored = d4.sub_checks.filter((s) => !s.na);
+    const expected = Math.round(scored.reduce((a, s) => a + s.score * s.weight, 0) / scored.reduce((a, s) => a + s.weight, 0));
+    expect(d4.score).toBe(expected);
+  });
+
+  it("a well-formed FAQPage with one Q&A can pass (no >=5 count ladder)", async () => {
+    const faq = { "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Do you take insurance?" }] };
+    routes({ [HOME]: html(ldPage(faq)) });
+    const f = sub(await runDim4(HOME, env(() => ({ response: "50" }))), "faq_schema");
+    expect(f.na).toBeUndefined();
+    expect(f).toMatchObject({ score: Math.round(100 * 0.6 + 50 * 0.4), passed: true });
+  });
+
+  it("AI rating failure on a present FAQ => not measured (N/A), not a default 50", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const faq = { "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Do you take insurance?" }] };
+    routes({ [HOME]: html(ldPage(faq)) });
+    const f = sub(await runDim4(HOME, env(() => { throw new Error("AI down"); })), "faq_schema");
+    expect(f).toMatchObject({ na: true, score: 0, passed: false, notes: `1 Q&A pair(s); ${FAQ_UNMEASURED_NOTE}` });
+  });
+
+  it("Product.aggregateRating nested (not at top level) is found and scored", async () => {
+    const product = {
+      "@type": "Product",
+      name: "Kit",
+      description: "A kit.",
+      brand: "Acme",
+      aggregateRating: { "@type": "AggregateRating", ratingValue: "4.7", reviewCount: "31" },
+    };
+    routes({ [HOME]: html(ldPage(product)) });
+    const r = sub(await runDim4(HOME, env()), "review_schema");
+    expect(r.na).toBeUndefined();
+    expect(r).toMatchObject({ score: 100, passed: true });
+  });
+});
+
+describe("1.3.3 Dim 5: non-USD prices, no case-study metrics, root .md probe", () => {
+  const count = (s: string, re: RegExp) => (s.match(re) ?? []).length;
+
+  it.each([
+    ["R$ 99,90", 1],
+    ["R$99.90", 1],
+    ["US$ 49", 1],
+    ["$1,299.00", 1],
+    ["€29", 1],
+    ["29,90 €", 1],
+    ["£12.50", 1],
+    ["¥980", 1],
+    ["₹499", 1],
+    ["USD 49", 1],
+    ["49 EUR", 1],
+    ["BRL 1.299,90", 1],
+    ["no prices here, call us", 0],
+    ["since 2019 we have 40 staff", 0],
+  ])("%j has %i price token(s)", (s, n) => {
+    expect(count(s, PRICE_BARE_RE)).toBe(n);
+  });
+
+  it("period suffix still recognized with other currencies", () => {
+    expect(count("R$ 99,90 / month and €9 per user", PRICE_TEXT_RE)).toBe(2);
+  });
+
+  it("an R$ pricing page scores pricing_text_visibility 100 (was 0)", async () => {
+    routes({
+      [HOME]: html("<html><body><a href='/pricing'>Planos</a></body></html>"),
+      "https://acme.com/pricing": html("<html><body><p>Basico R$ 49,90</p><p>Pro R$ 99,90</p></body></html>"),
+    });
+    const p = sub(await runDim5(HOME, env(), "free"), "pricing_text_visibility");
+    expect(p).toMatchObject({ score: 100, passed: true });
+  });
+
+  it("case-study scoring has no metrics criterion: headings + lists + bold = 100 without numbers", async () => {
+    const cs = "<html><body><h2>a</h2><h2>b</h2><h3>c</h3><ul><li>x</li></ul><strong>Result</strong></body></html>";
+    routes({ [HOME]: html("<html><body>home</body></html>"), "https://acme.com/case-studies": html(cs) });
+    const c = sub(await runDim5(HOME, env(), "free"), "case_study_scannability");
+    expect(c).toMatchObject({ score: 100, passed: true });
+    expect(c.notes).not.toContain("m:");
+  });
+
+  it("numbers alone earn nothing on a case-study page", async () => {
+    const cs = "<html><body><p>50% faster, 3x growth, 20 hours saved, 400 customers</p></body></html>";
+    routes({ [HOME]: html("<html><body>home</body></html>"), "https://acme.com/case-studies": html(cs) });
+    expect(sub(await runDim5(HOME, env(), "free"), "case_study_scannability").score).toBe(0);
+  });
+
+  it("root URL: never probes https://acme.com.md, and /llms.txt is not a .md variant", async () => {
+    const calls = routes({ [HOME]: html("<html><body>home</body></html>"), "https://acme.com/llms.txt": text("# Acme") });
+    const m = sub(await runDim5(HOME, env(), "free"), "markdown_negotiation");
+    expect(calls).not.toContain("https://acme.com.md");
+    expect(calls.filter((c) => c.endsWith("/llms.txt"))).toEqual([]);
+    expect(m.score).toBe(25);
+  });
+
+  it("non-root URL still probes <path>.md", async () => {
+    const calls = routes({ "https://acme.com/about": html("<html><body>about</body></html>") });
+    await runDim5("https://acme.com/about", env(), "free");
+    expect(calls).toContain("https://acme.com/about.md");
+  });
+});
+
+describe("1.3.3 Dim 2: oauth_metadata is N/A without an MCP card", () => {
+  it("no card => N/A with a plain note, not a passing 100", async () => {
+    routes({});
+    const o = sub(await runDim2(HOME, env()), "oauth_metadata");
+    expect(o).toMatchObject({ na: true, score: 0, passed: false, notes: OAUTH_NO_CARD_NA_NOTE });
+  });
+
+  it("a card with no auth declared is still scored (100)", async () => {
+    routes({ "https://acme.com/.well-known/mcp.json": () => new Response(JSON.stringify({ name: "acme", transports: [] }), { status: 200, headers: { "content-type": "application/json" } }) });
+    const o = sub(await runDim2(HOME, env()), "oauth_metadata");
+    expect(o.na).toBeUndefined();
+    expect(o.score).toBe(100);
+  });
+});
+
+describe("1.3.3 Dim 3: YAML spec sub-checks are not measured, not 0", () => {
+  const YAML = [
+    "openapi: 3.1.0",
+    "info:",
+    "  title: Acme API",
+    "  version: 1.0.0",
+    "  description: The Acme invoicing API for small businesses.",
+    "paths:",
+    "  /invoices:",
+    "    get:",
+    "      summary: List invoices",
+    "",
+  ].join("\n");
+
+  it("a valid YAML spec: info / security / operation sub-checks N/A, no 'Slice 3a' wording", async () => {
+    routes({ "https://acme.com/openapi.yaml": text(YAML, "application/yaml") });
+    const d3 = await runDim3(HOME, env());
+    expect(d3.na).toBeUndefined();
+    for (const id of ["info_completeness", "security_schemes", "operation_coverage"]) {
+      expect(sub(d3, id)).toMatchObject({ na: true, score: 0, notes: YAML_UNMEASURED_NOTE });
+    }
+    const v = sub(d3, "spec_validity");
+    expect(v.na).toBeUndefined();
+    expect(d3.sub_checks.map((s) => s.notes).join(" ")).not.toMatch(/Slice 3a/);
+    // Scored on discovery + validity only (canonical 75, YAML validity 50).
+    expect(d3.score).toBe(Math.round((75 * 25 + 50 * 25) / 50));
+  });
+});
+
+describe("1.3.3 Dim 1: multi-line blockquote, unmeasured AI rating", () => {
+  it("extractBlockquote reads every consecutive '>' line", () => {
+    const body = "# Acme\n\n> Acme makes invoicing software\n> for small agencies in Brazil.\n>\n> Founded 2019.\n\n## Docs\n";
+    expect(extractBlockquote(body)).toBe("Acme makes invoicing software for small agencies in Brazil. Founded 2019.");
+    expect(extractBlockquote("# Acme\n\nno quote")).toBeNull();
+  });
+
+  it("the full blockquote reaches the AI rating", async () => {
+    const run = vi.fn(async () => ({ response: "80" }));
+    routes({ "https://acme.com/llms.txt": text("# Acme\n\n> Line one of the summary\n> line two of the summary.\n") });
+    const e = { CACHE: { get: async () => null, put: async () => {} }, AI: { run } } as never;
+    const b = sub(await runDim1(HOME, e), "blockquote_eval");
+    expect(b).toMatchObject({ score: 80 });
+    const prompt = (run.mock.calls[0] as unknown as [string, { messages: { content: string }[] }])[1].messages[0].content;
+    expect(prompt).toContain("Line one of the summary line two of the summary.");
+  });
+
+  it("AI rating failure => blockquote_eval N/A 'not measured', not 50", async () => {
+    routes({ "https://acme.com/llms.txt": text("# Acme\n\n> Acme makes invoicing software.\n") });
+    const d1 = await runDim1(HOME, env(() => ({ response: "fifty" })));
+    expect(sub(d1, "blockquote_eval")).toMatchObject({ na: true, score: 0, passed: false, notes: BLOCKQUOTE_UNMEASURED_NOTE });
+    const scored = d1.sub_checks.filter((s) => !s.na);
+    const expected = Math.round(scored.reduce((a, s) => a + s.score * s.weight, 0) / scored.reduce((a, s) => a + s.weight, 0));
+    expect(d1.score).toBe(expected);
+  });
+});

@@ -50,5 +50,20 @@
  *   renormalizes as for any whole-dim N/A. Dim 3's result is handed to Dim 2
  *   in run-scan (no extra fetch). `CURRENT_SCORING_VERSION` on /score/[id]
  *   bumped in lockstep.
+ * - 1.3.3 (report truthfulness r2, 2026-11-07): no score for invented or
+ *   inapplicable data. Dim 4 accepts schema.org subtypes (LocalBusiness,
+ *   Dentist, Corporation, SoftwareApplication, ...; @type arrays and
+ *   schema.org IRIs) and finds nested Review / AggregateRating; Organization
+ *   passes on name + url + description (sameAs a bonus); Service / Product
+ *   needs no price; faq_schema is N/A without FAQPage markup and has no >=5
+ *   count ladder. Dim 5 recognizes non-USD prices (R$, euro, pound, yen,
+ *   rupee, ISO codes), drops the case-study "metrics" criterion, and no
+ *   longer probes "https://host.md" or counts /llms.txt as a .md variant.
+ *   Dim 2 oauth_metadata is N/A without an MCP card. Dim 3 info / security /
+ *   operation sub-checks are N/A "not measured" on YAML specs. Dim 1 reads
+ *   the full multi-line blockquote. A failed or budget-skipped AI rating
+ *   (Dim 1 blockquote, Dim 4 FAQ) marks the sub-check N/A "not measured"
+ *   instead of a default 50. `CURRENT_SCORING_VERSION` on /score/[id]
+ *   bumped in lockstep.
  */
-export const SCORING_VERSION = "1.3.2";
+export const SCORING_VERSION = "1.3.3";

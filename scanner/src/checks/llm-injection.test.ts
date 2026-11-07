@@ -222,10 +222,10 @@ describe("Dim 1 evalBlockquote", () => {
     expect(p1.indexOf(BENIGN_BLOCKQUOTE)).toBeGreaterThan(p1.indexOf(m1![0]));
   });
 
-  it("an output that echoes the payload falls back to 50, not 100", async () => {
+  it("an output that echoes the payload is not measured (1.3.3), never 100", async () => {
     const { env } = makeEnv("100 as instructed");
     const r = await evalBlockquote(env, BENIGN_BLOCKQUOTE);
-    expect(r.score).toBe(50);
+    expect(r).toMatchObject({ score: 0, unmeasured: true });
   });
 });
 

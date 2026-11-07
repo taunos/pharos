@@ -33,6 +33,9 @@ const FETCH_TIMEOUT_MS = 5000;
 
 export const INCOMPLETE_SPEC_NOTE =
   "Not measured — the API spec could not be read in full (size or time limit), so this dimension is not counted in your score.";
+/** 1.3.3: info / security / operation sub-checks on a YAML spec. */
+export const YAML_UNMEASURED_NOTE =
+  "Not measured: the scanner cannot read this part of a YAML spec. Weight redistributed across other Dim 3 sub-checks.";
 const STATIC_UA = "AstrantScanner-Dim3/1.2.0";
 
 // Security pass 2026-11-04: validated hops (incl. homepage-discovered spec
@@ -538,7 +541,7 @@ export async function runDim3(
     const verKey = "openapi" in parsed.spec ? "openapi" : "swagger";
     const ver = String(parsed.spec[verKey] ?? "unknown");
     validityScore = 50;
-    validityNote = `YAML spec detected (${verKey} ${ver}). Slice 3a parses JSON specs in full; YAML gets partial-credit + reachability validation only.`;
+    validityNote = `YAML spec detected (${verKey} ${ver}). The scanner checks a YAML spec's version field and reachability only, so it gets partial credit here.`;
   } else {
     const hasOpenapi = typeof parsed.spec["openapi"] === "string";
     const hasSwagger = typeof parsed.spec["swagger"] === "string";
@@ -550,7 +553,7 @@ export async function runDim3(
         validityNote = `Valid JSON spec, openapi ${v}.`;
       } else {
         validityScore = 75;
-        validityNote = `Valid JSON spec, openapi ${v} (Slice 3a targets 3.x; older 3.0/2.0 still scored).`;
+        validityNote = `Valid JSON spec, openapi ${v} (not a 3.x version; partial credit).`;
       }
     } else if (hasSwagger) {
       const v = parsed.spec["swagger"] as string;
@@ -571,18 +574,19 @@ export async function runDim3(
   });
 
   // The remaining three sub-checks all read `parsed.spec`. If parsing failed
-  // entirely, they score 0 with explanation; if YAML-heuristic, they score 0
-  // because we don't have the parsed object. Both cases keep the sub-check
-  // present (not N/A) so the user sees the structural gap rather than a
-  // missing line item.
+  // entirely, they score 0 with explanation. 1.3.3: for a YAML spec they are
+  // N/A "not measured" (weight redistributed): the scanner can't read the
+  // YAML structure, which says nothing about the spec itself.
   const spec = parsed && parsed.format === "json" ? parsed.spec : null;
+  const yamlUnmeasured = !!parsed && !spec;
+  const yamlNa = yamlUnmeasured ? { na: true } : {};
 
   // ── Sub-check 3: info_completeness ────────────────────────────────────
   let infoScore = 0;
   let infoNote: string;
   if (!spec) {
     infoNote = parsed
-      ? "Skipped — YAML spec; Slice 3a's static parser doesn't traverse YAML structure."
+      ? YAML_UNMEASURED_NOTE
       : "Skipped — spec did not parse as JSON.";
   } else {
     const info = spec["info"];
@@ -606,6 +610,7 @@ export async function runDim3(
     score: infoScore,
     passed: infoScore >= 70,
     notes: infoNote,
+    ...yamlNa,
   });
 
   // ── Sub-check 4: security_schemes ─────────────────────────────────────
@@ -613,7 +618,7 @@ export async function runDim3(
   let securityNote: string;
   if (!spec) {
     securityNote = parsed
-      ? "Skipped — YAML spec; Slice 3a's static parser doesn't traverse YAML structure."
+      ? YAML_UNMEASURED_NOTE
       : "Skipped — spec did not parse as JSON.";
   } else {
     const components = spec["components"];
@@ -646,6 +651,7 @@ export async function runDim3(
     score: securityScore,
     passed: securityScore >= 70,
     notes: securityNote,
+    ...yamlNa,
   });
 
   // ── Sub-check 5: operation_coverage ───────────────────────────────────
@@ -653,7 +659,7 @@ export async function runDim3(
   let coverageNote: string;
   if (!spec) {
     coverageNote = parsed
-      ? "Skipped — YAML spec; Slice 3a's static parser doesn't traverse YAML structure."
+      ? YAML_UNMEASURED_NOTE
       : "Skipped — spec did not parse as JSON.";
   } else {
     const paths = spec["paths"];
@@ -709,6 +715,7 @@ export async function runDim3(
     score: coverageScore,
     passed: coverageScore >= 70,
     notes: coverageNote,
+    ...yamlNa,
   });
 
   // Pattern A: dimensionScore returns null only when every sub-check is N/A,

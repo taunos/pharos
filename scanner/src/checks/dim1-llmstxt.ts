@@ -35,10 +35,20 @@ function extractH1(body: string): string | null {
   return null;
 }
 
-function extractBlockquote(body: string): string | null {
-  for (const line of body.split(/\r?\n/, 10)) {
-    const m = line.match(/^\s*>\s+(.+)$/);
-    if (m) return m[1].trim();
+// 1.3.3: the whole blockquote (consecutive ">" lines), not just its first
+// line; the AI rating grades it against a 50-250 word rule. It must still
+// start within the first 10 lines.
+export function extractBlockquote(body: string): string | null {
+  const lines = body.split(/\r?\n/);
+  for (let i = 0; i < Math.min(lines.length, 10); i++) {
+    if (!/^\s*>\s+\S/.test(lines[i])) continue;
+    const parts: string[] = [];
+    for (let j = i; j < lines.length; j++) {
+      const m = lines[j].match(/^\s*>\s?(.*)$/);
+      if (!m) break;
+      if (m[1].trim()) parts.push(m[1].trim());
+    }
+    return parts.join(" ");
   }
   return null;
 }
@@ -46,7 +56,14 @@ function extractBlockquote(body: string): string | null {
 // Longer than any 250-word summary needs; keeps the prompt bounded.
 const BLOCKQUOTE_MAX_CHARS = 3000;
 
-export async function evalBlockquote(env: Env, blockquote: string): Promise<{ score: number; note: string }> {
+/** blockquote_eval note (1.3.3) when the AI rating could not run. */
+export const BLOCKQUOTE_UNMEASURED_NOTE =
+  "Not measured: the AI rating of the blockquote was unavailable on this run. Weight redistributed across other Dim 1 sub-checks.";
+
+export async function evalBlockquote(
+  env: Env,
+  blockquote: string
+): Promise<{ score: number; note: string; unmeasured?: true }> {
   // The blockquote is site-controlled text: clean it, screen it, and fence it.
   const text = cleanSiteText(blockquote, BLOCKQUOTE_MAX_CHARS);
   if (!text) return { score: 0, note: "blockquote empty after cleaning" };
@@ -73,7 +90,9 @@ Return ONLY a number 0-100, nothing else.`;
     cacheKey: `dim1:blockquote:${text}`,
     metered: true,
   });
-  const tag = cached ? " (cached)" : fallback ? " (LLM output unusable; default)" : "";
+  // 1.3.3: an AI failure or spent budget is "not measured", never a default score.
+  if (fallback) return { score: 0, note: BLOCKQUOTE_UNMEASURED_NOTE, unmeasured: true };
+  const tag = cached ? " (cached)" : "";
   return { score, note: `LLM rated blockquote ${score}/100${tag}` };
 }
 
@@ -223,18 +242,21 @@ export async function runDim1(targetUrl: string, env: Env): Promise<DimensionRes
   // 5. blockquote_eval
   let bqScore = 0;
   let bqNote = "no blockquote to evaluate";
+  let bqUnmeasured = false;
   if (blockquote) {
     const r = await evalBlockquote(env, blockquote);
     bqScore = r.score;
     bqNote = r.note;
+    bqUnmeasured = r.unmeasured === true;
   }
   subs.push({
     id: "blockquote_eval",
     name: "Blockquote elevator-pitch quality (LLM)",
     weight: 15,
     score: bqScore,
-    passed: bqScore >= 70,
+    passed: !bqUnmeasured && bqScore >= 70,
     notes: bqNote,
+    ...(bqUnmeasured ? { na: true } : {}),
   });
 
   const score = dimensionScoreOrThrow(subs);

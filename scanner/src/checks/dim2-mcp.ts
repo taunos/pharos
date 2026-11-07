@@ -241,6 +241,10 @@ async function dnsTxt(host: string): Promise<{ found: boolean; note: string }> {
 export const DIM2_CONTENT_ONLY_NA_NOTE =
   "No MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), no _mcp DNS TXT record and no MCP endpoint found, and no API was detected (OpenAPI / API Catalog is N/A). A content-only site is not expected to run an MCP server. Dimension marked N/A — composite math drops it without penalty.";
 
+/** oauth_metadata N/A note (1.3.3): no MCP server card was found. */
+export const OAUTH_NO_CARD_NA_NOTE =
+  "No MCP server card found, so there is no declared authentication to check. Weight redistributed across other Dim 2 sub-checks.";
+
 export async function runDim2(
   targetUrl: string,
   env: Env,
@@ -331,9 +335,11 @@ export async function runDim2(
     id: "oauth_metadata",
     name: "OAuth metadata (when auth declared)",
     weight: 15,
-    score: oauthScore,
-    passed: oauthScore >= 70,
-    notes: oauthNote,
+    // 1.3.3: no usable MCP card means no declared auth to check: N/A (weight
+    // redistributed), not a passing 100 for a server that doesn't exist.
+    ...(card
+      ? { score: oauthScore, passed: oauthScore >= 70, notes: oauthNote }
+      : { score: 0, passed: false, notes: OAUTH_NO_CARD_NA_NOTE, na: true }),
   });
 
   // 4. live_invocation

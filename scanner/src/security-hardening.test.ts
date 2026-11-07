@@ -9,7 +9,7 @@ import { compositeOf } from "./scoring";
 import { evalWithCache, aiBudgetKey, DAILY_AI_CALL_CAP, MAX_PROMPT_CHARS } from "./checks/llm-eval";
 import { runDim1, evalBlockquote } from "./checks/dim1-llmstxt";
 import { runDim2 } from "./checks/dim2-mcp";
-import { runDim4, evalConversational } from "./checks/dim4-structured";
+import { runDim4, evalConversational, FAQ_UNMEASURED_NOTE } from "./checks/dim4-structured";
 import { runDim5 } from "./checks/dim5-parsable";
 import app from "./index";
 
@@ -783,7 +783,7 @@ describe("daily Workers AI budget", () => {
     err.mockRestore();
   });
 
-  it("Dim 4 FAQ eval is metered: exhausted budget => the FAQ LLM part gets the AI-failure default and note", async () => {
+  it("Dim 4 FAQ eval is metered: exhausted budget => the FAQ sub-check is not measured (1.3.3)", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const faq = {
       "@type": "FAQPage",
@@ -796,8 +796,8 @@ describe("daily Workers AI budget", () => {
     const d = await runDim4("https://acme.com/", env);
     const s = d.sub_checks.find((x) => x.id === "faq_schema")!;
     expect(run).not.toHaveBeenCalled();
-    expect(s.notes).toBe("3 Q&A pair(s); LLM rated 3 question(s) avg 50/100 (LLM output unusable; default)");
-    expect(s.score).toBe(Math.round(60 * 0.6 + 50 * 0.4));
+    expect(s.notes).toBe(`3 Q&A pair(s); ${FAQ_UNMEASURED_NOTE}`);
+    expect(s).toMatchObject({ na: true, score: 0, passed: false });
     vi.restoreAllMocks();
   });
 
