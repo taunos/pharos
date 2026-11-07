@@ -3,6 +3,7 @@ import { dimensionScoreOrThrow, gradeFor } from "../scoring";
 import { evalWithCache } from "./llm-eval";
 import { cleanSiteText, detectScoringInjection, randomTag, wrapUntrusted } from "./llm-safety";
 import { MAX_HTML_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
+import { isSameSite, siteBase } from "./site-signals";
 
 const FETCH_TIMEOUT_MS = 8000;
 
@@ -13,6 +14,17 @@ export const REVIEW_SCHEMA_NA_NOTE =
 /** faq_schema N/A note (1.3.3): no FAQPage markup on the homepage. */
 export const FAQ_SCHEMA_NA_NOTE =
   "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. Weight redistributed across other Dim 4 sub-checks.";
+
+/**
+ * 1.4.0: Dim 4 sub-check note when the JSON-LD is deeper or larger than the
+ * scanner reads, so absence of a type cannot be claimed.
+ */
+export const notFullyInspectedNote = (what: string) =>
+  `Not fully inspected: this page's JSON-LD is nested deeper or is larger than the scanner reads, so it could not confirm whether ${what} markup is present. Weight redistributed across other Dim 4 sub-checks.`;
+
+/** faq_schema note (1.4.0): FAQPage markup whose questions carry no answer text. */
+export const FAQ_NO_ANSWERS_NOTE =
+  "FAQPage markup found, but none of its questions has an answer text (acceptedAnswer.text), so there are no Q&A pairs to rate.";
 
 /** faq_schema note (1.3.3) when the AI rating of the questions could not run. */
 export const FAQ_UNMEASURED_NOTE =
@@ -192,41 +204,90 @@ function typeNames(t: unknown): string[] {
 }
 
 const MAX_JSONLD_DEPTH = 32;
+/** Objects / arrays visited per search; past it the search reports itself incomplete. */
+const MAX_JSONLD_NODES = 20000;
+
+type Found = { matches: Array<{ obj: Record<string, unknown>; depth: number }>; incomplete: boolean };
 
 /**
- * Blocks whose @type (string or array) is in `types`. Always descends into
- * @graph. With `deep`, also descends into every nested object/array value,
- * so Product.aggregateRating or Product.review is found.
+ * Blocks whose @type (string or array) is in `types`, at any depth. 1.4.0:
+ * always deep (WebSite.publisher -> Organization, Offer.itemOffered ->
+ * Product, WebPage.mainEntity -> FAQPage were invisible), bounded by depth
+ * and node count. `incomplete` is true when a bound stopped the search, so a
+ * caller never turns "not inspected" into "absent".
  */
-function findByType(
-  blocks: unknown[],
-  types: string | ReadonlySet<string>,
-  deep = false,
-  depth = 0
-): Record<string, unknown>[] {
-  const matches: Record<string, unknown>[] = [];
-  if (depth > MAX_JSONLD_DEPTH) return matches;
+function findByType(blocks: unknown[], types: string | ReadonlySet<string>): Found {
   const wanted = typeof types === "string" ? new Set([types]) : types;
-  for (const b of blocks) {
-    if (!b || typeof b !== "object") continue;
-    if (Array.isArray(b)) {
-      if (deep) matches.push(...findByType(b, wanted, deep, depth + 1));
+  const found: Found = { matches: [], incomplete: false };
+  let nodes = 0;
+  const visit = (v: unknown, depth: number): void => {
+    if (!v || typeof v !== "object" || found.incomplete) return;
+    if (depth > MAX_JSONLD_DEPTH || ++nodes > MAX_JSONLD_NODES) {
+      found.incomplete = true;
+      return;
+    }
+    if (Array.isArray(v)) {
+      for (const x of v) visit(x, depth + 1);
+      return;
+    }
+    const obj = v as Record<string, unknown>;
+    if (typeNames(obj["@type"]).some((n) => wanted.has(n))) found.matches.push({ obj, depth });
+    for (const [k, x] of Object.entries(obj)) if (k !== "@type") visit(x, depth + 1);
+  };
+  for (const b of blocks) visit(b, 0);
+  return found;
+}
+
+/** A number, or a string holding only a number ("4.8", "4,8", "12"). */
+function isNumeric(v: unknown): boolean {
+  if (typeof v === "number") return Number.isFinite(v);
+  return typeof v === "string" && /^\s*\d{1,9}(?:[.,]\d{1,6})?\s*$/.test(v);
+}
+
+/**
+ * 1.4.0: an AggregateRating is well-formed with a numeric ratingValue and a
+ * numeric ratingCount or reviewCount; a Review with an author and a
+ * reviewRating whose ratingValue is numeric.
+ */
+function ratingWellFormed(r: Record<string, unknown>): boolean {
+  if (typeNames(r["@type"]).includes("AggregateRating")) {
+    return isNumeric(r.ratingValue) && (isNumeric(r.ratingCount) || isNumeric(r.reviewCount));
+  }
+  const rating = r.reviewRating;
+  const ratingObj = rating && typeof rating === "object" && !Array.isArray(rating) ? (rating as Record<string, unknown>) : null;
+  return !!r.author && !!ratingObj && isNumeric(ratingObj.ratingValue);
+}
+
+/** Non-empty answer text in a Question's acceptedAnswer (object or array). */
+function hasAnswerText(q: Record<string, unknown>): boolean {
+  const a = q.acceptedAnswer;
+  return (Array.isArray(a) ? a : [a]).some(
+    (x) => !!x && typeof x === "object" && typeof (x as { text?: unknown }).text === "string" && (x as { text: string }).text.trim().length > 0
+  );
+}
+
+/** Same-host product page links (/products/x, /product/x, /p/x) in the homepage HTML. */
+const PRODUCT_PATH = /^\/(?:products?|p)\/[^/]+\/?$/i;
+const MAX_HREFS_SCANNED = 5000;
+
+export function findProductLink(html: string, pageUrl: string): string | null {
+  const base = siteBase(pageUrl);
+  const re = /\bhref\s*=\s*["']([^"'<>\s]{1,2048})["']/gi;
+  let m: RegExpExecArray | null;
+  for (let n = 0; (m = re.exec(html)) !== null && n < MAX_HREFS_SCANNED; n++) {
+    let u: URL;
+    try {
+      u = new URL(m[1], pageUrl);
+    } catch {
       continue;
     }
-    const obj = b as Record<string, unknown>;
-    if (typeNames(obj["@type"]).some((n) => wanted.has(n))) matches.push(obj);
-    if (deep) {
-      for (const [k, v] of Object.entries(obj)) {
-        if (k === "@type" || !v || typeof v !== "object") continue;
-        matches.push(...findByType([v], wanted, deep, depth + 1));
-      }
-    } else {
-      // also descend into @graph if present
-      const graph = obj["@graph"];
-      if (Array.isArray(graph)) matches.push(...findByType(graph, wanted, deep, depth + 1));
-    }
+    if ((u.protocol !== "https:" && u.protocol !== "http:") || !isSameSite(u.hostname, base)) continue;
+    if (!PRODUCT_PATH.test(u.pathname)) continue;
+    u.search = "";
+    u.hash = "";
+    return u.toString();
   }
-  return matches;
+  return null;
 }
 
 const NL = String.fromCharCode(10);
@@ -271,6 +332,7 @@ Return a single average score 0-100, nothing else.`;
     prompt,
     cacheKey: `dim4:conversational${NL}${joined}`,
     metered: true,
+    expectedCount: sample.length,
   });
   // 1.3.3: an AI failure or spent budget is "not measured", never a default score.
   if (fallback) return { score: 0, note: FAQ_UNMEASURED_NOTE, unmeasured: true };
@@ -350,21 +412,33 @@ export async function runDim4(
   });
 
   // 2. organization_schema
-  const orgs = findByType(validBlocks, ORGANIZATION_TYPES);
+  const siteHost = siteBase(targetUrl);
+  const orgFound = findByType(validBlocks, ORGANIZATION_TYPES);
+  const fields = (o: Record<string, unknown>) =>
+    [typeof o.name === "string" && !!o.name, typeof o.url === "string" && !!o.url, typeof o.description === "string" && !!o.description].filter(Boolean).length;
+  const ownSite = (o: Record<string, unknown>) => {
+    try {
+      return typeof o.url === "string" && isSameSite(new URL(o.url, targetUrl).hostname, siteHost) ? 1 : 0;
+    } catch {
+      return 0;
+    }
+  };
+  // 1.4.0: nested Organizations count (WebSite.publisher, Service.provider).
+  // Prefer the one describing this site (its url on this host), then the most
+  // complete, then the shallowest, rather than the first one found.
+  const orgs = [...orgFound.matches].sort(
+    (a, b) => ownSite(b.obj) - ownSite(a.obj) || fields(b.obj) - fields(a.obj) || a.depth - b.depth
+  );
   let orgScore = 0;
   let orgNote = "no Organization schema";
   if (orgs.length > 0) {
-    const o = orgs[0];
-    // 1.3.3: name + url + description pass (90); sameAs is a bonus only
-    // (+10 on a complete block), so a business with no social profiles is
-    // never pushed to invent some.
-    const hasName = typeof o.name === "string" && !!o.name;
-    const hasUrl = typeof o.url === "string" && !!o.url;
-    const hasDesc = typeof o.description === "string" && !!o.description;
+    const o = orgs[0].obj;
+    // 1.4.0: name + url + description is complete (100). sameAs is
+    // informational only, never a gap: a business with no social profiles
+    // is never pushed to invent some.
+    const hits = fields(o);
     const sameAs = Array.isArray(o.sameAs) ? o.sameAs : typeof o.sameAs === "string" && o.sameAs ? [o.sameAs] : [];
-    let s = [hasName, hasUrl, hasDesc].filter(Boolean).length * 30;
-    if (s === 90 && sameAs.length >= 1) s += 10;
-    orgScore = s;
+    orgScore = hits === 3 ? 100 : hits * 30;
     orgNote = `Organization found: name=${!!o.name}, url=${!!o.url}, description=${!!o.description}, sameAs=${sameAs.length}`;
   }
   subs.push({
@@ -374,12 +448,49 @@ export async function runDim4(
     score: orgScore,
     passed: orgScore >= 70,
     notes: orgNote,
+    ...(orgs.length === 0 && orgFound.incomplete ? { notes: notFullyInspectedNote("Organization"), na: true } : {}),
   });
 
   // 3. service_offer_schema
-  const services = findByType(validBlocks, SERVICE_OFFER_TYPES);
+  let svcFound = findByType(validBlocks, SERVICE_OFFER_TYPES);
+  let svcFrom = "";
+  let svcEvidence: SubCheckEvidence | null = null;
+  // 1.4.0 (F17): a store's homepage often carries no Product markup while its
+  // product pages do. When the homepage links a product page on this site and
+  // has no Service / Product / Offer, sample one (same host, one request,
+  // same caps) before reporting absence.
+  if (svcFound.matches.length === 0 && !svcFound.incomplete && html) {
+    const productUrl = findProductLink(html, res?.url || targetUrl);
+    if (productUrl) {
+      const pr = await timedFetch(productUrl, { headers: { "User-Agent": "AstrantScanner/0.1", Accept: "text/html" } });
+      if (pr && pr.status === 200) {
+        const pb = await pr.body({ maxBytes: MAX_HTML_BYTES });
+        if (pb.complete || pb.truncated) {
+          const productBlocks = extractJsonLdBlocks(pb.text).filter((b) => !(b as { __invalid?: boolean })?.__invalid);
+          const onProduct = findByType(productBlocks, SERVICE_OFFER_TYPES);
+          svcFound = { matches: onProduct.matches, incomplete: onProduct.incomplete };
+          svcFrom = productUrl;
+          svcEvidence = {
+            status: pr.status,
+            content_type: pr.headers.get("content-type") ?? "",
+            parsed: true,
+            requested_url: productUrl,
+            final_url: pr.url ?? "",
+            body_complete: pb.complete,
+            truncated: pb.truncated,
+            ld_json_absent_proven: ldJsonAbsentProven(pb.text, pr.headers.get("content-type") ?? "", pb.complete),
+          };
+        }
+      } else {
+        pr?.discard();
+      }
+    }
+  }
+  const services = svcFound.matches.map((m) => m.obj);
   let svcScore = 0;
-  let svcNote = "no Service / Product / Offer schema";
+  let svcNote = svcFrom
+    ? `no Service / Product / Offer schema on the homepage or on the sampled product page (${svcFrom})`
+    : "no Service / Product / Offer schema";
   if (services.length > 0) {
     // 1.3.3: price is not required. Quote-based businesses publish no price,
     // and requiring one pushed them to invent it.
@@ -395,6 +506,7 @@ export async function runDim4(
     }
     svcScore = bestPartial === 3 ? 100 : bestPartial === 2 ? 50 : 0;
     svcNote = `${services.length} Service/Product/Offer block(s); best match has ${bestPartial}/3 required fields`;
+    if (svcFrom) svcNote += ` (on the sampled product page ${svcFrom}; none on the homepage)`;
   }
   subs.push({
     id: "service_offer_schema",
@@ -403,18 +515,21 @@ export async function runDim4(
     score: svcScore,
     passed: svcScore >= 70,
     notes: svcNote,
+    ...(services.length === 0 && svcFound.incomplete ? { notes: notFullyInspectedNote("Service / Product / Offer"), na: true } : {}),
   });
 
   // 4. faq_schema
-  const faqPages = findByType(validBlocks, "FAQPage");
+  const faqFound = findByType(validBlocks, "FAQPage");
+  const faqPages = faqFound.matches.map((m) => m.obj);
   const questions: string[] = [];
   for (const f of faqPages) {
     const me = f.mainEntity;
     const arr = Array.isArray(me) ? me : me ? [me] : [];
     for (const item of arr) {
       if (typeof item === "object" && item !== null) {
+        // 1.4.0: a Q&A pair is a question with a non-empty answer text.
         const q = (item as Record<string, unknown>).name;
-        if (typeof q === "string" && q.trim()) questions.push(q.trim());
+        if (typeof q === "string" && q.trim() && hasAnswerText(item as Record<string, unknown>)) questions.push(q.trim());
       }
     }
   }
@@ -433,9 +548,16 @@ export async function runDim4(
       weight: 20,
       score: 0,
       passed: false,
-      notes: faqPages.length === 0 ? FAQ_SCHEMA_NA_NOTE : `${qCount} Q&A pair(s); ${conv.note}`,
+      notes:
+        faqPages.length > 0
+          ? `${qCount} Q&A pair(s); ${conv.note}`
+          : faqFound.incomplete
+            ? notFullyInspectedNote("FAQPage")
+            : FAQ_SCHEMA_NA_NOTE,
       na: true,
     });
+  } else if (qCount === 0) {
+    subs.push({ id: "faq_schema", name: faqName, weight: 20, score: 0, passed: false, notes: FAQ_NO_ANSWERS_NOTE });
   } else {
     const faqScore = Math.round(countScore * 0.6 + conv.score * 0.4);
     subs.push({
@@ -452,9 +574,10 @@ export async function runDim4(
   // present (weight redistributed, like Dim 5 pricing_text_visibility).
   // Scoring its absence pushed sites without real ratings to invent them.
   // 1.3.3: nested ratings count too (Product.aggregateRating, Product.review).
-  const reviews = findByType(validBlocks, REVIEW_TYPES, true);
+  const reviewFound = findByType(validBlocks, REVIEW_TYPES);
+  const reviews = reviewFound.matches.map((m) => m.obj);
   if (reviews.length > 0) {
-    const wellFormed = reviews.some((r) => typeof r.ratingValue !== "undefined" || typeof r.reviewRating !== "undefined" || typeof r.author !== "undefined");
+    const wellFormed = reviews.some(ratingWellFormed);
     const reviewScore = wellFormed ? 100 : 50;
     subs.push({
       id: "review_schema",
@@ -471,12 +594,12 @@ export async function runDim4(
       weight: 15,
       score: 0,
       passed: false,
-      notes: REVIEW_SCHEMA_NA_NOTE,
+      notes: reviewFound.incomplete ? notFullyInspectedNote("Review / AggregateRating") : REVIEW_SCHEMA_NA_NOTE,
       na: true,
     });
   }
 
-  for (const sc of subs) sc.evidence = { ...evidence };
+  for (const sc of subs) sc.evidence = { ...(sc.id === "service_offer_schema" && svcEvidence ? svcEvidence : evidence) };
   const score = dimensionScoreOrThrow(subs);
   return {
     dimension_id: 4,

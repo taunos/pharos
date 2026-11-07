@@ -19,6 +19,7 @@ import { runDim3, type HomepageRead } from "./checks/dim3-openapi";
 import { runDim4 } from "./checks/dim4-structured";
 import { runDim5 } from "./checks/dim5-parsable";
 import { runDim6 } from "./checks/dim6-citation";
+import { gatherSiteSignals } from "./checks/site-signals";
 import { SCORING_VERSION } from "./version";
 
 export type RunScanOpts = {
@@ -76,17 +77,23 @@ export async function runScan(
   // handing it over (resolve is idempotent), so Dim 3 never waits forever.
   let handHomepage!: (homepage: HomepageRead | null) => void;
   const homepage = new Promise<HomepageRead | null>((resolve) => (handHomepage = resolve));
+  // 1.4.0: Dim 1 hands over the /llms.txt text it read the same way, and
+  // site-signals looks in both for MCP / API links (a GraphQL probe only when
+  // the links show nothing). Dim 2 and Dim 3 read the result.
+  let handLlms!: (text: string | null) => void;
+  const llmsTxt = new Promise<string | null>((resolve) => (handLlms = resolve));
+  const signals = gatherSiteSignals(url, llmsTxt, homepage);
   // 1.3.2: Dim 2 goes whole-dim N/A when Dim 3 found no API surface (na, not
   // unmeasured) and Dim 2 found no MCP artifact. Dim 3's result is handed over
   // as a promise (no extra fetch); a Dim 3 failure counts as "not content-only".
-  const d3p = runDim3(url, env, homepage);
+  const d3p = runDim3(url, env, homepage, signals);
   const contentOnly = d3p.then(
     (d) => d.na === true && !d.unmeasured,
     () => false
   );
   const [d1, d2, d3, d4, d5, d6] = await Promise.all([
-    runDim1(url, env),
-    runDim2(url, env, contentOnly),
+    runDim1(url, env, handLlms).finally(() => handLlms(null)),
+    runDim2(url, env, contentOnly, signals),
     d3p,
     runDim4(url, env, handHomepage).finally(() => handHomepage(null)),
     runDim5(url, env, tier),

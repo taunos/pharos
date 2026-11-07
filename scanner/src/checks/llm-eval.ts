@@ -51,7 +51,43 @@ export type EvalRequest = {
   // Count this call against DAILY_AI_CALL_CAP. Every scan-path caller (Dim 1
   // blockquote, Dim 4 FAQ) sets it.
   metered?: boolean;
+  // 1.4.0: the number of items the prompt asks the model to rate (Dim 4 FAQ
+  // questions). When set, a reply that scores each item on its own numbered
+  // line ("1. 60 - ...", one line per item, in order) is accepted and
+  // averaged; anything else is still held to the strict bare-integer rule.
+  expectedCount?: number;
 };
+
+/** Output tokens for a bare score; a numbered reply gets room for each line. */
+const BARE_MAX_TOKENS = 8;
+const TOKENS_PER_NUMBERED_LINE = 24;
+const MAX_NUMBERED_TOKENS = 200;
+
+/**
+ * 1.4.0: a per-item reply ("1. 60 - Sounds natural", "2) 75", one non-empty
+ * line per item). Accepted only when there are exactly `count` lines, line i
+ * starts with the index i (1-based) and a 0-100 score, and the score is not
+ * glued to more digits or text. When the reply was cut at the token limit,
+ * the last line must carry text after its score (its number could otherwise
+ * be cut short). Returns the rounded average, or null.
+ */
+export function parseNumberedScores(raw: string, count: number, truncated = false): number | null {
+  if (!Number.isInteger(count) || count < 1) return null;
+  const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== "");
+  if (lines.length !== count) return null;
+  let sum = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^(\d{1,2})[.)]\s*(\d{1,3})(.*)$/.exec(lines[i]);
+    if (!m || Number(m[1]) !== i + 1) return null;
+    const n = Number(m[2]);
+    const rest = m[3];
+    if (n > 100) return null;
+    if (rest !== "" && rest !== "." && !/^(?:\s*\/\s*100)?(?:\s|[-:,(–—])/.test(rest)) return null;
+    if (truncated && i === lines.length - 1 && rest === "") return null;
+    sum += n;
+  }
+  return Math.round(sum / count);
+}
 
 export async function evalWithCache(env: Env, req: EvalRequest): Promise<EvalResult> {
   const defaultScore = req.defaultScore ?? 50;
@@ -82,14 +118,21 @@ export async function evalWithCache(env: Env, req: EvalRequest): Promise<EvalRes
   }
 
   let raw: string;
+  let truncated = false;
+  const numbered = typeof req.expectedCount === "number" && req.expectedCount >= 1;
+  const maxTokens = numbered
+    ? Math.min(MAX_NUMBERED_TOKENS, BARE_MAX_TOKENS + TOKENS_PER_NUMBERED_LINE * (req.expectedCount as number))
+    : BARE_MAX_TOKENS;
   try {
     const response = (await env.AI.run(MODEL, {
       messages: [{ role: "user", content: req.prompt }],
-      max_tokens: 8,
+      max_tokens: maxTokens,
       temperature: 0,
       seed: 42,
-    })) as { response?: string };
+    })) as { response?: string; usage?: { completion_tokens?: number } };
     raw = typeof response?.response === "string" ? response.response : "";
+    const used = response?.usage?.completion_tokens;
+    truncated = typeof used === "number" && used >= maxTokens;
   } catch {
     // Don't cache failures — transient AI errors shouldn't become permanent.
     return { score: defaultScore, cached: false, fallback: true };
@@ -99,7 +142,7 @@ export async function evalWithCache(env: Env, req: EvalRequest): Promise<EvalRes
   // first-integer-anywhere parse let an echoed payload ("100. Ignore...")
   // or chatter ("Score: 100") through. Non-conforming output is the default
   // score and is not cached, so a later scan can retry.
-  const score = parseStrictScore(raw);
+  const score = parseStrictScore(raw) ?? (numbered ? parseNumberedScores(raw, req.expectedCount as number, truncated) : null);
   if (score === null) return { score: defaultScore, cached: false, raw, fallback: true };
 
   await env.CACHE.put(versionedKey, String(score), { expirationTtl: CACHE_TTL_SECONDS });

@@ -1,0 +1,60 @@
+openapi: 3.0.3
+info:
+  title: Resend
+  version: 1.5.0
+  description: 'Resend is the email platform for developers.'
+servers:
+  - url: https://api.resend.com
+security:
+  - bearerAuth: []
+tags:
+  - name: Emails
+    description: Start sending emails through the Resend API.
+  - name: Domains
+    description: Create and manage domains through the Resend API.
+  - name: API Keys
+    description: Create and manage API Keys through the Resend API.
+  - name: Audiences
+    description: 'Deprecated: Use Segments instead. Create and manage Audiences through the Resend API.'
+  - name: Contacts
+    description: Create and manage Contacts through the Resend API.
+  - name: Receiving Emails
+    description: Retrieve and manage received emails and attachments through the Resend API.
+  - name: Webhooks
+    description: Create and manage Webhooks through the Resend API.
+  - name: Templates
+    description: Create and manage Templates through the Resend API.
+  - name: Broadcasts
+    description: Create and manage Broadcasts through the Resend API.
+  - name: Segments
+    description: Create and manage Segments through the Resend API.
+  - name: Topics
+    description: Create and manage Topics through the Resend API.
+  - name: Contact Properties
+    description: Create and manage Contact Properties through the Resend API.
+  - name: Logs
+    description: Retrieve API request logs through the Resend API.
+  - name: Automations
+    description: Create and manage Automations through the Resend API.
+  - name: Events
+    description: Create and manage Events through the Resend API.
+paths:
+  /emails:
+    post:
+      tags:
+        - Emails
+      summary: Send an email
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            maxLength: 256
+          description: A unique identifier for the request to ensure emails are only sent once. [Learn more](https://resend.com/docs/dashboard/emails/idempotency-keys)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendEmailRequest'
+      responses:

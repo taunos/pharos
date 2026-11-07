@@ -54,7 +54,7 @@ describe("1.3.2 Dim 2: N/A on a content-only site with no MCP artifact", () => {
     expect(d2.sub_checks[0].notes).toBe(DIM2_CONTENT_ONLY_NA_NOTE);
   });
 
-  it("content-only site with a _mcp TXT record => Dim 2 scored as before", async () => {
+  it("content-only site with a _mcp TXT record => Dim 2 scored (TXT is evidence)", async () => {
     routes({
       [HOME]: html(PAGE),
       [DOH]: json({ Status: 0, Answer: [{ name: "_mcp.acme.com", type: 16, data: '"v=1; mcp=https://mcp.acme.com/mcp"' }] }, "application/dns-json"),
@@ -63,8 +63,10 @@ describe("1.3.2 Dim 2: N/A on a content-only site with no MCP artifact", () => {
     expect(dim(r, 3).na).toBe(true);
     const d2 = dim(r, 2);
     expect(d2.na).toBeUndefined();
-    expect(d2.sub_checks.find((s) => s.id === "dns_txt")).toMatchObject({ score: 100, passed: true });
-    expect(d2.score).toBeGreaterThan(0);
+    // 1.4.0: the TXT record still counts as MCP evidence (Dim 2 scored), but
+    // dns_txt itself is informational: no ratified standard defines it.
+    expect(d2.sub_checks.find((s) => s.id === "dns_txt")).toMatchObject({ na: true, score: 0 });
+    expect(d2.sub_checks.find((s) => s.id === "dns_txt")!.notes).toMatch(/^1 TXT record\(s\) at _mcp\.acme\.com\./);
   });
 
   it("content-only site with a (broken) MCP card => Dim 2 scored as before", async () => {

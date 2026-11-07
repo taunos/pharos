@@ -1,0 +1,23 @@
+{
+  "linkset": [
+    {
+      "anchor": "https://api.resend.com",
+      "service-desc": [
+        {
+          "href": "https://resend.com/openapi.yaml",
+          "type": "application/openapi+yaml"
+        }
+      ],
+      "service-doc": [
+        {
+          "href": "https://resend.com/docs"
+        }
+      ],
+      "status": [
+        {
+          "href": "https://status.resend.com"
+        }
+      ]
+    }
+  ]
+}

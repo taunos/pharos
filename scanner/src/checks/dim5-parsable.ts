@@ -2,7 +2,7 @@
 //
 // Five sub-checks (weights from OQ-04 §2 Dim 5):
 //   1. js_vs_no_js_render_diff (30%)  — paid uses Browser Rendering, free is static-only with disclosure
-//   2. page_weight_lcp (15%)          — HTML weight always; LCP only on paid (BR)
+//   2. page_weight_lcp (15%)          — homepage HTML weight (1.4.0: LCP was never measured)
 //   3. markdown_negotiation (25%)     — same on free + paid
 //   4. pricing_text_visibility (20%)  — N/A if no pricing page found (weight redistributed)
 //   5. case_study_scannability (10%)  — heuristic only, no LLM (per Slice 2a constraint)
@@ -14,6 +14,7 @@
 import type { DimensionResult, Env, ScanTier, SubCheck } from "../types";
 import { dimensionScoreOrThrow, gradeFor } from "../scoring";
 import { MAX_HTML_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
+import { isSameSite, siteBase } from "./site-signals";
 import {
   DAILY_BR_INVOCATION_CAP,
   getDailyBrCount,
@@ -231,14 +232,20 @@ function describeStaticAlone(body: string | null): string {
 
 // ── Sub-check 2: page_weight_lcp ─────────────────────────────────────────
 
+/** page_weight_lcp note (1.4.0). */
+export const pageWeightNote = (mb: number, bytes: number) =>
+  `Homepage HTML size: ${mb.toFixed(2)} MB (${bytes} bytes). This check looks at page size only; it does not measure loading speed.`;
+
 async function runPageWeightLcp(
   url: string,
-  tier: ScanTier,
   staticBody: string | null,
   staticContentLength: number | null
 ): Promise<SubCheck> {
+  // 1.4.0: named for what it measures. Loading speed (LCP) was never
+  // measured, so the name and note no longer mention it (the id stays for
+  // consumers).
   const id = "page_weight_lcp";
-  const name = "Page weight + LCP";
+  const name = "Page weight";
   const weight = 15;
 
   // Use Content-Length if present, else fall back to body length.
@@ -255,22 +262,35 @@ async function runPageWeightLcp(
   else if (mb <= 3) score = 50;
   else score = 0;
 
-  const lcpNote =
-    tier === "paid"
-      ? "LCP not measured (Browser Rendering /content endpoint does not expose timings; deferred to a future paid-tier upgrade)"
-      : "LCP not measured (free tier)";
-
   return {
     id,
     name,
     weight,
     score,
     passed: score >= 70,
-    notes: `Page weight ${mb.toFixed(2)}MB (${bodyBytes} bytes); ${lcpNote}.`,
+    notes: pageWeightNote(mb, bodyBytes),
   };
 }
 
 // ── Sub-check 3: markdown_negotiation ────────────────────────────────────
+
+/** Bytes read to tell markdown from HTML. */
+const MD_SNIFF_BYTES = 16 * 1024;
+
+/**
+ * 1.4.0: a text/markdown or text/plain response whose body (first
+ * MD_SNIFF_BYTES) is not an HTML document. Consumes the body.
+ */
+async function isMarkdownResponse(r: SafeResponse): Promise<boolean> {
+  const ct = (r.headers.get("content-type") ?? "").toLowerCase();
+  if (!ct.includes("text/markdown") && !ct.includes("text/plain")) {
+    r.discard();
+    return false;
+  }
+  const head = (await r.body({ maxBytes: MD_SNIFF_BYTES })).text.trimStart().slice(0, 512).toLowerCase();
+  if (!head) return false;
+  return !(head.startsWith("<!doctype") || head.startsWith("<html") || head.startsWith("<head") || head.startsWith("<body") || /<html[\s>]/.test(head));
+}
 
 async function runMarkdownNegotiation(url: string): Promise<SubCheck> {
   const id = "markdown_negotiation";
@@ -282,11 +302,12 @@ async function runMarkdownNegotiation(url: string): Promise<SubCheck> {
     headers: { Accept: "text/markdown", "User-Agent": STATIC_UA },
     redirect: "follow",
   });
-  mdRes?.discard();
   const mdCt = (mdRes?.headers.get("content-type") ?? "").toLowerCase();
   const finalUrlIsMd = (mdRes?.url ?? "").toLowerCase().endsWith(".md");
 
-  if (mdRes && mdRes.ok && (mdCt.includes("text/markdown") || finalUrlIsMd)) {
+  // 1.4.0: a markdown answer needs a markdown / plain-text content type AND a
+  // body that is not HTML (a .md URL or a redirect to one proves nothing).
+  if (mdRes && mdRes.ok && (await isMarkdownResponse(mdRes))) {
     return {
       id,
       name,
@@ -310,10 +331,9 @@ async function runMarkdownNegotiation(url: string): Promise<SubCheck> {
       headers: { "User-Agent": STATIC_UA },
       redirect: "follow",
     });
-    r?.discard();
+    if (!r || !r.ok) r?.discard();
     if (r && r.ok) {
-      const ct = (r.headers.get("content-type") ?? "").toLowerCase();
-      if (ct.includes("text/markdown") || ct.includes("text/plain") || c.endsWith(".md")) {
+      if (await isMarkdownResponse(r)) {
         return {
           id,
           name,
@@ -369,10 +389,38 @@ const PRICE_AMOUNT = String.raw`(?:\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\d{1,5}
 const PRICE_TOKEN =
   String.raw`(?:(?:R\$|US\$|\$|${EURO}|${POUND}|${YEN}|${RUPEE}|\b${ISO_CURRENCY})\s?${PRICE_AMOUNT}(?!\d)` +
   String.raw`|(?<![\d.,])${PRICE_AMOUNT}\s?(?:${EURO}|${POUND}|${ISO_CURRENCY}\b))`;
-export const PRICE_TEXT_RE = new RegExp(
-  String.raw`${PRICE_TOKEN}\s*(?:\/|per)\s*(?:month|mo|year|yr|user|seat)`,
-  "gi"
-);
+// 1.4.0: a billing period after the price, in the forms real pages use:
+// "/mo", "/ per user per month", "a month", "monthly", "per seat / year", and
+// pt-BR / es / fr / de ("/mês", "por mês", "mensal", "/mes", "/mois",
+// "par mois", "/Monat", "pro Monat"). Up to three connector [+ unit] steps,
+// then a period word (or a per-seat unit, "per user", as before); or a
+// period adverb on its own. Connector and unit words
+// must end at a word boundary ("promo" is not "pro" + "mo").
+const NOT_LETTER = String.raw`(?![a-zÀ-ɏ])`;
+const PERIOD_CONNECTOR = String.raw`(?:\/|(?:per|por|par|pro|a|an|al|ao|au|im|each|cada)${NOT_LETTER})`;
+const PERIOD_UNIT = String.raw`(?:users?|seats?|members?|persons?|editors?|agents?|licen[cs]es?|usu[aá]rios?|utilisateurs?|nutzer|benutzer)${NOT_LETTER}`;
+const PERIOD_WORD = String.raw`(?:months?|mo|years?|yr|annum|weeks?|wk|m[eê]s|meses|mois|monat|jahr|a[nñ]o|an)${NOT_LETTER}`;
+const PERIOD_ADVERB = String.raw`(?:monthly|yearly|annually|weekly|mensal|mensais|mensual|mensuel|monatlich|anual|annuel|j[aä]hrlich)${NOT_LETTER}`;
+export const PERIOD_SUFFIX = String.raw`\s*(?:(?:${PERIOD_CONNECTOR}\s*(?:${PERIOD_UNIT}\s*)?){1,3}(?:${PERIOD_WORD}|${PERIOD_UNIT})|${PERIOD_ADVERB})`;
+export const PRICE_TEXT_RE = new RegExp(`${PRICE_TOKEN}${PERIOD_SUFFIX}`, "gi");
+// 1.4.0: a price marked as one-time needs no period: "one-time", "pagamento
+// único", "pago único", "paiement unique", "einmalig", "lifetime", within the
+// 80 characters after the price.
+const ONE_TIME_RE = /one[-\s]?time|lifetime|pagamento [uú]nico|pago [uú]nico|[uú]nico pagamento|paiement unique|einmalig|vital[ií]cio/i;
+const ONE_TIME_WINDOW = 80;
+
+/** Price tokens followed by a billing period or marked one-time. */
+export function countPeriodOrOneTimePrices(text: string): number {
+  const bare = new RegExp(PRICE_TOKEN, "g");
+  const suffix = new RegExp(`^${PERIOD_SUFFIX}`, "i");
+  let n = 0;
+  let m: RegExpExecArray | null;
+  while ((m = bare.exec(text)) !== null) {
+    const after = text.slice(m.index + m[0].length, m.index + m[0].length + ONE_TIME_WINDOW);
+    if (suffix.test(after.slice(0, 64)) || ONE_TIME_RE.test(after)) n++;
+  }
+  return n;
+}
 export const PRICE_BARE_RE = new RegExp(PRICE_TOKEN, "g");
 const MODAL_CLASS_RE = /\b(modal|dialog|popup|paywall|login-required|gated)\b/i;
 
@@ -404,6 +452,7 @@ async function findPricingPath(
       const href = m[1];
       try {
         const resolved = new URL(href, url).toString();
+        if (isExcludedContentPath(new URL(resolved).pathname)) continue;
         const r = await timedFetch(resolved, {
           headers: { "User-Agent": STATIC_UA },
           redirect: "follow",
@@ -457,7 +506,7 @@ async function runPricingTextVisibility(
   }
   const html = await readHtml(r);
   const text = stripTags(html);
-  const structuredMatches = (text.match(PRICE_TEXT_RE) ?? []).length;
+  const structuredMatches = countPeriodOrOneTimePrices(text);
   const bareMatches = (text.match(PRICE_BARE_RE) ?? []).length;
   const totalPriceTokens = bareMatches; // structured is a subset of bare
 
@@ -468,12 +517,12 @@ async function runPricingTextVisibility(
   let detail: string;
   if (structuredMatches > 0 || (totalPriceTokens >= 2 && !allInModal)) {
     score = 100;
-    detail = `${totalPriceTokens} text-based price token(s); ${structuredMatches} with /period suffix`;
+    detail = `${totalPriceTokens} text-based price token(s); ${structuredMatches} with a billing period or marked one-time`;
   } else if (totalPriceTokens >= 1 || (allInModal && totalPriceTokens >= 1)) {
     score = 50;
     detail = allInModal
       ? `prices found but appear inside modal-suggesting markup`
-      : `${totalPriceTokens} price token(s) but none with /period suffix`;
+      : `${totalPriceTokens} price token(s) but none with a billing period (such as "/month") or marked one-time`;
   } else {
     score = 0;
     detail = "no price patterns detected on the pricing page";
@@ -491,73 +540,157 @@ async function runPricingTextVisibility(
 
 // ── Sub-check 5: case_study_scannability — HEURISTIC ONLY ───────────────
 
+/** case_study_scannability N/A note (1.4.0). */
+export const CASE_STUDY_NA_NOTE =
+  "No case-study or portfolio page detected (homepage links such as /case-studies, /customers, /work, /portfolio, /casos or /projetos, and the /case-studies, /customers, /success-stories, /work and /portfolio paths). Weight redistributed across other Dim 5 sub-checks.";
+
+// 1.4.0: account / sign-in / cart / admin pages are never content pages (a
+// "Customer login" link was scored as a case study). Any path segment counts.
+const EXCLUDED_SEGMENTS = new Set([
+  "account", "accounts", "login", "log-in", "signin", "sign-in", "signup", "sign-up", "register",
+  "cart", "checkout", "admin", "wp-admin", "wp-login", "wp-login.php", "auth", "oauth", "logout",
+]);
+
+export function isExcludedContentPath(pathname: string): boolean {
+  return pathname
+    .toLowerCase()
+    .split("/")
+    .some((seg) => EXCLUDED_SEGMENTS.has(seg));
+}
+
+// 1.4.0: case-study path words, strongest first, in English, pt-BR, es, fr
+// and de. A path segment matches when it is the word or starts / ends with
+// it as a hyphenated part ("casos-clinicos", "sorrisos-e-casos").
+const CASE_STUDY_WORDS = [
+  "case-studies", "case-study", "success-stories", "customer-stories", "cases", "casos",
+  "customers", "kunden", "references", "realisations", "portfolio",
+  "work", "projects", "projetos", "proyectos", "projets", "trabalhos", "clientes",
+];
+
+/** Accent-free lower case: "Réalisations" -> "realisations". */
+function foldSegment(seg: string): string {
+  let d = seg;
+  try {
+    d = decodeURIComponent(seg);
+  } catch {
+    // keep the raw segment
+  }
+  return d.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+/** Rank of the best case-study word in a path's first segment (lower is stronger), or -1. */
+export function caseStudyRank(pathname: string): number {
+  if (isExcludedContentPath(pathname)) return -1;
+  const first = foldSegment(pathname.split("/").filter(Boolean)[0] ?? "");
+  if (!first) return -1;
+  return CASE_STUDY_WORDS.findIndex(
+    (w) => first === w || first.startsWith(w + "-") || first.endsWith("-" + w) || first.includes("-" + w + "-")
+  );
+}
+
+/** Child pages linked from an index page: same site, one more path segment under the index path, not an asset. */
+const ASSET_EXT = /\.(?:svg|png|jpe?g|gif|webp|avif|ico|css|js|json|xml|pdf|txt|mp4|webm|woff2?)$/i;
+const MIN_INDEX_CHILDREN = 3;
+const MAX_CHILD_LINKS = 50;
+
+export function caseStudyChildren(html: string, pageUrl: string): string[] {
+  const page = new URL(pageUrl);
+  const base = siteBase(pageUrl);
+  const prefix = page.pathname.replace(/\/+$/, "") + "/";
+  const out: string[] = [];
+  const re = /<a\b[^>]*?\bhref\s*=\s*["']([^"'<>\s]{1,2048})["']/gi;
+  let m: RegExpExecArray | null;
+  for (let n = 0; (m = re.exec(html)) !== null && n < 5000 && out.length < MAX_CHILD_LINKS; n++) {
+    let u: URL;
+    try {
+      u = new URL(m[1], pageUrl);
+    } catch {
+      continue;
+    }
+    if (!isSameSite(u.hostname, base) || !u.pathname.startsWith(prefix)) continue;
+    const rest = u.pathname.slice(prefix.length).replace(/\/+$/, "");
+    if (!rest || rest.includes("/") || ASSET_EXT.test(rest) || isExcludedContentPath(u.pathname)) continue;
+    u.search = "";
+    u.hash = "";
+    const s = u.toString();
+    if (!out.includes(s)) out.push(s);
+  }
+  return out;
+}
+
+/**
+ * An app shell or soft-404 ("Loading..." and scripts): under
+ * MIN_PAGE_TEXT_CHARS of visible body text and no h1-h3 heading. Not a
+ * case-study page, so the next candidate is tried.
+ */
+const MIN_PAGE_TEXT_CHARS = 200;
+function isEmptyShell(html: string): boolean {
+  const bodyAt = html.toLowerCase().indexOf("<body");
+  const text = stripTags(bodyAt >= 0 ? html.slice(bodyAt) : html);
+  return text.length < MIN_PAGE_TEXT_CHARS && !/<h[1-3][\s>]/i.test(html);
+}
+
+/**
+ * 1.4.0: the case-study page to score. Homepage links whose first path
+ * segment is a case-study word (any of the languages above) come first, the
+ * strongest word winning; then the fixed index paths. A deeper link
+ * (/work/acme) is a single study; a one-segment page is fetched and, when it
+ * is an index (MIN_INDEX_CHILDREN or more child pages), one linked study is
+ * sampled instead. Pages with no visible text (an app shell or soft-404) are
+ * skipped. Returns at most one URL to score, plus the index it came from.
+ */
 async function findCaseStudyPaths(
   url: string,
   homepageHtml: string | null
-): Promise<string[]> {
+): Promise<{ pages: string[]; index: string | null }> {
   const u = new URL(url);
-  const indexCandidates = [
-    `${u.origin}/case-studies`,
-    `${u.origin}/customers`,
-    `${u.origin}/success-stories`,
-  ];
-  const found: string[] = [];
-  for (const c of indexCandidates) {
+  const base = siteBase(url);
+  const candidates: string[] = [];
+  if (homepageHtml) {
+    const ranked: Array<{ url: string; rank: number }> = [];
+    const re = /<a\b[^>]*?\bhref\s*=\s*["']([^"'<>\s]{1,2048})["']/gi;
+    let m: RegExpExecArray | null;
+    for (let n = 0; (m = re.exec(homepageHtml)) !== null && n < 5000; n++) {
+      try {
+        const link = new URL(m[1], url);
+        if (!isSameSite(link.hostname, base)) continue;
+        const rank = caseStudyRank(link.pathname);
+        if (rank < 0) continue;
+        link.search = "";
+        link.hash = "";
+        if (!ranked.some((r) => r.url === link.toString())) ranked.push({ url: link.toString(), rank });
+      } catch {
+        // ignore
+      }
+    }
+    ranked.sort((a, b) => a.rank - b.rank);
+    candidates.push(...ranked.slice(0, 2).map((r) => r.url));
+  }
+  for (const p of ["/case-studies", "/customers", "/success-stories", "/work", "/portfolio"]) {
+    const c = `${u.origin}${p}`;
+    if (!candidates.some((x) => x.replace(/\/+$/, "") === c)) candidates.push(c);
+  }
+  for (const c of candidates) {
+    const depth = new URL(c).pathname.split("/").filter(Boolean).length;
+    if (depth >= 2) return { pages: [c], index: null };
     const r = await timedFetch(c, {
       method: "GET",
       headers: { "User-Agent": STATIC_UA },
       redirect: "follow",
     });
-    if (r && r.ok) {
-      // Try to pull up to 2 sample child pages from the index.
-      const html = await readHtml(r);
-      const childRe =
-        /<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>/gi;
-      const seen = new Set<string>();
-      let m: RegExpExecArray | null;
-      while ((m = childRe.exec(html)) !== null && seen.size < 6) {
-        try {
-          const resolved = new URL(m[1], r.url).toString();
-          const path = new URL(resolved).pathname;
-          if (
-            (path.includes("/customers/") ||
-              path.includes("/case-studies/") ||
-              path.includes("/case-study/") ||
-              path.includes("/success-stories/")) &&
-            path.split("/").length > 3
-          ) {
-            seen.add(resolved);
-          }
-        } catch {
-          // ignore
-        }
-      }
-      const arr = [...seen].slice(0, 2);
-      if (arr.length > 0) {
-        found.push(...arr);
-      } else {
-        found.push(r.url || c);
-      }
-      break;
+    if (!r || !r.ok) {
+      r?.discard();
+      continue;
     }
-    r?.discard();
+    const html = await readHtml(r);
+    const finalUrl = r.url || c;
+    if (isExcludedContentPath(new URL(finalUrl).pathname)) continue;
+    if (isEmptyShell(html)) continue;
+    const children = caseStudyChildren(html, finalUrl);
+    if (children.length >= MIN_INDEX_CHILDREN) return { pages: [children[0]], index: finalUrl };
+    return { pages: [finalUrl], index: null };
   }
-  // Fallback: probe homepage for case-study anchors.
-  if (found.length === 0 && homepageHtml) {
-    const re = /<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>(?:\s|<[^>]+>)*([^<]*(?:case stud|customer|success stor)[^<]*)/gi;
-    let m: RegExpExecArray | null;
-    const seen = new Set<string>();
-    while ((m = re.exec(homepageHtml)) !== null && seen.size < 2) {
-      try {
-        const resolved = new URL(m[1], url).toString();
-        seen.add(resolved);
-      } catch {
-        // ignore
-      }
-    }
-    found.push(...seen);
-  }
-  return found.slice(0, 2);
+  return { pages: [], index: null };
 }
 
 interface ScannabilityBreakdown {
@@ -607,7 +740,7 @@ async function runCaseStudyScannability(
   const name = "Case-study scannability";
   const weight = 10;
 
-  const paths = await findCaseStudyPaths(url, homepageHtml);
+  const { pages: paths, index } = await findCaseStudyPaths(url, homepageHtml);
   if (paths.length === 0) {
     return {
       id,
@@ -615,8 +748,7 @@ async function runCaseStudyScannability(
       weight,
       score: 0,
       passed: false,
-      notes:
-        "No case-study path detected (/case-studies, /customers, /success-stories, or homepage anchors). Weight redistributed across other Dim 5 sub-checks.",
+      notes: CASE_STUDY_NA_NOTE,
       na: true,
     };
   }
@@ -654,7 +786,7 @@ async function runCaseStudyScannability(
     weight,
     score: avg,
     passed: avg >= 70,
-    notes: `Sampled ${breakdowns.length} page(s); avg ${avg}/100. ${breakdownStr}.`,
+    notes: `Sampled ${breakdowns.length} page(s); avg ${avg}/100. ${breakdownStr}.${index ? ` (A case study linked from the index page ${index}.)` : ""}`,
   };
 }
 
@@ -688,7 +820,7 @@ export async function runDim5(
   // Sequential where it makes sense (shared homepage fetch already done).
   // Parallel would hammer the target site; serial is fine for v1.
   subs.push(await runJsVsNoJsRenderDiff(targetUrl, env, tier, staticBody));
-  subs.push(await runPageWeightLcp(targetUrl, tier, staticBody, contentLength));
+  subs.push(await runPageWeightLcp(targetUrl, staticBody, contentLength));
   subs.push(await runMarkdownNegotiation(targetUrl));
   subs.push(await runPricingTextVisibility(targetUrl, staticBody));
   subs.push(await runCaseStudyScannability(targetUrl, staticBody));
