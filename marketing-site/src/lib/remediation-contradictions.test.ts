@@ -90,7 +90,7 @@ const CURRENT: Array<[string, string, string, SubCheck[]]> = [
   ["faq_schema", "FAQPage markup found, but none of its entries is a Question with an answer text (acceptedAnswer.text), so there are no Q&A pairs to rate.", "none of its entries is a Question", []],
   // 1.5.0 fixed-rule notes.
   // 1.5.1 fixed-rule notes.
-  ["faq_schema", "4 Q&A pair(s); 1 is phrased as a question and has an answer of reasonable length.", "are phrased as questions and have an answer of reasonable length.", []],
+  ["faq_schema", "4 Q&A pair(s); 1 is phrased as a question and has an answer of reasonable length.", "an answer of reasonable length.", []],
   [
     "faq_schema",
     "6 Q&A pair(s); 1 is phrased as a question and has an answer of reasonable length. 5 entries are missing a question or an answer.",
