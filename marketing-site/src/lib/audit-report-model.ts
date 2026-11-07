@@ -18,7 +18,7 @@ import { buildExecutiveSummary, EXEC_SUMMARY_COPY } from "./audit-executive-summ
 // Section headings + fixed copy, verbatim from the PDF. Change here and both
 // surfaces change together.
 export const AUDIT_REPORT_COPY = {
-  brand: "Astrant · AEO Audit",
+  brand: "Astrant Score v1 · Audit report",
   summaryHeading: EXEC_SUMMARY_COPY.heading,
   dimensionsHeading: "Dimension breakdown",
   gapsHeading: "Prioritized gaps + remediation",
