@@ -105,7 +105,7 @@ export const T = {
     empty: (o: string) =>
       `The blockquote in ${o}/llms.txt had no readable text once formatting and hidden characters were removed. Write the summary as plain sentences on one line starting with >. Estimated effort: under 30 minutes.`,
     rated: (o: string, score: number) =>
-      `Our automated AI rating of the blockquote summary in ${o}/llms.txt was ${score}/100; that is a judgement, not a measurement. If you revise it, say in one or two plain sentences what your business does, who it serves and what sets it apart, in the words your customers use. This check reads only the first line of the blockquote, so keep the summary on one line starting with >. Estimated effort: under 30 minutes.`,
+      `Our automated AI rating of the blockquote summary in ${o}/llms.txt was ${score}/100; that is a judgement, not a measurement. If you revise it, say in one or two plain sentences what your business does, who it serves and what sets it apart, in the words your customers use. Estimated effort: under 30 minutes.`,
   },
 
   // ── Dim 2: MCP Server Discoverability ─────────────────────────────────
@@ -370,7 +370,7 @@ const SELECTORS: Record<string, Selector> = {
     if (/search-result URLs linked/.test(s.notes)) fixes.push(T.curation_quality.fixSearch);
     if (/links contain query strings/.test(s.notes)) fixes.push(T.curation_quality.fixQuery);
     if (fixes.length === 0) return T.curation_quality.noLinks(c.origin);
-    return T.curation_quality.antipatterns(c.origin, fixes.join("; "));
+    return T.curation_quality.antipatterns(c.origin, joinWithAnd(fixes));
   },
 
   blockquote_eval: (s, c) => {

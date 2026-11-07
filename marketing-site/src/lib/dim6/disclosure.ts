@@ -75,7 +75,9 @@ export const DIM6_DISCLOSURE = {
 // Customer-facing engine line, derived from the version constant so it can't
 // go stale (DIM6_DISCLOSURE.engineLine above still says dim6:v3; it is kept
 // byte-equal with the mcp-server mirror, see scripts/verify-dim6-mirror.mjs).
-// External naming rule: "Astrant Score v<N>", never the internal "dim6:v<N>".
-export const DIM6_ENGINE_LINE = `Astrant Score ${DIM6_ENGINE_VERSION.replace(/^dim6:/, "")}, Citation Visibility engine (${ALL_MODEL_IDS.length} AI models)`;
+// External naming (Bruno 2026-11-07): "Astrant Citation Visibility v<N>", never
+// the internal "dim6:v<N>", and not "Astrant Score v<N>" (that would read as the
+// scanner's own version, printed separately as "Engine: v1.x.y").
+export const DIM6_ENGINE_LINE = `Astrant Citation Visibility ${DIM6_ENGINE_VERSION.replace(/^dim6:/, "")} (${ALL_MODEL_IDS.length} AI models)`;
 
 export type Dim6Disclosure = typeof DIM6_DISCLOSURE;

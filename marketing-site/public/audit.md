@@ -24,7 +24,7 @@ Includes a one-time Citation Visibility snapshot across ChatGPT, Claude, Perplex
 
 ## What the Audit adds (over the free Score)
 
-The free Score gives you a public grade across six dimensions. The Audit goes deeper: per-gap remediation guidance written specifically for your site's findings (not generic playbook language), effort estimates you can take to a developer, and the machine-readable JSON export. If the free score says "work on Dimension 4," the Audit tells you exactly which JSON-LD types to add and on which pages.
+The free Score gives you a public grade across six dimensions. The Audit goes deeper: per-gap remediation guidance matched to what we found on your site, with effort estimates you can take to a developer, and the machine-readable JSON export. If the free score says "work on Dimension 4," the Audit tells you exactly which JSON-LD types to add and on which pages.
 
 ## FAQ
 
@@ -32,7 +32,7 @@ The free Score gives you a public grade across six dimensions. The Audit goes de
 No. The audit is read-only. Just the URL.
 
 **How is this automatic if the report is that deep?**
-LLM inference does the analysis and remediation drafting; nothing is human-gated. PDF rendering takes a few extra seconds; the whole pipeline finishes in a few minutes end-to-end.
+Automated checks and AI model tests do the analysis; each gap's remediation is a fixed, check-specific text chosen from what we found. Nothing is human-gated. PDF rendering takes a few extra seconds; the whole pipeline finishes in a few minutes end-to-end.
 
 **Can I audit a competitor instead?**
 Only sites you own or have permission to analyze — see [our terms](https://astrant.io/terms).
