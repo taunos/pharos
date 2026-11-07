@@ -67,7 +67,7 @@ export default function MethodologyPage() {
             Dimension 6 — Citation Visibility
           </h2>
           <p className="mt-2 text-sm text-[var(--color-muted)] italic">
-            Weight 20 · Engine v1 · 4 hosted models · ~10 prompts · ~40 cells per audit
+            Weight 20 · Engine v1 · 4 hosted models · ~10 prompts · ~40 test answers per audit
           </p>
           <div className="mt-6 flex flex-col gap-5 text-base text-[var(--color-muted)]">
             {longParagraphs.map((p, i) => (
@@ -87,7 +87,7 @@ export default function MethodologyPage() {
           <ul className="mt-4 flex flex-col gap-3 text-sm text-[var(--color-muted)]">
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_domain_named_rate</span>{" "}
-              (weight 40) — what fraction of measurable cells named your domain at all.
+              (weight 40) — what fraction of scored test answers named your domain at all.
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_url_referenced_rate</span>{" "}
