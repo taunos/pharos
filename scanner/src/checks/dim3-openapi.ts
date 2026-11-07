@@ -36,7 +36,7 @@ export const INCOMPLETE_SPEC_NOTE =
   "Not measured — the API spec could not be read in full (size or time limit), so this dimension is not counted in your score.";
 /** 1.3.3: info / security / operation sub-checks on a YAML spec. */
 export const YAML_UNMEASURED_NOTE =
-  "Not measured: the scanner cannot read this part of a YAML spec. Weight redistributed across other Dim 3 sub-checks.";
+  "Not measured: the scanner cannot read this part of a YAML spec. This check is not counted in your score.";
 const STATIC_UA = "AstrantScanner-Dim3/1.2.0";
 
 /** Whole-dimension N/A note (1.4.0): no OpenAPI and no other API evidence. */
@@ -619,7 +619,7 @@ export async function runDim3(
       ["security_schemes", "Security schemes documented", 15],
       ["operation_coverage", "Operation coverage + per-operation docs", 20],
     ] as const) {
-      subs.push({ id, name, weight, score: 0, passed: false, notes: `Not measured: ${catalogUnreadable} Weight redistributed across other Dim 3 sub-checks.`, na: true });
+      subs.push({ id, name, weight, score: 0, passed: false, notes: `Not measured: ${catalogUnreadable} This check is not counted in your score.`, na: true });
     }
     const score = dimensionScore(subs) ?? 0;
     return { dimension_id: 3, dimension_name: "OpenAPI / API Catalog", score, grade: gradeFor(score), sub_checks: subs };

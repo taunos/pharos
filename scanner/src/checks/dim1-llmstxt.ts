@@ -92,7 +92,7 @@ const BLOCKQUOTE_MAX_CHARS = 3000;
 
 /** blockquote_eval note (1.3.3) when the AI rating could not run. */
 export const BLOCKQUOTE_UNMEASURED_NOTE =
-  "Not measured: the AI rating of the blockquote was unavailable on this run. Weight redistributed across other Dim 1 sub-checks.";
+  "Not measured: the AI rating of the blockquote was unavailable on this run. This check is not counted in your score.";
 
 export async function evalBlockquote(
   env: Env,

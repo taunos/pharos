@@ -99,7 +99,7 @@ function rateOf(cells: CellEnvelope[], flag: string): number {
 
 /** dim6:v4: competitor-first sub-check note when no competitor list was given. */
 export const COMPETITOR_FIRST_NA_NOTE =
-  "Not measured: this Audit doesn't take a competitor list yet, so there is nothing to compare against. Weight redistributed across the other Citation Visibility checks.";
+  "Not measured: this Audit doesn't take a competitor list yet, so there is nothing to compare against. This check is not counted in your score.";
 
 function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6SubCheck[] {
   const cells = result.cells;

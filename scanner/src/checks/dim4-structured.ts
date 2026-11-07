@@ -9,18 +9,18 @@ const FETCH_TIMEOUT_MS = 8000;
 
 /** review_schema N/A note (1.3.2): shown in the Score and Audit reports. */
 export const REVIEW_SCHEMA_NA_NOTE =
-  "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. Weight redistributed across other Dim 4 sub-checks.";
+  "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. This check is not counted in your score.";
 
 /** faq_schema N/A note (1.3.3): no FAQPage markup on the homepage. */
 export const FAQ_SCHEMA_NA_NOTE =
-  "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. Weight redistributed across other Dim 4 sub-checks.";
+  "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. This check is not counted in your score.";
 
 /**
  * 1.4.0: Dim 4 sub-check note when the JSON-LD is deeper or larger than the
  * scanner reads, so absence of a type cannot be claimed.
  */
 export const notFullyInspectedNote = (what: string) =>
-  `Not fully inspected: this page's JSON-LD is nested deeper or is larger than the scanner reads, so it could not confirm whether ${what} markup is present. Weight redistributed across other Dim 4 sub-checks.`;
+  `Not fully inspected: this page's JSON-LD is nested deeper or is larger than the scanner reads, so it could not confirm whether ${what} markup is present. This check is not counted in your score.`;
 
 /** faq_schema note (1.4.0): FAQPage markup whose questions carry no answer text. */
 export const FAQ_NO_ANSWERS_NOTE =
@@ -28,7 +28,7 @@ export const FAQ_NO_ANSWERS_NOTE =
 
 /** faq_schema note (1.3.3) when the AI rating of the questions could not run. */
 export const FAQ_UNMEASURED_NOTE =
-  "Not measured: the AI rating of the FAQ questions was unavailable on this run. Weight redistributed across other Dim 4 sub-checks.";
+  "Not measured: the AI rating of the FAQ questions was unavailable on this run. This check is not counted in your score.";
 
 // Security pass 2026-11-04: validated hops, max 3 redirects, one deadline
 // covering headers AND body, capped body (see ../safe-fetch).

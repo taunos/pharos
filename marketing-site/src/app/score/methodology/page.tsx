@@ -99,7 +99,7 @@ export default function MethodologyPage() {
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_no_competitor_first_rate</span>{" "}
-              (weight 10) — what fraction avoided naming a competitor BEFORE your domain. Not measured in the current Audit: no competitor list is supplied, so this check passes by default.
+              (weight 10) — what fraction avoided naming a competitor BEFORE your domain. Not measured in the current Audit: no competitor list is supplied, so this check is not counted.
             </li>
           </ul>
 
@@ -143,8 +143,10 @@ export default function MethodologyPage() {
           </h2>
           <p className="mt-3 text-sm text-[var(--color-muted)] italic">
             Full methodology section coming in a subsequent release. Sub-checks:
-            well-known card, tool coverage, OAuth metadata, live invocation,
-            DNS TXT. Weight 20.
+            well-known card, tool coverage, OAuth metadata, live invocation. An
+            _mcp DNS TXT record is shown for information but not scored (no
+            ratified standard). Weight 20. Whole-dim N/A only when no MCP or API
+            evidence is found.
           </p>
 
           <h2 id="dim-3" className="mt-12 scroll-mt-20 text-3xl font-bold tracking-tight">
@@ -153,7 +155,7 @@ export default function MethodologyPage() {
           <p className="mt-3 text-sm text-[var(--color-muted)] italic">
             Full methodology section coming in a subsequent release. Sub-checks:
             discovery, spec validity, info completeness, security schemes,
-            operation coverage. Weight 10. Whole-dim N/A on content-only sites.
+            operation coverage. Weight 10. Whole-dim N/A when no OpenAPI description is found.
           </p>
 
           <h2 id="dim-4" className="mt-12 scroll-mt-20 text-3xl font-bold tracking-tight">
@@ -161,8 +163,8 @@ export default function MethodologyPage() {
           </h2>
           <p className="mt-3 text-sm text-[var(--color-muted)] italic">
             Full methodology section coming in a subsequent release. Sub-checks:
-            JSON-LD presence, Organization, Service/Offer, FAQ, Review schemas.
-            Weight 20.
+            JSON-LD presence, Organization, Service/Offer, FAQ, Review schemas
+            (FAQ and Review are N/A when the site has none). Weight 20.
           </p>
 
           <h2 id="dim-5" className="mt-12 scroll-mt-20 text-3xl font-bold tracking-tight">
@@ -170,7 +172,7 @@ export default function MethodologyPage() {
           </h2>
           <p className="mt-3 text-sm text-[var(--color-muted)] italic">
             Full methodology section coming in a subsequent release. Sub-checks:
-            JS-vs-no-JS render diff, page weight + LCP, markdown negotiation,
+            JS-vs-no-JS render diff, page weight, markdown negotiation,
             pricing text visibility, case-study scannability. Weight 15.
           </p>
 

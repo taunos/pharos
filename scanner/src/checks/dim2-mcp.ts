@@ -428,11 +428,11 @@ export const DIM2_CONTENT_ONLY_NA_NOTE =
 
 /** oauth_metadata N/A note (1.3.3): no MCP server card was found. */
 export const OAUTH_NO_CARD_NA_NOTE =
-  "No MCP server card found, so there is no declared authentication to check. Weight redistributed across other Dim 2 sub-checks.";
+  "No MCP server card found, so there is no declared authentication to check. This check is not counted in your score.";
 
 /** oauth_metadata N/A note (1.4.0): a card that declares no authentication. */
 export const OAUTH_NO_AUTH_NA_NOTE =
-  "The MCP server card declares no authentication, so there is no OAuth metadata to check. Weight redistributed across other Dim 2 sub-checks.";
+  "The MCP server card declares no authentication, so there is no OAuth metadata to check. This check is not counted in your score.";
 
 /** Live probes of endpoints the site declares (llms.txt / homepage / UCP / TXT), beyond the card's own. */
 const MAX_DECLARED_PROBES = 2;

@@ -162,7 +162,7 @@ async function runJsVsNoJsRenderDiff(
       weight,
       score,
       passed: score >= 70,
-      notes: `${describeStaticAlone(staticBody)}. Browser Rendering daily cap reached; falling back to static signal. Re-run tomorrow for full diff.`,
+      notes: `${describeStaticAlone(staticBody)}. The live page rendering limit was reached on this run, so this check was scored on your server's HTML only.`,
     };
   }
 
@@ -179,7 +179,7 @@ async function runJsVsNoJsRenderDiff(
       weight,
       score,
       passed: score >= 70,
-      notes: `${describeStaticAlone(staticBody)}. Browser Rendering call failed; scored on static signal only.`,
+      notes: `${describeStaticAlone(staticBody)}. Live page rendering failed on this run, so this check was scored on your server's HTML only.`,
     };
   }
 
@@ -484,7 +484,7 @@ async function runPricingTextVisibility(
       score: 0,
       passed: false,
       notes:
-        "No /pricing, /plans, or /price path found, and no pricing-link discovered on homepage. Weight redistributed across other Dim 5 sub-checks.",
+        "No /pricing, /plans, or /price path found, and no pricing-link discovered on homepage. This check is not counted in your score.",
       na: true,
     };
   }
@@ -542,7 +542,7 @@ async function runPricingTextVisibility(
 
 /** case_study_scannability N/A note (1.4.0). */
 export const CASE_STUDY_NA_NOTE =
-  "No case-study or portfolio page detected (homepage links such as /case-studies, /customers, /work, /portfolio, /casos or /projetos, and the /case-studies, /customers, /success-stories, /work and /portfolio paths). Weight redistributed across other Dim 5 sub-checks.";
+  "No case-study or portfolio page detected (homepage links such as /case-studies, /customers, /work, /portfolio, /casos or /projetos, and the /case-studies, /customers, /success-stories, /work and /portfolio paths). This check is not counted in your score.";
 
 // 1.4.0: account / sign-in / cart / admin pages are never content pages (a
 // "Customer login" link was scored as a case study). Any path segment counts.
