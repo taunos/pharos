@@ -111,6 +111,12 @@ export const EXEC_SUMMARY_COPY = {
       strong: "in our test questions, AI assistants usually named your site",
     },
   } as Record<number, DimPhrases>,
+  // Evidence-aware phrases (r4), chosen from the sub-check states so the
+  // summary never contradicts the table. Dim 2: an MCP endpoint answered
+  // (tools/list or an OAuth challenge) but there is no server card.
+  mcpFoundNoCard: "we found your MCP server, but it isn't fully discoverable (no server card)",
+  // Dim 3: the only checks below passing are limited by the scanner (YAML).
+  openApiScannerLimited: "our scanner could only partly check the OpenAPI description of your API",
   // Any dimension without its own phrases (e.g. one added later).
   dimensionFallback: (name: string): DimPhrases => ({
     fail: `${name} needs significant work`,
@@ -127,6 +133,34 @@ function phrasesFor(d: DimensionResult): DimPhrases {
     EXEC_SUMMARY_COPY.dimensions[d.dimension_id] ??
     EXEC_SUMMARY_COPY.dimensionFallback(d.dimension_name)
   );
+}
+
+/**
+ * r4: the weak-area phrase for a dimension, read from its sub-check states,
+ * not its score alone. Dim 2 with an MCP endpoint that answered never says
+ * we could not find one; Dim 3 held down only by the scanner's YAML limit is
+ * "only partly checked", not "incomplete".
+ */
+function weakPhrase(d: DimensionResult): string {
+  const C = EXEC_SUMMARY_COPY;
+  const p = phrasesFor(d);
+  const band = d.score < FAIL_BELOW ? p.fail : p.partial;
+  const check = (id: string) => d.sub_checks.find((s) => s.id === id);
+  if (d.dimension_id === 2) {
+    const card = check("well_known");
+    const live = check("live_invocation");
+    const answered = !!live && !live.na && live.score >= 70;
+    const hasCard = !!card && !card.na && card.score > 0;
+    if (answered && !hasCard) return C.mcpFoundNoCard;
+    if (answered || hasCard) return p.partial;
+  }
+  if (d.dimension_id === 3) {
+    const failing = d.sub_checks.filter((s) => !s.na && !s.passed);
+    if (failing.length > 0 && failing.every((s) => s.id === "spec_validity" && /^YAML spec detected/.test(String(s.notes ?? "")))) {
+      return C.openApiScannerLimited;
+    }
+  }
+  return band;
 }
 
 // "a; b; and c" — semicolons because some phrases contain commas.
@@ -231,10 +265,7 @@ export function buildExecutiveSummary(
       .filter((d) => d.score < WEAK_BELOW)
       .sort((a, b) => a.score - b.score)
       .slice(0, MAX_LISTED)
-      .map((d) => {
-        const p = phrasesFor(d);
-        return C.weakItem(d.score < FAIL_BELOW ? p.fail : p.partial, d.dimension_name, d.score);
-      });
+      .map((d) => C.weakItem(weakPhrase(d), d.dimension_name, d.score));
     if (weak.length === 0) out.push(C.noMajorWeakAreas);
     else if (weak.length === 1) out.push(C.weakestOne(weak[0]));
     else out.push(C.weakestMany(joinList(weak)));

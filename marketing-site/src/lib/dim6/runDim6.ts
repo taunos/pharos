@@ -181,6 +181,18 @@ function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6Sub
 export const DIM6_DAILY_CAP_NOTE =
   "Citation Visibility was not measured on this run: the daily limit for live AI assistant tests (100 paid audits per day) was reached. It is not counted in your score; the other dimensions are scored normally below.";
 
+/**
+ * Not-run note (r4): no AI assistant was set up for this run (every test
+ * answer failed because no provider API key was configured), as opposed to
+ * answers that failed on the network or at a provider.
+ */
+export const DIM6_NOT_RUN_NOTE = `Citation Visibility was not run on this report: no AI assistant was set up to answer the test questions. It is not counted in your score. ${DIM6_ENGINE_LINE}.`;
+
+/** true when every cell failed only because its provider has no API key configured. */
+export function noProviderConfigured(cells: Array<{ result: { unmeasurable: boolean; notes: string } }>): boolean {
+  return cells.length > 0 && cells.every((c) => c.result.unmeasurable && /\b[A-Z_]+_API_KEY not set\b/.test(c.result.notes));
+}
+
 /** All-unmeasurable note: no AI assistant answer could be scored. */
 export const dim6AllUnmeasurableNote = (totalAnswers: number) =>
   `Citation Visibility was not measured on this run: none of the ${totalAnswers} test answers from the AI assistants could be scored (network or provider failures). It is not counted in your score. ${DIM6_ENGINE_LINE}.`;
@@ -292,7 +304,7 @@ export async function runDim6Paid(
             weight: 1,
             score: 0,
             passed: false,
-            notes: dim6AllUnmeasurableNote(result.totalCells),
+            notes: noProviderConfigured(result.cells) ? DIM6_NOT_RUN_NOTE : dim6AllUnmeasurableNote(result.totalCells),
             na: true,
           },
         ],

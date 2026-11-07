@@ -301,3 +301,51 @@ describe("citationCoverage", () => {
     expect(citationCoverage(dim(6, "Citation Visibility", 50))).toBeNull();
   });
 });
+
+describe("r4: weak-area phrases follow the sub-check evidence", () => {
+  const mcp = (score: number, wellKnown: SubCheck, live: SubCheck) =>
+    dim(2, "MCP Server Discoverability", score, { sub_checks: [wellKnown, sub("tool_coverage", 0), live] });
+  const noCard = sub("well_known", 0, "no card at /.well-known/mcp.json or /.well-known/mcp/server-card.json; an MCP server was found");
+  const summary = (d: DimensionResult) => weakest(buildExecutiveSummary(audit(50, [dim(1, "llms.txt Quality", 90), d]), GAPS_HEADING)) ?? "";
+
+  it("ugmonk: tools/list answered, no card -> found but not fully discoverable", () => {
+    const s = summary(mcp(33, noCard, sub("live_invocation", 100, "tools/list returned 1 tools")));
+    expect(s).toContain(`${C.mcpFoundNoCard} (MCP Server Discoverability, 33/100)`);
+    expect(s).not.toContain(C.dimensions[2].fail);
+  });
+
+  it("linear: OAuth challenge (75), no card -> found but not fully discoverable", () => {
+    expect(summary(mcp(25, noCard, sub("live_invocation", 75, "The MCP endpoint ... requires OAuth sign-in")))).toContain(C.mcpFoundNoCard);
+  });
+
+  it("a card but a failing endpoint -> 'passed only some', never 'could not find'", () => {
+    const s = summary(mcp(30, sub("well_known", 50, "card present at /.well-known/mcp.json but missing a server name"), sub("live_invocation", 0, "initialize returned status 500")));
+    expect(s).toContain(C.dimensions[2].partial);
+  });
+
+  it("nothing answered and no card -> the fail phrase stays", () => {
+    expect(summary(mcp(0, sub("well_known", 0, "no card at x"), sub("live_invocation", 0, "no MCP endpoint answered: ...")))).toContain(C.dimensions[2].fail);
+  });
+
+  const openApi = (subs: SubCheck[], score: number) => dim(3, "OpenAPI / API Catalog", score, { sub_checks: subs });
+
+  it("resend: held down only by the YAML limit -> 'only partly check', not 'incomplete'", () => {
+    const s = summary(
+      openApi(
+        [
+          sub("discovery", 100),
+          sub("spec_validity", 50, "YAML spec detected (openapi 3.0.3). The scanner checks a YAML spec's version field and reachability only, so it gets partial credit here."),
+          sub("info_completeness", 0, "Not measured: the scanner cannot read this part of a YAML spec.", true),
+        ],
+        75,
+      ),
+    );
+    expect(s).toContain(`${C.openApiScannerLimited} (OpenAPI / API Catalog, 75/100)`);
+    expect(s).not.toContain("incomplete");
+  });
+
+  it("a real spec gap keeps 'incomplete'", () => {
+    const s = summary(openApi([sub("discovery", 100), sub("spec_validity", 100), sub("info_completeness", 30, "info: title=yes, version=no")], 70));
+    expect(s).toContain(C.dimensions[3].partial);
+  });
+});

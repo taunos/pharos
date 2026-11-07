@@ -1,0 +1,2493 @@
+{
+ "note": "Sub-checks (Dims 1-5) from the r3-final report-panel scans (tools/report-panel/out/r3-final/*/scan.json, scanner 1.4.0, 2026-11-07), for remediation-template contradiction tests.",
+ "sites": [
+  {
+   "site": "coffeecircle",
+   "url": "https://www.coffeecircle.com/",
+   "scoring_version": "1.4.0",
+   "dimensions": [
+    {
+     "dimension_id": 1,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "presence",
+       "name": "Presence",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "status=200, content-type=\"text/plain; charset=UTF-8\""
+      },
+      {
+       "id": "spec_compliance",
+       "name": "Spec compliance (H1 + blockquote)",
+       "weight": 25,
+       "score": 50,
+       "passed": false,
+       "notes": "h1=yes, blockquote=no"
+      },
+      {
+       "id": "linked_pages_quality",
+       "name": "Linked pages return useful markdown",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "0/1 sampled links return markdown-ish content"
+      },
+      {
+       "id": "curation_quality",
+       "name": "Curation quality",
+       "weight": 15,
+       "score": 100,
+       "passed": true,
+       "notes": "clean link list"
+      },
+      {
+       "id": "blockquote_eval",
+       "name": "Blockquote elevator-pitch quality (LLM)",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "notes": "no blockquote to evaluate"
+      }
+     ]
+    },
+    {
+     "dimension_id": 2,
+     "na": true,
+     "sub_checks": [
+      {
+       "id": "well_known",
+       "name": "Well-known discovery (mcp.json / server-card.json)",
+       "weight": 30,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "tool_coverage",
+       "name": "Tool coverage and quality",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "oauth_metadata",
+       "name": "OAuth metadata (when auth declared)",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "live_invocation",
+       "name": "Live MCP tools/list invocation",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "dns_txt",
+       "name": "DNS TXT discovery (_mcp subdomain)",
+       "weight": 10,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      }
+     ]
+    },
+    {
+     "dimension_id": 3,
+     "na": true,
+     "sub_checks": [
+      {
+       "id": "discovery",
+       "name": "discovery",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "spec_validity",
+       "name": "spec_validity",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "info_completeness",
+       "name": "info_completeness",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "security_schemes",
+       "name": "security_schemes",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "operation_coverage",
+       "name": "operation_coverage",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      }
+     ]
+    },
+    {
+     "dimension_id": 4,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "json_ld_present",
+       "name": "JSON-LD present on homepage",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "1 valid JSON-LD block(s) on homepage"
+      },
+      {
+       "id": "organization_schema",
+       "name": "Organization schema completeness",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "no Organization schema"
+      },
+      {
+       "id": "service_offer_schema",
+       "name": "Service / Product / Offer schema",
+       "weight": 20,
+       "score": 100,
+       "passed": true,
+       "notes": "1 Service/Product/Offer block(s); best match has 3/3 required fields"
+      },
+      {
+       "id": "faq_schema",
+       "name": "FAQPage schema (count + conversational LLM eval)",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. This check is not counted in your score."
+      },
+      {
+       "id": "review_schema",
+       "name": "Review / AggregateRating schema",
+       "weight": 15,
+       "score": 100,
+       "passed": true,
+       "notes": "1 Review/AggregateRating block(s); well-formed=true"
+      }
+     ]
+    },
+    {
+     "dimension_id": 5,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "js_vs_no_js_render_diff",
+       "name": "JS-vs-no-JS render diff",
+       "weight": 30,
+       "score": 100,
+       "passed": true,
+       "notes": "Static-vs-rendered token overlap 99%; rendered HTML 1.0x the size of static."
+      },
+      {
+       "id": "page_weight_lcp",
+       "name": "Page weight",
+       "weight": 15,
+       "score": 100,
+       "passed": true,
+       "notes": "Homepage HTML size: 0.51 MB (539511 bytes). This check looks at page size only; it does not measure loading speed."
+      },
+      {
+       "id": "markdown_negotiation",
+       "name": "Markdown content negotiation",
+       "weight": 25,
+       "score": 25,
+       "passed": false,
+       "notes": "No markdown variant or content negotiation. Agents must fall back to HTML extraction."
+      },
+      {
+       "id": "pricing_text_visibility",
+       "name": "Pricing text visibility",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No /pricing, /plans, or /price path found, and no pricing-link discovered on homepage. This check is not counted in your score."
+      },
+      {
+       "id": "case_study_scannability",
+       "name": "Case-study scannability",
+       "weight": 10,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No case-study or portfolio page detected (homepage links such as /case-studies, /customers, /work, /portfolio, /casos or /projetos, and the /case-studies, /customers, /success-stories, /work and /portfolio paths). This check is not counted in your score."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "site": "drveit",
+   "url": "https://drveit.com.br/",
+   "scoring_version": "1.4.0",
+   "dimensions": [
+    {
+     "dimension_id": 1,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "presence",
+       "name": "Presence",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "status=200, content-type=\"text/plain\""
+      },
+      {
+       "id": "spec_compliance",
+       "name": "Spec compliance (H1 + blockquote)",
+       "weight": 25,
+       "score": 50,
+       "passed": false,
+       "notes": "h1=yes, blockquote=no"
+      },
+      {
+       "id": "linked_pages_quality",
+       "name": "Linked pages return useful markdown",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "0/5 sampled links return markdown-ish content"
+      },
+      {
+       "id": "curation_quality",
+       "name": "Curation quality",
+       "weight": 15,
+       "score": 80,
+       "passed": true,
+       "notes": "tag pages linked"
+      },
+      {
+       "id": "blockquote_eval",
+       "name": "Blockquote elevator-pitch quality (LLM)",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "notes": "no blockquote to evaluate"
+      }
+     ]
+    },
+    {
+     "dimension_id": 2,
+     "na": true,
+     "sub_checks": [
+      {
+       "id": "well_known",
+       "name": "Well-known discovery (mcp.json / server-card.json)",
+       "weight": 30,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "tool_coverage",
+       "name": "Tool coverage and quality",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "oauth_metadata",
+       "name": "OAuth metadata (when auth declared)",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "live_invocation",
+       "name": "Live MCP tools/list invocation",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "dns_txt",
+       "name": "DNS TXT discovery (_mcp subdomain)",
+       "weight": 10,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      }
+     ]
+    },
+    {
+     "dimension_id": 3,
+     "na": true,
+     "sub_checks": [
+      {
+       "id": "discovery",
+       "name": "discovery",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "spec_validity",
+       "name": "spec_validity",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "info_completeness",
+       "name": "info_completeness",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "security_schemes",
+       "name": "security_schemes",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "operation_coverage",
+       "name": "operation_coverage",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      }
+     ]
+    },
+    {
+     "dimension_id": 4,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "json_ld_present",
+       "name": "JSON-LD present on homepage",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "2 valid JSON-LD block(s) on homepage"
+      },
+      {
+       "id": "organization_schema",
+       "name": "Organization schema completeness",
+       "weight": 20,
+       "score": 60,
+       "passed": false,
+       "notes": "Organization found: name=true, url=true, description=false, sameAs=4"
+      },
+      {
+       "id": "service_offer_schema",
+       "name": "Service / Product / Offer schema",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "no Service / Product / Offer schema"
+      },
+      {
+       "id": "faq_schema",
+       "name": "FAQPage schema (count + conversational LLM eval)",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. This check is not counted in your score."
+      },
+      {
+       "id": "review_schema",
+       "name": "Review / AggregateRating schema",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. This check is not counted in your score."
+      }
+     ]
+    },
+    {
+     "dimension_id": 5,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "js_vs_no_js_render_diff",
+       "name": "JS-vs-no-JS render diff",
+       "weight": 30,
+       "score": 100,
+       "passed": true,
+       "notes": "Static-vs-rendered token overlap 100%; rendered HTML 1.1x the size of static."
+      },
+      {
+       "id": "page_weight_lcp",
+       "name": "Page weight",
+       "weight": 15,
+       "score": 100,
+       "passed": true,
+       "notes": "Homepage HTML size: 0.05 MB (51644 bytes). This check looks at page size only; it does not measure loading speed."
+      },
+      {
+       "id": "markdown_negotiation",
+       "name": "Markdown content negotiation",
+       "weight": 25,
+       "score": 25,
+       "passed": false,
+       "notes": "No markdown variant or content negotiation. Agents must fall back to HTML extraction."
+      },
+      {
+       "id": "pricing_text_visibility",
+       "name": "Pricing text visibility",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No /pricing, /plans, or /price path found, and no pricing-link discovered on homepage. This check is not counted in your score."
+      },
+      {
+       "id": "case_study_scannability",
+       "name": "Case-study scannability",
+       "weight": 10,
+       "score": 100,
+       "passed": true,
+       "notes": "Sampled 1 page(s); avg 100/100. https://drveit.com.br/sorrisos-e-casos/ → 100 (h:✓ l:✓ b:✓)."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "site": "eff",
+   "url": "https://www.eff.org/",
+   "scoring_version": "1.4.0",
+   "dimensions": [
+    {
+     "dimension_id": 1,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "presence",
+       "name": "Presence",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "status=200, content-type=\"text/plain\""
+      },
+      {
+       "id": "spec_compliance",
+       "name": "Spec compliance (H1 + blockquote)",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "h1=yes, blockquote=yes"
+      },
+      {
+       "id": "linked_pages_quality",
+       "name": "Linked pages return useful markdown",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "0/5 sampled links return markdown-ish content"
+      },
+      {
+       "id": "curation_quality",
+       "name": "Curation quality",
+       "weight": 15,
+       "score": 80,
+       "passed": true,
+       "notes": "links contain query strings"
+      },
+      {
+       "id": "blockquote_eval",
+       "name": "Blockquote elevator-pitch quality (LLM)",
+       "weight": 15,
+       "score": 58,
+       "passed": false,
+       "notes": "LLM rated blockquote 58/100"
+      }
+     ]
+    },
+    {
+     "dimension_id": 2,
+     "na": true,
+     "sub_checks": [
+      {
+       "id": "well_known",
+       "name": "Well-known discovery (mcp.json / server-card.json)",
+       "weight": 30,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "tool_coverage",
+       "name": "Tool coverage and quality",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "oauth_metadata",
+       "name": "OAuth metadata (when auth declared)",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "live_invocation",
+       "name": "Live MCP tools/list invocation",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "dns_txt",
+       "name": "DNS TXT discovery (_mcp subdomain)",
+       "weight": 10,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      }
+     ]
+    },
+    {
+     "dimension_id": 3,
+     "na": true,
+     "sub_checks": [
+      {
+       "id": "discovery",
+       "name": "discovery",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "spec_validity",
+       "name": "spec_validity",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "info_completeness",
+       "name": "info_completeness",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "security_schemes",
+       "name": "security_schemes",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "operation_coverage",
+       "name": "operation_coverage",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      }
+     ]
+    },
+    {
+     "dimension_id": 4,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "json_ld_present",
+       "name": "JSON-LD present on homepage",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "notes": "no JSON-LD found on homepage"
+      },
+      {
+       "id": "organization_schema",
+       "name": "Organization schema completeness",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "no Organization schema"
+      },
+      {
+       "id": "service_offer_schema",
+       "name": "Service / Product / Offer schema",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "no Service / Product / Offer schema"
+      },
+      {
+       "id": "faq_schema",
+       "name": "FAQPage schema (count + conversational LLM eval)",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. This check is not counted in your score."
+      },
+      {
+       "id": "review_schema",
+       "name": "Review / AggregateRating schema",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. This check is not counted in your score."
+      }
+     ]
+    },
+    {
+     "dimension_id": 5,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "js_vs_no_js_render_diff",
+       "name": "JS-vs-no-JS render diff",
+       "weight": 30,
+       "score": 100,
+       "passed": true,
+       "notes": "Static-vs-rendered token overlap 100%; rendered HTML 1.0x the size of static."
+      },
+      {
+       "id": "page_weight_lcp",
+       "name": "Page weight",
+       "weight": 15,
+       "score": 100,
+       "passed": true,
+       "notes": "Homepage HTML size: 0.01 MB (13947 bytes). This check looks at page size only; it does not measure loading speed."
+      },
+      {
+       "id": "markdown_negotiation",
+       "name": "Markdown content negotiation",
+       "weight": 25,
+       "score": 25,
+       "passed": false,
+       "notes": "No markdown variant or content negotiation. Agents must fall back to HTML extraction."
+      },
+      {
+       "id": "pricing_text_visibility",
+       "name": "Pricing text visibility",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No /pricing, /plans, or /price path found, and no pricing-link discovered on homepage. This check is not counted in your score."
+      },
+      {
+       "id": "case_study_scannability",
+       "name": "Case-study scannability",
+       "weight": 10,
+       "score": 71,
+       "passed": true,
+       "notes": "Sampled 1 page(s); avg 71/100. https://www.eff.org/work → 71 (h:✓ l:✓ b:✗)."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "site": "linear",
+   "url": "https://linear.app/",
+   "scoring_version": "1.4.0",
+   "dimensions": [
+    {
+     "dimension_id": 1,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "presence",
+       "name": "Presence",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "status=200, content-type=\"text/plain; charset=utf-8\""
+      },
+      {
+       "id": "spec_compliance",
+       "name": "Spec compliance (H1 + blockquote)",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "h1=yes, blockquote=yes"
+      },
+      {
+       "id": "linked_pages_quality",
+       "name": "Linked pages return useful markdown",
+       "weight": 20,
+       "score": 100,
+       "passed": true,
+       "notes": "5/5 sampled links return markdown-ish content"
+      },
+      {
+       "id": "curation_quality",
+       "name": "Curation quality",
+       "weight": 15,
+       "score": 80,
+       "passed": true,
+       "notes": "180 links (>100)"
+      },
+      {
+       "id": "blockquote_eval",
+       "name": "Blockquote elevator-pitch quality (LLM)",
+       "weight": 15,
+       "score": 58,
+       "passed": false,
+       "notes": "LLM rated blockquote 58/100"
+      }
+     ]
+    },
+    {
+     "dimension_id": 2,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "well_known",
+       "name": "Well-known discovery (mcp.json / server-card.json)",
+       "weight": 30,
+       "score": 0,
+       "passed": false,
+       "notes": "no card at /.well-known/mcp.json or /.well-known/mcp/server-card.json; an MCP server was found (an MCP endpoint answered at https://mcp.linear.app/mcp) but it is not advertised with a server card"
+      },
+      {
+       "id": "tool_coverage",
+       "name": "Tool coverage and quality",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "no card or no tools declared"
+      },
+      {
+       "id": "oauth_metadata",
+       "name": "OAuth metadata (when auth declared)",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No MCP server card found, so there is no declared authentication to check. This check is not counted in your score."
+      },
+      {
+       "id": "live_invocation",
+       "name": "Live MCP tools/list invocation",
+       "weight": 25,
+       "score": 75,
+       "passed": true,
+       "notes": "The MCP endpoint at https://mcp.linear.app/mcp answered and requires OAuth sign-in (HTTP 401 with a Bearer challenge), so its tools could not be listed without an account."
+      },
+      {
+       "id": "dns_txt",
+       "name": "DNS TXT discovery (_mcp subdomain)",
+       "weight": 10,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No TXT record at _mcp.linear.app. Informational only: no ratified standard defines an _mcp DNS record, so this is not scored."
+      }
+     ]
+    },
+    {
+     "dimension_id": 3,
+     "na": true,
+     "sub_checks": [
+      {
+       "id": "discovery",
+       "name": "discovery",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (a link to https://linear.app/developers/graphql.md), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API."
+      },
+      {
+       "id": "spec_validity",
+       "name": "spec_validity",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (a link to https://linear.app/developers/graphql.md), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API."
+      },
+      {
+       "id": "info_completeness",
+       "name": "info_completeness",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (a link to https://linear.app/developers/graphql.md), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API."
+      },
+      {
+       "id": "security_schemes",
+       "name": "security_schemes",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (a link to https://linear.app/developers/graphql.md), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API."
+      },
+      {
+       "id": "operation_coverage",
+       "name": "operation_coverage",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (a link to https://linear.app/developers/graphql.md), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API."
+      }
+     ]
+    },
+    {
+     "dimension_id": 4,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "json_ld_present",
+       "name": "JSON-LD present on homepage",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "notes": "no JSON-LD found on homepage"
+      },
+      {
+       "id": "organization_schema",
+       "name": "Organization schema completeness",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "no Organization schema"
+      },
+      {
+       "id": "service_offer_schema",
+       "name": "Service / Product / Offer schema",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "no Service / Product / Offer schema"
+      },
+      {
+       "id": "faq_schema",
+       "name": "FAQPage schema (count + conversational LLM eval)",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. This check is not counted in your score."
+      },
+      {
+       "id": "review_schema",
+       "name": "Review / AggregateRating schema",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. This check is not counted in your score."
+      }
+     ]
+    },
+    {
+     "dimension_id": 5,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "js_vs_no_js_render_diff",
+       "name": "JS-vs-no-JS render diff",
+       "weight": 30,
+       "score": 100,
+       "passed": true,
+       "notes": "Static-vs-rendered token overlap 96%; rendered HTML 1.0x the size of static."
+      },
+      {
+       "id": "page_weight_lcp",
+       "name": "Page weight",
+       "weight": 15,
+       "score": 50,
+       "passed": false,
+       "notes": "Homepage HTML size: 1.20 MB (1262256 bytes). This check looks at page size only; it does not measure loading speed."
+      },
+      {
+       "id": "markdown_negotiation",
+       "name": "Markdown content negotiation",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "Accept: text/markdown returns text/markdown; charset=utf-8 (directly)."
+      },
+      {
+       "id": "pricing_text_visibility",
+       "name": "Pricing text visibility",
+       "weight": 20,
+       "score": 100,
+       "passed": true,
+       "notes": "Detected https://linear.app/pricing; 7 text-based price token(s); 4 with a billing period or marked one-time."
+      },
+      {
+       "id": "case_study_scannability",
+       "name": "Case-study scannability",
+       "weight": 10,
+       "score": 71,
+       "passed": true,
+       "notes": "Sampled 1 page(s); avg 71/100. https://linear.app/customers/saas → 71 (h:✓ l:✓ b:✗). (A case study linked from the index page https://linear.app/customers.)"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "site": "metalab",
+   "url": "https://www.metalab.com/",
+   "scoring_version": "1.4.0",
+   "dimensions": [
+    {
+     "dimension_id": 1,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "presence",
+       "name": "Presence",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "notes": "status=404"
+      },
+      {
+       "id": "spec_compliance",
+       "name": "Spec compliance (H1 + blockquote)",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "notes": "h1=no, blockquote=no"
+      },
+      {
+       "id": "linked_pages_quality",
+       "name": "Linked pages return useful markdown",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "no links to sample"
+      },
+      {
+       "id": "curation_quality",
+       "name": "Curation quality",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "notes": "file missing — no link list to evaluate"
+      },
+      {
+       "id": "blockquote_eval",
+       "name": "Blockquote elevator-pitch quality (LLM)",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "notes": "no blockquote to evaluate"
+      }
+     ]
+    },
+    {
+     "dimension_id": 2,
+     "na": true,
+     "sub_checks": [
+      {
+       "id": "well_known",
+       "name": "Well-known discovery (mcp.json / server-card.json)",
+       "weight": 30,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "tool_coverage",
+       "name": "Tool coverage and quality",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "oauth_metadata",
+       "name": "OAuth metadata (when auth declared)",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "live_invocation",
+       "name": "Live MCP tools/list invocation",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "dns_txt",
+       "name": "DNS TXT discovery (_mcp subdomain)",
+       "weight": 10,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      }
+     ]
+    },
+    {
+     "dimension_id": 3,
+     "na": true,
+     "sub_checks": [
+      {
+       "id": "discovery",
+       "name": "discovery",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "spec_validity",
+       "name": "spec_validity",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "info_completeness",
+       "name": "info_completeness",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "security_schemes",
+       "name": "security_schemes",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "operation_coverage",
+       "name": "operation_coverage",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      }
+     ]
+    },
+    {
+     "dimension_id": 4,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "json_ld_present",
+       "name": "JSON-LD present on homepage",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "1 valid JSON-LD block(s) on homepage"
+      },
+      {
+       "id": "organization_schema",
+       "name": "Organization schema completeness",
+       "weight": 20,
+       "score": 100,
+       "passed": true,
+       "notes": "Organization found: name=true, url=true, description=true, sameAs=3"
+      },
+      {
+       "id": "service_offer_schema",
+       "name": "Service / Product / Offer schema",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "no Service / Product / Offer schema"
+      },
+      {
+       "id": "faq_schema",
+       "name": "FAQPage schema (count + conversational LLM eval)",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. This check is not counted in your score."
+      },
+      {
+       "id": "review_schema",
+       "name": "Review / AggregateRating schema",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. This check is not counted in your score."
+      }
+     ]
+    },
+    {
+     "dimension_id": 5,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "js_vs_no_js_render_diff",
+       "name": "JS-vs-no-JS render diff",
+       "weight": 30,
+       "score": 0,
+       "passed": false,
+       "notes": "Static-vs-rendered token overlap 16%; rendered HTML 5.4x the size of static."
+      },
+      {
+       "id": "page_weight_lcp",
+       "name": "Page weight",
+       "weight": 15,
+       "score": 100,
+       "passed": true,
+       "notes": "Homepage HTML size: 0.09 MB (92913 bytes). This check looks at page size only; it does not measure loading speed."
+      },
+      {
+       "id": "markdown_negotiation",
+       "name": "Markdown content negotiation",
+       "weight": 25,
+       "score": 25,
+       "passed": false,
+       "notes": "No markdown variant or content negotiation. Agents must fall back to HTML extraction."
+      },
+      {
+       "id": "pricing_text_visibility",
+       "name": "Pricing text visibility",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No /pricing, /plans, or /price path found, and no pricing-link discovered on homepage. This check is not counted in your score."
+      },
+      {
+       "id": "case_study_scannability",
+       "name": "Case-study scannability",
+       "weight": 10,
+       "score": 0,
+       "passed": false,
+       "notes": "Sampled 1 page(s); avg 0/100. https://www.metalab.com/work/uber → 0 (h:✗ l:✗ b:✗). (A case study linked from the index page https://www.metalab.com/work.)"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "site": "rachelqueiroz",
+   "url": "https://www.rachelqueiroz.com/",
+   "scoring_version": "1.4.0",
+   "dimensions": [
+    {
+     "dimension_id": 1,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "presence",
+       "name": "Presence",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "status=200, content-type=\"text/plain; charset=utf-8\""
+      },
+      {
+       "id": "spec_compliance",
+       "name": "Spec compliance (H1 + blockquote)",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "h1=yes, blockquote=yes"
+      },
+      {
+       "id": "linked_pages_quality",
+       "name": "Linked pages return useful markdown",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "0/3 sampled links return markdown-ish content"
+      },
+      {
+       "id": "curation_quality",
+       "name": "Curation quality",
+       "weight": 15,
+       "score": 100,
+       "passed": true,
+       "notes": "clean link list"
+      },
+      {
+       "id": "blockquote_eval",
+       "name": "Blockquote elevator-pitch quality (LLM)",
+       "weight": 15,
+       "score": 64,
+       "passed": false,
+       "notes": "LLM rated blockquote 64/100"
+      }
+     ]
+    },
+    {
+     "dimension_id": 2,
+     "na": true,
+     "sub_checks": [
+      {
+       "id": "well_known",
+       "name": "Well-known discovery (mcp.json / server-card.json)",
+       "weight": 30,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "tool_coverage",
+       "name": "Tool coverage and quality",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "oauth_metadata",
+       "name": "OAuth metadata (when auth declared)",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "live_invocation",
+       "name": "Live MCP tools/list invocation",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "dns_txt",
+       "name": "DNS TXT discovery (_mcp subdomain)",
+       "weight": 10,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      }
+     ]
+    },
+    {
+     "dimension_id": 3,
+     "na": true,
+     "sub_checks": [
+      {
+       "id": "discovery",
+       "name": "discovery",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "spec_validity",
+       "name": "spec_validity",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "info_completeness",
+       "name": "info_completeness",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "security_schemes",
+       "name": "security_schemes",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "operation_coverage",
+       "name": "operation_coverage",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      }
+     ]
+    },
+    {
+     "dimension_id": 4,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "json_ld_present",
+       "name": "JSON-LD present on homepage",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "1 valid JSON-LD block(s) on homepage"
+      },
+      {
+       "id": "organization_schema",
+       "name": "Organization schema completeness",
+       "weight": 20,
+       "score": 60,
+       "passed": false,
+       "notes": "Organization found: name=true, url=true, description=false, sameAs=0"
+      },
+      {
+       "id": "service_offer_schema",
+       "name": "Service / Product / Offer schema",
+       "weight": 20,
+       "score": 100,
+       "passed": true,
+       "notes": "2 Service/Product/Offer block(s); best match has 3/3 required fields"
+      },
+      {
+       "id": "faq_schema",
+       "name": "FAQPage schema (count + conversational LLM eval)",
+       "weight": 20,
+       "score": 85,
+       "passed": true,
+       "notes": "4 Q&A pair(s); LLM rated 4 question(s) avg 63/100"
+      },
+      {
+       "id": "review_schema",
+       "name": "Review / AggregateRating schema",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. This check is not counted in your score."
+      }
+     ]
+    },
+    {
+     "dimension_id": 5,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "js_vs_no_js_render_diff",
+       "name": "JS-vs-no-JS render diff",
+       "weight": 30,
+       "score": 100,
+       "passed": true,
+       "notes": "Static-vs-rendered token overlap 100%; rendered HTML 1.0x the size of static."
+      },
+      {
+       "id": "page_weight_lcp",
+       "name": "Page weight",
+       "weight": 15,
+       "score": 100,
+       "passed": true,
+       "notes": "Homepage HTML size: 0.06 MB (65016 bytes). This check looks at page size only; it does not measure loading speed."
+      },
+      {
+       "id": "markdown_negotiation",
+       "name": "Markdown content negotiation",
+       "weight": 25,
+       "score": 25,
+       "passed": false,
+       "notes": "No markdown variant or content negotiation. Agents must fall back to HTML extraction."
+      },
+      {
+       "id": "pricing_text_visibility",
+       "name": "Pricing text visibility",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No /pricing, /plans, or /price path found, and no pricing-link discovered on homepage. This check is not counted in your score."
+      },
+      {
+       "id": "case_study_scannability",
+       "name": "Case-study scannability",
+       "weight": 10,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No case-study or portfolio page detected (homepage links such as /case-studies, /customers, /work, /portfolio, /casos or /projetos, and the /case-studies, /customers, /success-stories, /work and /portfolio paths). This check is not counted in your score."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "site": "resend",
+   "url": "https://resend.com/",
+   "scoring_version": "1.4.0",
+   "dimensions": [
+    {
+     "dimension_id": 1,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "presence",
+       "name": "Presence",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "status=200, content-type=\"text/plain; charset=utf-8\""
+      },
+      {
+       "id": "spec_compliance",
+       "name": "Spec compliance (H1 + blockquote)",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "h1=yes, blockquote=yes"
+      },
+      {
+       "id": "linked_pages_quality",
+       "name": "Linked pages return useful markdown",
+       "weight": 20,
+       "score": 80,
+       "passed": true,
+       "notes": "4/5 sampled links return markdown-ish content"
+      },
+      {
+       "id": "curation_quality",
+       "name": "Curation quality",
+       "weight": 15,
+       "score": 100,
+       "passed": true,
+       "notes": "clean link list"
+      },
+      {
+       "id": "blockquote_eval",
+       "name": "Blockquote elevator-pitch quality (LLM)",
+       "weight": 15,
+       "score": 58,
+       "passed": false,
+       "notes": "LLM rated blockquote 58/100"
+      }
+     ]
+    },
+    {
+     "dimension_id": 2,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "well_known",
+       "name": "Well-known discovery (mcp.json / server-card.json)",
+       "weight": 30,
+       "score": 100,
+       "passed": true,
+       "notes": "valid card at /.well-known/mcp.json with name=\"Resend\", transports=1"
+      },
+      {
+       "id": "tool_coverage",
+       "name": "Tool coverage and quality",
+       "weight": 20,
+       "score": 70,
+       "passed": true,
+       "notes": "12 tool(s) declared: 12 with a description, 0 with an input schema (inputSchema); 0 have both"
+      },
+      {
+       "id": "oauth_metadata",
+       "name": "OAuth metadata (when auth declared)",
+       "weight": 15,
+       "score": 100,
+       "passed": true,
+       "notes": "auth=oauth2; OAuth metadata valid"
+      },
+      {
+       "id": "live_invocation",
+       "name": "Live MCP tools/list invocation",
+       "weight": 25,
+       "score": 75,
+       "passed": true,
+       "notes": "The MCP endpoint at https://mcp.resend.com/mcp answered and requires OAuth sign-in (HTTP 401 with a Bearer challenge), so its tools could not be listed without an account."
+      },
+      {
+       "id": "dns_txt",
+       "name": "DNS TXT discovery (_mcp subdomain)",
+       "weight": 10,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No TXT record at _mcp.resend.com. Informational only: no ratified standard defines an _mcp DNS record, so this is not scored."
+      }
+     ]
+    },
+    {
+     "dimension_id": 3,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "discovery",
+       "name": "API spec discovery",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "Found via well-known /.well-known/api-catalog at https://resend.com/openapi.yaml (content-type=text/yaml; charset=utf-8). Read through the API catalog at https://resend.com/.well-known/api-catalog (its service-desc link)."
+      },
+      {
+       "id": "spec_validity",
+       "name": "Spec validity (parses + has version field)",
+       "weight": 25,
+       "score": 50,
+       "passed": false,
+       "notes": "YAML spec detected (openapi 3.0.3). The scanner checks a YAML spec's version field and reachability only, so it gets partial credit here."
+      },
+      {
+       "id": "info_completeness",
+       "name": "Spec info completeness (title + version + description)",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "Not measured: the scanner cannot read this part of a YAML spec. This check is not counted in your score."
+      },
+      {
+       "id": "security_schemes",
+       "name": "Security schemes documented",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "Not measured: the scanner cannot read this part of a YAML spec. This check is not counted in your score."
+      },
+      {
+       "id": "operation_coverage",
+       "name": "Operation coverage + per-operation docs",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "Not measured: the scanner cannot read this part of a YAML spec. This check is not counted in your score."
+      }
+     ]
+    },
+    {
+     "dimension_id": 4,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "json_ld_present",
+       "name": "JSON-LD present on homepage",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "1 valid JSON-LD block(s) on homepage"
+      },
+      {
+       "id": "organization_schema",
+       "name": "Organization schema completeness",
+       "weight": 20,
+       "score": 100,
+       "passed": true,
+       "notes": "Organization found: name=true, url=true, description=true, sameAs=8"
+      },
+      {
+       "id": "service_offer_schema",
+       "name": "Service / Product / Offer schema",
+       "weight": 20,
+       "score": 100,
+       "passed": true,
+       "notes": "2 Service/Product/Offer block(s); best match has 3/3 required fields"
+      },
+      {
+       "id": "faq_schema",
+       "name": "FAQPage schema (count + conversational LLM eval)",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. This check is not counted in your score."
+      },
+      {
+       "id": "review_schema",
+       "name": "Review / AggregateRating schema",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. This check is not counted in your score."
+      }
+     ]
+    },
+    {
+     "dimension_id": 5,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "js_vs_no_js_render_diff",
+       "name": "JS-vs-no-JS render diff",
+       "weight": 30,
+       "score": 100,
+       "passed": true,
+       "notes": "Static-vs-rendered token overlap 97%; rendered HTML 1.0x the size of static."
+      },
+      {
+       "id": "page_weight_lcp",
+       "name": "Page weight",
+       "weight": 15,
+       "score": 100,
+       "passed": true,
+       "notes": "Homepage HTML size: 0.56 MB (583389 bytes). This check looks at page size only; it does not measure loading speed."
+      },
+      {
+       "id": "markdown_negotiation",
+       "name": "Markdown content negotiation",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "Accept: text/markdown returns text/markdown; charset=utf-8 (directly)."
+      },
+      {
+       "id": "pricing_text_visibility",
+       "name": "Pricing text visibility",
+       "weight": 20,
+       "score": 100,
+       "passed": true,
+       "notes": "Detected https://resend.com/pricing; 13 text-based price token(s); 7 with a billing period or marked one-time."
+      },
+      {
+       "id": "case_study_scannability",
+       "name": "Case-study scannability",
+       "weight": 10,
+       "score": 57,
+       "passed": false,
+       "notes": "Sampled 1 page(s); avg 57/100. https://resend.com/customers/gumroad → 57 (h:✗ l:✓ b:✓). (A case study linked from the index page https://resend.com/customers.)"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "site": "tartine",
+   "url": "https://tartinebakery.com/",
+   "scoring_version": "1.4.0",
+   "dimensions": [
+    {
+     "dimension_id": 1,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "presence",
+       "name": "Presence",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "notes": "status=404"
+      },
+      {
+       "id": "spec_compliance",
+       "name": "Spec compliance (H1 + blockquote)",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "notes": "h1=no, blockquote=no"
+      },
+      {
+       "id": "linked_pages_quality",
+       "name": "Linked pages return useful markdown",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "no links to sample"
+      },
+      {
+       "id": "curation_quality",
+       "name": "Curation quality",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "notes": "file missing — no link list to evaluate"
+      },
+      {
+       "id": "blockquote_eval",
+       "name": "Blockquote elevator-pitch quality (LLM)",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "notes": "no blockquote to evaluate"
+      }
+     ]
+    },
+    {
+     "dimension_id": 2,
+     "na": true,
+     "sub_checks": [
+      {
+       "id": "well_known",
+       "name": "Well-known discovery (mcp.json / server-card.json)",
+       "weight": 30,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "tool_coverage",
+       "name": "Tool coverage and quality",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "oauth_metadata",
+       "name": "OAuth metadata (when auth declared)",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "live_invocation",
+       "name": "Live MCP tools/list invocation",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "dns_txt",
+       "name": "DNS TXT discovery (_mcp subdomain)",
+       "weight": 10,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      }
+     ]
+    },
+    {
+     "dimension_id": 3,
+     "na": true,
+     "sub_checks": [
+      {
+       "id": "discovery",
+       "name": "discovery",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "spec_validity",
+       "name": "spec_validity",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "info_completeness",
+       "name": "info_completeness",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "security_schemes",
+       "name": "security_schemes",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "operation_coverage",
+       "name": "operation_coverage",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      }
+     ]
+    },
+    {
+     "dimension_id": 4,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "json_ld_present",
+       "name": "JSON-LD present on homepage",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "notes": "no JSON-LD found on homepage"
+      },
+      {
+       "id": "organization_schema",
+       "name": "Organization schema completeness",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "no Organization schema"
+      },
+      {
+       "id": "service_offer_schema",
+       "name": "Service / Product / Offer schema",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "no Service / Product / Offer schema"
+      },
+      {
+       "id": "faq_schema",
+       "name": "FAQPage schema (count + conversational LLM eval)",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. This check is not counted in your score."
+      },
+      {
+       "id": "review_schema",
+       "name": "Review / AggregateRating schema",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. This check is not counted in your score."
+      }
+     ]
+    },
+    {
+     "dimension_id": 5,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "js_vs_no_js_render_diff",
+       "name": "JS-vs-no-JS render diff",
+       "weight": 30,
+       "score": 50,
+       "passed": false,
+       "notes": "Static-vs-rendered token overlap 48%; rendered HTML 2.3x the size of static."
+      },
+      {
+       "id": "page_weight_lcp",
+       "name": "Page weight",
+       "weight": 15,
+       "score": 100,
+       "passed": true,
+       "notes": "Homepage HTML size: 0.11 MB (116969 bytes). This check looks at page size only; it does not measure loading speed."
+      },
+      {
+       "id": "markdown_negotiation",
+       "name": "Markdown content negotiation",
+       "weight": 25,
+       "score": 25,
+       "passed": false,
+       "notes": "No markdown variant or content negotiation. Agents must fall back to HTML extraction."
+      },
+      {
+       "id": "pricing_text_visibility",
+       "name": "Pricing text visibility",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No /pricing, /plans, or /price path found, and no pricing-link discovered on homepage. This check is not counted in your score."
+      },
+      {
+       "id": "case_study_scannability",
+       "name": "Case-study scannability",
+       "weight": 10,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No case-study or portfolio page detected (homepage links such as /case-studies, /customers, /work, /portfolio, /casos or /projetos, and the /case-studies, /customers, /success-stories, /work and /portfolio paths). This check is not counted in your score."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "site": "tuple",
+   "url": "https://tuple.app/",
+   "scoring_version": "1.4.0",
+   "dimensions": [
+    {
+     "dimension_id": 1,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "presence",
+       "name": "Presence",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "notes": "status=404"
+      },
+      {
+       "id": "spec_compliance",
+       "name": "Spec compliance (H1 + blockquote)",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "notes": "h1=no, blockquote=no"
+      },
+      {
+       "id": "linked_pages_quality",
+       "name": "Linked pages return useful markdown",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "no links to sample"
+      },
+      {
+       "id": "curation_quality",
+       "name": "Curation quality",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "notes": "file missing — no link list to evaluate"
+      },
+      {
+       "id": "blockquote_eval",
+       "name": "Blockquote elevator-pitch quality (LLM)",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "notes": "no blockquote to evaluate"
+      }
+     ]
+    },
+    {
+     "dimension_id": 2,
+     "na": true,
+     "sub_checks": [
+      {
+       "id": "well_known",
+       "name": "Well-known discovery (mcp.json / server-card.json)",
+       "weight": 30,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "tool_coverage",
+       "name": "Tool coverage and quality",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "oauth_metadata",
+       "name": "OAuth metadata (when auth declared)",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "live_invocation",
+       "name": "Live MCP tools/list invocation",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      },
+      {
+       "id": "dns_txt",
+       "name": "DNS TXT discovery (_mcp subdomain)",
+       "weight": 10,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored."
+      }
+     ]
+    },
+    {
+     "dimension_id": 3,
+     "na": true,
+     "sub_checks": [
+      {
+       "id": "discovery",
+       "name": "discovery",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "spec_validity",
+       "name": "spec_validity",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "info_completeness",
+       "name": "info_completeness",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "security_schemes",
+       "name": "security_schemes",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      },
+      {
+       "id": "operation_coverage",
+       "name": "operation_coverage",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty."
+      }
+     ]
+    },
+    {
+     "dimension_id": 4,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "json_ld_present",
+       "name": "JSON-LD present on homepage",
+       "weight": 25,
+       "score": 0,
+       "passed": false,
+       "notes": "no JSON-LD found on homepage"
+      },
+      {
+       "id": "organization_schema",
+       "name": "Organization schema completeness",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "no Organization schema"
+      },
+      {
+       "id": "service_offer_schema",
+       "name": "Service / Product / Offer schema",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "no Service / Product / Offer schema"
+      },
+      {
+       "id": "faq_schema",
+       "name": "FAQPage schema (count + conversational LLM eval)",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. This check is not counted in your score."
+      },
+      {
+       "id": "review_schema",
+       "name": "Review / AggregateRating schema",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. This check is not counted in your score."
+      }
+     ]
+    },
+    {
+     "dimension_id": 5,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "js_vs_no_js_render_diff",
+       "name": "JS-vs-no-JS render diff",
+       "weight": 30,
+       "score": 100,
+       "passed": true,
+       "notes": "Static-vs-rendered token overlap 99%; rendered HTML 1.0x the size of static."
+      },
+      {
+       "id": "page_weight_lcp",
+       "name": "Page weight",
+       "weight": 15,
+       "score": 100,
+       "passed": true,
+       "notes": "Homepage HTML size: 0.08 MB (83041 bytes). This check looks at page size only; it does not measure loading speed."
+      },
+      {
+       "id": "markdown_negotiation",
+       "name": "Markdown content negotiation",
+       "weight": 25,
+       "score": 25,
+       "passed": false,
+       "notes": "No markdown variant or content negotiation. Agents must fall back to HTML extraction."
+      },
+      {
+       "id": "pricing_text_visibility",
+       "name": "Pricing text visibility",
+       "weight": 20,
+       "score": 100,
+       "passed": true,
+       "notes": "Detected https://tuple.app/pricing; 1 text-based price token(s); 1 with a billing period or marked one-time."
+      },
+      {
+       "id": "case_study_scannability",
+       "name": "Case-study scannability",
+       "weight": 10,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No case-study or portfolio page detected (homepage links such as /case-studies, /customers, /work, /portfolio, /casos or /projetos, and the /case-studies, /customers, /success-stories, /work and /portfolio paths). This check is not counted in your score."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "site": "ugmonk",
+   "url": "https://ugmonk.com/",
+   "scoring_version": "1.4.0",
+   "dimensions": [
+    {
+     "dimension_id": 1,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "presence",
+       "name": "Presence",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "status=200, content-type=\"text/markdown; charset=utf-8\""
+      },
+      {
+       "id": "spec_compliance",
+       "name": "Spec compliance (H1 + blockquote)",
+       "weight": 25,
+       "score": 50,
+       "passed": false,
+       "notes": "h1=yes, blockquote=no"
+      },
+      {
+       "id": "linked_pages_quality",
+       "name": "Linked pages return useful markdown",
+       "weight": 20,
+       "score": 80,
+       "passed": true,
+       "notes": "4/5 sampled links return markdown-ish content"
+      },
+      {
+       "id": "curation_quality",
+       "name": "Curation quality",
+       "weight": 15,
+       "score": 100,
+       "passed": true,
+       "notes": "clean link list"
+      },
+      {
+       "id": "blockquote_eval",
+       "name": "Blockquote elevator-pitch quality (LLM)",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "notes": "no blockquote to evaluate"
+      }
+     ]
+    },
+    {
+     "dimension_id": 2,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "well_known",
+       "name": "Well-known discovery (mcp.json / server-card.json)",
+       "weight": 30,
+       "score": 0,
+       "passed": false,
+       "notes": "no card at /.well-known/mcp.json or /.well-known/mcp/server-card.json; an MCP server was found (an MCP endpoint answered at https://ugmonk.com/api/mcp) but it is not advertised with a server card"
+      },
+      {
+       "id": "tool_coverage",
+       "name": "Tool coverage and quality",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "notes": "no card or no tools declared"
+      },
+      {
+       "id": "oauth_metadata",
+       "name": "OAuth metadata (when auth declared)",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No MCP server card found, so there is no declared authentication to check. This check is not counted in your score."
+      },
+      {
+       "id": "live_invocation",
+       "name": "Live MCP tools/list invocation",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "tools/list returned 1 tools"
+      },
+      {
+       "id": "dns_txt",
+       "name": "DNS TXT discovery (_mcp subdomain)",
+       "weight": 10,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No TXT record at _mcp.ugmonk.com. Informational only: no ratified standard defines an _mcp DNS record, so this is not scored."
+      }
+     ]
+    },
+    {
+     "dimension_id": 3,
+     "na": true,
+     "sub_checks": [
+      {
+       "id": "discovery",
+       "name": "discovery",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (a link to an MCP endpoint, https://ugmonk.com/api/ucp/mcp), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API."
+      },
+      {
+       "id": "spec_validity",
+       "name": "spec_validity",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (a link to an MCP endpoint, https://ugmonk.com/api/ucp/mcp), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API."
+      },
+      {
+       "id": "info_completeness",
+       "name": "info_completeness",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (a link to an MCP endpoint, https://ugmonk.com/api/ucp/mcp), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API."
+      },
+      {
+       "id": "security_schemes",
+       "name": "security_schemes",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (a link to an MCP endpoint, https://ugmonk.com/api/ucp/mcp), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API."
+      },
+      {
+       "id": "operation_coverage",
+       "name": "operation_coverage",
+       "weight": 1,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (a link to an MCP endpoint, https://ugmonk.com/api/ucp/mcp), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API."
+      }
+     ]
+    },
+    {
+     "dimension_id": 4,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "json_ld_present",
+       "name": "JSON-LD present on homepage",
+       "weight": 25,
+       "score": 100,
+       "passed": true,
+       "notes": "1 valid JSON-LD block(s) on homepage"
+      },
+      {
+       "id": "organization_schema",
+       "name": "Organization schema completeness",
+       "weight": 20,
+       "score": 60,
+       "passed": false,
+       "notes": "Organization found: name=true, url=true, description=false, sameAs=0"
+      },
+      {
+       "id": "service_offer_schema",
+       "name": "Service / Product / Offer schema",
+       "weight": 20,
+       "score": 100,
+       "passed": true,
+       "notes": "9 Service/Product/Offer block(s); best match has 3/3 required fields (on the sampled product page https://ugmonk.com/products/analog-task-cards-small; none on the homepage)"
+      },
+      {
+       "id": "faq_schema",
+       "name": "FAQPage schema (count + conversational LLM eval)",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. This check is not counted in your score."
+      },
+      {
+       "id": "review_schema",
+       "name": "Review / AggregateRating schema",
+       "weight": 15,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. This check is not counted in your score."
+      }
+     ]
+    },
+    {
+     "dimension_id": 5,
+     "na": false,
+     "sub_checks": [
+      {
+       "id": "js_vs_no_js_render_diff",
+       "name": "JS-vs-no-JS render diff",
+       "weight": 30,
+       "score": 100,
+       "passed": true,
+       "notes": "Static-vs-rendered token overlap 97%; rendered HTML 1.0x the size of static."
+      },
+      {
+       "id": "page_weight_lcp",
+       "name": "Page weight",
+       "weight": 15,
+       "score": 100,
+       "passed": true,
+       "notes": "Homepage HTML size: 0.08 MB (79380 bytes). This check looks at page size only; it does not measure loading speed."
+      },
+      {
+       "id": "markdown_negotiation",
+       "name": "Markdown content negotiation",
+       "weight": 25,
+       "score": 25,
+       "passed": false,
+       "notes": "No markdown variant or content negotiation. Agents must fall back to HTML extraction."
+      },
+      {
+       "id": "pricing_text_visibility",
+       "name": "Pricing text visibility",
+       "weight": 20,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No /pricing, /plans, or /price path found, and no pricing-link discovered on homepage. This check is not counted in your score."
+      },
+      {
+       "id": "case_study_scannability",
+       "name": "Case-study scannability",
+       "weight": 10,
+       "score": 0,
+       "passed": false,
+       "na": true,
+       "notes": "No case-study or portfolio page detected (homepage links such as /case-studies, /customers, /work, /portfolio, /casos or /projetos, and the /case-studies, /customers, /success-stories, /work and /portfolio paths). This check is not counted in your score."
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

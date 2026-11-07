@@ -19,7 +19,9 @@
 //
 // The state of each check is read from the scanner's own note templates
 // (scanner/src/checks/*) by code below, never by a model. A note this code
-// doesn't recognize falls back to the check's general template.
+// doesn't recognize falls back to the check's general template, or to the
+// neutral UNKNOWN_CHECK_REMEDIATION where a specific template could
+// contradict the note (r4: a wrong specific state is worse than a neutral one).
 
 import type { SubCheck } from "./audit-types";
 
@@ -149,6 +151,7 @@ export const T = {
     reasonNoTools: "tools/list did not return a tools list",
     reasonTooLarge: "the reply was larger than our scan limit",
     reasonUnknown: "the exchange did not complete",
+    reasonBadUrl: "the card's transport URL is not a valid web address",
   },
   dns_txt: {
     notFound: (o: string, h: string, weight: number) =>
@@ -238,7 +241,7 @@ export const T = {
   // ── Dim 5: Agent-Parsable Content ─────────────────────────────────────
   js_vs_no_js_render_diff: {
     lowOverlap: (pct: number) =>
-      `Only ${pct}% of the text on your homepage after JavaScript runs is also in the HTML your server sends first. Tools that don't run JavaScript (several AI crawlers among them) see only that part. Render the main content on the server (server-side rendering, pre-rendering or static generation) so the first HTML response contains it; on a website builder, check whether it offers this. Estimated effort: 2 to 5 days on a custom app.`,
+      `About ${pct}% of the distinct words on your homepage appear in both the HTML your server sends and the page after JavaScript runs. Tools that don't run JavaScript (several AI crawlers among them) see only the HTML your server sends. Render the main content on the server (server-side rendering, pre-rendering or static generation) so the first HTML response contains it; on a website builder, check whether it offers this. Estimated effort: 2 to 5 days on a custom app.`,
     shell:
       "Before JavaScript runs, your homepage's HTML contains almost no text; it looks like an app shell that fills in later. Tools that don't run JavaScript (several AI crawlers among them) see an empty page. Render the main content on the server (server-side rendering, pre-rendering or static generation); on a website builder, check whether it offers this. Estimated effort: 2 to 5 days on a custom app.",
     noSignals:
@@ -385,17 +388,25 @@ const SELECTORS: Record<string, Selector> = {
   well_known: (s, c) => {
     const path = cardPath(s.notes);
     if (path && /invalid JSON/.test(s.notes)) return T.well_known.invalidJson(c.origin, path);
-    if (path && /missing name or transports/.test(s.notes)) return T.well_known.missingFields(c.origin, path);
-    return T.well_known.noCard(c.origin);
+    // "missing name or transports" (before 1.4.0); "missing a server name and
+    // a transport URL ..." (1.4.0).
+    if (path && /^card present at \S+ but missing /.test(s.notes)) return T.well_known.missingFields(c.origin, path);
+    if (/^no card at /.test(s.notes)) return T.well_known.noCard(c.origin);
+    return UNKNOWN_CHECK_REMEDIATION;
   },
 
   tool_coverage: (s) => {
-    const m = s.notes.match(/^(\d+) of (\d+) tools have/);
-    const q = int(m?.[1]);
-    const n = int(m?.[2]);
-    if (q !== null && n !== null && q <= n) return T.tool_coverage.counts(q, n);
+    // "<q> of <n> tools have ..." (before 1.4.0); "<n> tool(s) declared: <d>
+    // with a description, <k> with an input schema (inputSchema); <q> have
+    // both" (1.4.0).
+    const old = s.notes.match(/^(\d+) of (\d+) tools have/);
+    const cur = s.notes.match(/^(\d+) tool\(s\) declared: .*; (\d+) have both$/);
+    const q = int(old?.[1] ?? cur?.[2]);
+    const n = int(old?.[2] ?? cur?.[1]);
+    if (q !== null && n !== null && n > 0 && q <= n) return T.tool_coverage.counts(q, n);
     if (/no tools\[\] field/.test(s.notes)) return T.tool_coverage.noToolsField;
-    return T.tool_coverage.noCard;
+    if (/^no card or no tools declared$/.test(s.notes)) return T.tool_coverage.noCard;
+    return UNKNOWN_CHECK_REMEDIATION;
   },
 
   oauth_metadata: (s, c) => {
@@ -414,10 +425,16 @@ const SELECTORS: Record<string, Selector> = {
   live_invocation: (s, c) => {
     const L = T.live_invocation;
     const n = s.notes;
+    const wk = sibling(c, "well_known");
+    // 1.4.0: no card, and no declared or guessed endpoint answered.
+    if (/^no MCP endpoint answered/.test(n)) return L.noCard;
+    if (/^no usable transport URL in card/.test(n)) return L.failed(L.reasonBadUrl);
     if (/^no transport URL/.test(n)) {
-      const wk = sibling(c, "well_known");
       return wk && wk.score === 0 ? L.noCard : L.noTransport;
     }
+    // The failure templates speak of "the endpoint in your discovery card":
+    // without a card (an endpoint found another way) stay neutral.
+    if (wk && wk.score === 0) return UNKNOWN_CHECK_REMEDIATION;
     const initStatus = int(n.match(/^initialize returned status (\d{3})\b/)?.[1]);
     if (initStatus === 401 || initStatus === 403) return L.authRequired(initStatus);
     let reason: string = L.reasonUnknown;
@@ -435,7 +452,7 @@ const SELECTORS: Record<string, Selector> = {
 
   dns_txt: (s, c) => {
     const h = dnsHost(s.notes, c);
-    if (/^DoH /.test(s.notes)) return T.dns_txt.lookupFailed(c.origin, h);
+    if (/^DoH |did not complete/.test(s.notes)) return T.dns_txt.lookupFailed(c.origin, h);
     const w = Math.max(0, Math.min(100, Math.round(Number(s.weight) || 0)));
     return T.dns_txt.notFound(c.origin, h, w);
   },
@@ -498,8 +515,14 @@ const SELECTORS: Record<string, Selector> = {
   },
 
   service_offer_schema: (s) => {
+    // Both templates speak of the homepage: a note about a sampled product
+    // page (1.4.0) gets the neutral text.
+    if (/sampled product page/.test(s.notes)) return UNKNOWN_CHECK_REMEDIATION;
     const k = int(s.notes.match(/best match has (\d)\/3 required fields/)?.[1]);
-    return k !== null && k >= 1 && k <= 2 ? T.service_offer_schema.partial(k) : T.service_offer_schema.none;
+    // Markup with 0 of 3 fields is markup, not "no structured data".
+    if (k !== null && k <= 2) return T.service_offer_schema.partial(k);
+    if (/^no Service \/ Product \/ Offer schema$/.test(s.notes)) return T.service_offer_schema.none;
+    return UNKNOWN_CHECK_REMEDIATION;
   },
 
   faq_schema: (s) => {
@@ -516,7 +539,7 @@ const SELECTORS: Record<string, Selector> = {
   },
 
   js_vs_no_js_render_diff: (s) => {
-    const pct = int(s.notes.match(/token overlap (\d+)%/)?.[1]);
+    const pct = int((s.notes.match(/^About (\d+)% of the distinct words/) ?? s.notes.match(/token overlap (\d+)%/))?.[1]);
     if (pct !== null && pct <= 100) return T.js_vs_no_js_render_diff.lowOverlap(pct);
     if (/minimal HTML/.test(s.notes)) return T.js_vs_no_js_render_diff.shell;
     if (/no obvious pricing\/capabilities signals/.test(s.notes)) return T.js_vs_no_js_render_diff.noSignals;
@@ -524,7 +547,7 @@ const SELECTORS: Record<string, Selector> = {
   },
 
   page_weight_lcp: (s) => {
-    const mb = s.notes.match(/^Page weight (\d{1,4}\.\d{2})MB/)?.[1];
+    const mb = (s.notes.match(/^Homepage HTML size: (\d{1,4}\.\d{2}) MB/) ?? s.notes.match(/^Page weight (\d{1,4}\.\d{2})MB/))?.[1];
     return mb ? T.page_weight_lcp.heavy(mb) : T.page_weight_lcp.general;
   },
 
@@ -537,9 +560,12 @@ const SELECTORS: Record<string, Selector> = {
     const where = url ? P.where(url) : "";
     if (/didn't return 200/.test(s.notes)) return P.notLoading(where);
     if (/modal-suggesting markup/.test(s.notes)) return P.inModal(where);
-    const n = int(s.notes.match(/; (\d+) price token\(s\) but none with \/period suffix/)?.[1]);
+    // "none with /period suffix" (before 1.4.0); "none with a billing period
+    // ..." (1.4.0).
+    const n = int(s.notes.match(/; (\d+) price token\(s\) but none with (?:\/period suffix|a billing period)/)?.[1]);
     if (n !== null && n > 0) return P.noPeriod(n, where);
-    return P.noPrices(where);
+    if (/no price patterns detected/.test(s.notes)) return P.noPrices(where);
+    return UNKNOWN_CHECK_REMEDIATION;
   },
 
   case_study_scannability: (s) => {

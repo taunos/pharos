@@ -85,8 +85,8 @@ describe("remediation is fixed text", () => {
     expect(org.remediation).toContain("The Organization block on your homepage is missing description");
   });
 
-  it("remediation engine version is bumped to v6", () => {
-    expect(REMEDIATION_ENGINE_VERSION_TAG).toBe("v6");
+  it("remediation engine version is bumped to v7", () => {
+    expect(REMEDIATION_ENGINE_VERSION_TAG).toBe("v7");
   });
 });
 

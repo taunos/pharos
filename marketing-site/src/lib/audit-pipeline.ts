@@ -34,7 +34,7 @@ const SCANNER_URL = `${DEFAULT_SCANNER_URL}/api/scan`;
 // (lib/remediation-templates.ts) chosen by code from the scanner result; no
 // model call, no KV cache. Gaps are the checks that did not pass, ordered by
 // weighted impact (lib/audit-gaps.ts).
-const REMEDIATION_ENGINE_VERSION = "v6";
+const REMEDIATION_ENGINE_VERSION = "v7";
 
 export type AuditEnv = {
   AI: Ai;

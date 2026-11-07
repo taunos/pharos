@@ -41,6 +41,12 @@ export const AUDIT_REPORT_COPY = {
   scopeNotApplicable: (names: string) => ` Not applicable to this site: ${names}.`,
   scopeNotMeasured: (names: string) => ` Not measured on this run: ${names}.`,
   scopeNotCounted: " Dimensions that were not scored are not counted in the score.",
+  // r4: N/A or not-measured checks inside the scored dimensions. Joined to
+  // scopeNotCounted with "; " (one sentence), or a sentence of its own.
+  scopeChecksNotCounted: (n: number) =>
+    n === 1
+      ? "1 individual check did not apply or could not be measured and is not counted."
+      : `${n} individual checks did not apply or could not be measured and are not counted.`,
   naFallbackNote:
     "Dimension did not apply to this site; dropped from composite.",
   checkColumns: ["Check", "Score", "Weight", "Notes"] as const,
@@ -152,7 +158,12 @@ function scopeNote(scan: AuditResult["scan"]): string {
   let s = C.scopeScored(scored, total);
   if (inapplicable.length > 0) s += C.scopeNotApplicable(namesList(inapplicable));
   if (unmeasured.length > 0) s += C.scopeNotMeasured(namesList(unmeasured));
-  if (inapplicable.length + unmeasured.length > 0) s += C.scopeNotCounted;
+  const naChecks = scan.dimensions.filter((d) => !d.na).reduce((n, d) => n + d.sub_checks.filter((sc) => sc.na).length, 0);
+  if (inapplicable.length + unmeasured.length > 0) {
+    s += naChecks > 0 ? `${C.scopeNotCounted.slice(0, -1)}; ${C.scopeChecksNotCounted(naChecks)}` : C.scopeNotCounted;
+  } else if (naChecks > 0) {
+    s += ` ${C.scopeChecksNotCounted(naChecks)}`;
+  }
   return s;
 }
 

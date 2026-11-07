@@ -129,7 +129,7 @@ describe("buildAuditReportModel", () => {
     const m = buildAuditReportModel(fixture(), SESSION);
     expect(m.generatedLabel).toBe("Generated 2026-11-04 12:30:05 UTC · session fb92b10e");
     expect(m.scopeNote).toBe(
-      "Scored on 2 of 6 dimensions. Not applicable to this site: OpenAPI / API Catalog. Dimensions that were not scored are not counted in the score.",
+      "Scored on 2 of 6 dimensions. Not applicable to this site: OpenAPI / API Catalog. Dimensions that were not scored are not counted in the score; 1 individual check did not apply or could not be measured and is not counted.",
     );
     const d4 = m.dimensions[2];
     expect(d4.kind).toBe("scored");
@@ -182,8 +182,22 @@ describe("buildAuditReportModel", () => {
   it("omits the not-scored sentences when nothing was dropped", () => {
     const a = fixture();
     a.scan.dimensions = a.scan.dimensions.filter((d) => !d.na);
+    for (const d of a.scan.dimensions) d.sub_checks = d.sub_checks.filter((sc) => !sc.na);
     const m = buildAuditReportModel(a, SESSION);
     expect(m.scopeNote).toBe("Scored on 2 of 6 dimensions.");
+  });
+
+  it("counts N/A checks inside scored dimensions in the scope note (one sentence)", () => {
+    const a = fixture();
+    a.scan.dimensions = a.scan.dimensions.filter((d) => !d.na);
+    expect(buildAuditReportModel(a, SESSION).scopeNote).toBe(
+      "Scored on 2 of 6 dimensions. 1 individual check did not apply or could not be measured and is not counted.",
+    );
+    const sc = a.scan.dimensions[0].sub_checks[0];
+    a.scan.dimensions[0].sub_checks.push({ ...sc, id: "x1", na: true }, { ...sc, id: "x2", na: true });
+    expect(buildAuditReportModel(a, SESSION).scopeNote).toBe(
+      "Scored on 2 of 6 dimensions. 3 individual checks did not apply or could not be measured and are not counted.",
+    );
   });
 
   it("Citation Visibility N/A is 'Not measured' (never 'not applicable'), in the scope note and the badge", () => {
@@ -227,11 +241,12 @@ describe("buildAuditReportModel", () => {
     ];
     const m = buildAuditReportModel(a, SESSION);
     expect(m.scopeNote).toBe(
-      "Scored on 2 of 6 dimensions. Not measured on this run: OpenAPI / API Catalog. Dimensions that were not scored are not counted in the score.",
+      "Scored on 2 of 6 dimensions. Not measured on this run: OpenAPI / API Catalog. Dimensions that were not scored are not counted in the score; 1 individual check did not apply or could not be measured and is not counted.",
     );
     const all = [m.scopeNote, ...m.executiveSummary].join(" ");
     expect(all).not.toContain("no API surface");
-    expect(all).not.toContain("did not apply");
+    // (the individual-check count sentence says "did not apply or could not be measured")
+    expect(all.replace("did not apply or could not be measured", "")).not.toContain("did not apply");
     expect(all).toContain("OpenAPI / API Catalog could not be measured on this run, so it is not counted in your score");
     const naBlock = m.dimensions.find((x) => x.id === 3)!;
     expect(naBlock).toMatchObject({ kind: "na" });
