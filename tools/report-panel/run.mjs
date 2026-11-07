@@ -114,6 +114,9 @@ async function bundle() {
     external: ["cloudflare:*"],
     nodePaths: NODE_PATHS,
     logLevel: "warning",
+    // CJS deps (e.g. the scanner's `yaml`) call require("process"); give the
+    // ESM bundle a real require so Node can resolve builtins.
+    banner: { js: "import { createRequire as __cr } from 'module'; const require = __cr(import.meta.url);" },
   });
   return import(pathToFileURL(outfile).href + `?t=${Date.now()}`);
 }
