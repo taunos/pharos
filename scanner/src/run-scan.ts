@@ -91,12 +91,20 @@ export async function runScan(
     (d) => d.na === true && !d.unmeasured,
     () => false
   );
+  // 1.4.1: Dim 4's service_offer_schema is N/A when nothing shows the site
+  // sells online; whether Dim 5 found a pricing page is one of the signs
+  // (handed over as a promise; a Dim 5 failure counts as "found").
+  const d5p = runDim5(url, env, tier);
+  const pricingPageFound = d5p.then(
+    (d) => d.sub_checks.find((s) => s.id === "pricing_text_visibility")?.na !== true,
+    () => true
+  );
   const [d1, d2, d3, d4, d5, d6] = await Promise.all([
     runDim1(url, env, handLlms).finally(() => handLlms(null)),
     runDim2(url, env, contentOnly, signals),
     d3p,
-    runDim4(url, env, handHomepage).finally(() => handHomepage(null)),
-    runDim5(url, env, tier),
+    runDim4(url, env, handHomepage, pricingPageFound).finally(() => handHomepage(null)),
+    d5p,
     runDim6(url, tier),
   ]);
   const dimensions = [d1, d2, d3, d4, d5, d6];

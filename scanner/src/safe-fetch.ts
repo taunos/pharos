@@ -10,7 +10,9 @@
  *   private addresses are left to the Workers network
  *   (global_fetch_strictly_public).
  * - safeFetch: manual redirects (max 3), every hop re-validated, one overall
- *   deadline shared by every hop AND the body read.
+ *   deadline shared by every hop AND the body read. 1.4.1: with `sameSite`
+ *   every hop (the first included) must also stay on the audited site; a
+ *   request body is never replayed (307/308) to another site.
  * - SafeResponse.body(): streaming read with a byte cap; cancels the stream
  *   (fire-and-forget) on cap, deadline or error instead of buffering an
  *   unbounded body. Never throws.
@@ -243,6 +245,23 @@ export interface SafeFetchOpts {
   timeoutMs: number;
   maxRedirects?: number;
   fetchImpl?: FetchLike;
+  /**
+   * 1.4.1: the audited site's base host (siteBase). Every hop, the first
+   * included, must be that host or one of its subdomains; any other hop
+   * returns null. Public-target validation still applies to every hop.
+   */
+  sameSite?: string;
+}
+
+/** The base host of a URL: its hostname without a trailing dot or a leading "www.". */
+export function hostBase(u: URL): string {
+  return u.hostname.toLowerCase().replace(/\.$/, "").replace(/^www\./, "");
+}
+
+/** true when `host` is `base` or one of its subdomains. */
+export function isSameSite(host: string, base: string): boolean {
+  const h = host.toLowerCase().replace(/\.$/, "");
+  return h === base || h.endsWith("." + base);
 }
 
 /**
@@ -261,7 +280,15 @@ export async function safeFetch(url: string, init: RequestInit = {}, opts: SafeF
   let reqBody = init.body;
   const headers = new Headers(init.headers);
   try {
-    let target = validateTargetUrl(url).toString();
+    const first = validateTargetUrl(url);
+    const inScope = (u: URL) => {
+      if (opts.sameSite !== undefined && !isSameSite(u.hostname, opts.sameSite)) {
+        throw new UnsafeUrlError("Off-site URL.");
+      }
+    };
+    inScope(first);
+    const firstBase = hostBase(first);
+    let target = first.toString();
     let redirects = 0;
     for (;;) {
       const res = await deadline.race(
@@ -304,6 +331,12 @@ export async function safeFetch(url: string, init: RequestInit = {}, opts: SafeF
       }
       cancelQuietly((res as { body?: ReadableStream | null }).body);
       const next = validateTargetUrl(new URL(location, target));
+      inScope(next);
+      // 1.4.1: a 307/308 replays the body; never to another site (an MCP
+      // POST to the audited site must not be forwarded elsewhere).
+      if (reqBody != null && (res.status === 307 || res.status === 308) && !isSameSite(next.hostname, firstBase)) {
+        throw new UnsafeUrlError("Request body not replayed off-site.");
+      }
       if (next.origin !== new URL(target).origin && headers.has("authorization")) {
         // Never forward credentials to another origin (fetch's own rule).
         headers.delete("authorization");

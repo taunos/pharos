@@ -453,7 +453,9 @@ describe("1.4.0 F32 / F33: content paths and case studies", () => {
     expect(caseStudyRank("/account/login")).toBe(-1);
   });
 
-  const STUDY = "<html><body><h2>Challenge</h2><h2>Solution</h2><h3>Results</h3><ul><li>a</li></ul><strong>Quote</strong></body></html>";
+  // 1.4.1: a sampled page needs 500+ characters of server-side text to be measured.
+  const STUDY_PROSE = "<p>" + "We worked with the client on this project from start to finish. ".repeat(10) + "</p>";
+  const STUDY = `<html><body><h2>Challenge</h2><h2>Solution</h2><h3>Results</h3><ul><li>a</li></ul><strong>Quote</strong>${STUDY_PROSE}</body></html>`;
 
   it("resend /customers is an index: one linked study is scored instead of the index", async () => {
     const hrefs = fxJson<string[]>("resend-customers-hrefs.json");

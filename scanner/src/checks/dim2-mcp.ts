@@ -8,8 +8,10 @@ const FETCH_TIMEOUT_MS = 5000;
 
 // Security pass 2026-11-04: validated hops (incl. the card's transport URL),
 // max 3 redirects, one deadline covering headers AND body (see ../safe-fetch).
-function timedFetch(url: string, init?: RequestInit, timeoutMs = FETCH_TIMEOUT_MS): Promise<SafeResponse | null> {
-  return safeFetch(url, init, { timeoutMs });
+// 1.4.1: `sameSite` (the audited site's base host) keeps every hop of a probe
+// on the audited site; used for every request to a URL the site declares.
+function timedFetch(url: string, init?: RequestInit, timeoutMs = FETCH_TIMEOUT_MS, sameSite?: string): Promise<SafeResponse | null> {
+  return safeFetch(url, init, { timeoutMs, sameSite });
 }
 
 /** Capped JSON read; throws (like Response.json) on a read error, truncation or bad JSON. */
@@ -318,8 +320,8 @@ async function dnsTxt(host: string): Promise<{ found: boolean; note: string; url
  * every Shopify store). Returns the MCP endpoints its services declare, or
  * null when there is no profile or it declares no MCP transport.
  */
-async function ucpMcpEndpoints(origin: string): Promise<string[] | null> {
-  const r = await timedFetch(`${origin}/.well-known/ucp`, { headers: { Accept: "application/json" } });
+async function ucpMcpEndpoints(origin: string, base: string): Promise<string[] | null> {
+  const r = await timedFetch(`${origin}/.well-known/ucp`, { headers: { Accept: "application/json" } }, FETCH_TIMEOUT_MS, base);
   if (!r) return null;
   if (r.status !== 200) {
     r.discard();
@@ -349,6 +351,8 @@ async function ucpMcpEndpoints(origin: string): Promise<string[] | null> {
 type LiveResult = {
   score: number;
   note: string;
+  /** 1.4.1: not counted (the card's endpoint is on another site). */
+  na?: true;
   /** A real MCP server answered (initialize result), or a declared endpoint answered with an OAuth challenge. */
   answered: boolean;
   /** The answer was a 401 Bearer challenge only. */
@@ -360,7 +364,7 @@ type LiveResult = {
  * notifications/initialized notification, then requests carrying the
  * Mcp-Session-Id (when the server issued one) and MCP-Protocol-Version.
  */
-async function liveProbe(transportUrl: string, budgetMs = LIVE_BUDGET_MS): Promise<LiveResult> {
+async function liveProbe(transportUrl: string, base: string, budgetMs = LIVE_BUDGET_MS): Promise<LiveResult> {
   const liveDeadline = Date.now() + budgetMs;
   const post = (payload: unknown, extra: Record<string, string> = {}) =>
     timedFetch(
@@ -370,7 +374,8 @@ async function liveProbe(transportUrl: string, budgetMs = LIVE_BUDGET_MS): Promi
         headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", ...extra },
         body: JSON.stringify(payload),
       },
-      Math.max(1, Math.min(5000, liveDeadline - Date.now()))
+      Math.max(1, Math.min(5000, liveDeadline - Date.now())),
+      base
     );
   const init = await post({
     jsonrpc: "2.0",
@@ -434,6 +439,14 @@ export const OAUTH_NO_CARD_NA_NOTE =
 export const OAUTH_NO_AUTH_NA_NOTE =
   "The MCP server card declares no authentication, so there is no OAuth metadata to check. This check is not counted in your score.";
 
+/** live_invocation N/A note (1.4.1): the card's endpoint is on another site. */
+export const LIVE_OFF_SITE_NA_NOTE =
+  "The MCP server card's endpoint is on another site, which the scanner does not call, so this check is not counted in your score.";
+
+/** live_invocation note (1.4.1): the card's transport URL does not parse as a web address. */
+export const LIVE_BAD_TRANSPORT_NOTE =
+  "no usable transport URL in card to invoke: the card's transport URL is not a valid web address";
+
 /** Live probes of endpoints the site declares (llms.txt / homepage / UCP / TXT), beyond the card's own. */
 const MAX_DECLARED_PROBES = 2;
 /** The guessed /api/mcp path gets a shorter budget than a declared endpoint. */
@@ -458,7 +471,7 @@ export async function runDim2(
   // 1. well_known
   const { card, status: cardStatus, from } = await fetchCard(origin);
   const dnsP = dnsTxt(u.host);
-  const ucpP = cardStatus === 200 ? Promise.resolve(null) : ucpMcpEndpoints(origin);
+  const ucpP = cardStatus === 200 ? Promise.resolve(null) : ucpMcpEndpoints(origin, base);
   let wellKnownScore = 0;
   let wellKnownNote = `no card at /.well-known/mcp.json or /.well-known/mcp/server-card.json`;
   if (cardStatus === 200 && card) {
@@ -527,7 +540,7 @@ export async function runDim2(
     let score = 0;
     let note = "";
     for (const metaUrl of metaUrls) {
-      const r = await timedFetch(metaUrl, { headers: { Accept: "application/json" } });
+      const r = await timedFetch(metaUrl, { headers: { Accept: "application/json" } }, FETCH_TIMEOUT_MS, base);
       if (r && r.status === 200) {
         try {
           const meta = (await readJson(r)) as { authorization_endpoint?: string; token_endpoint?: string };
@@ -551,19 +564,37 @@ export async function runDim2(
   // 4. live_invocation
   let live: LiveResult = { score: 0, note: "no transport URL in card to invoke", answered: false };
   let liveUrl = "";
-  const cardTransport = card?.transports[0]?.url ? new URL(card.transports[0].url, origin).toString() : "";
+  // 1.4.1: the card's transport is called only on this site or a subdomain;
+  // a malformed URL is no usable transport (it used to throw).
+  let cardTransport = "";
+  let offSiteTransport = false;
+  let badTransport = false;
+  const rawTransport = card?.transports[0]?.url;
+  if (rawTransport) {
+    try {
+      const t = new URL(rawTransport, origin);
+      if (t.protocol !== "https:" && t.protocol !== "http:") badTransport = true;
+      else if (isSameSite(t.hostname, base)) cardTransport = t.toString();
+      else offSiteTransport = true;
+    } catch {
+      badTransport = true;
+    }
+  }
   // Evidence beyond the card, gathered only when the card gives no transport.
   let sig: SiteSignals = NO_SIGNALS;
   let ucp: string[] | null = null;
   let dns: Awaited<ReturnType<typeof dnsTxt>> | null = null;
-  if (cardTransport) {
-    live = await liveProbe(cardTransport);
+  if (offSiteTransport) {
+    // Not a failure of the site: the scanner does not call other sites.
+    live = { score: 0, note: LIVE_OFF_SITE_NA_NOTE, answered: false, na: true };
+  } else if (cardTransport) {
+    live = await liveProbe(cardTransport, base);
     liveUrl = cardTransport;
   } else {
     // The /api/mcp path Shopify stores serve, probed while the other
     // evidence is gathered (it does not depend on it).
     const guessed = `${origin}/api/mcp`;
-    const guessedP = card ? null : liveProbe(guessed, GUESSED_BUDGET_MS);
+    const guessedP = card ? null : liveProbe(guessed, base, GUESSED_BUDGET_MS);
     [sig, ucp, dns] = await Promise.all([Promise.resolve(signals).catch(() => NO_SIGNALS), ucpP, dnsP]);
     // Endpoints the site declares, on this site or a subdomain.
     const declared: string[] = [];
@@ -590,13 +621,15 @@ export async function runDim2(
     for (const e of declared.filter((d) => !tried.includes(d)).slice(0, MAX_DECLARED_PROBES)) {
       if (live.score === 100) break;
       tried.push(e);
-      take(await liveProbe(e), e);
+      take(await liveProbe(e, base), e);
     }
     if (!live.answered) {
       live = {
         score: 0,
         answered: false,
-        note: card
+        note: badTransport
+          ? `${LIVE_BAD_TRANSPORT_NOTE}${tried.length > 0 ? `, and ${tried.join(", ")} did not answer an MCP initialize request` : ""}`
+          : card
           ? `no transport URL in card to invoke${tried.length > 0 ? `, and ${tried.join(", ")} did not answer an MCP initialize request` : ""}`
           : `no MCP endpoint answered: no server card with a transport URL, and ${tried.join(", ")} did not answer an MCP initialize request`,
       };
@@ -648,6 +681,7 @@ export async function runDim2(
       score: live.score,
       passed: live.score >= 70,
       notes: live.note,
+      ...(live.na ? { na: true } : {}),
     },
     // 5. dns_txt. 1.4.0: informational (weight redistributed): no ratified
     // standard defines an _mcp TXT record, so its absence is not a gap.

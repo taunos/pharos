@@ -15,6 +15,7 @@ import type { DimensionResult, Env, ScanTier, SubCheck } from "../types";
 import { dimensionScoreOrThrow, gradeFor } from "../scoring";
 import { MAX_HTML_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
 import { isSameSite, siteBase } from "./site-signals";
+import { scanTags } from "./dim3-openapi";
 import {
   DAILY_BR_INVOCATION_CAP,
   getDailyBrCount,
@@ -31,12 +32,14 @@ const FREE_TIER_DISCLOSURE =
 // Security pass 2026-11-04: validated hops (incl. homepage-discovered pricing
 // and case-study links), max 3 redirects, one deadline covering headers AND
 // body, capped body (see ../safe-fetch).
+// 1.4.1: `sameSite` keeps every hop of a case-study fetch on the audited site.
 function timedFetch(
   url: string,
   init?: RequestInit,
-  timeoutMs: number = FETCH_TIMEOUT_MS
+  timeoutMs: number = FETCH_TIMEOUT_MS,
+  sameSite?: string
 ): Promise<SafeResponse | null> {
-  return safeFetch(url, init, { timeoutMs });
+  return safeFetch(url, init, { timeoutMs, sameSite });
 }
 
 /** Capped HTML read; "" on a read error or timeout (as a thrown text() was before). */
@@ -52,13 +55,61 @@ const MAX_BR_BYTES = 10 * 1024 * 1024;
 // buffering) to just past 3MB so the bucket is unchanged.
 const PAGE_WEIGHT_COUNT_UP_TO = 3 * 1024 * 1024 + 1;
 
-function stripTags(html: string): string {
-  return html
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+const isNameChar = (c: string | undefined) => c !== undefined && /[A-Za-z0-9_]/.test(c);
+
+/**
+ * Visible text of an HTML document: script and style blocks and every tag
+ * replaced by a space, whitespace collapsed. 1.4.1: a linear scan (the old
+ * regex chain took seconds on 120 KB of unclosed "<a " or "<script" and
+ * minutes on 2 MB). Same result as the old chain: a <script> / <style> block
+ * ends at the next "</script>" / "</style>"; a tag is "<" plus at least one
+ * character up to the next ">"; text with no ">" after it stays text.
+ */
+export function stripTags(html: string): string {
+  const lower = html.toLowerCase();
+  const parts: string[] = [];
+  const closeAt: Record<string, number> = {}; // last search result per raw-text element (-1: none left)
+  let i = 0;
+  const n = html.length;
+  while (i < n) {
+    const lt = html.indexOf("<", i);
+    if (lt === -1) {
+      parts.push(html.slice(i));
+      break;
+    }
+    parts.push(html.slice(i, lt));
+    const gt = html.indexOf(">", lt + 1);
+    if (gt === -1) {
+      parts.push(html.slice(lt));
+      break;
+    }
+    if (gt === lt + 1) {
+      parts.push("<>");
+      i = gt + 1;
+      continue;
+    }
+    const raw = lower.startsWith("<script", lt) && !isNameChar(lower[lt + 7])
+      ? "script"
+      : lower.startsWith("<style", lt) && !isNameChar(lower[lt + 6])
+        ? "style"
+        : null;
+    if (raw) {
+      const closeTag = `</${raw}>`;
+      let close = closeAt[raw];
+      if (close === undefined || (close !== -1 && close <= gt)) {
+        close = lower.indexOf(closeTag, gt + 1);
+        closeAt[raw] = close;
+      }
+      if (close !== -1) {
+        parts.push(" ");
+        i = close + closeTag.length;
+        continue;
+      }
+    }
+    parts.push(" ");
+    i = gt + 1;
+  }
+  return parts.join("").replace(/\s+/g, " ").trim();
 }
 
 function tokens(text: string): Set<string> {
@@ -186,8 +237,6 @@ async function runJsVsNoJsRenderDiff(
   const staticText = staticBody ? stripTags(staticBody) : "";
   const renderedText = stripTags(rendered.html);
   const overlap = jaccard(tokens(staticText), tokens(renderedText));
-  const sizeRatio =
-    staticText.length === 0 ? Infinity : renderedText.length / staticText.length;
 
   let score: number;
   if (overlap >= 0.8) score = 100;
@@ -195,8 +244,6 @@ async function runJsVsNoJsRenderDiff(
   else score = 0;
 
   const overlapPct = Math.round(overlap * 100);
-  const sizeRatioStr =
-    Number.isFinite(sizeRatio) ? `${sizeRatio.toFixed(1)}x` : "∞";
 
   return {
     id,
@@ -204,9 +251,17 @@ async function runJsVsNoJsRenderDiff(
     weight,
     score,
     passed: score >= 70,
-    notes: `Static-vs-rendered token overlap ${overlapPct}%; rendered HTML ${sizeRatioStr} the size of static.`,
+    notes: renderOverlapNote(overlapPct),
   };
 }
+
+/**
+ * js_vs_no_js_render_diff note (1.4.1). The figure is the Jaccard overlap of
+ * the distinct words (4+ characters) in the two versions, not a share of the
+ * rendered text.
+ */
+export const renderOverlapNote = (pct: number) =>
+  `About ${pct}% of the distinct words on your homepage appear in both the HTML your server sends and the page after JavaScript runs.`;
 
 function scoreStaticAlone(body: string | null): number {
   if (!body || body.length < 500) return 0;
@@ -292,6 +347,10 @@ async function isMarkdownResponse(r: SafeResponse): Promise<boolean> {
   return !(head.startsWith("<!doctype") || head.startsWith("<html") || head.startsWith("<head") || head.startsWith("<body") || /<html[\s>]/.test(head));
 }
 
+/** markdown_negotiation note (1.4.1): names the addresses actually checked. */
+export const noMarkdownNote = (checked: string[], page = "the homepage") =>
+  `We found no Markdown version at the addresses we checked (${checked.join(", ")} and an Accept: text/markdown request to ${page}). Agents read the HTML instead.`;
+
 async function runMarkdownNegotiation(url: string): Promise<SubCheck> {
   const id = "markdown_negotiation";
   const name = "Markdown content negotiation";
@@ -359,8 +418,7 @@ async function runMarkdownNegotiation(url: string): Promise<SubCheck> {
       weight,
       score: 25,
       passed: false,
-      notes:
-        "No markdown variant or content negotiation. Agents must fall back to HTML extraction.",
+      notes: noMarkdownNote(candidates, pagePath ? url : undefined),
     };
   }
 
@@ -445,11 +503,10 @@ async function findPricingPath(
     if (r && r.ok) return r.url || c;
   }
   if (homepageHtml) {
-    const re =
-      /<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>(?:\s|<[^>]+>)*((?:[^<])*?(?:pricing|plans|price)(?:[^<])*?)(?:<|\s*<\/)/gi;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(homepageHtml)) !== null) {
-      const href = m[1];
+    // 1.4.1: the quote-aware tag scanner (linear) and the anchor's text up
+    // to </a> (bounded), instead of a regex that took seconds on 120 KB of
+    // unclosed "<a ".
+    for (const href of anchorHrefs(homepageHtml, (text) => /pricing|plans|price/i.test(text))) {
       try {
         const resolved = new URL(href, url).toString();
         if (isExcludedContentPath(new URL(resolved).pathname)) continue;
@@ -588,6 +645,33 @@ export function caseStudyRank(pathname: string): number {
   );
 }
 
+/** Anchors scanned per document. */
+const MAX_ANCHORS = 5000;
+const MAX_ANCHOR_TEXT_CHARS = 512;
+
+/**
+ * 1.4.1: href values of <a> tags, in order, through Dim 3's quote-aware tag
+ * scanner (linear, bounded). With `textTest`, only anchors whose text (up to
+ * </a>, at most MAX_ANCHOR_TEXT_CHARS, tags removed) passes it.
+ */
+export function anchorHrefs(html: string, textTest?: (text: string) => boolean): string[] {
+  const out: string[] = [];
+  for (const { attrs, end } of scanTags(html, "a")) {
+    if (out.length >= MAX_ANCHORS) break;
+    const href = attrs.href?.trim();
+    if (!href || href.length > 2048) continue;
+    if (textTest) {
+      let text = html.slice(end + 1, end + 1 + MAX_ANCHOR_TEXT_CHARS);
+      const close = text.toLowerCase().indexOf("</a");
+      if (close !== -1) text = text.slice(0, close);
+      // [^<>]* cannot cross another "<", so this strip is linear.
+      if (!textTest(text.replace(/<[^<>]*>/g, " "))) continue;
+    }
+    out.push(href);
+  }
+  return out;
+}
+
 /** Child pages linked from an index page: same site, one more path segment under the index path, not an asset. */
 const ASSET_EXT = /\.(?:svg|png|jpe?g|gif|webp|avif|ico|css|js|json|xml|pdf|txt|mp4|webm|woff2?)$/i;
 const MIN_INDEX_CHILDREN = 3;
@@ -598,12 +682,11 @@ export function caseStudyChildren(html: string, pageUrl: string): string[] {
   const base = siteBase(pageUrl);
   const prefix = page.pathname.replace(/\/+$/, "") + "/";
   const out: string[] = [];
-  const re = /<a\b[^>]*?\bhref\s*=\s*["']([^"'<>\s]{1,2048})["']/gi;
-  let m: RegExpExecArray | null;
-  for (let n = 0; (m = re.exec(html)) !== null && n < 5000 && out.length < MAX_CHILD_LINKS; n++) {
+  for (const href of anchorHrefs(html)) {
+    if (out.length >= MAX_CHILD_LINKS) break;
     let u: URL;
     try {
-      u = new URL(m[1], pageUrl);
+      u = new URL(href, pageUrl);
     } catch {
       continue;
     }
@@ -624,11 +707,104 @@ export function caseStudyChildren(html: string, pageUrl: string): string[] {
  * case-study page, so the next candidate is tried.
  */
 const MIN_PAGE_TEXT_CHARS = 200;
-function isEmptyShell(html: string): boolean {
+function bodyText(html: string): string {
   const bodyAt = html.toLowerCase().indexOf("<body");
-  const text = stripTags(bodyAt >= 0 ? html.slice(bodyAt) : html);
-  return text.length < MIN_PAGE_TEXT_CHARS && !/<h[1-3][\s>]/i.test(html);
+  return stripTags(bodyAt >= 0 ? html.slice(bodyAt) : html);
 }
+function isEmptyShell(html: string): boolean {
+  return bodyText(html).length < MIN_PAGE_TEXT_CHARS && !/<h[1-3][\s>]/i.test(html);
+}
+
+/**
+ * 1.4.1: a sampled case-study page whose server HTML carries less visible
+ * text than this builds its content with JavaScript (metalab.com/work/uber:
+ * 253 characters), so its structure is not measured from that HTML.
+ */
+const MIN_CASE_STUDY_TEXT_CHARS = 500;
+
+/** case_study_scannability note (1.4.1) for a JavaScript-built page. */
+export const CASE_STUDY_JS_NOTE =
+  "Not measured: this page builds its content with JavaScript, so its structure could not be read from the server's HTML.";
+
+/**
+ * 1.4.1: path words that also name pages that are not case studies (EFF's
+ * /work lists its issues). A page reached through one of them counts only
+ * when it looks like a case study.
+ */
+const AMBIGUOUS_CASE_STUDY_WORDS = new Set(["portfolio", "work", "projects", "projetos", "proyectos", "projets", "trabalhos"]);
+
+function isAmbiguousCaseStudyPath(pathname: string): boolean {
+  const rank = caseStudyRank(pathname);
+  return rank >= 0 && AMBIGUOUS_CASE_STUDY_WORDS.has(CASE_STUDY_WORDS[rank]);
+}
+
+// Client / customer / case / project words (en, pt-BR, es, fr, de) in a
+// title or h1; challenge / solution / result headings in an h2 / h3.
+const CASE_STUDY_TITLE_RE =
+  /\b(?:clients?|customers?|cases?|case stud(?:y|ies)|projects?|clientes?|casos?|projetos?|proyectos?|projets?|kunden?|kundin|fallstudien?)\b/i;
+const CASE_STUDY_SECTION_RE =
+  /\b(?:challenges?|solutions?|results?|outcomes?|approach|desafios?|solu[cç][aã]o|solu[cç][oõ]es|resultados?|soluci[oó]n|d[eé]fis?|r[eé]sultats?|herausforderung|l[oö]sung|ergebnis(?:se)?)\b/i;
+const MAX_SECTION_HEADINGS = 50;
+
+/** Text of the first `<name>` element, at most 512 characters, tags removed. Linear. */
+function firstElementText(html: string, lower: string, name: string): string {
+  const open = new RegExp(`<${name}(?=[\\s>])`, "i").exec(html);
+  if (!open) return "";
+  const start = html.indexOf(">", open.index);
+  if (start === -1) return "";
+  let text = html.slice(start + 1, start + 1 + 512);
+  const close = lower.indexOf(`</${name}`, start + 1);
+  if (close !== -1 && close < start + 1 + 512) text = html.slice(start + 1, close);
+  return text.replace(/<[^<>]*>/g, " ");
+}
+
+/**
+ * 1.4.1: a page that looks like a case study: a client / customer / case /
+ * project word in its title or h1, or h2 / h3 sections such as challenge,
+ * solution and results.
+ */
+export function looksLikeCaseStudy(html: string): boolean {
+  const lower = html.toLowerCase();
+  if (CASE_STUDY_TITLE_RE.test(firstElementText(html, lower, "title"))) return true;
+  if (CASE_STUDY_TITLE_RE.test(firstElementText(html, lower, "h1"))) return true;
+  const heading = /<h[23](?=[\s>])/gi;
+  for (let k = 0; k < MAX_SECTION_HEADINGS; k++) {
+    const m = heading.exec(html);
+    if (!m) break;
+    const start = html.indexOf(">", m.index);
+    if (start === -1) break;
+    let text = html.slice(start + 1, start + 1 + 256);
+    const close = text.toLowerCase().indexOf("</h");
+    if (close !== -1) text = text.slice(0, close);
+    if (CASE_STUDY_SECTION_RE.test(text.replace(/<[^<>]*>/g, " "))) return true;
+    heading.lastIndex = start + 1;
+  }
+  return false;
+}
+
+/** A static GET of a page on the audited site (every hop same-site). null unless 200. */
+async function fetchSitePage(pageUrl: string, base: string): Promise<{ html: string; url: string } | null> {
+  const r = await timedFetch(
+    pageUrl,
+    { method: "GET", headers: { "User-Agent": STATIC_UA }, redirect: "follow" },
+    FETCH_TIMEOUT_MS,
+    base
+  );
+  if (!r || !r.ok) {
+    r?.discard();
+    return null;
+  }
+  return { html: await readHtml(r), url: r.url || pageUrl };
+}
+
+type CaseStudySample = {
+  /** The page to score. */
+  url: string;
+  /** Its server HTML; null when it did not return 200. */
+  html: string | null;
+  /** The index page it was linked from, when one was sampled. */
+  index: string | null;
+};
 
 /**
  * 1.4.0: the case-study page to score. Homepage links whose first path
@@ -637,22 +813,20 @@ function isEmptyShell(html: string): boolean {
  * (/work/acme) is a single study; a one-segment page is fetched and, when it
  * is an index (MIN_INDEX_CHILDREN or more child pages), one linked study is
  * sampled instead. Pages with no visible text (an app shell or soft-404) are
- * skipped. Returns at most one URL to score, plus the index it came from.
+ * skipped. 1.4.1: a page reached through an ambiguous word (/work,
+ * /portfolio, /projects) counts only when it loads and looks like a case
+ * study; otherwise the next candidate is tried. Every fetch stays on the
+ * audited site. Returns at most one page.
  */
-async function findCaseStudyPaths(
-  url: string,
-  homepageHtml: string | null
-): Promise<{ pages: string[]; index: string | null }> {
+async function findCaseStudyPage(url: string, homepageHtml: string | null): Promise<CaseStudySample | null> {
   const u = new URL(url);
   const base = siteBase(url);
   const candidates: string[] = [];
   if (homepageHtml) {
     const ranked: Array<{ url: string; rank: number }> = [];
-    const re = /<a\b[^>]*?\bhref\s*=\s*["']([^"'<>\s]{1,2048})["']/gi;
-    let m: RegExpExecArray | null;
-    for (let n = 0; (m = re.exec(homepageHtml)) !== null && n < 5000; n++) {
+    for (const href of anchorHrefs(homepageHtml)) {
       try {
-        const link = new URL(m[1], url);
+        const link = new URL(href, url);
         if (!isSameSite(link.hostname, base)) continue;
         const rank = caseStudyRank(link.pathname);
         if (rank < 0) continue;
@@ -671,26 +845,29 @@ async function findCaseStudyPaths(
     if (!candidates.some((x) => x.replace(/\/+$/, "") === c)) candidates.push(c);
   }
   for (const c of candidates) {
+    const ambiguous = isAmbiguousCaseStudyPath(new URL(c).pathname);
     const depth = new URL(c).pathname.split("/").filter(Boolean).length;
-    if (depth >= 2) return { pages: [c], index: null };
-    const r = await timedFetch(c, {
-      method: "GET",
-      headers: { "User-Agent": STATIC_UA },
-      redirect: "follow",
-    });
-    if (!r || !r.ok) {
-      r?.discard();
-      continue;
+    let sample: CaseStudySample;
+    if (depth >= 2) {
+      const page = await fetchSitePage(c, base);
+      sample = { url: page?.url ?? c, html: page?.html ?? null, index: null };
+    } else {
+      const page = await fetchSitePage(c, base);
+      if (!page) continue;
+      if (isExcludedContentPath(new URL(page.url).pathname)) continue;
+      if (isEmptyShell(page.html)) continue;
+      const children = caseStudyChildren(page.html, page.url);
+      if (children.length >= MIN_INDEX_CHILDREN) {
+        const child = await fetchSitePage(children[0], base);
+        sample = { url: children[0], html: child?.html ?? null, index: page.url };
+      } else {
+        sample = { url: page.url, html: page.html, index: null };
+      }
     }
-    const html = await readHtml(r);
-    const finalUrl = r.url || c;
-    if (isExcludedContentPath(new URL(finalUrl).pathname)) continue;
-    if (isEmptyShell(html)) continue;
-    const children = caseStudyChildren(html, finalUrl);
-    if (children.length >= MIN_INDEX_CHILDREN) return { pages: [children[0]], index: finalUrl };
-    return { pages: [finalUrl], index: null };
+    if (ambiguous && (sample.html === null || !looksLikeCaseStudy(sample.html))) continue;
+    return sample;
   }
-  return { pages: [], index: null };
+  return null;
 }
 
 interface ScannabilityBreakdown {
@@ -701,24 +878,30 @@ interface ScannabilityBreakdown {
   score: number;
 }
 
-async function scorePageScannability(
-  pageUrl: string
-): Promise<ScannabilityBreakdown | null> {
-  const r = await timedFetch(pageUrl, {
-    headers: { "User-Agent": STATIC_UA },
-    redirect: "follow",
-  });
-  if (!r || !r.ok) {
-    r?.discard();
-    return null;
-  }
-  const html = await readHtml(r);
-
-  const h2h3Count = (html.match(/<h[23]\b[^>]*>/gi) ?? []).length;
+/** Linear structure checks on a page's HTML. */
+function scorePageScannability(pageUrl: string, html: string): ScannabilityBreakdown {
+  // 1.4.1: count opening tags only (the old "<h2 ...>" regex rescanned to
+  // the end of the document from every unclosed "<h2").
+  let h2h3Count = 0;
+  const heading = /<h[23]\b/gi;
+  while (h2h3Count < 3 && heading.exec(html) !== null) h2h3Count++;
   const headings = h2h3Count >= 3;
 
   const lists = /<ul\b|<ol\b/i.test(html);
-  const bold = /<(strong|b)\b[^>]*>\s*\S/i.test(html);
+  // Bold with text after it: "<strong" / "<b", its ">", then non-space.
+  let bold = false;
+  const boldOpen = /<(?:strong|b)\b/gi;
+  for (;;) {
+    const m = boldOpen.exec(html);
+    if (!m) break;
+    const gt = html.indexOf(">", m.index);
+    if (gt === -1) break;
+    if (/^\s*\S/.test(html.slice(gt + 1, gt + 1 + 256))) {
+      bold = true;
+      break;
+    }
+    boldOpen.lastIndex = gt + 1;
+  }
 
   // 1.3.3: the "metrics" criterion (%, "x faster", "hours saved") is gone;
   // it rewarded numbers whether or not they were real. The remaining three
@@ -740,8 +923,8 @@ async function runCaseStudyScannability(
   const name = "Case-study scannability";
   const weight = 10;
 
-  const { pages: paths, index } = await findCaseStudyPaths(url, homepageHtml);
-  if (paths.length === 0) {
+  const sample = await findCaseStudyPage(url, homepageHtml);
+  if (!sample) {
     return {
       id,
       name,
@@ -753,40 +936,33 @@ async function runCaseStudyScannability(
     };
   }
 
-  const breakdowns: ScannabilityBreakdown[] = [];
-  for (const p of paths) {
-    const b = await scorePageScannability(p);
-    if (b) breakdowns.push(b);
-  }
-
-  if (breakdowns.length === 0) {
+  if (sample.html === null) {
     return {
       id,
       name,
       weight,
       score: 0,
       passed: false,
-      notes: `Detected case-study paths (${paths.join(", ")}) but none returned 200.`,
+      notes: `Detected case-study paths (${sample.url}) but none returned 200.`,
     };
   }
 
-  const avg = Math.round(
-    breakdowns.reduce((s, b) => s + b.score, 0) / breakdowns.length
-  );
-  const breakdownStr = breakdowns
-    .map(
-      (b) =>
-        `${b.url} → ${b.score} (h:${b.headings ? "✓" : "✗"} l:${b.lists ? "✓" : "✗"} b:${b.bold ? "✓" : "✗"})`
-    )
-    .join("; ");
+  // 1.4.1: Browser Rendering renders the homepage only, so a sampled page
+  // built with JavaScript is not measured (never scored 0).
+  if (bodyText(sample.html).length < MIN_CASE_STUDY_TEXT_CHARS) {
+    return { id, name, weight, score: 0, passed: false, notes: CASE_STUDY_JS_NOTE, na: true };
+  }
+
+  const b = scorePageScannability(sample.url, sample.html);
+  const breakdownStr = `${b.url} → ${b.score} (h:${b.headings ? "✓" : "✗"} l:${b.lists ? "✓" : "✗"} b:${b.bold ? "✓" : "✗"})`;
 
   return {
     id,
     name,
     weight,
-    score: avg,
-    passed: avg >= 70,
-    notes: `Sampled ${breakdowns.length} page(s); avg ${avg}/100. ${breakdownStr}.${index ? ` (A case study linked from the index page ${index}.)` : ""}`,
+    score: b.score,
+    passed: b.score >= 70,
+    notes: `Sampled 1 page(s); avg ${b.score}/100. ${breakdownStr}.${sample.index ? ` (A case study linked from the index page ${sample.index}.)` : ""}`,
   };
 }
 

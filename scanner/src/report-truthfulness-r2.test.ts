@@ -42,8 +42,8 @@ const HOME = "https://acme.com/";
 const sub = (d: { sub_checks: { id: string }[] }, id: string) =>
   d.sub_checks.find((s) => s.id === id) as import("./types").SubCheck;
 
-it("SCORING_VERSION is 1.4.0 (r3 supersedes 1.3.3)", () => {
-  expect(SCORING_VERSION).toBe("1.4.0");
+it("SCORING_VERSION is 1.4.1 (r4 supersedes 1.3.3)", () => {
+  expect(SCORING_VERSION).toBe("1.4.1");
 });
 
 describe("1.3.3 Dim 4: schema.org subtypes, optional sameAs / price, FAQ N/A, nested ratings", () => {
@@ -169,7 +169,9 @@ describe("1.3.3 Dim 5: non-USD prices, no case-study metrics, root .md probe", (
   });
 
   it("case-study scoring has no metrics criterion: headings + lists + bold = 100 without numbers", async () => {
-    const cs = "<html><body><h2>a</h2><h2>b</h2><h3>c</h3><ul><li>x</li></ul><strong>Result</strong></body></html>";
+    // 1.4.1: 500+ characters of server-side text, so the page is measured.
+    const prose = "<p>" + "We worked with the client on this project from start to finish. ".repeat(10) + "</p>";
+    const cs = `<html><body><h2>a</h2><h2>b</h2><h3>c</h3><ul><li>x</li></ul><strong>Result</strong>${prose}</body></html>`;
     routes({ [HOME]: html("<html><body>home</body></html>"), "https://acme.com/case-studies": html(cs) });
     const c = sub(await runDim5(HOME, env(), "free"), "case_study_scannability");
     expect(c).toMatchObject({ score: 100, passed: true });
@@ -177,7 +179,7 @@ describe("1.3.3 Dim 5: non-USD prices, no case-study metrics, root .md probe", (
   });
 
   it("numbers alone earn nothing on a case-study page", async () => {
-    const cs = "<html><body><p>50% faster, 3x growth, 20 hours saved, 400 customers</p></body></html>";
+    const cs = `<html><body><p>50% faster, 3x growth, 20 hours saved, 400 customers</p><p>${"We worked with the client on this project from start to finish. ".repeat(10)}</p></body></html>`;
     routes({ [HOME]: html("<html><body>home</body></html>"), "https://acme.com/case-studies": html(cs) });
     expect(sub(await runDim5(HOME, env(), "free"), "case_study_scannability").score).toBe(0);
   });

@@ -87,5 +87,22 @@
  *   "Page weight + LCP" is "Page weight". The FAQ AI rating accepts a numbered
  *   per-question reply. `CURRENT_SCORING_VERSION` on /score/[id] bumped in
  *   lockstep.
+ * - 1.4.1 (report truthfulness r4, 2026-11-07): Dim 4 FAQ Q&A credit needs
+ *   @type Question (and Answer when the answer is typed); ratings need a
+ *   ratingValue inside bestRating / worstRating (1-5 or 0-100 by default)
+ *   and positive integer counts; service_offer_schema is N/A when nothing
+ *   shows the site sells online (no markup, no product link, no price on the
+ *   homepage, no pricing page). Dim 5 case-study pages reached through
+ *   /work, /portfolio or /projects count only when they look like a case
+ *   study, and a JavaScript-built case-study page is not measured (N/A, not
+ *   0); linear HTML scanning (stripTags, anchors, headings) replaces regexes
+ *   that were super-linear on hostile HTML. Every probe of a URL the site
+ *   declares (MCP endpoints, /api/mcp, UCP, OAuth server, catalog
+ *   service-desc, product and case-study pages, GraphQL) stays on the
+ *   audited site on every redirect hop; a request body is never replayed to
+ *   another site; a card endpoint on another site is not called and
+ *   live_invocation is N/A. Plain-language notes for the render overlap and
+ *   Markdown checks. `CURRENT_SCORING_VERSION` on /score/[id] bumped in
+ *   lockstep.
  */
-export const SCORING_VERSION = "1.4.0";
+export const SCORING_VERSION = "1.4.1";

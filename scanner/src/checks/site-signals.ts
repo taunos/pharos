@@ -5,7 +5,7 @@
 // of its subdomains count (a link to someone else's docs says nothing about
 // this site). The only fetches here are the GraphQL probes, and they run only
 // when the free link evidence found nothing.
-import { safeFetch } from "../safe-fetch";
+import { isSameSite, safeFetch } from "../safe-fetch";
 import type { HomepageRead } from "./dim3-openapi";
 
 const PROBE_TIMEOUT_MS = 5000;
@@ -29,11 +29,8 @@ export function siteBase(siteUrl: string): string {
   return new URL(siteUrl).hostname.toLowerCase().replace(/\.$/, "").replace(/^www\./, "");
 }
 
-/** true when `host` is the site's base host or one of its subdomains. */
-export function isSameSite(host: string, base: string): boolean {
-  const h = host.toLowerCase().replace(/\.$/, "");
-  return h === base || h.endsWith("." + base);
-}
+/** true when `host` is the site's base host or one of its subdomains (defined in safe-fetch). */
+export { isSameSite };
 
 /** A URL found in a document; `linked` is false for a bare URL in the text. */
 export type FoundUrl = { url: URL; linked: boolean };
@@ -118,8 +115,8 @@ export function linkSignals(siteUrl: string, docs: Array<{ text: string; base: s
 }
 
 /** A GraphQL endpoint answers a bare GET with a JSON object carrying "errors" or "data" (HTML never counts). */
-async function probeGraphql(url: string): Promise<boolean> {
-  const r = await safeFetch(url, { headers: { Accept: "application/json" } }, { timeoutMs: PROBE_TIMEOUT_MS });
+async function probeGraphql(url: string, base: string): Promise<boolean> {
+  const r = await safeFetch(url, { headers: { Accept: "application/json" } }, { timeoutMs: PROBE_TIMEOUT_MS, sameSite: base });
   if (!r) return false;
   const ct = (r.headers.get("content-type") ?? "").toLowerCase();
   if (!ct.includes("json") || r.status >= 500) {
@@ -154,7 +151,7 @@ export async function gatherSiteSignals(
     ]);
     if (signals.mcpUrls.length > 0 || signals.apiSignals.length > 0) return signals;
     const probes = [`${origin}/graphql`, `https://api.${siteBase(siteUrl)}/graphql`];
-    const answered = await Promise.all(probes.map(probeGraphql));
+    const answered = await Promise.all(probes.map((p) => probeGraphql(p, siteBase(siteUrl))));
     const g = probes.find((_, i) => answered[i]);
     return g ? { mcpUrls: [], apiSignals: [`a GraphQL endpoint answering at ${g}`] } : signals;
   } catch {

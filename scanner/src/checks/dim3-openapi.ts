@@ -41,7 +41,7 @@ const STATIC_UA = "AstrantScanner-Dim3/1.2.0";
 
 /** Whole-dimension N/A note (1.4.0): no OpenAPI and no other API evidence. */
 export const DIM3_NO_API_NA_NOTE =
-  "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty.";
+  "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. This dimension is not counted in your score.";
 
 /**
  * Whole-dimension N/A note (1.4.0) when the site shows an API but publishes no
@@ -60,9 +60,10 @@ const viaCatalog = (catalogUrl: string) => ` Read through the API catalog at ${c
 function timedFetch(
   url: string,
   init?: RequestInit,
-  timeoutMs: number = FETCH_TIMEOUT_MS
+  timeoutMs: number = FETCH_TIMEOUT_MS,
+  sameSite?: string
 ): Promise<SafeResponse | null> {
-  return safeFetch(url, init, { timeoutMs });
+  return safeFetch(url, init, { timeoutMs, sameSite });
 }
 
 // SSRF defense-in-depth at the spec-fetch boundary. wrangler.jsonc already
@@ -269,7 +270,7 @@ function decodeHtmlRefs(value: string): string {
 }
 
 /** `<name ...>` tags in order; tags longer than MAX_TAG_CHARS are skipped (but still consumed). */
-function* scanTags(html: string, name: "link" | "a"): Generator<{ attrs: SpecTagAttrs; end: number }> {
+export function* scanTags(html: string, name: "link" | "a"): Generator<{ attrs: SpecTagAttrs; end: number }> {
   // Literal-prefixed, so each exec is a linear forward search from lastIndex.
   const open = name === "link" ? /<link(?=[\s/>])/gi : /<a(?=[\s/>])/gi;
   for (let scanned = 0; scanned < MAX_TAGS_SCANNED; scanned++) {
@@ -399,10 +400,16 @@ async function followCatalog(
   if (!isSafeSpecUrl(desc) || !isSameSite(new URL(desc).hostname, siteBase(siteUrl))) {
     return { unreadable: `the API catalog at ${hit.url} points to ${desc}, on another site, which the scanner does not fetch.` };
   }
-  const res = await timedFetch(desc, {
-    headers: { Accept: "application/json, application/yaml, text/yaml, text/plain", "User-Agent": STATIC_UA },
-    redirect: "follow",
-  });
+  // 1.4.1: every redirect hop stays on the audited site too.
+  const res = await timedFetch(
+    desc,
+    {
+      headers: { Accept: "application/json, application/yaml, text/yaml, text/plain", "User-Agent": STATIC_UA },
+      redirect: "follow",
+    },
+    FETCH_TIMEOUT_MS,
+    siteBase(siteUrl)
+  );
   if (!res || !res.ok) {
     res?.discard();
     return { unreadable: `the API catalog at ${hit.url} points to ${desc}, which returned ${res ? `status ${res.status}` : "no response"}.` };

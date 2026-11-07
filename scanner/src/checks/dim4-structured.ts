@@ -4,6 +4,7 @@ import { evalWithCache } from "./llm-eval";
 import { cleanSiteText, detectScoringInjection, randomTag, wrapUntrusted } from "./llm-safety";
 import { MAX_HTML_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
 import { isSameSite, siteBase } from "./site-signals";
+import { PRICE_BARE_RE, stripTags } from "./dim5-parsable";
 
 const FETCH_TIMEOUT_MS = 8000;
 
@@ -24,7 +25,11 @@ export const notFullyInspectedNote = (what: string) =>
 
 /** faq_schema note (1.4.0): FAQPage markup whose questions carry no answer text. */
 export const FAQ_NO_ANSWERS_NOTE =
-  "FAQPage markup found, but none of its questions has an answer text (acceptedAnswer.text), so there are no Q&A pairs to rate.";
+  "FAQPage markup found, but none of its entries is a Question with an answer text (acceptedAnswer.text), so there are no Q&A pairs to rate.";
+
+/** service_offer_schema N/A note (1.4.1): no sign the site sells online. */
+export const SERVICE_OFFER_NOT_SELLING_NA_NOTE =
+  "We found no sign that this site sells products or services online, so this check is not counted in your score.";
 
 /** faq_schema note (1.3.3) when the AI rating of the questions could not run. */
 export const FAQ_UNMEASURED_NOTE =
@@ -32,8 +37,8 @@ export const FAQ_UNMEASURED_NOTE =
 
 // Security pass 2026-11-04: validated hops, max 3 redirects, one deadline
 // covering headers AND body, capped body (see ../safe-fetch).
-function timedFetch(url: string, init?: RequestInit): Promise<SafeResponse | null> {
-  return safeFetch(url, init, { timeoutMs: FETCH_TIMEOUT_MS });
+function timedFetch(url: string, init?: RequestInit, sameSite?: string): Promise<SafeResponse | null> {
+  return safeFetch(url, init, { timeoutMs: FETCH_TIMEOUT_MS, sameSite });
 }
 
 // Outreach security round 2: HTML-attribute-tolerant <script> scanning. The old
@@ -238,32 +243,66 @@ function findByType(blocks: unknown[], types: string | ReadonlySet<string>): Fou
   return found;
 }
 
-/** A number, or a string holding only a number ("4.8", "4,8", "12"). */
-function isNumeric(v: unknown): boolean {
-  if (typeof v === "number") return Number.isFinite(v);
-  return typeof v === "string" && /^\s*\d{1,9}(?:[.,]\d{1,6})?\s*$/.test(v);
+/** A number, or a string holding only a number ("4.8", "4,8", "12", "-1"); null otherwise. */
+function numberOf(v: unknown): number | null {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  if (typeof v !== "string" || !/^\s*-?\d{1,9}(?:[.,]\d{1,6})?\s*$/.test(v)) return null;
+  return Number(v.trim().replace(",", "."));
 }
 
 /**
- * 1.4.0: an AggregateRating is well-formed with a numeric ratingValue and a
- * numeric ratingCount or reviewCount; a Review with an author and a
- * reviewRating whose ratingValue is numeric.
+ * 1.4.1: a ratingValue inside its scale. bestRating / worstRating when given
+ * (worstRating defaults to 1, as in schema.org); without bestRating, a value
+ * up to 5 is read on the 1-5 scale and anything larger on a 0-100 scale.
+ */
+function ratingInRange(r: Record<string, unknown>): boolean {
+  const value = numberOf(r.ratingValue);
+  if (value === null) return false;
+  const best = r.bestRating === undefined ? null : numberOf(r.bestRating);
+  const worst = r.worstRating === undefined ? null : numberOf(r.worstRating);
+  if ((r.bestRating !== undefined && best === null) || (r.worstRating !== undefined && worst === null)) return false;
+  let lo: number;
+  let hi: number;
+  if (best !== null) [lo, hi] = [worst ?? 1, best];
+  else if (value <= 5) [lo, hi] = [worst ?? 1, 5];
+  else [lo, hi] = [worst ?? 0, 100];
+  return lo < hi && value >= lo && value <= hi;
+}
+
+/** 1.4.1: a rating count is a positive integer. */
+function isPositiveCount(v: unknown): boolean {
+  const n = numberOf(v);
+  return n !== null && Number.isInteger(n) && n > 0;
+}
+
+/**
+ * An AggregateRating is well-formed with a ratingValue inside its scale and a
+ * ratingCount or reviewCount (1.4.1: every count given is a positive
+ * integer); a Review with an author and a reviewRating whose ratingValue is
+ * inside its scale.
  */
 function ratingWellFormed(r: Record<string, unknown>): boolean {
   if (typeNames(r["@type"]).includes("AggregateRating")) {
-    return isNumeric(r.ratingValue) && (isNumeric(r.ratingCount) || isNumeric(r.reviewCount));
+    const counts = [r.ratingCount, r.reviewCount].filter((c) => c !== undefined);
+    return ratingInRange(r) && counts.length > 0 && counts.every(isPositiveCount);
   }
   const rating = r.reviewRating;
   const ratingObj = rating && typeof rating === "object" && !Array.isArray(rating) ? (rating as Record<string, unknown>) : null;
-  return !!r.author && !!ratingObj && isNumeric(ratingObj.ratingValue);
+  return !!r.author && !!ratingObj && ratingInRange(ratingObj);
 }
 
-/** Non-empty answer text in a Question's acceptedAnswer (object or array). */
+/**
+ * Non-empty answer text in a Question's acceptedAnswer (object or array).
+ * 1.4.1: an answer that declares a @type must be an Answer.
+ */
 function hasAnswerText(q: Record<string, unknown>): boolean {
   const a = q.acceptedAnswer;
-  return (Array.isArray(a) ? a : [a]).some(
-    (x) => !!x && typeof x === "object" && typeof (x as { text?: unknown }).text === "string" && (x as { text: string }).text.trim().length > 0
-  );
+  return (Array.isArray(a) ? a : [a]).some((x) => {
+    if (!x || typeof x !== "object" || Array.isArray(x)) return false;
+    const o = x as Record<string, unknown>;
+    if (o["@type"] !== undefined && !typeNames(o["@type"]).includes("Answer")) return false;
+    return typeof o.text === "string" && o.text.trim().length > 0;
+  });
 }
 
 /** Same-host product page links (/products/x, /product/x, /p/x) in the homepage HTML. */
@@ -346,7 +385,11 @@ export async function runDim4(
   // E12: receives the homepage this check reads (HTML + final URL; null when
   // it couldn't), so Dim 3's homepage-link discovery reuses it instead of
   // fetching again.
-  onHomepage?: (homepage: { html: string; url: string } | null) => void
+  onHomepage?: (homepage: { html: string; url: string } | null) => void,
+  // 1.4.1: true when Dim 5 found a pricing page. Awaited only when neither
+  // the homepage nor a sampled product page carries Service / Product /
+  // Offer markup; undefined (unknown) keeps the check scored.
+  pricingPageFound?: Promise<boolean>
 ): Promise<DimensionResult> {
   const subs: SubCheck[] = [];
 
@@ -413,6 +456,8 @@ export async function runDim4(
 
   // 2. organization_schema
   const siteHost = siteBase(targetUrl);
+  // 1.4.1: a product page link on the homepage (also a sign of selling).
+  const productUrl = html ? findProductLink(html, res?.url || targetUrl) : null;
   const orgFound = findByType(validBlocks, ORGANIZATION_TYPES);
   const fields = (o: Record<string, unknown>) =>
     [typeof o.name === "string" && !!o.name, typeof o.url === "string" && !!o.url, typeof o.description === "string" && !!o.description].filter(Boolean).length;
@@ -460,9 +505,9 @@ export async function runDim4(
   // has no Service / Product / Offer, sample one (same host, one request,
   // same caps) before reporting absence.
   if (svcFound.matches.length === 0 && !svcFound.incomplete && html) {
-    const productUrl = findProductLink(html, res?.url || targetUrl);
     if (productUrl) {
-      const pr = await timedFetch(productUrl, { headers: { "User-Agent": "AstrantScanner/0.1", Accept: "text/html" } });
+      // 1.4.1: every redirect hop stays on the audited site.
+      const pr = await timedFetch(productUrl, { headers: { "User-Agent": "AstrantScanner/0.1", Accept: "text/html" } }, siteHost);
       if (pr && pr.status === 200) {
         const pb = await pr.body({ maxBytes: MAX_HTML_BYTES });
         if (pb.complete || pb.truncated) {
@@ -508,6 +553,14 @@ export async function runDim4(
     svcNote = `${services.length} Service/Product/Offer block(s); best match has ${bestPartial}/3 required fields`;
     if (svcFrom) svcNote += ` (on the sampled product page ${svcFrom}; none on the homepage)`;
   }
+  // 1.4.1: applicability. No markup, no product page link, no price on the
+  // homepage and no pricing page (Dim 5): nothing shows the site sells
+  // online, so the check is N/A rather than a gap.
+  let notSelling = false;
+  if (services.length === 0 && !svcFound.incomplete && evidence.body_complete && !productUrl && pricingPageFound) {
+    const homepagePrices = (stripTags(html).match(PRICE_BARE_RE) ?? []).length;
+    notSelling = homepagePrices === 0 && !(await pricingPageFound.catch(() => true));
+  }
   subs.push({
     id: "service_offer_schema",
     name: "Service / Product / Offer schema",
@@ -516,6 +569,7 @@ export async function runDim4(
     passed: svcScore >= 70,
     notes: svcNote,
     ...(services.length === 0 && svcFound.incomplete ? { notes: notFullyInspectedNote("Service / Product / Offer"), na: true } : {}),
+    ...(notSelling ? { notes: SERVICE_OFFER_NOT_SELLING_NA_NOTE, na: true } : {}),
   });
 
   // 4. faq_schema
@@ -526,10 +580,12 @@ export async function runDim4(
     const me = f.mainEntity;
     const arr = Array.isArray(me) ? me : me ? [me] : [];
     for (const item of arr) {
-      if (typeof item === "object" && item !== null) {
+      if (typeof item === "object" && item !== null && !Array.isArray(item)) {
         // 1.4.0: a Q&A pair is a question with a non-empty answer text.
-        const q = (item as Record<string, unknown>).name;
-        if (typeof q === "string" && q.trim() && hasAnswerText(item as Record<string, unknown>)) questions.push(q.trim());
+        // 1.4.1: and the entry is typed Question.
+        const o = item as Record<string, unknown>;
+        const q = o.name;
+        if (typeNames(o["@type"]).includes("Question") && typeof q === "string" && q.trim() && hasAnswerText(o)) questions.push(q.trim());
       }
     }
   }
