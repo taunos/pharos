@@ -81,9 +81,9 @@ export const T = {
   },
   linked_pages_quality: {
     fileMissing: (o: string) =>
-      `Depends on Presence: there is no ${o}/llms.txt yet. When you create it, list your key pages as Markdown links on list lines (- [Page name](${o}/page)); this check then opens a sample of them. Estimated effort: under 30 minutes.`,
+      `Depends on Presence: there is no ${o}/llms.txt yet. When you create it, list your key pages as Markdown links (- [Page name](${o}/page)); this check then opens a sample of them. Estimated effort: under 30 minutes.`,
     noLinks: (o: string) =>
-      `We found no links in ${o}/llms.txt in the form this check reads: Markdown links on list lines, such as - [Page name](${o}/page). If your file links to pages another way, add a list of your key pages in that form. Estimated effort: 30 minutes to 1 hour.`,
+      `We found no links in ${o}/llms.txt in the form this check reads: Markdown links, such as - [Page name](${o}/page). If your file links to pages another way, add a list of your key pages in that form. Estimated effort: 30 minutes to 1 hour.`,
     sampled: (o: string, good: number, sampled: number) =>
       `${good} of the ${sampled} links we sampled from ${o}/llms.txt returned Markdown or plain text; the others returned HTML or an error. If your platform can publish a clean Markdown version of each linked page (the llmstxt.org proposal suggests the page address with .md added), point the links at those versions. If it can't, the links still work as normal web pages and this check can stay below passing. Estimated effort: 2 to 8 hours, depending on your platform.`,
   },
@@ -91,7 +91,7 @@ export const T = {
     fileMissing: (o: string) =>
       `Depends on Presence: there is no ${o}/llms.txt yet. When you create it, keep the link list short and hand-picked: your main pages, not every URL on the site. Estimated effort: under 30 minutes.`,
     noLinks: (o: string) =>
-      `We found no links in ${o}/llms.txt in the form this check reads (Markdown links on list lines, such as - [Page name](${o}/page)), so there was no list to judge. Add a short, hand-picked list of your key pages in that form. Estimated effort: 30 minutes to 1 hour.`,
+      `We found no links in ${o}/llms.txt in the form this check reads (Markdown links, such as - [Page name](${o}/page)), so there was no list to judge. Add a short, hand-picked list of your key pages in that form. Estimated effort: 30 minutes to 1 hour.`,
     antipatterns: (o: string, fixes: string) =>
       `Edit the link list in ${o}/llms.txt: ${fixes}. llms.txt works best as a short, curated guide to your key pages rather than a full sitemap. Estimated effort: 30 minutes to 1 hour.`,
     // Fix phrases joined into `antipatterns` (one per problem the scanner found).
