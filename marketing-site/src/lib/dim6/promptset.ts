@@ -112,8 +112,10 @@ function buildBankQueries(scanUrl: string): PromptSetQuery[] {
     },
     {
       id: "q_bank_8",
-      text: `In one sentence, what category of software does ${host} fit into?`,
-      rationale: "Bank fallback: category-self-derivation probe.",
+      // dim6:v4: business-type neutral (was "what category of software",
+      // asked of bakeries and therapists too).
+      text: `In one sentence, what kind of business is ${host}, and what category does it belong to?`,
+      rationale: "Bank fallback: business-type self-derivation probe.",
     },
     {
       id: "q_bank_9",

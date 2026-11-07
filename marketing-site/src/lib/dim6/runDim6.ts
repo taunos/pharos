@@ -94,7 +94,11 @@ function rateOf(cells: CellEnvelope[], flag: string): number {
   return Math.round((trues / measurable.length) * 100);
 }
 
-function buildSubChecks(result: Dim6Result): Dim6SubCheck[] {
+/** dim6:v4: competitor-first sub-check note when no competitor list was given. */
+export const COMPETITOR_FIRST_NA_NOTE =
+  "Not measured: this Audit doesn't take a competitor list yet, so there is nothing to compare against. Weight redistributed across the other Citation Visibility checks.";
+
+function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6SubCheck[] {
   const cells = result.cells;
   const measurableCount = cells.length - result.unmeasurableCount;
 
@@ -132,17 +136,27 @@ function buildSubChecks(result: Dim6Result): Dim6SubCheck[] {
       passed: ctxRate >= 70,
       notes: `${ctxRate}% of measurable cells positioned the target domain in the first half of the response (vs a footer-style mention).`,
     },
-    {
-      id: SUBCHECK_IDS.no_competitor_first_rate,
-      name: "Competitor-first check (not measured)",
-      weight: 10,
-      score: compRate,
-      passed: compRate >= 70,
-      notes:
-        compRate === 100
-          ? "Not measured: this Audit doesn't take a competitor list yet, so this check passes by default."
-          : `${compRate}% of measurable cells avoided a competitor-first mention.`,
-    },
+    // dim6:v4: N/A without a competitor list (the cell scores give it no
+    // points either, see parser.ts), so it is never a gap. With no list the
+    // old rate was really the AFFIRM rate (DENY cells carry no flag).
+    hasCompetitorList
+      ? {
+          id: SUBCHECK_IDS.no_competitor_first_rate,
+          name: "Competitor-first check (not measured)",
+          weight: 10,
+          score: compRate,
+          passed: compRate >= 70,
+          notes: `${compRate}% of measurable cells avoided a competitor-first mention.`,
+        }
+      : {
+          id: SUBCHECK_IDS.no_competitor_first_rate,
+          name: "Competitor-first check (not measured)",
+          weight: 10,
+          score: 0,
+          passed: false,
+          notes: COMPETITOR_FIRST_NA_NOTE,
+          na: true,
+        },
   ];
 }
 
@@ -264,7 +278,7 @@ export async function runDim6Paid(
     };
   }
 
-  const subChecks = buildSubChecks(result);
+  const subChecks = buildSubChecks(result, competitorHosts.length > 0);
   const score = result.score; // already aggregated 0-100
 
   return {

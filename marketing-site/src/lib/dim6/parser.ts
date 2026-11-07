@@ -110,9 +110,8 @@ export function scoreResponse(
   // Sub-check 4: no_competitor_first
   // Only meaningful when at least one competitor host is provided. If a
   // competitor host appears BEFORE the target, fail. With no competitor
-  // list (current default — competitor enumeration is future work), pass
-  // by default so the score is "neutral" rather than always-pass-or-fail
-  // depending on a list we don't yet have.
+  // list (current default — competitor enumeration is future work) the flag
+  // stays true but the check is N/A: it earns no points (dim6:v4, below).
   let noCompetitorFirst = true;
   if (targetHost && competitorHosts.length > 0) {
     const targetIdx = (() => {
@@ -144,11 +143,14 @@ export function scoreResponse(
   //   url_referenced       30
   //   context_relevant     20
   //   no_competitor_first  10
+  // dim6:v4: with no competitor list, no_competitor_first is N/A, not a free
+  // 10 points: its weight is redistributed over the other three (x 100/90).
   let score = 0;
   if (domainNamed) score += 40;
   if (urlReferenced) score += 30;
   if (contextRelevant) score += 20;
-  if (noCompetitorFirst) score += 10;
+  if (competitorHosts.length === 0) score = Math.round((score * 100) / 90);
+  else if (noCompetitorFirst) score += 10;
 
   return { domainNamed, urlReferenced, contextRelevant, noCompetitorFirst, score };
 }

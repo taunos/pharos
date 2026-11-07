@@ -227,7 +227,7 @@ export async function runAuditFulfillment(
       GOOGLE_AI_API_KEY: env.GOOGLE_AI_API_KEY,
       PERPLEXITY_API_KEY: env.PERPLEXITY_API_KEY,
       // Reuse the SESSIONS KV for the Dim 6 cell cache + daily-cap counter.
-      // Distinct key prefixes (`dim6:v3:` for cache, `dim6:budget:` for the
+      // Distinct key prefixes (`dim6:vN:` for cache, `dim6:budget:` for the
       // counter) ensure no collision with audit-fulfill's session keys.
       cacheKv: env.SESSIONS,
       // Stable Dim 6 question set per canonical domain (dim6/question-set.ts).
