@@ -31,7 +31,7 @@ vi.mock("./orchestrator", () => ({
 import { scoreResponse } from "./parser";
 import { runDim6Paid, COMPETITOR_FIRST_NA_NOTE } from "./runDim6";
 import { generatePromptSet } from "./promptset";
-import { llmEnrichGaps, type AuditEnv } from "../audit-pipeline";
+import { buildRemediationGaps } from "../audit-pipeline";
 import type { ScanResult } from "../audit-types";
 
 const kv = () => {
@@ -42,7 +42,7 @@ const kv = () => {
 describe("dim6:v4 competitor-first N/A", () => {
   it("engine and question-set versions are bumped", () => {
     expect(DIM6_ENGINE_VERSION).toBe("dim6:v4");
-    expect(DIM6_QUESTION_SET_VERSION).toBe("dim6-qs:v2");
+    expect(DIM6_QUESTION_SET_VERSION).toBe("dim6-qs:v3");
   });
 
   it("no competitor list: the cell score gets no free competitor points (renormalized over 90)", () => {
@@ -84,8 +84,7 @@ describe("dim6:v4 competitor-first N/A", () => {
       created_at: 0,
       dimensions: [r.dimension],
     } as unknown as ScanResult;
-    const env = { SESSIONS: { get: async () => null, put: async () => {} } } as unknown as AuditEnv;
-    const gaps = await llmEnrichGaps(env, scan, "sess");
+    const gaps = buildRemediationGaps(scan);
     expect(gaps.map((g) => g.check_id)).not.toContain("citation_no_competitor_first_rate");
     expect(gaps.length).toBeGreaterThan(0);
   });

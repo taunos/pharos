@@ -72,9 +72,11 @@ function astrantLike(): AuditResult {
   ]);
 }
 
+const weakest = (s: string[]) => s.find((x) => x.startsWith("The weakest"));
+
 function expectWellFormed(sentences: string[]) {
   expect(sentences.length).toBeGreaterThanOrEqual(3);
-  expect(sentences.length).toBeLessThanOrEqual(5);
+  expect(sentences.length).toBeLessThanOrEqual(6);
   for (const s of sentences) {
     expect(s).toMatch(/^[A-Z"]/);
     expect(s).toMatch(/\.$/);
@@ -87,12 +89,58 @@ describe("buildExecutiveSummary", () => {
     const s = buildExecutiveSummary(astrantLike(), GAPS_HEADING);
     expectWellFormed(s);
     expect(s).toEqual([
-      `Your site scored 85/100 (grade A-): ${C.overallBands.strong}`,
-      "The weakest areas: the structured data that tells AI assistants what you offer is incomplete (Structured Capability Data, 69/100); and AI assistants name or cite your site only some of the time (Citation Visibility, 73/100).",
-      "What's working: AI agents can discover and use your MCP server; your llms.txt gives AI assistants a clear guide to your key pages; and AI assistants can read your pages easily.",
+      `Your site scored 85/100 (grade A-) on the 5 of 6 dimensions we could score: ${C.overallBands.strong}`,
+      "The weakest areas: the structured data (JSON-LD) on your homepage is incomplete (Structured Capability Data, 69/100); and in our test questions, AI assistants named your site only some of the time (Citation Visibility, 73/100).",
+      "What's working: your MCP server passed most of our discovery checks; your llms.txt file passed most of our checks; and your pages passed most of our readability checks.",
       "OpenAPI / API Catalog did not apply to this site, so it is not counted in your score; Citation Visibility was only partly measured (1 of 4 AI assistants returned usable answers, 10 of 40 test answers in all), so treat that score as provisional.",
-      `The "${GAPS_HEADING}" section below lists the specific fix for each gap, weakest first.`,
+      `The "${GAPS_HEADING}" section below lists each check that did not pass, with a suggested change, starting with the ones that cost the most points.`,
     ]);
+  });
+
+  it("fewer than 4 dimensions scored: a coverage sentence right after the score, no 'describe your site well'", () => {
+    // Rachel-like: 80 A- from 3 of 6 dimensions, Citation Visibility not measured.
+    const naCitation = dim(6, "Citation Visibility", 0, { na: true, unmeasured: true });
+    const s = buildExecutiveSummary(
+      audit(80, [dim(1, "llms.txt Quality", 90), NA_OPENAPI, dim(4, "Structured Capability Data", 85), dim(5, "Agent-Parsable Content", 70), naCitation]),
+      GAPS_HEADING,
+    );
+    expectWellFormed(s);
+    expect(s[0]).toBe(`Your site scored 80/100 (grade A-) on the 3 of 6 dimensions we could score: ${C.overallBands.strong}`);
+    expect(s[1]).toBe(C.coverageLow(3, 6));
+    const all = s.join(" ");
+    expect(all).not.toMatch(/describe your site well|can find, read/);
+    expect(all).toContain(C.naCitationUnmeasured);
+  });
+
+  it("Citation Visibility not measured with 4+ dimensions scored: coverage sentence names it once", () => {
+    const naCitation = dim(6, "Citation Visibility", 0, { na: true, unmeasured: true });
+    const s = buildExecutiveSummary(
+      audit(85, [dim(1, "llms.txt Quality", 90), dim(2, "MCP Server Discoverability", 85), dim(4, "Structured Capability Data", 85), dim(5, "Agent-Parsable Content", 90), naCitation]),
+      GAPS_HEADING,
+    );
+    expectWellFormed(s);
+    expect(s[1]).toBe(C.coverageNoCitation);
+    expect(s.join(" ")).not.toContain(C.naCitationUnmeasured);
+  });
+
+  it("4+ dimensions incl. Citation Visibility: no coverage sentence", () => {
+    const s = buildExecutiveSummary(astrantLike(), GAPS_HEADING);
+    expect(s).not.toContain(C.coverageNoCitation);
+    expect(s.some((x) => x.startsWith("Because only"))).toBe(false);
+  });
+
+  it("no causal or outcome claims in the summary copy", () => {
+    const strings: string[] = [
+      ...Object.values(C.overallBands),
+      ...Object.values(C.dimensions).flatMap((p) => [p.fail, p.partial, p.strong]),
+      C.coverageLow(3, 6),
+      C.coverageNoCitation,
+      C.closingWithGaps(GAPS_HEADING),
+      C.closingNoGaps,
+    ];
+    for (const t of strings) {
+      expect(t).not.toMatch(/\bwill\b|hard time|can't|struggle|can find|can read|guarantee/i);
+    }
   });
 
   it("no gaps: no weakest-areas sentence and the nothing-to-fix closing", () => {
@@ -106,7 +154,7 @@ describe("buildExecutiveSummary", () => {
   it("gaps but every dimension 80+: says there are no major weak areas", () => {
     const s = buildExecutiveSummary(audit(88, [dim(1, "llms.txt Quality", 90), dim(5, "Agent-Parsable Content", 82)]), GAPS_HEADING);
     expectWellFormed(s);
-    expect(s[1]).toBe(C.noMajorWeakAreas);
+    expect(s).toContain(C.noMajorWeakAreas);
   });
 
   it("lists at most three weakest areas, lowest first, with fail phrasing under 40", () => {
@@ -121,7 +169,7 @@ describe("buildExecutiveSummary", () => {
     );
     expectWellFormed(s);
     expect(s[0]).toContain(C.overallBands.weak);
-    expect(s[1]).toBe(
+    expect(weakest(s)).toBe(
       `The weakest areas: ${C.dimensions[2].fail} (MCP Server Discoverability, 10/100); ${C.dimensions[4].fail} (Structured Capability Data, 39/100); and ${C.dimensions[5].partial} (Agent-Parsable Content, 45/100).`,
     );
     expect(s.join(" ")).not.toContain("What's working");
@@ -129,7 +177,7 @@ describe("buildExecutiveSummary", () => {
 
   it("singular weakest-area sentence for one weak dimension", () => {
     const s = buildExecutiveSummary(audit(78, [dim(1, "llms.txt Quality", 95), dim(4, "Structured Capability Data", 61)]), GAPS_HEADING);
-    expect(s[1]).toBe(`The weakest area: ${C.dimensions[4].partial} (Structured Capability Data, 61/100).`);
+    expect(weakest(s)).toBe(`The weakest area: ${C.dimensions[4].partial} (Structured Capability Data, 61/100).`);
   });
 
   it("several Not Applicable dimensions are named together, plural", () => {
@@ -185,7 +233,7 @@ describe("buildExecutiveSummary", () => {
 
   it("falls back to the dimension name for a dimension without its own phrases", () => {
     const s = buildExecutiveSummary(audit(60, [dim(7, "Future Dimension", 55)]), GAPS_HEADING);
-    expect(s[1]).toBe("The weakest area: Future Dimension needs work (Future Dimension, 55/100).");
+    expect(weakest(s)).toBe("The weakest area: Future Dimension needs work (Future Dimension, 55/100).");
   });
 
   it("overall band follows the composite grade scale", () => {

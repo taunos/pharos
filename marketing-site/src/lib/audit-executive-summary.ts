@@ -5,7 +5,9 @@
 // in EXEC_SUMMARY_COPY below; the builder only selects and joins them.
 //
 // Output is 3–5 sentences (array; each renders as its own short paragraph):
-//   1. overall score + what it means           (always)
+//   1. overall score, dimensions covered, band  (always)
+//  1b. coverage caveat                          (fewer than 4 dimensions scored,
+//                                                or Citation Visibility not measured)
 //   2. weakest areas, or "no major weak areas"  (only when there are gaps)
 //   3. what's working                           (when any dimension is strong)
 //   4. caveats: N/A dimensions, partly-measured Citation Visibility (when any)
@@ -18,6 +20,8 @@ const WEAK_BELOW = 80; // below grade A- → listed as a weak area
 const FAIL_BELOW = 40; // grade F → the stronger "fail" phrasing
 const STRONG_FROM = 85; // listed under "what's working"
 const MAX_LISTED = 3;
+// Fewer scored dimensions than this → the summary says the score is partial.
+const MIN_FULL_COVERAGE = 4;
 
 type DimPhrases = { fail: string; partial: string; strong: string };
 
@@ -25,17 +29,23 @@ export const EXEC_SUMMARY_COPY = {
   heading: "Executive summary",
 
   // Sentence 1: "<overall>: <band>". Bands follow the composite grade scale
-  // (A/A- ≥80, B 70–79, C/D 40–69, F <40).
-  overall: (score: number, grade: string) =>
-    `Your site scored ${score}/100 (grade ${grade})`,
+  // (A/A- ≥80, B 70–79, C/D 40–69, F <40). They describe what was measured,
+  // never a predicted outcome.
+  overall: (score: number, grade: string, scored: number, total: number) =>
+    `Your site scored ${score}/100 (grade ${grade}) on the ${scored} of ${total} dimensions we could score`,
   overallBands: {
-    strong:
-      "AI assistants and agents can find, read and describe your site well, with only a few gaps left.",
-    good: "AI assistants can find and read most of your site, but some gaps limit how accurately they describe what you do.",
-    mixed:
-      "AI assistants can find parts of your site, but significant gaps make it hard for them to describe what you do accurately.",
-    weak: "AI assistants will have a hard time finding your site and describing what you do.",
+    strong: "most of the checks we ran passed, with a few gaps left.",
+    good: "many of the checks we ran passed, and the gaps below are worth fixing.",
+    mixed: "some of the checks we ran passed, and several important ones did not.",
+    weak: "most of the checks we ran did not pass.",
   },
+
+  // Sentence 1b, coverage (when coverage is limited). Fewer than
+  // MIN_FULL_COVERAGE dimensions scored, or Citation Visibility not measured.
+  coverageLow: (scored: number, total: number) =>
+    `Because only ${scored} of ${total} dimensions could be scored, this is a partial view of your site, and it is not comparable with a score based on more dimensions.`,
+  coverageNoCitation:
+    "Citation Visibility, which tests what AI assistants say when asked about your site, was not measured on this run, so this score covers your site's own files and pages only.",
 
   // Sentence 2.
   weakestOne: (item: string) => `The weakest area: ${item}.`,
@@ -63,41 +73,42 @@ export const EXEC_SUMMARY_COPY = {
 
   // Sentence 5.
   closingWithGaps: (gapsHeading: string) =>
-    `The "${gapsHeading}" section below lists the specific fix for each gap, weakest first.`,
-  closingNoGaps: "Every check scored 100, so there is nothing to fix right now.",
+    `The "${gapsHeading}" section below lists each check that did not pass, with a suggested change, starting with the ones that cost the most points.`,
+  closingNoGaps: "Every check we scored passed, so no changes are listed.",
 
   // Plain-language phrases per dimension (by dimension_id) and score band.
-  // fail = score below 40, partial = 40–79, strong = 85 and up.
+  // fail = score below 40, partial = 40–79, strong = 85 and up. They say
+  // what our checks found, not what AI assistants will do.
   dimensions: {
     1: {
-      fail: "AI assistants can't find a usable llms.txt, the short guide that points them to your key pages",
-      partial: "your llms.txt, the short guide that points AI assistants to your key pages, is incomplete",
-      strong: "your llms.txt gives AI assistants a clear guide to your key pages",
+      fail: "we found no usable llms.txt file, the short Markdown guide to your key pages",
+      partial: "your llms.txt file passed only some of our checks",
+      strong: "your llms.txt file passed most of our checks",
     },
     2: {
-      fail: "AI agents can't discover or use an MCP server for your site",
-      partial: "AI agents can only partly discover or use your MCP server",
-      strong: "AI agents can discover and use your MCP server",
+      fail: "we could not find or use an MCP server for your site",
+      partial: "your MCP server passed only some of our discovery checks",
+      strong: "your MCP server passed most of our discovery checks",
     },
     3: {
-      fail: "AI agents can't find a machine-readable description of your API",
-      partial: "the machine-readable description of your API is incomplete",
-      strong: "AI agents can find a clear, machine-readable description of your API",
+      fail: "we found no complete machine-readable description (OpenAPI) of your API",
+      partial: "the OpenAPI description of your API is incomplete",
+      strong: "the OpenAPI description of your API passed most of our checks",
     },
     4: {
-      fail: "your pages carry little of the structured data AI assistants use to understand what you offer",
-      partial: "the structured data that tells AI assistants what you offer is incomplete",
-      strong: "your structured data tells AI assistants clearly what you offer",
+      fail: "your homepage carries little structured data (JSON-LD) about what you offer",
+      partial: "the structured data (JSON-LD) on your homepage is incomplete",
+      strong: "the structured data (JSON-LD) on your homepage passed most of our checks",
     },
     5: {
-      fail: "AI assistants struggle to read the content of your pages",
-      partial: "parts of your pages are hard for AI assistants to read",
-      strong: "AI assistants can read your pages easily",
+      fail: "your pages failed most of our readability checks",
+      partial: "your pages passed only some of our readability checks",
+      strong: "your pages passed most of our readability checks",
     },
     6: {
-      fail: "AI assistants rarely name or cite your site in their answers",
-      partial: "AI assistants name or cite your site only some of the time",
-      strong: "AI assistants regularly name your site in their answers",
+      fail: "in our test questions, AI assistants rarely named your site",
+      partial: "in our test questions, AI assistants named your site only some of the time",
+      strong: "in our test questions, AI assistants usually named your site",
     },
   } as Record<number, DimPhrases>,
   // Any dimension without its own phrases (e.g. one added later).
@@ -188,10 +199,16 @@ export function buildExecutiveSummary(
 
   const out: string[] = [];
 
-  // 1. Overall.
+  // 1. Overall, with how many dimensions it covers.
+  const total = Math.max(scan.dimensions_total ?? 0, scan.dimensions.length);
   out.push(
-    `${C.overall(scan.composite.score, scan.composite.grade)}: ${C.overallBands[overallBand(scan.composite.score)]}`,
+    `${C.overall(scan.composite.score, scan.composite.grade, scored.length, total)}: ${C.overallBands[overallBand(scan.composite.score)]}`,
   );
+  // 1b. Coverage caveat right after the score.
+  const citationMeasured = scored.some((d) => d.dimension_id === CITATION_DIM_ID);
+  const lowCoverage = scored.length < MIN_FULL_COVERAGE;
+  if (lowCoverage) out.push(C.coverageLow(scored.length, total));
+  else if (!citationMeasured) out.push(C.coverageNoCitation);
 
   // 2. Weakest areas (lowest score first; ties keep dimension order).
   if (gaps.length > 0) {
@@ -230,7 +247,8 @@ export function buildExecutiveSummary(
   if (naUnmeasured.length > 0) {
     caveats.push(C.naUnmeasured(joinNames(naUnmeasured.map((d) => d.dimension_name)), naUnmeasured.length > 1));
   }
-  if (naCitation) caveats.push(C.naCitationUnmeasured);
+  // Already said by the coverage sentence when that one is about Citation Visibility.
+  if (naCitation && lowCoverage) caveats.push(C.naCitationUnmeasured);
   const citation = scored.find((d) => d.dimension_id === CITATION_DIM_ID);
   const cov = citation ? citationCoverage(citation) : null;
   if (cov && cov.measurableCells < cov.totalCells) {

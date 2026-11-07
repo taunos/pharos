@@ -9,6 +9,8 @@
 // re-paraphrase per surface. If wording changes here, it changes everywhere
 // AND the MCP mirror gets a one-line diff in CI / verification.
 
+import { ALL_MODEL_IDS, DIM6_ENGINE_VERSION } from "./types";
+
 export const DIM6_DISCLOSURE = {
   // Short banner — fits in a results-page sub-section header
   short:
@@ -69,5 +71,11 @@ export const DIM6_DISCLOSURE = {
   // Engine version line — appears in PDFs + methodology page footer
   engineLine: "Dim 6 engine: dim6:v3 (4 models, prompt-set v3)",
 } as const;
+
+// Customer-facing engine line, derived from the version constant so it can't
+// go stale (DIM6_DISCLOSURE.engineLine above still says dim6:v3; it is kept
+// byte-equal with the mcp-server mirror, see scripts/verify-dim6-mirror.mjs).
+// External naming rule: "Astrant Score v<N>", never the internal "dim6:v<N>".
+export const DIM6_ENGINE_LINE = `Astrant Score ${DIM6_ENGINE_VERSION.replace(/^dim6:/, "")}, Citation Visibility engine (${ALL_MODEL_IDS.length} AI models)`;
 
 export type Dim6Disclosure = typeof DIM6_DISCLOSURE;

@@ -19,7 +19,7 @@ import {
   type CellEnvelope,
   type Dim6Result,
 } from "./types";
-import { DIM6_DISCLOSURE } from "./disclosure";
+import { DIM6_ENGINE_LINE } from "./disclosure";
 
 export interface Dim6SubCheck {
   id: string;
@@ -38,6 +38,9 @@ export interface Dim6Dimension {
   grade: string;
   sub_checks: Dim6SubCheck[];
   na?: boolean;
+  // Set with na:true: Citation Visibility applies to every site, so an N/A
+  // Dim 6 here was not measured (daily cap, no usable answers).
+  unmeasured?: boolean;
   // Cells are NOT placed on the public dimension shape (would leak raw model
   // text into the per-scan JSON). Audit-fulfill consumes them separately for
   // the corpus write.
@@ -160,9 +163,17 @@ function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6Sub
   ];
 }
 
+/** Daily-cap note shown on a report that ships without Citation Visibility. */
+export const DIM6_DAILY_CAP_NOTE =
+  "Citation Visibility was not measured on this run: the daily limit for live AI assistant tests (100 paid audits per day) was reached. It is not counted in your score; the other dimensions are scored normally below.";
+
+/** All-unmeasurable note: no AI assistant answer could be scored. */
+export const dim6AllUnmeasurableNote = (totalAnswers: number) =>
+  `Citation Visibility was not measured on this run: none of the ${totalAnswers} test answers from the AI assistants could be scored (network or provider failures). It is not counted in your score. ${DIM6_ENGINE_LINE}.`;
+
 /**
  * Build the DAILY-CAP-EXCEEDED dimension. Distinct note from free-tier so
- * audit-fulfill can flag the customer (and re-queue for tomorrow) cleanly.
+ * audit-fulfill can flag the customer cleanly.
  */
 function buildDailyCapDim6(): Dim6Dimension {
   return {
@@ -178,13 +189,13 @@ function buildDailyCapDim6(): Dim6Dimension {
         weight: 1,
         score: 0,
         passed: false,
-        notes:
-          "Citation Visibility audit hit Astrant's daily soft cap (100 paid audits/day). " +
-          "Your audit will run automatically tomorrow and an updated PDF will be emailed " +
-          "when it's ready. The other 5 dimensions are scored normally below.",
+        // No re-run exists for a report shipped this way (the queue path
+        // defers before this point instead), so the note promises none.
+        notes: DIM6_DAILY_CAP_NOTE,
         na: true,
       },
     ],
+    unmeasured: true,
   };
 }
 
@@ -267,10 +278,11 @@ export async function runDim6Paid(
             weight: 1,
             score: 0,
             passed: false,
-            notes: `All ${result.totalCells} cells came back unmeasurable (network or provider failures). Dimension dropped from composite. ${DIM6_DISCLOSURE.engineLine}`,
+            notes: dim6AllUnmeasurableNote(result.totalCells),
             na: true,
           },
         ],
+        unmeasured: true,
       },
       cells: result.cells,
       raw: result,

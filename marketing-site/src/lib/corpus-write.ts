@@ -24,9 +24,9 @@ import type { AuditResult, SessionRecord } from "./audit-types";
 import type { CellEnvelope } from "./dim6/types";
 import { DIM6_ENGINE_VERSION } from "./dim6/types";
 
-// Forbidden-path / "under 30 minutes" extractor. The remediation prompt asks
-// the model to end with `Estimated effort: <duration>.` so we can recover the
-// effort string without a re-parse of the LLM. Fall back to null on miss.
+// "under 30 minutes" extractor. Every remediation template
+// (lib/remediation-templates.ts) ends with `Estimated effort: <duration>.`
+// so we can recover the effort string. Fall back to null on miss.
 const EFFORT_RE = /Estimated effort:\s*([^.]+)\./i;
 
 function extractEffort(remediation: string): string | null {
@@ -68,17 +68,12 @@ function recommendationsFromAudit(
     return {
       finding_ids: findingId ? [findingId] : [],
       check_id: g.check_id,
-      // subject is also in CHECK_SUBJECTS in audit-pipeline.ts; we don't
-      // re-import it here to keep the mapping module thin. The full subject
-      // is recoverable from the recommendation_payload (the prompt grounds
-      // every output on it) and from check_id via the canonical map.
+      // The subject is recoverable from check_id and the template text.
       subject: null,
       recommendation_payload: g.remediation,
       estimated_effort: extractEffort(g.remediation),
-      // We don't currently distinguish "fallback_template" vs "llm" at the
-      // call boundary. v1 tags everything 'llm'; the templated-fallback
-      // pattern in audit-pipeline can be wired through later.
-      source: "llm",
+      // Remediation engine v6: every gap is a fixed template, no model.
+      source: "fallback_template",
     };
   });
 }

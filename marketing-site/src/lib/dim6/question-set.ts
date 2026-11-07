@@ -27,9 +27,11 @@
 import { generatePromptSet, isValidQuestionSet, type PromptSetGenEnv } from "./promptset";
 import type { PromptSetQuery } from "./types";
 
+// v3 (2026-11-07): business-type neutral generator prompt and a parser that
+// accepts output missing the closing "]" (generated sets now parse).
 // v2 (2026-11-07): bank q_bank_8 is business-type neutral; "padded" sets
 // stored under v1 may carry the old software-category question.
-export const DIM6_QUESTION_SET_VERSION = "dim6-qs:v2";
+export const DIM6_QUESTION_SET_VERSION = "dim6-qs:v3";
 
 export interface QuestionSetEnv extends PromptSetGenEnv {
   // pharos_corpus (PHAROS_CORPUS binding on the marketing Worker).

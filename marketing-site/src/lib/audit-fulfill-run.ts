@@ -14,7 +14,7 @@
 // them to its own D1-backed handler before calling this).
 
 import {
-  llmEnrichGaps,
+  buildRemediationGaps,
   renderAuditHtml,
   generatePdf,
   runScan,
@@ -263,7 +263,7 @@ export async function runAuditFulfillment(
 
   const scan = splicePaidDim6(scannerScan, dim6.dimension);
 
-  const gaps = await llmEnrichGaps(env, scan, sessionId);
+  const gaps = buildRemediationGaps(scan);
   const audit: AuditResult = {
     scan,
     gaps,

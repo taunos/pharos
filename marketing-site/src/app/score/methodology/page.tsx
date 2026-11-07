@@ -12,7 +12,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { DIM6_DISCLOSURE } from "@/lib/dim6/disclosure";
+import { DIM6_DISCLOSURE, DIM6_ENGINE_LINE } from "@/lib/dim6/disclosure";
 
 export const metadata: Metadata = {
   title: "Scoring methodology — Astrant",
@@ -125,7 +125,7 @@ export default function MethodologyPage() {
           </p>
 
           <p className="mt-10 text-xs font-mono uppercase tracking-wider text-[var(--color-muted)]">
-            {DIM6_DISCLOSURE.engineLine}
+            {DIM6_ENGINE_LINE}
           </p>
 
           {/* ── Dim 1-5 stub anchors ────────────────────────────────────── */}
