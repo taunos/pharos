@@ -1,0 +1,16 @@
+{
+  "scan": {
+    "dimensions": [
+      { "dimension_id": 2, "dimension_name": "MCP Server Discoverability", "score": 0, "grade": "F", "na": true, "sub_checks": [
+        { "id": "well_known", "name": "Well-known discovery", "weight": 30, "score": 0, "passed": false, "notes": "content-only", "na": true }
+      ] },
+      { "dimension_id": 4, "dimension_name": "Structured Capability Data", "score": 70, "grade": "C", "sub_checks": [
+        { "id": "organization_schema", "name": "Organization schema completeness", "weight": 20, "score": 40, "passed": false, "notes": "Organization found: description=false" },
+        { "id": "review_schema", "name": "Review / AggregateRating schema", "weight": 15, "score": 0, "passed": false, "notes": "No Review or AggregateRating markup found.", "na": true }
+      ] }
+    ]
+  },
+  "gaps": [
+    { "dimension_id": 4, "check_id": "organization_schema", "check_name": "Organization schema completeness", "score": 40, "notes": "description=false", "remediation": "Add an Organization block with name, url and description to the existing JSON-LD on your homepage." }
+  ]
+}

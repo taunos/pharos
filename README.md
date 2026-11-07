@@ -24,6 +24,8 @@ pharos/
         └── index.ts         Worker + MCP tool definitions + discovery endpoints
 ```
 
+**Release gate:** any change to scanner checks or scoring, the Audit pipeline, remediation, report or Score PDF templates, or report copy must pass the report panel before merge or deploy. See `tools/report-panel/README.md`.
+
 This is a single-repo monorepo. As more components come online (`scanner/`, `marketing-site/`, `dispatcher/` for per-client deploys), they get sibling folders under `pharos/`.
 
 ## What's live in v0.0.1

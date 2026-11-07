@@ -1,0 +1,18 @@
+> HARNESS NOTE: Dim 6 run with no provider keys (--dim6 off); production would carry a real Citation Visibility score.
+
+# Astrant · AEO Audit
+
+**https://fixture.example/**
+
+## Executive summary
+
+The weakest areas: AI agents can't discover or use an MCP server for your site (MCP Server Discoverability, 15/100).
+
+## Dimension breakdown
+
+| Organization schema completeness | 0/100 | 20% | no Organization schema |
+| FAQPage schema | 56/100 | 20% | LLM rated 4 question(s) avg 50/100 (LLM output unusable; default) |
+
+## Prioritized gaps + remediation
+
+**Remediation:** Add the Learning Management System (LMS) summary to /llms.txt. Ensure the case-study paths ([site value]) resolve. This will improve how AI assistants rank your site.

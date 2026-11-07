@@ -1,0 +1,9 @@
+> SYNTHETIC DIM 6 INPUT — Citation Visibility numbers below are invented by the eval harness (shape identical to runDim6 output); the remediation text for them is real Llama output.
+
+# Astrant · AEO Audit
+
+**https://fixture.example/**
+
+## Prioritized gaps + remediation
+
+**Remediation:** Add an Organization block with name, url and description to the existing JSON-LD on your homepage. Estimated effort: under an hour.

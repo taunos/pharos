@@ -1,0 +1,14 @@
+{
+  "name": "@pharos/report-panel",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Release gate for Audit report output: fixed site panel + lint + review files. See README.md.",
+  "scripts": {
+    "proxy": "node start-proxy.mjs",
+    "panel": "node run.mjs",
+    "check": "node check.mjs",
+    "gemini": "node make-gemini-file.mjs",
+    "test": "node --test check.test.mjs"
+  }
+}
