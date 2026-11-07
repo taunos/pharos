@@ -34,7 +34,9 @@ const SCANNER_URL = `${DEFAULT_SCANNER_URL}/api/scan`;
 // (lib/remediation-templates.ts) chosen by code from the scanner result; no
 // model call, no KV cache. Gaps are the checks that did not pass, ordered by
 // weighted impact (lib/audit-gaps.ts).
-const REMEDIATION_ENGINE_VERSION = "v7";
+// v8 (2026-11-07): templates chosen only when the scanner note proves the
+// state (neutral text otherwise); review_schema by validation failure.
+const REMEDIATION_ENGINE_VERSION = "v8";
 
 export type AuditEnv = {
   AI: Ai;

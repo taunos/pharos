@@ -106,6 +106,39 @@ const CURRENT: Array<[string, string, string, SubCheck[]]> = [
     "Sampled 1 page(s); avg ${b.score}/100.",
     [],
   ],
+  // 1.4.2 note shapes.
+  ["json_ld_present", "no JSON-LD found on homepage", '"no JSON-LD found on homepage"', []],
+  ["organization_schema", "no Organization schema", '"no Organization schema"', [sc("json_ld_present", "1 valid JSON-LD block(s) on homepage", 100)]],
+  ["info_completeness", 'Spec is missing the "info" object entirely — required by OpenAPI 3.x §4.1.', 'Spec is missing the "info" object entirely', []],
+  ["info_completeness", "info: title=yes, version=no, description=<20 chars or missing (1/3)", "info: title=${hasTitle", []],
+  ["operation_coverage", 'Spec missing "paths" object — no operations defined.', 'Spec missing "paths" object', []],
+  ["operation_coverage", "Spec has paths object but zero HTTP operations.", "Spec has paths object but zero HTTP operations.", []],
+  ["review_schema", "2 Review/AggregateRating block(s); well-formed=false: each block is missing a required field", "each block is missing a required field", []],
+  ["review_schema", "1 Review/AggregateRating block(s); well-formed=false: each block has a rating value or count that is not valid", "each block has a rating value or count that is not valid", []],
+  [
+    "review_schema",
+    "3 Review/AggregateRating block(s); well-formed=false: some blocks are missing a required field and others have a value that is not valid",
+    "some blocks are missing a required field and others have a value that is not valid",
+    [],
+  ],
+  [
+    "pricing_text_visibility",
+    'No pricing page found, so we checked the prices shown on the homepage (https://example.com/): 1 price token(s) but none with a billing period (such as "/month") or marked one-time.',
+    "No pricing page found, so we checked the prices shown on the homepage (",
+    [],
+  ],
+  [
+    "pricing_text_visibility",
+    'No pricing page found, so we checked the prices shown on https://example.com/mapa, a page linked from the homepage: 1 price token(s) but none with a billing period (such as "/month") or marked one-time.',
+    "a page linked from the homepage: ",
+    [],
+  ],
+  [
+    "case_study_scannability",
+    `Sampled 1 page(s); avg 57/100. https://example.com/customers/a ${ARROW} 57 (headings: no, lists: yes, bold text: yes).`,
+    "(headings: ${yn(b.headings)}, lists: ${yn(b.lists)}, bold text: ${yn(b.bold)})",
+    [],
+  ],
 ];
 
 /** The first contradiction between a note and the template selected for it, or null. */
@@ -135,9 +168,22 @@ function contradiction(s: SubCheck, siblings: SubCheck[], out: string): string |
       break;
     case "json_ld_present":
       if (/valid JSON-LD block|failed to parse/.test(n) && has("has no JSON-LD")) return "no-JSON-LD text with JSON-LD";
+      if (!/^no JSON-LD found on homepage$/.test(n) && has("has no JSON-LD")) return "absence text the note does not prove";
       break;
     case "organization_schema":
       if (/^Organization found/.test(n) && has("has no Organization")) return "no-Organization text with an Organization";
+      if (!/^no Organization schema$/.test(n) && (has("has no Organization") || has("no Organization structured data"))) return "absence text the note does not prove";
+      break;
+    case "info_completeness":
+      if (!/missing the "info" object/.test(n) && has("has no info object")) return "no-info text the note does not prove";
+      break;
+    case "operation_coverage":
+      if (!/^Spec missing "paths" object|zero HTTP operations/.test(n) && has("defines no operations")) return "no-operations text the note does not prove";
+      break;
+    case "review_schema":
+      if (has("none has a ratingValue, reviewRating or author")) return "missing-field text for a validated block";
+      if (/not valid$/.test(n) && /^\d+ Review/.test(n) && !/some blocks/.test(n) && has("is missing a field")) return "missing-field text for an invalid value";
+      if (/each block is missing a required field$/.test(n) && has("values did not pass")) return "invalid-value text for a missing field";
       break;
     case "service_offer_schema":
       if (/Service\/Product\/Offer block/.test(n) && has("We found no Service, Product or Offer structured data")) return "no-markup text with markup";
@@ -150,6 +196,7 @@ function contradiction(s: SubCheck, siblings: SubCheck[], out: string): string |
       const pct = (n.match(/^About (\d+)% of the distinct words/) ?? n.match(/token overlap (\d+)%/))?.[1];
       if (pct && (!has(`About ${pct}% of the distinct words`) || has("almost no text"))) return "overlap figure not carried or shell text";
       if (has("% of the text on your homepage")) return "overlap read as a share of the text";
+      if (!/minimal HTML/.test(n) && has("almost no text")) return "app-shell text the note does not prove";
       break;
     }
     case "page_weight_lcp": {
@@ -165,10 +212,12 @@ function contradiction(s: SubCheck, siblings: SubCheck[], out: string): string |
       if (tokens > 0 && has("but no prices in its HTML text")) return "no-prices text with prices";
       if (/no price patterns detected/.test(n) && /We found \d+ price/.test(out)) return "price count without prices";
       if (/didn't return 200/.test(n) !== has("did not load")) return "loading state mismatch";
+      if (/^No pricing page found/.test(n) && /pricing page/i.test(out)) return "pricing-page text without a pricing page";
       break;
     }
     case "case_study_scannability":
       if (/^Sampled/.test(n) && has("did not load")) return "not-loading text for a loaded page";
+      if ((/headings: no/.test(n) || n.includes(`h:${NO}`)) !== has("fewer than three subheadings")) return "headings state mismatch";
       break;
   }
   return null;
@@ -206,7 +255,19 @@ describe("r4: remediation templates never contradict the scanner note", () => {
   });
 
   it("an unrecognized note shape gets the neutral fallback, not a specific state", () => {
-    for (const id of ["well_known", "tool_coverage", "service_offer_schema", "pricing_text_visibility"]) {
+    for (const id of [
+      "well_known",
+      "tool_coverage",
+      "service_offer_schema",
+      "pricing_text_visibility",
+      // r5: no invented absence or app-shell diagnosis.
+      "js_vs_no_js_render_diff",
+      "json_ld_present",
+      "organization_schema",
+      "info_completeness",
+      "operation_coverage",
+      "review_schema",
+    ]) {
       expect(remediationFor(sc(id, "some future note shape"), ctxFor("https://example.com", []))).toBe(UNKNOWN_CHECK_REMEDIATION);
     }
   });

@@ -117,6 +117,11 @@ export const EXEC_SUMMARY_COPY = {
   mcpFoundNoCard: "we found your MCP server, but it isn't fully discoverable (no server card)",
   // Dim 3: the only checks below passing are limited by the scanner (YAML).
   openApiScannerLimited: "our scanner could only partly check the OpenAPI description of your API",
+  // Dim 4 (r5): a scored check read a sampled product page, not the homepage.
+  structuredDataSampled: {
+    partial: "the structured data (JSON-LD) we sampled is incomplete",
+    strong: "the structured data (JSON-LD) we sampled passed most of our checks",
+  },
   // Any dimension without its own phrases (e.g. one added later).
   dimensionFallback: (name: string): DimPhrases => ({
     fail: `${name} needs significant work`,
@@ -129,10 +134,15 @@ const CITATION_DIM_ID = 6;
 const CITATION_SUMMARY_CHECK_ID = "citation_domain_named_rate";
 
 function phrasesFor(d: DimensionResult): DimPhrases {
-  return (
+  const p =
     EXEC_SUMMARY_COPY.dimensions[d.dimension_id] ??
-    EXEC_SUMMARY_COPY.dimensionFallback(d.dimension_name)
-  );
+    EXEC_SUMMARY_COPY.dimensionFallback(d.dimension_name);
+  // r5: Dim 4 results that include a sampled product page are not "on your
+  // homepage".
+  if (d.dimension_id === 4 && d.sub_checks.some((s) => !s.na && /sampled product page/.test(String(s.notes ?? "")))) {
+    return { ...p, ...EXEC_SUMMARY_COPY.structuredDataSampled };
+  }
+  return p;
 }
 
 /**

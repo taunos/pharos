@@ -99,6 +99,15 @@ const FIXTURES: [string, string, SubCheck[], string][] = [
   ["faq_schema", "3 Q&A pair(s); LLM rated 3 question(s) avg 10/100", [], "has 3 question(s)"],
   ["faq_schema", "3 Q&A pair(s); 3 question(s); instruction-like text detected; scored 0 without LLM eval", [], "reads like instructions"],
   ["review_schema", "2 Review/AggregateRating block(s); well-formed=false", [], "We found 2 Review or AggregateRating"],
+  ["review_schema", "2 Review/AggregateRating block(s); well-formed=false: each block is missing a required field", [], "but each is missing a field this check needs"],
+  ["review_schema", "1 Review/AggregateRating block(s); well-formed=false: each block has a rating value or count that is not valid", [], "but their values did not pass our checks"],
+  ["review_schema", "3 Review/AggregateRating block(s); well-formed=false: some blocks are missing a required field and others have a value that is not valid", [], "but none passed our checks"],
+  [
+    "case_study_scannability",
+    `Sampled 1 page(s); avg 57/100. https://example.com/customers/a ${ARROW} 57 (headings: no, lists: yes, bold text: yes).`,
+    [],
+    "we found fewer than three subheadings (h2 or h3). If",
+  ],
   ["js_vs_no_js_render_diff", "Static-vs-rendered token overlap 16%; rendered HTML 3.2x the size of static.", [], "About 16% of the distinct words"],
   ["js_vs_no_js_render_diff", "About 16% of the distinct words on your homepage appear in both the HTML your server sends and the page after JavaScript runs.", [], "About 16% of the distinct words"],
   ["js_vs_no_js_render_diff", "Static fetch returned minimal HTML (likely a JS-required SPA shell). Browser Rendering call failed; scored on static signal only.", [], "app shell"],
@@ -215,7 +224,9 @@ describe("copy rules", () => {
   });
 
   it("never asks for invented content", () => {
-    expect(T.review_schema.incomplete(1)).toMatch(/Only add ratings markup for real ratings/);
+    for (const t of [T.review_schema.missing(1), T.review_schema.invalid(1), T.review_schema.general(1)]) {
+      expect(t).toMatch(/Only add ratings markup for real ratings/);
+    }
     expect(T.faq_schema.rated(3, 10)).toMatch(/don't add questions to raise this score/);
     expect(T.tool_coverage.counts(1, 1)).toMatch(/don't list tools it doesn't offer/);
     expect(T.service_offer_schema.none).toMatch(/price only if you publish one/);

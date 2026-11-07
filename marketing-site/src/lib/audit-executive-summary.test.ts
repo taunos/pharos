@@ -349,3 +349,27 @@ describe("r4: weak-area phrases follow the sub-check evidence", () => {
     expect(s).toContain(C.dimensions[3].partial);
   });
 });
+
+describe("r5: Dim 4 phrases follow what was sampled", () => {
+  const sd = (score: number, svcNotes: string) =>
+    dim(4, "Structured Capability Data", score, {
+      sub_checks: [
+        sub("json_ld_present", 100, "2 valid JSON-LD block(s) on homepage"),
+        sub("organization_schema", 30, "Organization found: name=true, url=false, description=false, sameAs=0"),
+        sub("service_offer_schema", 100, svcNotes),
+      ],
+    });
+  const PRODUCT = "1 Service/Product/Offer block(s); best match has 3/3 required fields (on the sampled product page https://ugmonk.com/products/x; none on the homepage)";
+  const all = (d: DimensionResult) => buildExecutiveSummary(audit(60, [dim(1, "llms.txt Quality", 50), d]), GAPS_HEADING).join(" ");
+
+  it("ugmonk: a sampled product page -> 'the structured data we sampled', never 'on your homepage'", () => {
+    const s = all(sd(88, PRODUCT));
+    expect(s).toContain(C.structuredDataSampled.strong);
+    expect(s).not.toContain("on your homepage passed");
+    expect(all(sd(60, PRODUCT))).toContain(C.structuredDataSampled.partial);
+  });
+
+  it("homepage-only results keep the homepage phrase", () => {
+    expect(all(sd(88, "1 Service/Product/Offer block(s); best match has 3/3 required fields"))).toContain(C.dimensions[4].strong);
+  });
+});

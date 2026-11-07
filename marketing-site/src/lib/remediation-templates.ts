@@ -54,6 +54,10 @@ const MCP_CARD_PATHS = ["/.well-known/mcp.json", "/.well-known/mcp/server-card.j
 export const UNKNOWN_CHECK_REMEDIATION =
   "This check did not pass; the Finding line above shows what we measured, and the methodology page at astrant.io/methodology explains what the check looks for. Estimated effort: not estimated for this check.";
 
+// Shared close of the review_schema templates.
+const RATINGS_TAIL =
+  "Only add ratings markup for real ratings, never invented values; Google also ignores ratings a business publishes about itself in its own Organization or LocalBusiness markup.";
+
 // Templates per check id and state. Each is a function of the context plus
 // the measured values its state parsed. `general` is used when the note
 // doesn't match a known state.
@@ -233,9 +237,15 @@ export const T = {
     general:
       "If you revise your FAQPage markup, make each Question in mainEntity a question a customer would ask, with an acceptedAnswer that answers it directly. Mark up only questions and answers that appear on the page. Estimated effort: 30 minutes to 1 hour.",
   },
+  // r5: chosen by the validation failure the scanner names (1.4.2 notes);
+  // `general` when the note names none or several.
   review_schema: {
-    incomplete: (n: number) =>
-      `We found ${n} Review or AggregateRating block(s), but none has a ratingValue, reviewRating or author. Complete them with the real values shown on your page, or remove the markup. Only add ratings markup for real ratings, never invented values; Google also ignores ratings a business publishes about itself in its own Organization or LocalBusiness markup. Estimated effort: 30 minutes to 1 hour.`,
+    missing: (n: number) =>
+      `We found ${n} Review or AggregateRating block(s), but each is missing a field this check needs: an AggregateRating needs a ratingValue and a ratingCount or reviewCount, and a Review needs an author and a reviewRating with a ratingValue. Complete them with the real values shown on your page, or remove the markup. ${RATINGS_TAIL} Estimated effort: 30 minutes to 1 hour.`,
+    invalid: (n: number) =>
+      `We found ${n} Review or AggregateRating block(s), but their values did not pass our checks: a ratingValue must be a number between worstRating and bestRating (1 to 5 unless the block declares other limits), and a ratingCount or reviewCount must be a whole number above 0. Correct them to the real values shown on your page, or remove the markup. ${RATINGS_TAIL} Estimated effort: under 30 minutes.`,
+    general: (n: number) =>
+      `We found ${n} Review or AggregateRating block(s), but none passed our checks. An AggregateRating needs a ratingValue between worstRating and bestRating (1 to 5 unless the block declares other limits) and a ratingCount or reviewCount that is a whole number above 0; a Review needs an author and a reviewRating with such a ratingValue. Check each block against the real values shown on your page, or remove the markup. ${RATINGS_TAIL} Estimated effort: 30 minutes to 1 hour.`,
   },
 
   // ── Dim 5: Agent-Parsable Content ─────────────────────────────────────
@@ -475,8 +485,11 @@ const SELECTORS: Record<string, Selector> = {
       if (m[2] !== "yes") missing.push(I.fieldVersion);
       if (m[3] !== "yes") missing.push(I.fieldDescription);
       if (missing.length > 0) return I.missingFields(joinWithAnd(missing));
+      return UNKNOWN_CHECK_REMEDIATION;
     }
-    return I.noInfo;
+    // r5: specific text only for a note that proves the state.
+    if (/^Spec is missing the "info" object/.test(s.notes)) return I.noInfo;
+    return UNKNOWN_CHECK_REMEDIATION;
   },
 
   security_schemes: (s) => (/^Skipped/.test(s.notes) ? T.security_schemes.skipped : T.security_schemes.none),
@@ -492,12 +505,15 @@ const SELECTORS: Record<string, Selector> = {
       if (documented === total) return `${O.allDocumentedFew(total)}${O.effort}`;
       return `${O.undocumented(total - documented, total)}${few ? O.fewOperations : ""}${O.effort}`;
     }
-    return O.noOperations;
+    if (/^Spec missing "paths" object|^Spec has paths object but zero HTTP operations/.test(s.notes)) return O.noOperations;
+    return UNKNOWN_CHECK_REMEDIATION;
   },
 
   json_ld_present: (s) => {
     const n = int(s.notes.match(/^(\d+) JSON-LD block\(s\) present but failed to parse/)?.[1]);
-    return n !== null && n > 0 ? T.json_ld_present.invalid(n) : T.json_ld_present.none;
+    if (n !== null && n > 0) return T.json_ld_present.invalid(n);
+    if (/^no JSON-LD found on homepage$/.test(s.notes)) return T.json_ld_present.none;
+    return UNKNOWN_CHECK_REMEDIATION;
   },
 
   organization_schema: (s, c) => {
@@ -509,7 +525,9 @@ const SELECTORS: Record<string, Selector> = {
       if (m[2] !== "true") missing.push("url");
       if (m[3] !== "true") missing.push("description");
       if (missing.length > 0) return O.missingFields(joinWithAnd(missing));
+      return UNKNOWN_CHECK_REMEDIATION;
     }
+    if (!/^no Organization schema$/.test(s.notes)) return UNKNOWN_CHECK_REMEDIATION;
     const ld = sibling(c, "json_ld_present");
     return ld && ld.score === 100 ? O.none : O.noneNoJsonLd;
   },
@@ -534,8 +552,12 @@ const SELECTORS: Record<string, Selector> = {
   },
 
   review_schema: (s) => {
+    const R = T.review_schema;
     const n = int(s.notes.match(/^(\d+) Review\/AggregateRating block/)?.[1]);
-    return T.review_schema.incomplete(n !== null && n > 0 ? n : 1);
+    if (n === null || n === 0 || !/; well-formed=false(?::|$)/.test(s.notes)) return UNKNOWN_CHECK_REMEDIATION;
+    if (/: each block is missing a required field$/.test(s.notes)) return R.missing(n);
+    if (/: each block has a rating value or count that is not valid$/.test(s.notes)) return R.invalid(n);
+    return R.general(n);
   },
 
   js_vs_no_js_render_diff: (s) => {
@@ -543,7 +565,7 @@ const SELECTORS: Record<string, Selector> = {
     if (pct !== null && pct <= 100) return T.js_vs_no_js_render_diff.lowOverlap(pct);
     if (/minimal HTML/.test(s.notes)) return T.js_vs_no_js_render_diff.shell;
     if (/no obvious pricing\/capabilities signals/.test(s.notes)) return T.js_vs_no_js_render_diff.noSignals;
-    return T.js_vs_no_js_render_diff.shell;
+    return UNKNOWN_CHECK_REMEDIATION;
   },
 
   page_weight_lcp: (s) => {
@@ -556,6 +578,9 @@ const SELECTORS: Record<string, Selector> = {
 
   pricing_text_visibility: (s, c) => {
     const P = T.pricing_text_visibility;
+    // 1.4.2: prices checked on the homepage or a linked page (no pricing
+    // page); every template here speaks of a pricing page.
+    if (/^No pricing page found/.test(s.notes)) return UNKNOWN_CHECK_REMEDIATION;
     const url = auditedHostUrl(s.notes.match(/^Detected (?:pricing path )?(\S+?)(?:;| but)/)?.[1], c);
     const where = url ? P.where(url) : "";
     if (/didn't return 200/.test(s.notes)) return P.notLoading(where);
@@ -573,11 +598,12 @@ const SELECTORS: Record<string, Selector> = {
     if (/none returned 200/.test(s.notes)) return C.notLoading;
     const pages = int(s.notes.match(/^Sampled (\d+) page\(s\)/)?.[1]);
     if (pages === null || pages === 0) return C.general;
-    const NO = String.fromCharCode(0x2717); // the scanner's "missing" mark
+    // "(h:✗ l:✓ b:✓)" before 1.4.2; "(headings: no, lists: yes, bold text: yes)" since.
+    const NO = String.fromCharCode(0x2717); // the scanner's old "missing" mark
     const missing: string[] = [];
-    if (s.notes.includes(`h:${NO}`)) missing.push(C.missingHeadings);
-    if (s.notes.includes(`l:${NO}`)) missing.push(C.missingLists);
-    if (s.notes.includes(`b:${NO}`)) missing.push(C.missingBold);
+    if (s.notes.includes(`h:${NO}`) || s.notes.includes("headings: no")) missing.push(C.missingHeadings);
+    if (s.notes.includes(`l:${NO}`) || s.notes.includes("lists: no")) missing.push(C.missingLists);
+    if (s.notes.includes(`b:${NO}`) || s.notes.includes("bold text: no")) missing.push(C.missingBold);
     if (missing.length === 0) return C.general;
     return C.sampled(pages, joinWithAnd(missing));
   },
