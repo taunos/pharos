@@ -20,7 +20,7 @@ Each dimension maps to a specific piece of technical infrastructure. The score t
 
 Cloudflare shipped a free Agent Readiness Score tool in 2026 that does pass/fail checks across five categories. It's a good free check. We go deeper in three places:
 
-1. **Quality rubrics, not pass/fail.** Our llms.txt check doesn't just verify the file exists; it scores curation quality, blockquote elevator-pitch, and whether the linked pages return good markdown. Same depth on every other dimension.
+1. **Quality rubrics, not pass/fail.** Our llms.txt check doesn't just verify the file exists; it scores curation quality, the summary blockquote and whether the linked pages return good markdown. Same depth on every other dimension.
 2. **Priority per gap.** Each gap is ranked by how far it is from passing, so you fix the biggest gaps first, not what's easy to check off.
 3. **Live citation audit.** We ask ChatGPT, Claude, Perplexity, and Gemini about your domain and check whether each one recognizes and names it — Perplexity from a live web search, the others from what the model already knows. Cloudflare can't see inside those engines. We can.
 
@@ -37,7 +37,7 @@ The free Score gives you a public grade across six dimensions. The $79 Audit add
 Yes — it's live now. Run it free at https://astrant.io/score, no signup required.
 
 **Will you charge for the Score later?**
-No. The Score stays free. The paid tiers (Audit, Implementation, Custom, Subscriptions) go deeper.
+No. The Score stays free. The $79 Audit goes deeper; the other paid tiers are not open yet.
 
 ## Related
 

@@ -19,7 +19,7 @@ import { METHODOLOGY_CALIBRATION_MD } from "@/lib/methodology-content";
 export const metadata: Metadata = {
   title: "Calibration Methodology — Astrant",
   description:
-    "How Astrant's Dim 6 (Citation Audit) is calibrated. Multi-pass methodology against a corpus of control domains, with operational discipline practices and known limits at engine version dim6:v3.",
+    "How Astrant's Dim 6 (Citation Audit) is calibrated. Multi-pass methodology against a corpus of control domains, with operational discipline practices and known limits. Current engine: Astrant Citation Visibility v4; last calibrated on v3 (2026-05-02).",
   alternates: { canonical: "/methodology/calibration" },
 };
 

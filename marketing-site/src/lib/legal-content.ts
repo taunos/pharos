@@ -46,7 +46,7 @@ When you use Astrant's free Score tool or any paid tier:
 ## What we don't do with what we collect
 
 - We don't sell your personal data — your email, payment details, or anything that identifies you. If you opt in at checkout, we may include a de-identified record of your project (what we found, what we changed, and what happened to your AI visibility afterwards, with your company name, contact details and your own words removed) in research and data products we license to others.
-- We don't share it beyond the providers who run the service for us: Cloudflare (Workers / D1 / KV / R2, Workers AI, Browser Rendering); Resend, who delivers our transactional emails; OpenAI, Anthropic, Google and Perplexity, which receive your site's domain (never your email) in the prompts of a paid Audit's Citation Visibility check; and Profound, when our paid tiers eventually integrate with their citation-tracking API. These are processors, not partners — they hold data on our behalf, under contract.
+- We don't share it beyond the providers who run the service for us: Cloudflare (Workers / D1 / KV / R2, Workers AI, Browser Rendering); Resend, who delivers our transactional emails; and OpenAI, Anthropic, Google and Perplexity, which receive your site's domain (never your email) in the prompts of a paid Audit's Citation Visibility check. These are processors, not partners — they hold data on our behalf, under contract.
 - **Payments** are handled by Dodo Payments, our merchant of record. Dodo collects your payment details directly under its own privacy policy; we never see your card number. We receive your email, the purchase and its status.
 - We don't run ads, advertising pixels, or affiliate tracking.
 

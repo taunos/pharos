@@ -13,7 +13,7 @@
 
 export const METHODOLOGY_CALIBRATION_MD = `# Calibration Methodology
 
-**Engine version: dim6:v3 · Last calibrated: 2026-05-02**
+**Astrant Citation Visibility v4 · Last calibrated: 2026-05-02 (on v3; v4 changed the question wording and dropped the competitor check, and has not been re-calibrated)**
 
 ## Why this page exists
 
@@ -53,7 +53,7 @@ Beyond the methodology itself, Dim 6 calibration is enforced by operational prac
 
 ## Known limits
 
-Methodology rigor includes being explicit about both what's been validated and what hasn't. Current calibration scope and known limits at engine version dim6:v3:
+Methodology rigor includes being explicit about both what's been validated and what hasn't. Current calibration scope and known limits as of that calibration (engine v3):
 
 - **Calibrated against four known-positive anchors.** The methodology validates against a corpus of four well-indexed brands sampling diverse profiles: payments infrastructure, enterprise SaaS at scale, developer infrastructure with dense training-data presence, and mid-tier B2B SaaS. All four show maximum-strength signal under the multi-pass calibration framework. Recognition-gradient between known-mid and known-positive endpoints is not yet sampled; intermediate-recognition anchors are queued. Future calibration passes will also add a known-negative anchor (a sub-100-page brochure site) to validate the judge's ceiling — that it does not over-AFFIRM on weak-signal inputs.
 - **No known-negative anchor.** The methodology has not yet been validated against a deliberately weak-signal control (e.g., a brochure site with minimal real citation surface). This is queued for the next calibration pass.
