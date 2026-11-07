@@ -209,10 +209,11 @@ export function normalizeCard(raw: RawCard): McpCard {
   };
 }
 
-async function fetchCard(origin: string): Promise<{ card: McpCard | null; status: number; from: string }> {
+// 1.4.2: every hop of a card fetch stays on the audited site.
+async function fetchCard(origin: string, base: string): Promise<{ card: McpCard | null; status: number; from: string }> {
   for (const path of ["/.well-known/mcp.json", "/.well-known/mcp/server-card.json"]) {
     const url = `${origin}${path}`;
-    const r = await timedFetch(url, { headers: { Accept: "application/json" } });
+    const r = await timedFetch(url, { headers: { Accept: "application/json" } }, FETCH_TIMEOUT_MS, base);
     if (!r) continue;
     if (r.status === 200) {
       try {
@@ -469,7 +470,7 @@ export async function runDim2(
   const subs: SubCheck[] = [];
 
   // 1. well_known
-  const { card, status: cardStatus, from } = await fetchCard(origin);
+  const { card, status: cardStatus, from } = await fetchCard(origin, base);
   const dnsP = dnsTxt(u.host);
   const ucpP = cardStatus === 200 ? Promise.resolve(null) : ucpMcpEndpoints(origin, base);
   let wellKnownScore = 0;

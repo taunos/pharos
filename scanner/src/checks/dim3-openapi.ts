@@ -140,13 +140,14 @@ function hasApiLinkset(linkset: unknown): boolean {
 }
 
 async function probeWellKnown(origin: string): Promise<DiscoveryHit | null> {
+  const base = siteBase(origin);
   for (const path of WELL_KNOWN_CANDIDATES) {
     const url = `${origin}${path}`;
     if (!isSafeSpecUrl(url)) continue;
     const res = await timedFetch(url, {
       headers: { Accept: "application/json", "User-Agent": STATIC_UA },
       redirect: "follow",
-    });
+    }, FETCH_TIMEOUT_MS, base);
     if (res && res.ok) {
       const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
       const body = read.text;
@@ -166,6 +167,7 @@ async function probeWellKnown(origin: string): Promise<DiscoveryHit | null> {
 }
 
 async function probeCanonical(origin: string): Promise<DiscoveryHit | null> {
+  const base = siteBase(origin);
   for (const path of CANONICAL_CANDIDATES) {
     const url = `${origin}${path}`;
     if (!isSafeSpecUrl(url)) continue;
@@ -175,7 +177,7 @@ async function probeCanonical(origin: string): Promise<DiscoveryHit | null> {
         "User-Agent": STATIC_UA,
       },
       redirect: "follow",
-    });
+    }, FETCH_TIMEOUT_MS, base);
     if (res && res.ok) {
       const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
       const body = read.text;
@@ -336,13 +338,16 @@ async function probeHomepageLink(
   // E12 (Codex r1): relative hrefs resolve against the page they came from.
   const candidate = extractHomepageSpecLink(homepage.html, isSafeSpecUrl(homepage.url) ? homepage.url : origin);
   if (!candidate || !isSafeSpecUrl(candidate)) return null;
+  // 1.4.2: a homepage-linked spec is fetched only on the audited site (every hop).
+  const base = siteBase(origin);
+  if (!isSameSite(new URL(candidate).hostname, base)) return null;
   const res = await timedFetch(candidate, {
     headers: {
       Accept: "application/json, application/yaml, text/yaml, text/plain",
       "User-Agent": STATIC_UA,
     },
     redirect: "follow",
-  });
+  }, FETCH_TIMEOUT_MS, base);
   if (res && res.ok) {
     const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
     const body = read.text;

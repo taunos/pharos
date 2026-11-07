@@ -4,7 +4,8 @@
 //   1. js_vs_no_js_render_diff (30%)  — paid uses Browser Rendering, free is static-only with disclosure
 //   2. page_weight_lcp (15%)          — homepage HTML weight (1.4.0: LCP was never measured)
 //   3. markdown_negotiation (25%)     — same on free + paid
-//   4. pricing_text_visibility (20%)  — N/A if no pricing page found (weight redistributed)
+//   4. pricing_text_visibility (20%)  — 1.4.2: pricing page, else prices on the homepage or a
+//                                       page it links to; N/A (not measured) with none
 //   5. case_study_scannability (10%)  — heuristic only, no LLM (per Slice 2a constraint)
 //
 // Browser Rendering invocation: REST API per the same pattern audit-fulfill PDF
@@ -482,9 +483,50 @@ export function countPeriodOrOneTimePrices(text: string): number {
 export const PRICE_BARE_RE = new RegExp(PRICE_TOKEN, "g");
 const MODAL_CLASS_RE = /\b(modal|dialog|popup|paywall|login-required|gated)\b/i;
 
+// 1.4.2: bounds on the pricing check's requests. Homepage pricing links are
+// deduplicated, kept on the audited site and tried at most
+// MAX_PRICING_LINKS times; at most MAX_PRICE_SAMPLE_PAGES other
+// homepage-linked pages are sampled for prices; and discovery plus sampling
+// share one time budget (no request starts with under MIN_REQUEST_MS left).
+// The read of a found pricing page is one more request with its own deadline.
+const MAX_PRICING_LINKS = 3;
+const MAX_PRICE_SAMPLE_PAGES = 3;
+const PRICING_BUDGET_MS = 25_000;
+const MIN_REQUEST_MS = 1000;
+
+type TimeLeft = () => number;
+const timeBudget = (ms: number): TimeLeft => {
+  const until = Date.now() + ms;
+  return () => until - Date.now();
+};
+
+/** A same-site GET under the pricing budget; null when the budget is spent. */
+function budgetedFetch(url: string, base: string, left: TimeLeft): Promise<SafeResponse | null> {
+  const ms = Math.min(FETCH_TIMEOUT_MS, left());
+  if (ms < MIN_REQUEST_MS) return Promise.resolve(null);
+  return timedFetch(url, { method: "GET", headers: { "User-Agent": STATIC_UA }, redirect: "follow" }, ms, base);
+}
+
+/** A URL without its query and fragment, or null when it is not an http(s) URL on the audited site. */
+function sameSiteLink(href: string, pageUrl: string, base: string): URL | null {
+  try {
+    const u = new URL(href, pageUrl);
+    if ((u.protocol !== "https:" && u.protocol !== "http:") || !isSameSite(u.hostname, base)) return null;
+    u.search = "";
+    u.hash = "";
+    return u;
+  } catch {
+    return null;
+  }
+}
+
 async function findPricingPath(
   url: string,
-  homepageHtml: string | null
+  homepageHtml: string | null,
+  base: string,
+  left: TimeLeft,
+  /** Filled with every address requested, so price sampling skips them. */
+  tried: Set<string>
 ): Promise<string | null> {
   const u = new URL(url);
   const candidates = [
@@ -494,74 +536,62 @@ async function findPricingPath(
     `${u.origin}/pricing.html`,
   ];
   for (const c of candidates) {
-    const r = await timedFetch(c, {
-      method: "GET",
-      headers: { "User-Agent": STATIC_UA },
-      redirect: "follow",
-    });
+    tried.add(c);
+    const r = await budgetedFetch(c, base, left);
     r?.discard();
     if (r && r.ok) return r.url || c;
   }
   if (homepageHtml) {
     // 1.4.1: the quote-aware tag scanner (linear) and the anchor's text up
     // to </a> (bounded), instead of a regex that took seconds on 120 KB of
-    // unclosed "<a ".
+    // unclosed "<a ". 1.4.2: same-site links only, each address once, at
+    // most MAX_PRICING_LINKS requests.
+    let linksTried = 0;
     for (const href of anchorHrefs(homepageHtml, (text) => /pricing|plans|price/i.test(text))) {
-      try {
-        const resolved = new URL(href, url).toString();
-        if (isExcludedContentPath(new URL(resolved).pathname)) continue;
-        const r = await timedFetch(resolved, {
-          headers: { "User-Agent": STATIC_UA },
-          redirect: "follow",
-        });
-        r?.discard();
-        if (r && r.ok) return r.url || resolved;
-      } catch {
-        // ignore
-      }
+      if (linksTried >= MAX_PRICING_LINKS) break;
+      const link = sameSiteLink(href, url, base);
+      if (!link || isExcludedContentPath(link.pathname)) continue;
+      const resolved = link.toString();
+      if (tried.has(resolved)) continue;
+      tried.add(resolved);
+      linksTried++;
+      const r = await budgetedFetch(resolved, base, left);
+      r?.discard();
+      if (r && r.ok) return r.url || resolved;
     }
   }
   return null;
 }
 
-async function runPricingTextVisibility(
-  url: string,
-  homepageHtml: string | null
-): Promise<SubCheck> {
-  const id = "pricing_text_visibility";
-  const name = "Pricing text visibility";
-  const weight = 20;
+// Same paths as Dim 4's product links (/products/x, /product/x, /p/x).
+const PRODUCT_LINK_PATH = /^\/(?:products?|p)\/[^/]+\/?$/i;
 
-  const pricingUrl = await findPricingPath(url, homepageHtml);
-  if (!pricingUrl) {
-    return {
-      id,
-      name,
-      weight,
-      score: 0,
-      passed: false,
-      notes:
-        "No /pricing, /plans, or /price path found, and no pricing-link discovered on homepage. This check is not counted in your score.",
-      na: true,
-    };
+/**
+ * 1.4.2: pages linked from the homepage to sample for prices when there is no
+ * pricing page: same-site pages (not the homepage, an asset or an account /
+ * cart page, or one already requested), product pages first, then in the order the homepage links
+ * them, at most MAX_PRICE_SAMPLE_PAGES.
+ */
+export function priceSampleLinks(homepageHtml: string, homepageUrl: string, skip: ReadonlySet<string> = new Set()): string[] {
+  const base = siteBase(homepageUrl);
+  const homePath = new URL(homepageUrl).pathname.replace(/\/+$/, "");
+  const product: string[] = [];
+  const other: string[] = [];
+  for (const href of anchorHrefs(homepageHtml)) {
+    if (product.length >= MAX_PRICE_SAMPLE_PAGES) break;
+    const link = sameSiteLink(href, homepageUrl, base);
+    if (!link) continue;
+    const path = link.pathname.replace(/\/+$/, "");
+    if (path === homePath || ASSET_EXT.test(path) || isExcludedContentPath(link.pathname)) continue;
+    const s = link.toString();
+    if (skip.has(s) || product.includes(s) || other.includes(s)) continue;
+    (PRODUCT_LINK_PATH.test(link.pathname) ? product : other).push(s);
   }
+  return [...product, ...other].slice(0, MAX_PRICE_SAMPLE_PAGES);
+}
 
-  const r = await timedFetch(pricingUrl, {
-    headers: { "User-Agent": STATIC_UA },
-    redirect: "follow",
-  });
-  if (!r || !r.ok) {
-    r?.discard();
-    return {
-      id,
-      name,
-      weight,
-      score: 0,
-      passed: false,
-      notes: `Detected pricing path ${pricingUrl} but it didn't return 200.`,
-    };
-  }
-  const html = await readHtml(r);
+/** Price tokens in a page's text: the score and the note detail. */
+function scorePrices(html: string): { score: number; tokens: number; detail: string } {
   const text = stripTags(html);
   const structuredMatches = countPeriodOrOneTimePrices(text);
   const bareMatches = (text.match(PRICE_BARE_RE) ?? []).length;
@@ -584,6 +614,79 @@ async function runPricingTextVisibility(
     score = 0;
     detail = "no price patterns detected on the pricing page";
   }
+  return { score, tokens: totalPriceTokens, detail };
+}
+
+/** pricing_text_visibility notes (1.4.2) when there is no pricing page. */
+export const pricesOnHomepageNote = (pageUrl: string, detail: string) =>
+  `No pricing page found, so we checked the prices shown on the homepage (${pageUrl}): ${detail}.`;
+export const pricesOnLinkedPageNote = (pageUrl: string, detail: string) =>
+  `No pricing page found, so we checked the prices shown on ${pageUrl}, a page linked from the homepage: ${detail}.`;
+export const pricingNotMeasuredNote = (sampled: number | null) =>
+  sampled === null
+    ? "Not measured: we found no pricing page to check, and the homepage could not be read. This check is not counted in your score."
+    : sampled === 0
+      ? "Not measured: we found no pricing page to check, and no prices on the homepage. This check is not counted in your score."
+      : `Not measured: we found no pricing page to check, and no prices on the homepage or on the ${sampled} page(s) it links to that we sampled. This check is not counted in your score.`;
+
+async function runPricingTextVisibility(
+  url: string,
+  homepageHtml: string | null,
+  homepageUrl: string = url
+): Promise<SubCheck> {
+  const id = "pricing_text_visibility";
+  const name = "Pricing text visibility";
+  const weight = 20;
+  const base = siteBase(url);
+  const left = timeBudget(PRICING_BUDGET_MS);
+
+  const tried = new Set<string>();
+  const pricingUrl = await findPricingPath(url, homepageHtml, base, left, tried);
+  if (!pricingUrl) {
+    // 1.4.2: no pricing page is a discovery limit, not a sign the check does
+    // not apply. Prices shown on the homepage, or on a page it links to
+    // (product pages first), are scored instead; with none, "not measured".
+    const na = (notes: string): SubCheck => ({ id, name, weight, score: 0, passed: false, notes, na: true });
+    if (!homepageHtml) return na(pricingNotMeasuredNote(null));
+    const onHome = scorePrices(homepageHtml);
+    if (onHome.tokens > 0) {
+      return { id, name, weight, score: onHome.score, passed: onHome.score >= 70, notes: pricesOnHomepageNote(homepageUrl, onHome.detail) };
+    }
+    let sampled = 0;
+    for (const link of priceSampleLinks(homepageHtml, homepageUrl, tried)) {
+      const r = await budgetedFetch(link, base, left);
+      if (!r || !r.ok) {
+        r?.discard();
+        continue;
+      }
+      sampled++;
+      const onPage = scorePrices(await readHtml(r));
+      if (onPage.tokens > 0) {
+        return { id, name, weight, score: onPage.score, passed: onPage.score >= 70, notes: pricesOnLinkedPageNote(r.url || link, onPage.detail) };
+      }
+    }
+    return na(pricingNotMeasuredNote(sampled));
+  }
+
+  // 1.4.2: every hop of the pricing page read stays on the audited site.
+  const r = await timedFetch(
+    pricingUrl,
+    { headers: { "User-Agent": STATIC_UA }, redirect: "follow" },
+    FETCH_TIMEOUT_MS,
+    base
+  );
+  if (!r || !r.ok) {
+    r?.discard();
+    return {
+      id,
+      name,
+      weight,
+      score: 0,
+      passed: false,
+      notes: `Detected pricing path ${pricingUrl} but it didn't return 200.`,
+    };
+  }
+  const { score, detail } = scorePrices(await readHtml(r));
 
   return {
     id,
@@ -954,7 +1057,9 @@ async function runCaseStudyScannability(
   }
 
   const b = scorePageScannability(sample.url, sample.html);
-  const breakdownStr = `${b.url} → ${b.score} (h:${b.headings ? "✓" : "✗"} l:${b.lists ? "✓" : "✗"} b:${b.bold ? "✓" : "✗"})`;
+  // 1.4.2: plain words instead of the "(h:✗ l:✓ b:✓)" shorthand.
+  const yn = (v: boolean) => (v ? "yes" : "no");
+  const breakdownStr = `${b.url} → ${b.score} (headings: ${yn(b.headings)}, lists: ${yn(b.lists)}, bold text: ${yn(b.bold)})`;
 
   return {
     id,
@@ -998,7 +1103,7 @@ export async function runDim5(
   subs.push(await runJsVsNoJsRenderDiff(targetUrl, env, tier, staticBody));
   subs.push(await runPageWeightLcp(targetUrl, staticBody, contentLength));
   subs.push(await runMarkdownNegotiation(targetUrl));
-  subs.push(await runPricingTextVisibility(targetUrl, staticBody));
+  subs.push(await runPricingTextVisibility(targetUrl, staticBody, homeRes?.url || targetUrl));
   subs.push(await runCaseStudyScannability(targetUrl, staticBody));
 
   const score = dimensionScoreOrThrow(subs);

@@ -43,7 +43,7 @@ const sub = (d: { sub_checks: { id: string }[] }, id: string) =>
   d.sub_checks.find((s) => s.id === id) as import("./types").SubCheck;
 
 it("SCORING_VERSION is 1.4.1 (r4 supersedes 1.3.3)", () => {
-  expect(SCORING_VERSION).toBe("1.4.1");
+  expect(SCORING_VERSION).toBe("1.4.2");
 });
 
 describe("1.3.3 Dim 4: schema.org subtypes, optional sameAs / price, FAQ N/A, nested ratings", () => {

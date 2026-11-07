@@ -27,9 +27,13 @@ export const notFullyInspectedNote = (what: string) =>
 export const FAQ_NO_ANSWERS_NOTE =
   "FAQPage markup found, but none of its entries is a Question with an answer text (acceptedAnswer.text), so there are no Q&A pairs to rate.";
 
-/** service_offer_schema N/A note (1.4.1): no sign the site sells online. */
+/**
+ * service_offer_schema N/A note (1.4.1; 1.4.2 wording): says what was
+ * checked (product page links, homepage prices, a pricing page), not that
+ * the site does not sell.
+ */
 export const SERVICE_OFFER_NOT_SELLING_NA_NOTE =
-  "We found no sign that this site sells products or services online, so this check is not counted in your score.";
+  "We found no product pages, no prices on the homepage and no pricing page, so this check is not counted in your score.";
 
 /** faq_schema note (1.3.3) when the AI rating of the questions could not run. */
 export const FAQ_UNMEASURED_NOTE =
@@ -251,9 +255,10 @@ function numberOf(v: unknown): number | null {
 }
 
 /**
- * 1.4.1: a ratingValue inside its scale. bestRating / worstRating when given
- * (worstRating defaults to 1, as in schema.org); without bestRating, a value
- * up to 5 is read on the 1-5 scale and anything larger on a 0-100 scale.
+ * 1.4.1: a ratingValue inside its scale: worstRating (default 1) to
+ * bestRating (default 5), as in schema.org. 1.4.2: a value above 5 counts
+ * only when bestRating declares the larger scale (no 0-100 scale is
+ * assumed).
  */
 function ratingInRange(r: Record<string, unknown>): boolean {
   const value = numberOf(r.ratingValue);
@@ -261,11 +266,8 @@ function ratingInRange(r: Record<string, unknown>): boolean {
   const best = r.bestRating === undefined ? null : numberOf(r.bestRating);
   const worst = r.worstRating === undefined ? null : numberOf(r.worstRating);
   if ((r.bestRating !== undefined && best === null) || (r.worstRating !== undefined && worst === null)) return false;
-  let lo: number;
-  let hi: number;
-  if (best !== null) [lo, hi] = [worst ?? 1, best];
-  else if (value <= 5) [lo, hi] = [worst ?? 1, 5];
-  else [lo, hi] = [worst ?? 0, 100];
+  const lo = worst ?? 1;
+  const hi = best ?? 5;
   return lo < hi && value >= lo && value <= hi;
 }
 
@@ -282,18 +284,39 @@ function isPositiveCount(v: unknown): boolean {
  * inside its scale.
  */
 function ratingWellFormed(r: Record<string, unknown>): boolean {
-  if (typeNames(r["@type"]).includes("AggregateRating")) {
-    const counts = [r.ratingCount, r.reviewCount].filter((c) => c !== undefined);
-    return ratingInRange(r) && counts.length > 0 && counts.every(isPositiveCount);
-  }
-  const rating = r.reviewRating;
-  const ratingObj = rating && typeof rating === "object" && !Array.isArray(rating) ? (rating as Record<string, unknown>) : null;
-  return !!r.author && !!ratingObj && ratingInRange(ratingObj);
+  return ratingProblem(r) === null;
 }
 
 /**
+ * 1.4.2: why a rating block is not well-formed, for the note: "missing" when
+ * a required field is absent (an AggregateRating's ratingValue or both
+ * counts; a Review's author, reviewRating or its ratingValue), "invalid" when
+ * every field is there but a value fails (outside its scale, not a number, a
+ * count that is not a positive integer); null when well-formed.
+ */
+function ratingProblem(r: Record<string, unknown>): "missing" | "invalid" | null {
+  if (typeNames(r["@type"]).includes("AggregateRating")) {
+    const counts = [r.ratingCount, r.reviewCount].filter((c) => c !== undefined);
+    if (r.ratingValue === undefined || counts.length === 0) return "missing";
+    return ratingInRange(r) && counts.every(isPositiveCount) ? null : "invalid";
+  }
+  const rating = r.reviewRating;
+  const ratingObj = rating && typeof rating === "object" && !Array.isArray(rating) ? (rating as Record<string, unknown>) : null;
+  if (!r.author || !ratingObj || ratingObj.ratingValue === undefined) return "missing";
+  return ratingInRange(ratingObj) ? null : "invalid";
+}
+
+/** review_schema note suffixes (1.4.2): the validation failure, for the remediation text. */
+export const REVIEW_MISSING_FIELD_NOTE = "each block is missing a required field";
+export const REVIEW_INVALID_VALUE_NOTE = "each block has a rating value or count that is not valid";
+export const REVIEW_MIXED_NOTE = "some blocks are missing a required field and others have a value that is not valid";
+
+/**
  * Non-empty answer text in a Question's acceptedAnswer (object or array).
- * 1.4.1: an answer that declares a @type must be an Answer.
+ * 1.4.1: an answer that declares a @type must be an Answer. 1.4.2 (decided):
+ * an answer with no @type still counts. schema.org gives acceptedAnswer the
+ * range Answer, so an untyped object there is read as one; a typed object of
+ * any other type (Comment, Thing, ...) does not count.
  */
 function hasAnswerText(q: Record<string, unknown>): boolean {
   const a = q.acceptedAnswer;
@@ -386,7 +409,8 @@ export async function runDim4(
   // it couldn't), so Dim 3's homepage-link discovery reuses it instead of
   // fetching again.
   onHomepage?: (homepage: { html: string; url: string } | null) => void,
-  // 1.4.1: true when Dim 5 found a pricing page. Awaited only when neither
+  // 1.4.1: true when Dim 5 found a pricing page (1.4.2: or prices on the
+  // homepage or a homepage-linked page). Awaited only when neither
   // the homepage nor a sampled product page carries Service / Product /
   // Offer markup; undefined (unknown) keeps the check scored.
   pricingPageFound?: Promise<boolean>
@@ -635,13 +659,19 @@ export async function runDim4(
   if (reviews.length > 0) {
     const wellFormed = reviews.some(ratingWellFormed);
     const reviewScore = wellFormed ? 100 : 50;
+    let why = "";
+    if (!wellFormed) {
+      const problems = new Set(reviews.map(ratingProblem));
+      why = problems.size > 1 ? REVIEW_MIXED_NOTE : problems.has("missing") ? REVIEW_MISSING_FIELD_NOTE : REVIEW_INVALID_VALUE_NOTE;
+      why = `: ${why}`;
+    }
     subs.push({
       id: "review_schema",
       name: "Review / AggregateRating schema",
       weight: 15,
       score: reviewScore,
       passed: reviewScore >= 70,
-      notes: `${reviews.length} Review/AggregateRating block(s); well-formed=${wellFormed}`,
+      notes: `${reviews.length} Review/AggregateRating block(s); well-formed=${wellFormed}${why}`,
     });
   } else {
     subs.push({

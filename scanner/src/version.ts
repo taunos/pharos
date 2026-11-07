@@ -104,5 +104,17 @@
  *   live_invocation is N/A. Plain-language notes for the render overlap and
  *   Markdown checks. `CURRENT_SCORING_VERSION` on /score/[id] bumped in
  *   lockstep.
+ * - 1.4.2 (report truthfulness r5, 2026-11-07): Dim 5 pricing discovery,
+ *   the pricing page read, Dim 2 card discovery and Dim 3 well-known /
+ *   canonical / homepage-linked spec discovery stay on the audited site on
+ *   every hop; homepage pricing links are deduplicated and capped (3), with
+ *   one time budget for discovery and sampling. With no pricing page, prices
+ *   shown on the homepage or on a homepage-linked page (product pages first,
+ *   at most 3) are scored; with none, the check is "not measured" (N/A).
+ *   Ratings: a ratingValue above 5 needs a declared bestRating (no assumed
+ *   0-100 scale); the review_schema note names the validation failure
+ *   (missing field / invalid value). service_offer_schema N/A note says what
+ *   was checked. Case-study notes use plain words for headings / lists /
+ *   bold text. `CURRENT_SCORING_VERSION` on /score/[id] bumped in lockstep.
  */
-export const SCORING_VERSION = "1.4.1";
+export const SCORING_VERSION = "1.4.2";

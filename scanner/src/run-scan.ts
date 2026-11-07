@@ -93,7 +93,9 @@ export async function runScan(
   );
   // 1.4.1: Dim 4's service_offer_schema is N/A when nothing shows the site
   // sells online; whether Dim 5 found a pricing page is one of the signs
-  // (handed over as a promise; a Dim 5 failure counts as "found").
+  // (handed over as a promise; a Dim 5 failure counts as "found"). 1.4.2:
+  // pricing_text_visibility is scored (not N/A) also when Dim 5 found prices
+  // on the homepage or a homepage-linked page.
   const d5p = runDim5(url, env, tier);
   const pricingPageFound = d5p.then(
     (d) => d.sub_checks.find((s) => s.id === "pricing_text_visibility")?.na !== true,

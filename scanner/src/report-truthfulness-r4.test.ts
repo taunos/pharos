@@ -243,7 +243,7 @@ describe("1.4.1 Dim 4: FAQ needs typed Questions; ratings need values in range",
   it.each([
     [{ "@type": "AggregateRating", ratingValue: 4.8, ratingCount: 31 }, 100],
     [{ "@type": "AggregateRating", ratingValue: "4,8", reviewCount: "12" }, 100],
-    [{ "@type": "AggregateRating", ratingValue: 87, ratingCount: 10 }, 100], // 0-100 scale
+    [{ "@type": "AggregateRating", ratingValue: 87, ratingCount: 10 }, 50], // 1.4.2: no assumed 0-100 scale
     [{ "@type": "AggregateRating", ratingValue: 9, bestRating: 10, ratingCount: 10 }, 100],
     [{ "@type": "AggregateRating", ratingValue: 6, bestRating: 5, ratingCount: 10 }, 50],
     [{ "@type": "AggregateRating", ratingValue: 0, ratingCount: 10 }, 50], // below the default worst (1)
@@ -391,5 +391,5 @@ describe("1.4.1 notes", () => {
     expect(DIM3_NO_API_NA_NOTE).not.toMatch(/composite|penalty|marked N\/A/);
   });
 
-  it("SCORING_VERSION is 1.4.1", () => expect(SCORING_VERSION).toBe("1.4.1"));
+  it("SCORING_VERSION is 1.4.2 (bumped in r5)", () => expect(SCORING_VERSION).toBe("1.4.2"));
 });
