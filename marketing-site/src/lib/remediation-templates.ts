@@ -65,7 +65,7 @@ export const T = {
   // ── Dim 1: llms.txt Quality ───────────────────────────────────────────
   presence: {
     missing: (o: string) =>
-      `Create a file at ${o}/llms.txt. Per the llmstxt.org proposal it is a plain Markdown file: an H1 line with your business or site name, a one-paragraph summary as a blockquote (a line starting with >), then short lists of links to your most important pages. Serve it as text/plain or text/markdown. Estimated effort: 1 to 2 hours.`,
+      `Create a file at ${o}/llms.txt. Per the llmstxt.org proposal it is a plain Markdown file: an H1 line with your business or site name, a one-paragraph summary of 10 to 100 words as a blockquote (a line starting with >), then short lists of links to your most important pages. Serve it as text/plain or text/markdown. Estimated effort: 1 to 2 hours.`,
     // 1.5.1 (Codex r6): a fetch failure or a status other than 404 / 410
     // does not prove the file is missing.
     unreadable: (o: string, reason: string) =>
@@ -77,9 +77,9 @@ export const T = {
   },
   spec_compliance: {
     fileMissing: (o: string) =>
-      `Depends on Presence: there is no ${o}/llms.txt yet. When you create it, start it with an H1 line (# followed by your business or site name), then a one-paragraph summary written as a Markdown blockquote (a line starting with >). Estimated effort: under 30 minutes.`,
+      `Depends on Presence: there is no ${o}/llms.txt yet. When you create it, start it with an H1 line (# followed by your business or site name), then a one-paragraph summary of 10 to 100 words written as a Markdown blockquote (a line starting with >). Estimated effort: under 30 minutes.`,
     both: (o: string) =>
-      `Start ${o}/llms.txt with an H1 line (# followed by your business or site name), then a one-paragraph summary written as a Markdown blockquote (a line starting with >). The llmstxt.org format expects both at the top of the file. Estimated effort: under 30 minutes.`,
+      `Start ${o}/llms.txt with an H1 line (# followed by your business or site name), then a one-paragraph summary of 10 to 100 words written as a Markdown blockquote (a line starting with >). The llmstxt.org format expects both at the top of the file. Estimated effort: under 30 minutes.`,
     noH1: (o: string) =>
       `Add an H1 line at the top of ${o}/llms.txt: # followed by your business or site name. The llmstxt.org format expects one H1, before everything else. Estimated effort: under 30 minutes.`,
     noBlockquote: (o: string) =>
@@ -109,9 +109,9 @@ export const T = {
   },
   blockquote_eval: {
     fileMissing: (o: string) =>
-      `Depends on Presence: there is no ${o}/llms.txt yet. When you create it, put a one-paragraph summary under the H1 as a Markdown blockquote (a line starting with >), saying what your business does and who it serves. Estimated effort: under 30 minutes.`,
+      `Depends on Presence: there is no ${o}/llms.txt yet. When you create it, put a one-paragraph summary of 10 to 100 words under the H1 as a Markdown blockquote (a line starting with >), saying what your business does and who it serves. Estimated effort: under 30 minutes.`,
     none: (o: string) =>
-      `There is no blockquote summary in ${o}/llms.txt to rate. Add one directly under the H1: a single paragraph on one line starting with >, saying what your business does and who it serves. Estimated effort: under 30 minutes.`,
+      `There is no blockquote summary in ${o}/llms.txt to rate. Add one directly under the H1: a single paragraph of 10 to 100 words, on a line starting with >, saying what your business does and who it serves. Estimated effort: under 30 minutes.`,
     instructionLike: (o: string) =>
       `The blockquote summary in ${o}/llms.txt contains text that reads like instructions to an AI system, so we scored it 0 without rating it. Rewrite it as a plain description of your business: what you do, who you serve and where. Estimated effort: under 30 minutes.`,
     empty: (o: string) =>
