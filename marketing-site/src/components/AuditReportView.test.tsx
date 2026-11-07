@@ -128,8 +128,9 @@ describe("buildAuditReportModel", () => {
   it("formats the header, scope and labels like the PDF", () => {
     const m = buildAuditReportModel(fixture(), SESSION);
     expect(m.generatedLabel).toBe("Generated 2026-11-04 12:30:05 UTC · session fb92b10e");
-    expect(m.scopeNote).toContain("Scored on 2 of 6 dimensions applicable to this site.");
-    expect(m.scopeNote).toContain("were dropped from the composite.");
+    expect(m.scopeNote).toBe(
+      "Scored on 2 of 6 dimensions. Not applicable to this site: OpenAPI / API Catalog. Dimensions that were not scored are not counted in the score; 1 individual check did not apply or could not be measured and is not counted.",
+    );
     const d4 = m.dimensions[2];
     expect(d4.kind).toBe("scored");
     if (d4.kind !== "scored") return;
@@ -144,15 +145,18 @@ describe("buildAuditReportModel", () => {
     expect(m.dimensions.map((d) => d.id)).toEqual([1, 3, 4]);
   });
 
-  it("sorts gaps lowest score first; equal scores keep the payload (dimension) order", () => {
+  it("sorts gaps by weighted impact; equal impact keeps the payload (dimension) order", () => {
     const a = fixture();
     const g = (dimension_id: number, check_id: string, score: number) => ({
       ...a.gaps[0], dimension_id, check_id, check_name: check_id, score,
     });
-    // Stored order = dimension order, as llmEnrichGaps writes it.
+    // Older stored payloads are in dimension order. Impact = (100 - score) x
+    // weight / applicable weight of the dimension x dimension weight:
+    // d4 (20, applicable 30): 0 -> 2000, 60 -> 800; d1 (15, applicable 35):
+    // 64 -> 463, 75 -> 321; d5 is not in the scan -> 0.
     a.gaps = [g(1, "d1-64", 64), g(1, "d1-75", 75), g(4, "d4-0", 0), g(4, "d4-60a", 60), g(4, "d4-60b", 60), g(5, "d5-60", 60)];
     const m = buildAuditReportModel(a, SESSION);
-    expect(m.gaps.map((x) => x.checkName)).toEqual(["d4-0", "d4-60a", "d4-60b", "d5-60", "d1-64", "d1-75"]);
+    expect(m.gaps.map((x) => x.checkName)).toEqual(["d4-0", "d4-60a", "d4-60b", "d1-64", "d1-75", "d5-60"]);
     expect(a.gaps[0].check_id).toBe("d1-64"); // input not mutated
     expect(JSON.parse(m.jsonExport).gaps[0].check_id).toBe("d1-64"); // export stays the stored payload
   });
@@ -175,12 +179,48 @@ describe("buildAuditReportModel", () => {
     });
   });
 
-  it("omits the dropped-dimensions sentence when nothing was dropped", () => {
+  it("omits the not-scored sentences when nothing was dropped", () => {
     const a = fixture();
-    a.scan.dimensions_applicable = undefined;
+    a.scan.dimensions = a.scan.dimensions.filter((d) => !d.na);
+    for (const d of a.scan.dimensions) d.sub_checks = d.sub_checks.filter((sc) => !sc.na);
     const m = buildAuditReportModel(a, SESSION);
-    expect(m.scopeNote).toContain("Scored on 3 of 6");
-    expect(m.scopeNote).not.toContain("dropped from the composite");
+    expect(m.scopeNote).toBe("Scored on 2 of 6 dimensions.");
+  });
+
+  it("counts N/A checks inside scored dimensions in the scope note (one sentence)", () => {
+    const a = fixture();
+    a.scan.dimensions = a.scan.dimensions.filter((d) => !d.na);
+    expect(buildAuditReportModel(a, SESSION).scopeNote).toBe(
+      "Scored on 2 of 6 dimensions. 1 individual check did not apply or could not be measured and is not counted.",
+    );
+    const sc = a.scan.dimensions[0].sub_checks[0];
+    a.scan.dimensions[0].sub_checks.push({ ...sc, id: "x1", na: true }, { ...sc, id: "x2", na: true });
+    expect(buildAuditReportModel(a, SESSION).scopeNote).toBe(
+      "Scored on 2 of 6 dimensions. 3 individual checks did not apply or could not be measured and are not counted.",
+    );
+  });
+
+  it("Citation Visibility N/A is 'Not measured' (never 'not applicable'), in the scope note and the badge", () => {
+    const a = fixture();
+    a.scan.dimensions.push({
+      dimension_id: 6,
+      dimension_name: "Citation Visibility",
+      score: 0,
+      grade: "F",
+      na: true, // older stored audit: no unmeasured flag
+      sub_checks: [{ id: "dim6_all_unmeasurable", name: "x", weight: 1, score: 0, passed: false, na: true, notes: "Citation Visibility was not measured on this run." }],
+    });
+    const m = buildAuditReportModel(a, SESSION);
+    expect(m.scopeNote).toContain("Not measured on this run: Citation Visibility.");
+    expect(m.scopeNote).toContain("Not applicable to this site: OpenAPI / API Catalog.");
+    expect(m.dimensions.find((x) => x.id === 6)).toMatchObject({ kind: "na", unmeasured: true });
+    const page = renderToStaticMarkup(<AuditReportBody model={m} />);
+    const pdf = renderAuditHtml(a, SESSION);
+    for (const html of [page, pdf]) {
+      const block = html.slice(html.indexOf("Citation Visibility"));
+      expect(block).toMatch(/>Not measured</);
+      expect(block.slice(0, 600)).not.toContain("not applicable");
+    }
   });
 
   it("an unmeasured OpenAPI dimension: scope note and summary never claim 'no API surface' / 'did not apply'", () => {
@@ -201,18 +241,19 @@ describe("buildAuditReportModel", () => {
     ];
     const m = buildAuditReportModel(a, SESSION);
     expect(m.scopeNote).toBe(
-      "Scored on 2 of 6 dimensions applicable to this site. Some dimensions could not be measured on this run and were dropped from the composite.",
+      "Scored on 2 of 6 dimensions. Not measured on this run: OpenAPI / API Catalog. Dimensions that were not scored are not counted in the score; 1 individual check did not apply or could not be measured and is not counted.",
     );
     const all = [m.scopeNote, ...m.executiveSummary].join(" ");
     expect(all).not.toContain("no API surface");
-    expect(all).not.toContain("did not apply");
+    // (the individual-check count sentence says "did not apply or could not be measured")
+    expect(all.replace("did not apply or could not be measured", "")).not.toContain("did not apply");
     expect(all).toContain("OpenAPI / API Catalog could not be measured on this run, so it is not counted in your score");
     const naBlock = m.dimensions.find((x) => x.id === 3)!;
     expect(naBlock).toMatchObject({ kind: "na" });
     expect((naBlock as { note: string }).note.startsWith("Not measured — the API spec could not be read in full")).toBe(true);
   });
 
-  it("grade label: 'not measured' for an unmeasured dimension on the page AND in the paid PDF", () => {
+  it("labels: 'Not measured' / 'not counted in score' for an unmeasured dimension on the page AND in the paid PDF", () => {
     const a = fixture();
     a.scan.dimensions[1].unmeasured = true;
     const m = buildAuditReportModel(a, SESSION);
@@ -220,8 +261,10 @@ describe("buildAuditReportModel", () => {
     const page = renderToStaticMarkup(<AuditReportBody model={m} />);
     const pdf = renderAuditHtml(a, SESSION);
     for (const html of [page, pdf]) {
-      expect(html).toContain(">not measured<");
+      expect(html).toContain(">Not measured<");
+      expect(html).toContain(">not counted in score<");
       expect(html).not.toContain(">not applicable<");
+      expect(html).not.toContain(">N/A<");
     }
   });
 
@@ -234,7 +277,7 @@ describe("buildAuditReportModel", () => {
     const pdf = renderAuditHtml(a, SESSION);
     for (const html of [page, pdf]) {
       expect(html).toContain(">not applicable<");
-      expect(html).not.toContain("not measured");
+      expect(html).not.toMatch(/not measured/i);
     }
     // Explicit false behaves like absent.
     const b = fixture();
@@ -270,7 +313,7 @@ describe("page ↔ PDF parity", () => {
     expect(webText(a)).not.toContain(AUDIT_REPORT_COPY.jsonIntroPdfOnly.trim());
   });
 
-  it("gaps render lowest score first in both the PDF and the page", () => {
+  it("gaps render highest impact first in both the PDF and the page", () => {
     const a = fixture();
     a.gaps.reverse(); // 64 first, 0 second in the payload
     const seq = ["Dimension breakdown", AUDIT_REPORT_COPY.gapsHeading, "JSON-LD Organization", "Blockquote <pitch> & quality", AUDIT_REPORT_COPY.jsonHeading];

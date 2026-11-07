@@ -112,8 +112,10 @@ function buildBankQueries(scanUrl: string): PromptSetQuery[] {
     },
     {
       id: "q_bank_8",
-      text: `In one sentence, what category of software does ${host} fit into?`,
-      rationale: "Bank fallback: category-self-derivation probe.",
+      // dim6:v4: business-type neutral (was "what category of software",
+      // asked of bakeries and therapists too).
+      text: `In one sentence, what kind of business is ${host}, and what category does it belong to?`,
+      rationale: "Bank fallback: business-type self-derivation probe.",
     },
     {
       id: "q_bank_9",
@@ -134,7 +136,7 @@ function buildBankQueries(scanUrl: string): PromptSetQuery[] {
 export function deriveCategoryFromSignals(
   scanUrl: string,
   signals: { homepageHtml?: string | null; titleTag?: string | null } = {}
-): string {
+): string | null {
   if (signals.titleTag) {
     const t = signals.titleTag.trim();
     const cleaned = t.split(/[|·–—-]/)[0].trim();
@@ -154,10 +156,11 @@ export function deriveCategoryFromSignals(
       }
     }
   }
-  // Generic fallback — never sent into bank queries (v3), only used as
-  // generator-prompt context where the LLM can interpret "their software
-  // category" as a placeholder rather than literal text.
-  return "their software category";
+  // No signal: the business type is unknown. (Before dim6-qs:v3 this was the
+  // literal "their software category", which made every generated question
+  // assume a software product, e.g. a psychologist's "project management
+  // tool".)
+  return null;
 }
 
 // Workers AI client for prompt-set generation. We use the same llama-3.1-8b
@@ -173,18 +176,25 @@ const MIN_VALID_QUERIES = 5;
 
 // v3: positive-instruction prompt (replaces v2's AVOID bullet list which
 // was priming the model to echo forbidden phrasings).
-function buildGenPrompt(scanUrl: string, category: string): string {
+// dim6-qs:v3: business-type neutral. The site may be any kind of business;
+// the prompt no longer carries a (software) category the model builds on.
+function buildGenPrompt(scanUrl: string, category: string | null): string {
+  const typeLine = category
+    ? `WHAT THE SITE SAYS IT IS (may be approximate): ${category}`
+    : "BUSINESS TYPE: unknown.";
   return `You are generating a prompt set for a citation-visibility audit. The audit asks 4 hosted models (GPT-4o, Claude, Gemini, Perplexity) the same questions and measures whether they cite the domain ${scanUrl}.
 
-CATEGORY (derived from the site, may be approximate): ${category}
 TARGET DOMAIN: ${scanUrl}
+${typeLine}
+
+You do not know what kind of business this is. It could be a shop, a restaurant or bakery, a local service such as a dentist or therapist, a professional firm or agency, a publisher, a nonprofit, or a software company. Do not assume a business type, product category, industry or audience. Refer to it by its domain, or as "this business" or "this website".
 
 Generate exactly ${TARGET_QUERY_COUNT} short-answer questions a real user might type into a chatbot. Every query must satisfy ALL of:
 
 - Maximum 30 words.
 - Asks for a focused, factual answer (one sentence, one URL, one yes/no, one short paragraph).
 - Reads as if a real user wrote it — never mentions the audit, the 4-model design, or "citation visibility."
-- Mixes question types: some name the target domain directly, some describe a buyer-intent search in the category, some probe brand recognition.
+- Mixes question types: some ask what the domain is or does, some ask what it offers or who it serves, some probe whether the assistant recognizes it.
 
 OUTPUT — one JSON array of exactly ${TARGET_QUERY_COUNT} objects. No preamble, no commentary, no code fences:
 
@@ -393,22 +403,71 @@ function padFromBank(
   return padded;
 }
 
-function tryParseQueries(raw: string): PromptSetQuery[] {
+/**
+ * The complete top-level JSON objects in `s` from index `from` on, stopping
+ * at the array's closing "]" or the end of the text. String-aware (braces
+ * and brackets inside strings don't count). An object cut off at the end,
+ * or one that doesn't parse, is skipped.
+ */
+function extractJsonObjects(s: string, from: number): unknown[] {
+  const out: unknown[] = [];
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escaped = false;
+  for (let i = from; i < s.length; i++) {
+    const ch = s[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === "{") {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (ch === "}") {
+      if (depth === 0) continue;
+      depth--;
+      if (depth === 0 && start >= 0) {
+        try {
+          out.push(JSON.parse(s.slice(start, i + 1)));
+        } catch {
+          // skip a malformed object; keep the rest
+        }
+        start = -1;
+      }
+    } else if (ch === "]" && depth === 0) {
+      break;
+    }
+  }
+  return out;
+}
+
+// Exported for tests. Strict JSON array first; when that fails (llama-3.1-8b
+// usually omits the closing "]", 16 of 16 outputs in the 2026-11-07
+// evaluation), the complete objects are taken one by one. Each one is still
+// validated by filterValid / isValidQuestionSet.
+export function tryParseQueries(raw: string): PromptSetQuery[] {
   let body = raw.trim();
   if (body.startsWith("```")) {
     body = body.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
   }
   const firstBracket = body.indexOf("[");
+  if (firstBracket === -1) return [];
   const lastBracket = body.lastIndexOf("]");
-  if (firstBracket === -1 || lastBracket <= firstBracket) return [];
-  const slice = body.slice(firstBracket, lastBracket + 1);
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(slice);
-  } catch {
-    return [];
+  let parsed: unknown = null;
+  if (lastBracket > firstBracket) {
+    try {
+      parsed = JSON.parse(body.slice(firstBracket, lastBracket + 1));
+    } catch {
+      parsed = null;
+    }
   }
+  if (!Array.isArray(parsed)) parsed = extractJsonObjects(body, firstBracket + 1);
   if (!Array.isArray(parsed)) return [];
 
   const out: PromptSetQuery[] = [];

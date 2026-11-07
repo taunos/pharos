@@ -12,19 +12,19 @@
 
 import { cleanDisplayText, escapeUnsafeInJson, REMEDIATION_MAX_CHARS } from "./llm-safety";
 import type { AuditResult } from "./audit-types";
-import { dimensionCountPhrase, droppedDimensionsNote } from "./score-display";
+import { orderGaps } from "./audit-gaps";
 import { buildExecutiveSummary, EXEC_SUMMARY_COPY } from "./audit-executive-summary";
 
 // Section headings + fixed copy, verbatim from the PDF. Change here and both
 // surfaces change together.
 export const AUDIT_REPORT_COPY = {
-  brand: "Astrant · AEO Audit",
+  brand: "Astrant Score v1 · Audit report",
   summaryHeading: EXEC_SUMMARY_COPY.heading,
   dimensionsHeading: "Dimension breakdown",
   gapsHeading: "Prioritized gaps + remediation",
   gapsIntro:
-    "Sub-checks scoring below 100, ordered by lowest score first. Each gap includes specific remediation guidance generated for your site by our analysis engine.",
-  gapsEmpty: "No gaps found — every sub-check scored 100. Clean pass.",
+    "Checks that did not pass, ordered by how many points each one costs your overall score. Each comes with a standard fix for that check and what we found; the guidance is not written by hand for your site.",
+  gapsEmpty: "No gaps: every check we scored passed.",
   jsonHeading: "Machine-readable export",
   jsonIntro: "The full scan + remediation payload as JSON.",
   // PDF only: on the results page itself this sentence points at the page
@@ -32,8 +32,21 @@ export const AUDIT_REPORT_COPY = {
   jsonIntroPdfOnly:
     " The same JSON is also available as a separate download from your audit results page.",
   naLabel: "N/A",
+  naLabelUnmeasured: "Not measured",
   naGrade: "not applicable",
-  naGradeUnmeasured: "not measured",
+  naGradeUnmeasured: "not counted in score",
+  // Coverage line under the composite score: always says how many dimensions
+  // were scored, and names the ones that were not.
+  scopeScored: (scored: number, total: number) => `Scored on ${scored} of ${total} dimensions.`,
+  scopeNotApplicable: (names: string) => ` Not applicable to this site: ${names}.`,
+  scopeNotMeasured: (names: string) => ` Not measured on this run: ${names}.`,
+  scopeNotCounted: " Dimensions that were not scored are not counted in the score.",
+  // r4: N/A or not-measured checks inside the scored dimensions. Joined to
+  // scopeNotCounted with "; " (one sentence), or a sentence of its own.
+  scopeChecksNotCounted: (n: number) =>
+    n === 1
+      ? "1 individual check did not apply or could not be measured and is not counted."
+      : `${n} individual checks did not apply or could not be measured and are not counted.`,
   naFallbackNote:
     "Dimension did not apply to this site; dropped from composite.",
   checkColumns: ["Check", "Score", "Weight", "Notes"] as const,
@@ -116,22 +129,52 @@ export function formatReportTimestamp(ms: number): string {
   return new Date(ms).toISOString().replace("T", " ").replace(/\..+$/, " UTC");
 }
 
-function scopeNote(scan: AuditResult["scan"]): string {
-  const base = `Scored on ${dimensionCountPhrase(scan.dimensions_applicable, scan.dimensions_scored, scan.dimensions_total)} dimensions applicable to this site.`;
-  return base + droppedDimensionsNote(scan);
-}
-
 // Every string that can carry site- or model-derived text goes through
 // cleanDisplayText: invisible / bidi / control characters stripped, one
 // paragraph, length-capped. Rendering then escapes it (renderAuditHtml) or
 // React does (AuditReportView). No raw HTML path exists for these fields.
 const clean = (s: string | undefined, max?: number) => cleanDisplayText(s ?? "", max);
 
+// Citation Visibility (Dim 6) applies to every site: when it is N/A it was
+// not measured (no provider answers, daily cap), never "did not apply".
+// Older stored audits don't carry `unmeasured` on it.
+const CITATION_DIM_ID = 6;
+export function isUnmeasuredDimension(d: { dimension_id: number; na?: boolean; unmeasured?: boolean }): boolean {
+  return !!d.na && (!!d.unmeasured || d.dimension_id === CITATION_DIM_ID);
+}
+
+function namesList(names: string[]): string {
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+function scopeNote(scan: AuditResult["scan"]): string {
+  const C = AUDIT_REPORT_COPY;
+  const scored = scan.dimensions.filter((d) => !d.na).length;
+  const total = Math.max(scan.dimensions_total ?? 0, scan.dimensions.length);
+  const name = (d: { dimension_name: string }) => clean(d.dimension_name, 120);
+  const unmeasured = scan.dimensions.filter(isUnmeasuredDimension).map(name);
+  const inapplicable = scan.dimensions.filter((d) => d.na && !isUnmeasuredDimension(d)).map(name);
+  let s = C.scopeScored(scored, total);
+  if (inapplicable.length > 0) s += C.scopeNotApplicable(namesList(inapplicable));
+  if (unmeasured.length > 0) s += C.scopeNotMeasured(namesList(unmeasured));
+  const naChecks = scan.dimensions.filter((d) => !d.na).reduce((n, d) => n + d.sub_checks.filter((sc) => sc.na).length, 0);
+  if (inapplicable.length + unmeasured.length > 0) {
+    s += naChecks > 0 ? `${C.scopeNotCounted.slice(0, -1)}; ${C.scopeChecksNotCounted(naChecks)}` : C.scopeNotCounted;
+  } else if (naChecks > 0) {
+    s += ` ${C.scopeChecksNotCounted(naChecks)}`;
+  }
+  return s;
+}
+
 export function buildAuditReportModel(
   audit: AuditResult,
   sessionId: string,
 ): AuditReportModel {
-  const { scan, gaps } = audit;
+  const { scan } = audit;
+  // Only checks that did not pass, highest weighted impact first (older
+  // stored audits also listed passing checks scoring below 100).
+  const gaps = orderGaps(scan, audit.gaps);
 
   const dimensions: ReportDimension[] = scan.dimensions.map((d) => {
     // Slice 3a: whole-dimension N/A renders as a single explanatory note
@@ -144,7 +187,7 @@ export function buildAuditReportModel(
         note: clean(d.sub_checks[0]?.notes ?? AUDIT_REPORT_COPY.naFallbackNote),
         // Applies but was not measured this run: graded "not measured", not
         // "not applicable". Key only present when set (old scans unchanged).
-        ...(d.unmeasured ? { unmeasured: true as const } : {}),
+        ...(isUnmeasuredDimension(d) ? { unmeasured: true as const } : {}),
       };
     }
     return {
@@ -171,16 +214,11 @@ export function buildAuditReportModel(
     composite: { score: scan.composite.score, grade: scan.composite.grade },
     scopeNote: scopeNote(scan),
     // Deterministic copy, but it interpolates dimension names from the scan.
-    executiveSummary: buildExecutiveSummary(audit, AUDIT_REPORT_COPY.gapsHeading).map((s) =>
+    executiveSummary: buildExecutiveSummary({ ...audit, gaps }, AUDIT_REPORT_COPY.gapsHeading).map((s) =>
       clean(s, 2000),
     ),
     dimensions,
-    // Lowest score first, as the gaps intro promises. The stored payload is in
-    // dimension order (llmEnrichGaps); Array.prototype.sort is stable, so equal
-    // scores keep that dimension order.
-    gaps: [...gaps]
-      .sort((a, b) => a.score - b.score)
-      .map((g, i) => ({
+    gaps: gaps.map((g, i) => ({
       key: `${g.dimension_id}:${g.check_id}:${i}`,
       checkName: clean(g.check_name, 120),
       dimensionName: clean(g.dimension_name, 120),

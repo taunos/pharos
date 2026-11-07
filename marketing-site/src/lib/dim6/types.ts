@@ -43,7 +43,13 @@
 //     fulfill populates real category from signals — see
 //     pharos-stripe-decision-framework.md "Pre-retry queue").
 //     Engine bump auto-invalidates v2 model-call cell cache.
-export const DIM6_ENGINE_VERSION = "dim6:v3";
+//   - dim6:v4 (report truthfulness r2, 2026-11-07): with no competitor
+//     list, no_competitor_first is N/A: cell score is the other three
+//     sub-checks renormalized (x 100/90) instead of a free +10, and the
+//     citation_no_competitor_first_rate sub-check is na:true (never a gap).
+//     Bank q_bank_8 is business-type neutral. Bump invalidates the v3
+//     scored-cell cache (scores changed).
+export const DIM6_ENGINE_VERSION = "dim6:v4";
 
 // Locked at 4 models per locked decision 2. No 5th model in Slice 3b.
 export type ModelId =

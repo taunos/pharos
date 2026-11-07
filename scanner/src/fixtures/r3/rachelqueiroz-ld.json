@@ -1,0 +1,167 @@
+[
+ {
+  "@context": "https://schema.org",
+  "@graph": [
+   {
+    "@type": "WebSite",
+    "@id": "https://www.rachelqueiroz.com/#site",
+    "url": "https://www.rachelqueiroz.com",
+    "name": "Rachel Queiroz · Psicóloga Clínica",
+    "inLanguage": "pt-BR",
+    "publisher": {
+     "@id": "https://www.rachelqueiroz.com/#pessoa"
+    }
+   },
+   {
+    "@type": "Person",
+    "@id": "https://www.rachelqueiroz.com/#pessoa",
+    "name": "Rachel Queiroz",
+    "jobTitle": "Psicóloga Clínica",
+    "url": "https://www.rachelqueiroz.com",
+    "image": "https://www.rachelqueiroz.com/images/hero-rachel-novo.jpg",
+    "email": "contato@example.com",
+    "telephone": "+55-00-0000-0000",
+    "description": "Psicóloga clínica com atuação em desenvolvimento de pessoas há 20 anos. Atende adultos e casais, presencialmente em Maceió e online.",
+    "knowsLanguage": "pt-BR",
+    "sameAs": [
+     "https://www.instagram.com/rachelqueirozpsi/"
+    ],
+    "hasCredential": {
+     "@type": "EducationalOccupationalCredential",
+     "credentialCategory": "Registro profissional",
+     "name": "CRP 15/8276",
+     "recognizedBy": {
+      "@type": "Organization",
+      "name": "Conselho Regional de Psicologia"
+     }
+    },
+    "alumniOf": {
+     "@type": "CollegeOrUniversity",
+     "name": "Universidade de Maceió — UNIMA"
+    },
+    "worksFor": {
+     "@id": "https://www.rachelqueiroz.com/#clinica"
+    }
+   },
+   {
+    "@type": [
+     "MedicalBusiness",
+     "LocalBusiness"
+    ],
+    "@id": "https://www.rachelqueiroz.com/#clinica",
+    "name": "Rachel Queiroz · Psicóloga Clínica",
+    "url": "https://www.rachelqueiroz.com",
+    "image": "https://www.rachelqueiroz.com/images/consultorio_1.jpeg",
+    "telephone": "+55-00-0000-0000",
+    "email": "contato@example.com",
+    "priceRange": "$$",
+    "currenciesAccepted": "BRL",
+    "address": {
+     "@type": "PostalAddress",
+     "streetAddress": "(redacted)",
+     "addressLocality": "Maceió",
+     "addressRegion": "AL",
+     "addressCountry": "BR"
+    },
+    "areaServed": [
+     {
+      "@type": "City",
+      "name": "Maceió"
+     },
+     {
+      "@type": "Country",
+      "name": "Brasil"
+     }
+    ],
+    "availableService": [
+     {
+      "@type": "MedicalTherapy",
+      "name": "Psicoterapia individual",
+      "description": "A psicoterapia individual é um processo terapêutico conduzido entre o paciente e o psicólogo, focado nas necessidades, emoções e desafios específicos de quem busca ajuda. É um espaço seguro e confidencial para explorar sentimentos, pensamentos e comportamentos, promovendo autoconhecimento, superação de dificuldades e desenvolvimento pessoal. Durante as sessões, o terapeuta utiliza técnicas baseadas em teorias psicológicas para ajudar o paciente a alcançar equilíbrio emocional, melhorar relacionamentos e viver com mais propósito e qualidade."
+     },
+     {
+      "@type": "MedicalTherapy",
+      "name": "Psicoterapia online",
+      "description": "A psicoterapia online é um formato de atendimento psicológico realizado virtualmente, por meio de plataformas seguras, como videochamadas. Ela oferece o mesmo suporte emocional e técnico da terapia presencial, permitindo que o paciente explore seus pensamentos, emoções e desafios com o psicólogo. É uma alternativa prática e acessível, ideal para quem busca flexibilidade de horários, não pode se deslocar ou deseja ser atendido no conforto de sua casa. Apesar da distância física, a conexão terapêutica permanece essencial para o sucesso do processo."
+     },
+     {
+      "@type": "MedicalTherapy",
+      "name": "Psicoterapia para brasileiros no exterior",
+      "description": "A psicoterapia para estrangeiros que vivem no exterior é um atendimento psicológico focado nas necessidades e desafios específicos de quem está em outro país. Esse tipo de terapia ajuda a lidar com questões como adaptação cultural, saudade de casa, dificuldades com o idioma, solidão, barreiras sociais e o impacto emocional de viver longe do ambiente familiar. Além disso, é um espaço para trabalhar o autoconhecimento e fortalecer a identidade em meio às mudanças. Realizada de forma online, permite que o paciente seja atendido em sua língua nativa, proporcionando conforto e acolhimento no processo terapêutico."
+     },
+     {
+      "@type": "MedicalTherapy",
+      "name": "Psicoterapia para casais",
+      "description": "A terapia de casal é um espaço seguro para fortalecer vínculos, melhorar a comunicação e resolver conflitos com empatia e respeito. Com a ajuda de um psicólogo, o casal aprende a lidar melhor com diferenças, reconstruir a confiança e redescobrir o propósito da relação. Mais do que resolver problemas, é uma oportunidade de crescer juntos."
+     }
+    ],
+    "openingHoursSpecification": {
+     "@type": "OpeningHoursSpecification",
+     "dayOfWeek": [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday"
+     ],
+     "description": "Com horário agendado"
+    }
+   },
+   {
+    "@type": "FAQPage",
+    "@id": "https://www.rachelqueiroz.com/#faq",
+    "mainEntity": [
+     {
+      "@type": "Question",
+      "name": "Como funciona a Psicoterapia?",
+      "acceptedAnswer": {
+       "@type": "Answer",
+       "text": "Cada pessoa é única, assim como cada processo terapêutico. As sessões tem duração de 50 a 60 minutos e frequência semanal. No entanto, esses aspectos podem ser ajustados conforme as necessidades específicas de cada paciente. Além das conversas e das intervenções realizadas durante as sessões, o trabalho terapêutico pode incluir o uso de escalas ou avaliações psicológicas. Isso, entretanto, não é obrigatório e depende da avaliação de cada caso. Sempre que necessário, o paciente é previamente informado sobre o propósito do instrumento psicológico e sua autorização é solicitada antes de sua aplicação."
+      }
+     },
+     {
+      "@type": "Question",
+      "name": "Aceita plano de saúde?",
+      "acceptedAnswer": {
+       "@type": "Answer",
+       "text": "Eu emito recibo de pagamento para você solicitar o reembolso ao convênio médico. Para saber qual o valor seu convênio reembolsa, verifique no aplicativo, site ou melhor canal de contato da sua Operadora de Saúde."
+      }
+     },
+     {
+      "@type": "Question",
+      "name": "Será que eu preciso de terapia?",
+      "acceptedAnswer": {
+       "@type": "Answer",
+       "text": "Terapia não é coisa de louco, nem frescura ou luxo. Terapia é para quem deseja se conectar consigo mesmo e viver com mais propósito. Não é preciso somente estar em sofrimento profundo para buscar esse espaço: a terapia é uma ferramenta poderosa de autoconhecimento e crescimento pessoal. Permita-se essa experiência transformadora de acessar quem você realmente é e construir uma vida com mais leveza, significado e qualidade!"
+      }
+     },
+     {
+      "@type": "Question",
+      "name": "Psicoterapia online tem a mesma eficácia da presencial?",
+      "acceptedAnswer": {
+       "@type": "Answer",
+       "text": "Sim, a psicoterapia online é tão eficaz quanto a presencial em muitos casos. Diversos estudos mostram que, para a maioria dos transtornos emocionais e psicológicos, o atendimento virtual proporciona resultados equivalentes. Além disso, a terapia online oferece vantagens como maior flexibilidade, conforto e acesso a profissionais qualificados, independentemente da localização. O que realmente importa é a conexão entre paciente e terapeuta, que pode ser construída com sucesso em qualquer formato."
+      }
+     }
+    ]
+   },
+   {
+    "@type": "Product",
+    "@id": "https://www.rachelqueiroz.com/mapa-do-casal#produto",
+    "name": "Mapa do Casal",
+    "url": "https://www.rachelqueiroz.com/mapa-do-casal",
+    "description": "Quiz guiado para casais entenderem juntos o padrão de vínculo do relacionamento, com relatório personalizado, plano de 30 dias e exercícios para fazer a dois.",
+    "brand": {
+     "@id": "https://www.rachelqueiroz.com/#pessoa"
+    },
+    "offers": {
+     "@type": "Offer",
+     "price": "67.00",
+     "priceCurrency": "BRL",
+     "availability": "https://schema.org/InStock",
+     "url": "https://www.rachelqueiroz.com/mapa-do-casal"
+    }
+   }
+  ]
+ }
+]

@@ -3,6 +3,7 @@
 // Five sub-checks (weights from OQ-04 §2 Dim 3, sum 100):
 //   1. discovery (25)            — well-known + canonical paths + homepage link fallback
 //   2. spec_validity (25)        — parses as JSON or YAML; has openapi/swagger version field
+//      (1.5.0: YAML is parsed in full; every check below reads it like JSON)
 //   3. info_completeness (15)    — info.title, info.version, info.description
 //   4. security_schemes (15)     — components.securitySchemes OR explicit empty security:[]
 //   5. operation_coverage (20)   — paths + per-operation summary/description coverage
@@ -28,6 +29,8 @@
 import type { DimensionResult, Env, SubCheck } from "../types";
 import { dimensionScore, gradeFor } from "../scoring";
 import { MAX_SPEC_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
+import { isSameSite, NO_SIGNALS, siteBase, type SiteSignals } from "./site-signals";
+import { CST, Lexer, isScalar, parseDocument, visit, type Document } from "yaml";
 
 const FETCH_TIMEOUT_MS = 5000;
 
@@ -35,15 +38,31 @@ export const INCOMPLETE_SPEC_NOTE =
   "Not measured — the API spec could not be read in full (size or time limit), so this dimension is not counted in your score.";
 const STATIC_UA = "AstrantScanner-Dim3/1.2.0";
 
+/** Whole-dimension N/A note (1.4.0): no OpenAPI and no other API evidence. */
+export const DIM3_NO_API_NA_NOTE =
+  "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. This dimension is not counted in your score.";
+
+/**
+ * Whole-dimension N/A note (1.4.0) when the site shows an API but publishes no
+ * OpenAPI description. N/A, not 0: a GraphQL API describes itself through its
+ * own schema, and API evidence found from links is too indirect to score.
+ */
+export const dim3ApiWithoutOpenApiNote = (evidence: string) =>
+  `No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (${evidence}), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API.`;
+
+/** discovery note suffix (1.4.0) when an RFC 9727 API catalog's service-desc was followed. */
+const viaCatalog = (catalogUrl: string) => ` Read through the API catalog at ${catalogUrl} (its service-desc link).`;
+
 // Security pass 2026-11-04: validated hops (incl. homepage-discovered spec
 // links), max 3 redirects, one deadline covering headers AND body, capped
 // body (see ../safe-fetch).
 function timedFetch(
   url: string,
   init?: RequestInit,
-  timeoutMs: number = FETCH_TIMEOUT_MS
+  timeoutMs: number = FETCH_TIMEOUT_MS,
+  sameSite?: string
 ): Promise<SafeResponse | null> {
-  return safeFetch(url, init, { timeoutMs });
+  return safeFetch(url, init, { timeoutMs, sameSite });
 }
 
 // SSRF defense-in-depth at the spec-fetch boundary. wrangler.jsonc already
@@ -93,10 +112,10 @@ const CANONICAL_CANDIDATES = [
 function isPlausibleSpec(body: string, contentType: string, complete: boolean): boolean {
   if (contentType.includes("text/html") || body.trimStart().startsWith("<")) return false;
   if (!complete) return true;
-  const parsed = tryParseSpec(body, contentType);
-  if (!parsed) return false;
-  if (parsed.format !== "json") return true; // the YAML heuristic already required the key
-  const s = parsed.spec;
+  const s = tryParseJsonSpec(body, contentType);
+  // Not JSON: YAML with an openapi / swagger key (not parsed here; runDim3
+  // parses the hit once).
+  if (!s) return yamlVersionKey(body) !== null;
   return "openapi" in s || "swagger" in s || hasApiLinkset(s["linkset"]);
 }
 
@@ -120,13 +139,14 @@ function hasApiLinkset(linkset: unknown): boolean {
 }
 
 async function probeWellKnown(origin: string): Promise<DiscoveryHit | null> {
+  const base = siteBase(origin);
   for (const path of WELL_KNOWN_CANDIDATES) {
     const url = `${origin}${path}`;
     if (!isSafeSpecUrl(url)) continue;
     const res = await timedFetch(url, {
       headers: { Accept: "application/json", "User-Agent": STATIC_UA },
       redirect: "follow",
-    });
+    }, FETCH_TIMEOUT_MS, base);
     if (res && res.ok) {
       const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
       const body = read.text;
@@ -146,6 +166,7 @@ async function probeWellKnown(origin: string): Promise<DiscoveryHit | null> {
 }
 
 async function probeCanonical(origin: string): Promise<DiscoveryHit | null> {
+  const base = siteBase(origin);
   for (const path of CANONICAL_CANDIDATES) {
     const url = `${origin}${path}`;
     if (!isSafeSpecUrl(url)) continue;
@@ -155,7 +176,7 @@ async function probeCanonical(origin: string): Promise<DiscoveryHit | null> {
         "User-Agent": STATIC_UA,
       },
       redirect: "follow",
-    });
+    }, FETCH_TIMEOUT_MS, base);
     if (res && res.ok) {
       const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
       const body = read.text;
@@ -250,7 +271,7 @@ function decodeHtmlRefs(value: string): string {
 }
 
 /** `<name ...>` tags in order; tags longer than MAX_TAG_CHARS are skipped (but still consumed). */
-function* scanTags(html: string, name: "link" | "a"): Generator<{ attrs: SpecTagAttrs; end: number }> {
+export function* scanTags(html: string, name: "link" | "a"): Generator<{ attrs: SpecTagAttrs; end: number }> {
   // Literal-prefixed, so each exec is a linear forward search from lastIndex.
   const open = name === "link" ? /<link(?=[\s/>])/gi : /<a(?=[\s/>])/gi;
   for (let scanned = 0; scanned < MAX_TAGS_SCANNED; scanned++) {
@@ -316,13 +337,16 @@ async function probeHomepageLink(
   // E12 (Codex r1): relative hrefs resolve against the page they came from.
   const candidate = extractHomepageSpecLink(homepage.html, isSafeSpecUrl(homepage.url) ? homepage.url : origin);
   if (!candidate || !isSafeSpecUrl(candidate)) return null;
+  // 1.4.2: a homepage-linked spec is fetched only on the audited site (every hop).
+  const base = siteBase(origin);
+  if (!isSameSite(new URL(candidate).hostname, base)) return null;
   const res = await timedFetch(candidate, {
     headers: {
       Accept: "application/json, application/yaml, text/yaml, text/plain",
       "User-Agent": STATIC_UA,
     },
     redirect: "follow",
-  });
+  }, FETCH_TIMEOUT_MS, base);
   if (res && res.ok) {
     const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
     const body = read.text;
@@ -340,6 +364,67 @@ async function probeHomepageLink(
   return null;
 }
 
+/** First service-desc href in an RFC 9727 linkset, resolved against the catalog URL. */
+function linksetServiceDesc(spec: Record<string, unknown>, catalogUrl: string): string | null {
+  const linkset = spec["linkset"];
+  if (!Array.isArray(linkset)) return null;
+  for (const entry of linkset) {
+    const links = entry && typeof entry === "object" ? (entry as Record<string, unknown>)["service-desc"] : null;
+    if (!Array.isArray(links)) continue;
+    for (const l of links) {
+      const href = l && typeof l === "object" ? (l as { href?: unknown }).href : null;
+      if (typeof href !== "string" || !href.trim()) continue;
+      try {
+        return new URL(href.trim(), catalogUrl).toString();
+      } catch {
+        // try the next link
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * 1.4.0: an API catalog (RFC 9727 linkset) is an index, not the spec. Follow
+ * its service-desc link (same host or a subdomain of the audited site, one
+ * request, same byte / time caps) and score the spec it points to. Returns
+ * null when the hit is not a linkset (score the hit as it is), else the
+ * followed spec or the reason it could not be read.
+ */
+async function followCatalog(
+  hit: DiscoveryHit,
+  siteUrl: string
+): Promise<{ hit: DiscoveryHit } | { unreadable: string } | null> {
+  const spec = tryParseJsonSpec(hit.body, hit.contentType);
+  if (!spec) return null;
+  if ("openapi" in spec || "swagger" in spec || !Array.isArray(spec["linkset"])) return null;
+  const desc = linksetServiceDesc(spec, hit.url);
+  if (!desc) return { unreadable: `the API catalog at ${hit.url} has no service-desc link to an API description.` };
+  if (!isSafeSpecUrl(desc) || !isSameSite(new URL(desc).hostname, siteBase(siteUrl))) {
+    return { unreadable: `the API catalog at ${hit.url} points to ${desc}, on another site, which the scanner does not fetch.` };
+  }
+  // 1.4.1: every redirect hop stays on the audited site too.
+  const res = await timedFetch(
+    desc,
+    {
+      headers: { Accept: "application/json, application/yaml, text/yaml, text/plain", "User-Agent": STATIC_UA },
+      redirect: "follow",
+    },
+    FETCH_TIMEOUT_MS,
+    siteBase(siteUrl)
+  );
+  if (!res || !res.ok) {
+    res?.discard();
+    return { unreadable: `the API catalog at ${hit.url} points to ${desc}, which returned ${res ? `status ${res.status}` : "no response"}.` };
+  }
+  const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
+  const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+  if (!isPlausibleSpec(read.text, contentType, read.complete)) {
+    return { unreadable: `the API catalog at ${hit.url} points to ${desc}, which is not a recognizable OpenAPI / Swagger document.` };
+  }
+  return { hit: { url: desc, body: read.text, contentType, source: hit.source, complete: read.complete } };
+}
+
 async function discoverApiSpec(
   origin: string,
   homepage: HomepageRead | null | Promise<HomepageRead | null>
@@ -353,21 +438,119 @@ async function discoverApiSpec(
   return hit;
 }
 
-// ── Spec parsing (JSON, with light YAML tolerance) ───────────────────────
+// ── Spec parsing (JSON, or YAML via the `yaml` package) ──────────────────
 
 interface ParsedSpec {
   spec: Record<string, unknown>;
-  format: "json" | "yaml-strict-json" | "yaml-heuristic";
+  format: "json" | "yaml";
 }
 
-// Minimal YAML-to-object conversion for the structural checks we need (top-
-// level keys: openapi, swagger, info, paths, components). Full YAML parsing
-// would pull a heavyweight dep we'd rather not ship in a Worker. We accept
-// the limitation and downgrade YAML-only specs to a partial-credit signal
-// in spec_validity rather than hard-fail.
-function tryParseSpec(body: string, contentType: string): ParsedSpec | null {
+// 1.5.0: a YAML spec is parsed in full and gets the same checks as JSON.
+// Limits: the failsafe schema (every scalar is a string, so `openapi: 3.0`
+// stays "3.0"), at most YAML_MAX_ALIASES alias expansions (billion-laughs),
+// one document, and no tag the schema does not know (custom tags rejected).
+// 1.5.1 (Codex r6): a YAML parse costs ~0.5-1.1 KB of heap per node, so the
+// byte cap alone does not bound memory (a 512 KB flow sequence of one-letter
+// items is ~260k nodes, ~290 MB). Before parsing, a linear pass over yaml's
+// Lexer token stream counts nodes and stops past YAML_MAX_NODES; a body over
+// MAX_YAML_SPEC_CHARS or YAML_MAX_NODES is not parsed and runDim3 reports it
+// like a spec it could not read in full.
+export const MAX_YAML_SPEC_CHARS = 256 * 1024;
+export const YAML_MAX_NODES = 20_000;
+const YAML_MAX_ALIASES = 50;
+const YAML_NODE_TOKENS = new Set([
+  "scalar",
+  "single-quoted-scalar",
+  "double-quoted-scalar",
+  "alias",
+  "flow-map-start",
+  "flow-seq-start",
+  "map-value-ind",
+  "seq-item-ind",
+  "explicit-key-ind",
+]);
+
+/** Over the YAML byte cap or node budget (linear, stops at the budget). */
+export function yamlOverBudget(body: string): boolean {
+  if (body.length > MAX_YAML_SPEC_CHARS) return true;
+  let nodes = 0;
+  try {
+    for (const token of new Lexer().lex(body)) {
+      if (YAML_NODE_TOKENS.has(CST.tokenType(token) ?? "") && ++nodes > YAML_MAX_NODES) return true;
+    }
+  } catch {
+    return true;
+  }
+  return false;
+}
+
+type YamlRead = { spec: Record<string, unknown> } | { duplicateKey: string };
+
+/**
+ * 1.5.1 (Codex r6): a key repeated in one mapping is ambiguous (a parser keeps
+ * one value and silently drops the other), so the spec is rejected. One walk,
+ * one Set per mapping: linear, unlike yaml's quadratic uniqueKeys.
+ */
+function firstDuplicateKey(doc: Document.Parsed): string | null {
+  let dup: string | null = null;
+  visit(doc, {
+    Map(_, map) {
+      const seen = new Set<string>();
+      for (const pair of map.items) {
+        if (!isScalar(pair.key)) continue;
+        const key = String(pair.key.value);
+        if (seen.has(key)) {
+          dup = key;
+          return visit.BREAK;
+        }
+        seen.add(key);
+      }
+      return undefined;
+    },
+  });
+  return dup;
+}
+
+function readYamlSpec(body: string): YamlRead | null {
+  if (yamlOverBudget(body)) return null;
+  try {
+    const doc = parseDocument(body, {
+      schema: "failsafe",
+      prettyErrors: false,
+      // uniqueKeys is quadratic per map (seconds on a large paths map);
+      // firstDuplicateKey does the same check in one linear walk.
+      uniqueKeys: false,
+    });
+    if (doc.errors.length > 0) return null;
+    if (doc.warnings.some((w) => w.code === "TAG_RESOLVE_FAILED")) return null;
+    const duplicateKey = firstDuplicateKey(doc);
+    if (duplicateKey !== null) return { duplicateKey };
+    const out: unknown = doc.toJS({ maxAliasCount: YAML_MAX_ALIASES });
+    if (!out || typeof out !== "object" || Array.isArray(out)) return null;
+    return { spec: out as Record<string, unknown> };
+  } catch {
+    // alias-count overflow and other hard failures
+    return null;
+  }
+}
+
+export function parseYamlSpec(body: string): Record<string, unknown> | null {
+  const read = readYamlSpec(body);
+  return read && "spec" in read ? read.spec : null;
+}
+
+/** The repeated key that made a YAML spec ambiguous, or null. */
+export function yamlSpecDuplicateKey(body: string): string | null {
+  const read = readYamlSpec(body);
+  return read && "duplicateKey" in read ? read.duplicateKey : null;
+}
+
+/** spec_validity note (1.5.1) for a YAML spec that repeats a key in one mapping. */
+export const yamlDuplicateKeyNote = (key: string) =>
+  `The YAML spec repeats a key (${key.length > 80 ? `${key.slice(0, 80)}…` : key}) in the same section, so we could not tell which version to read.`;
+
+function tryParseJsonSpec(body: string, contentType: string): Record<string, unknown> | null {
   const trimmed = body.trim();
-  // 1. JSON path.
   if (
     contentType.includes("application/json") ||
     contentType.includes("text/json") ||
@@ -376,31 +559,29 @@ function tryParseSpec(body: string, contentType: string): ParsedSpec | null {
     try {
       const parsed = JSON.parse(trimmed);
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return { spec: parsed as Record<string, unknown>, format: "json" };
+        return parsed as Record<string, unknown>;
       }
     } catch {
-      // fall through to YAML attempt
+      // not JSON
     }
   }
-  // 2. YAML heuristic — we just confirm there's an `openapi:` or `swagger:`
-  //    top-level key so the spec_validity sub-check can give partial credit.
-  //    We do NOT try to parse the whole document; the deeper checks
-  //    (info_completeness, paths, securitySchemes) get scored as 0 with
-  //    notes explaining the limitation. Future work: ship a minimal YAML
-  //    parser or call out to an external parsing service.
-  const yaml = yamlVersionKey(body);
-  if (yaml) {
-    // Build a minimal spec object so downstream checks can at least see the
-    // version field. They'll see no `info` / `paths` and score appropriately.
-    return {
-      spec: {
-        [yaml.key]: yaml.version,
-        __yaml_heuristic: true,
-      },
-      format: "yaml-heuristic",
-    };
-  }
   return null;
+}
+
+function tryParseSpec(body: string, contentType: string): ParsedSpec | { duplicateKey: string } | null {
+  const json = tryParseJsonSpec(body, contentType);
+  if (json) return { spec: json, format: "json" };
+  // YAML only when the body carries an openapi / swagger version key (cheap
+  // linear scan), so arbitrary text is never handed to the YAML parser.
+  if (!yamlVersionKey(body)) return null;
+  const yaml = readYamlSpec(body);
+  if (!yaml) return null;
+  return "spec" in yaml ? { spec: yaml.spec, format: "yaml" } : yaml;
+}
+
+/** A YAML-looking spec (version key, not JSON) too large to parse (bytes or nodes). */
+function isOversizedYaml(body: string, contentType: string): boolean {
+  return !tryParseJsonSpec(body, contentType) && yamlVersionKey(body) !== null && yamlOverBudget(body);
 }
 
 // E12 (Codex r1): the old /^\s*openapi\s*:/m regexes were quadratic on runs of
@@ -430,7 +611,10 @@ export async function runDim3(
   env: Env,
   // E12: the homepage another check already read (run-scan passes Dim 4's
   // read as a promise); awaited only when well-known and canonical both miss.
-  homepage: HomepageRead | null | Promise<HomepageRead | null> = null
+  homepage: HomepageRead | null | Promise<HomepageRead | null> = null,
+  // 1.4.0: API evidence from links / a GraphQL probe (site-signals); awaited
+  // only when no spec is found, to word the N/A note truthfully.
+  signals: SiteSignals | Promise<SiteSignals> = NO_SIGNALS
 ): Promise<DimensionResult> {
   void env; // reserved for future use; no LLM in Slice 3a
   const origin = new URL(targetUrl).origin;
@@ -438,13 +622,26 @@ export async function runDim3(
   const subs: SubCheck[] = [];
 
   // ── Discovery ──────────────────────────────────────────────────────────
-  const hit = await discoverApiSpec(origin, homepage);
+  const found = await discoverApiSpec(origin, homepage);
+  let hit = found;
+  let catalogUrl = "";
+  let catalogUnreadable = "";
+  if (found && found.complete) {
+    const followed = await followCatalog(found, targetUrl);
+    if (followed && "hit" in followed) {
+      hit = followed.hit;
+      catalogUrl = found.url;
+    } else if (followed) {
+      catalogUnreadable = followed.unreadable;
+    }
+  }
 
   // Whole-dimension N/A: nothing discovered. Mark every sub-check N/A,
   // dimensionScore() returns null, return DimensionResult with na:true.
   if (!hit) {
-    const naNote =
-      "No OpenAPI / API catalog discovered (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). Site appears to be content-only from an API-catalog perspective. Dimension marked N/A — composite math drops it without penalty.";
+    const sig = await Promise.resolve(signals).catch(() => NO_SIGNALS);
+    const evidence = sig.apiSignals[0] ?? (sig.mcpUrls[0] ? `a link to an MCP endpoint, ${sig.mcpUrls[0]}` : "");
+    const naNote = evidence ? dim3ApiWithoutOpenApiNote(evidence) : DIM3_NO_API_NA_NOTE;
     for (const id of [
       "discovery",
       "spec_validity",
@@ -480,6 +677,8 @@ export async function runDim3(
   // call it "no API surface". Discovery alone must not score: a huge or
   // stalled file at a well-known path would otherwise earn 100. The
   // discovery result stays as informational text in the first note.
+  // 1.5.0: a YAML spec too large to parse is reported like one not read in full.
+  if (hit.complete && isOversizedYaml(hit.body, hit.contentType)) hit = { ...hit, complete: false };
   if (!hit.complete) {
     const found = `Found via ${hit.source} at ${hit.url} (content-type=${hit.contentType || "unknown"}).`;
     for (const [id, name, weight] of [
@@ -510,6 +709,30 @@ export async function runDim3(
     };
   }
 
+  // 1.4.0: an API catalog whose service-desc could not be read: the catalog
+  // itself is scored for discovery; the spec checks were not measured (the
+  // linkset is an index, so scoring it as the spec reported "missing info").
+  if (catalogUnreadable) {
+    subs.push({
+      id: "discovery",
+      name: "API spec discovery",
+      weight: 25,
+      score: 100,
+      passed: true,
+      notes: `Found via ${hit.source} at ${hit.url} (content-type=${hit.contentType || "unknown"}).`,
+    });
+    for (const [id, name, weight] of [
+      ["spec_validity", "Spec validity (parses + has version field)", 25],
+      ["info_completeness", "Spec info completeness (title + version + description)", 15],
+      ["security_schemes", "Security schemes documented", 15],
+      ["operation_coverage", "Operation coverage + per-operation docs", 20],
+    ] as const) {
+      subs.push({ id, name, weight, score: 0, passed: false, notes: `Not measured: ${catalogUnreadable} This check is not counted in your score.`, na: true });
+    }
+    const score = dimensionScore(subs) ?? 0;
+    return { dimension_id: 3, dimension_name: "OpenAPI / API Catalog", score, grade: gradeFor(score), sub_checks: subs };
+  }
+
   // ── Sub-check 1: discovery ─────────────────────────────────────────────
   // Well-known → 100. Canonical → 75. Homepage-link fallback → 50.
   let discoveryScore: number;
@@ -522,24 +745,21 @@ export async function runDim3(
     weight: 25,
     score: discoveryScore,
     passed: discoveryScore >= 70,
-    notes: `Found via ${hit.source} at ${hit.url} (content-type=${hit.contentType || "unknown"}).`,
+    notes: `Found via ${hit.source} at ${hit.url} (content-type=${hit.contentType || "unknown"}).${catalogUrl ? viaCatalog(catalogUrl) : ""}`,
   });
 
 
   // ── Sub-check 2: spec_validity ────────────────────────────────────────
-  const parsed = tryParseSpec(hit.body, hit.contentType);
+  const read = tryParseSpec(hit.body, hit.contentType);
+  const parsed = read && "spec" in read ? read : null;
   let validityScore = 0;
   let validityNote: string;
-  if (!parsed) {
+  if (read && "duplicateKey" in read) {
+    validityNote = yamlDuplicateKeyNote(read.duplicateKey);
+  } else if (!parsed) {
     validityNote = `Spec at ${hit.url} did not parse as JSON or recognizable YAML.`;
-  } else if (parsed.format === "yaml-heuristic") {
-    // Partial credit — spec is reachable + has a recognizable version field,
-    // but our static parser can't validate deeper structure.
-    const verKey = "openapi" in parsed.spec ? "openapi" : "swagger";
-    const ver = String(parsed.spec[verKey] ?? "unknown");
-    validityScore = 50;
-    validityNote = `YAML spec detected (${verKey} ${ver}). Slice 3a parses JSON specs in full; YAML gets partial-credit + reachability validation only.`;
   } else {
+    const fmt = parsed.format === "yaml" ? "YAML" : "JSON";
     const hasOpenapi = typeof parsed.spec["openapi"] === "string";
     const hasSwagger = typeof parsed.spec["swagger"] === "string";
     if (hasOpenapi) {
@@ -547,18 +767,18 @@ export async function runDim3(
       // Accept 3.x. 2.x is "swagger" not "openapi" — covered below.
       if (/^3\.\d+/.test(v)) {
         validityScore = 100;
-        validityNote = `Valid JSON spec, openapi ${v}.`;
+        validityNote = `Valid ${fmt} spec, openapi ${v}.`;
       } else {
         validityScore = 75;
-        validityNote = `Valid JSON spec, openapi ${v} (Slice 3a targets 3.x; older 3.0/2.0 still scored).`;
+        validityNote = `Valid ${fmt} spec, openapi ${v} (not a 3.x version; partial credit).`;
       }
     } else if (hasSwagger) {
       const v = parsed.spec["swagger"] as string;
       validityScore = 75;
-      validityNote = `Valid JSON spec, swagger ${v} (Swagger 2.0 — recommend migrating to OpenAPI 3.x).`;
+      validityNote = `Valid ${fmt} spec, swagger ${v} (Swagger 2.0 — recommend migrating to OpenAPI 3.x).`;
     } else {
       validityScore = 25;
-      validityNote = `JSON parsed but no "openapi" or "swagger" version field at the root.`;
+      validityNote = `${fmt} parsed but no "openapi" or "swagger" version field at the root.`;
     }
   }
   subs.push({
@@ -571,19 +791,15 @@ export async function runDim3(
   });
 
   // The remaining three sub-checks all read `parsed.spec`. If parsing failed
-  // entirely, they score 0 with explanation; if YAML-heuristic, they score 0
-  // because we don't have the parsed object. Both cases keep the sub-check
-  // present (not N/A) so the user sees the structural gap rather than a
-  // missing line item.
-  const spec = parsed && parsed.format === "json" ? parsed.spec : null;
+  // entirely, they score 0 with explanation. 1.5.0: a YAML spec is parsed in
+  // full, so they read it like JSON.
+  const spec = parsed ? parsed.spec : null;
 
   // ── Sub-check 3: info_completeness ────────────────────────────────────
   let infoScore = 0;
   let infoNote: string;
   if (!spec) {
-    infoNote = parsed
-      ? "Skipped — YAML spec; Slice 3a's static parser doesn't traverse YAML structure."
-      : "Skipped — spec did not parse as JSON.";
+    infoNote = "Skipped — spec did not parse as JSON or YAML.";
   } else {
     const info = spec["info"];
     if (typeof info === "object" && info !== null) {
@@ -612,9 +828,7 @@ export async function runDim3(
   let securityScore = 0;
   let securityNote: string;
   if (!spec) {
-    securityNote = parsed
-      ? "Skipped — YAML spec; Slice 3a's static parser doesn't traverse YAML structure."
-      : "Skipped — spec did not parse as JSON.";
+    securityNote = "Skipped — spec did not parse as JSON or YAML.";
   } else {
     const components = spec["components"];
     const securitySchemes =
@@ -652,9 +866,7 @@ export async function runDim3(
   let coverageScore = 0;
   let coverageNote: string;
   if (!spec) {
-    coverageNote = parsed
-      ? "Skipped — YAML spec; Slice 3a's static parser doesn't traverse YAML structure."
-      : "Skipped — spec did not parse as JSON.";
+    coverageNote = "Skipped — spec did not parse as JSON or YAML.";
   } else {
     const paths = spec["paths"];
     if (typeof paths !== "object" || paths === null) {

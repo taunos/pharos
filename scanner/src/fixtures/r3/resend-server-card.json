@@ -1,0 +1,16 @@
+{
+  "name": "resend",
+  "description": "Email API for developers. Send transactional and marketing emails at scale, plus contacts, broadcasts, templates, domains, and webhooks.",
+  "version": "1.0.0",
+  "url": "https://mcp.resend.com/mcp",
+  "transport": "streamable-http",
+  "documentation": "https://resend.com/docs/mcp-server",
+  "repository": "https://github.com/resend/resend-mcp",
+  "authentication": {
+    "type": "oauth2",
+    "authorization_server": "https://api.resend.com",
+    "resource": "https://mcp.resend.com/mcp",
+    "protected_resource_metadata": "https://mcp.resend.com/.well-known/oauth-protected-resource",
+    "bearer_methods_supported": ["header"]
+  }
+}

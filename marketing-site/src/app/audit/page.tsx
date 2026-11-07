@@ -50,7 +50,7 @@ const FAQS: { q: string; a: string; aNode?: React.ReactNode }[] = [
   },
   {
     q: "How is this automatic if the report is that deep?",
-    a: "LLM inference does the analysis and remediation drafting; nothing is human-gated. PDF rendering takes a few extra seconds; the whole pipeline finishes in a few minutes end-to-end.",
+    a: "Automated checks and AI model tests do the analysis; each gap's remediation is a fixed, check-specific text chosen from what we found. Nothing is human-gated. PDF rendering takes a few extra seconds; the whole pipeline finishes in a few minutes end-to-end.",
   },
   {
     q: "Can I audit a competitor instead?",
@@ -238,9 +238,9 @@ export default async function AuditPage({
             </h2>
             <p className="mt-6 text-lg text-[var(--color-muted)]">
               The free Score gives you a public grade across six dimensions. The
-              Audit goes deeper: per-gap remediation guidance written
-              specifically for your site&apos;s findings (not generic playbook
-              language), effort estimates you can take to a developer, and the
+              Audit goes deeper: per-gap remediation guidance matched to what
+              we found on your site, with effort estimates you can take to a
+              developer, and the
               machine-readable JSON export. If the free score says &ldquo;work
               on Dimension 4,&rdquo; the Audit tells you exactly which
               JSON-LD types to add and on which pages.

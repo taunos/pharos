@@ -19,6 +19,7 @@ import { runDim3, type HomepageRead } from "./checks/dim3-openapi";
 import { runDim4 } from "./checks/dim4-structured";
 import { runDim5 } from "./checks/dim5-parsable";
 import { runDim6 } from "./checks/dim6-citation";
+import { gatherSiteSignals } from "./checks/site-signals";
 import { SCORING_VERSION } from "./version";
 
 export type RunScanOpts = {
@@ -76,12 +77,36 @@ export async function runScan(
   // handing it over (resolve is idempotent), so Dim 3 never waits forever.
   let handHomepage!: (homepage: HomepageRead | null) => void;
   const homepage = new Promise<HomepageRead | null>((resolve) => (handHomepage = resolve));
+  // 1.4.0: Dim 1 hands over the /llms.txt text it read the same way, and
+  // site-signals looks in both for MCP / API links (a GraphQL probe only when
+  // the links show nothing). Dim 2 and Dim 3 read the result.
+  let handLlms!: (text: string | null) => void;
+  const llmsTxt = new Promise<string | null>((resolve) => (handLlms = resolve));
+  const signals = gatherSiteSignals(url, llmsTxt, homepage);
+  // 1.3.2: Dim 2 goes whole-dim N/A when Dim 3 found no API surface (na, not
+  // unmeasured) and Dim 2 found no MCP artifact. Dim 3's result is handed over
+  // as a promise (no extra fetch); a Dim 3 failure counts as "not content-only".
+  const d3p = runDim3(url, env, homepage, signals);
+  const contentOnly = d3p.then(
+    (d) => d.na === true && !d.unmeasured,
+    () => false
+  );
+  // 1.4.1: Dim 4's service_offer_schema is N/A when nothing shows the site
+  // sells online; whether Dim 5 found a pricing page is one of the signs
+  // (handed over as a promise; a Dim 5 failure counts as "found"). 1.4.2:
+  // pricing_text_visibility is scored (not N/A) also when Dim 5 found prices
+  // on the homepage or a homepage-linked page.
+  const d5p = runDim5(url, env, tier);
+  const pricingPageFound = d5p.then(
+    (d) => d.sub_checks.find((s) => s.id === "pricing_text_visibility")?.na !== true,
+    () => true
+  );
   const [d1, d2, d3, d4, d5, d6] = await Promise.all([
-    runDim1(url, env),
-    runDim2(url, env),
-    runDim3(url, env, homepage),
-    runDim4(url, env, handHomepage).finally(() => handHomepage(null)),
-    runDim5(url, env, tier),
+    runDim1(url, env, handLlms).finally(() => handLlms(null)),
+    runDim2(url, env, contentOnly, signals),
+    d3p,
+    runDim4(url, env, handHomepage, pricingPageFound).finally(() => handHomepage(null)),
+    d5p,
     runDim6(url, tier),
   ]);
   const dimensions = [d1, d2, d3, d4, d5, d6];
@@ -92,7 +117,8 @@ export async function runScan(
   // Slice 3a:
   //   - dimensions_scored: dimensions ATTEMPTED in this engine version (5/6 in v1.2.0).
   //   - dimensions_applicable: attempted minus whole-dim N/A (e.g. content-only
-  //     site has Dim 3 N/A, so applicable=4). Counted from the array; never
+  //     site has Dim 3 N/A, so applicable=4; from 1.3.2 also Dim 2 N/A when
+  //     no MCP artifact exists, so applicable=3). Counted from the array; never
   //     extrapolated. Older v1.1.0 scans did not emit this — render-side falls
   //     back to dimensions_scored when undefined.
   const dimensionsApplicable = dimensions.filter((d) => !d.na).length;

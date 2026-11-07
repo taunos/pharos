@@ -23,7 +23,7 @@ export default async function AuditResultsPage({
       <main>
         <section className="mx-auto max-w-3xl px-6 py-20">
           <div className="inline-flex rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm font-mono text-emerald-400">
-            Astrant · AEO Audit
+            Astrant Score v1 · Audit report
           </div>
           <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl">
             Your audit

@@ -4,10 +4,10 @@ The Pharos Agent Discoverability Score scanner — a Cloudflare Worker that scan
 
 All six dimensions ship (scoring version in `src/version.ts`; weights in `src/scoring.ts`):
 
-- **Dim 1 — llms.txt Quality** (presence, spec compliance, linked-page quality, curation, blockquote LLM eval)
+- **Dim 1 — llms.txt Quality** (presence, spec compliance, linked-page quality, curation, blockquote rules)
 - **Dim 2 — MCP Server Discoverability** (well-known card, tool coverage, OAuth metadata, live tools/list, DNS TXT)
 - **Dim 3 — OpenAPI / API Catalog** (whole-dimension N/A for content-only sites)
-- **Dim 4 — Structured Capability Data** (JSON-LD presence, Organization, Service/Offer, FAQPage + LLM eval, Review)
+- **Dim 4 — Structured Capability Data** (JSON-LD presence, Organization, Service/Offer, FAQPage rules, Review)
 - **Dim 5 — Agent-Parsable Content** (static fetch)
 - **Dim 6 — Citation Visibility** (free tier: N/A preview; measured in the paid Audit)
 
@@ -16,7 +16,6 @@ All six dimensions ship (scoring version in `src/version.ts`; weights in `src/sc
 - Cloudflare Workers (TypeScript) + Hono routing
 - Cloudflare D1 — scan history
 - Cloudflare KV — result cache (1h) + rate limiter
-- Cloudflare Workers AI — `@cf/meta/llama-3.1-8b-instruct-fp8` for the blockquote and FAQ-conversational evals
 
 ## First-time setup
 

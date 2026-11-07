@@ -12,7 +12,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { DIM6_DISCLOSURE } from "@/lib/dim6/disclosure";
+import { DIM6_DISCLOSURE, DIM6_ENGINE_LINE } from "@/lib/dim6/disclosure";
 
 export const metadata: Metadata = {
   title: "Scoring methodology — Astrant",
@@ -67,7 +67,7 @@ export default function MethodologyPage() {
             Dimension 6 — Citation Visibility
           </h2>
           <p className="mt-2 text-sm text-[var(--color-muted)] italic">
-            Weight 20 · Engine v1 · 4 hosted models · ~10 prompts · ~40 cells per audit
+            Weight 20 · Engine v1 · 4 hosted models · ~10 prompts · ~40 test answers per audit
           </p>
           <div className="mt-6 flex flex-col gap-5 text-base text-[var(--color-muted)]">
             {longParagraphs.map((p, i) => (
@@ -87,7 +87,7 @@ export default function MethodologyPage() {
           <ul className="mt-4 flex flex-col gap-3 text-sm text-[var(--color-muted)]">
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_domain_named_rate</span>{" "}
-              (weight 40) — what fraction of measurable cells named your domain at all.
+              (weight 40) — what fraction of scored test answers named your domain at all.
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_url_referenced_rate</span>{" "}
@@ -99,7 +99,7 @@ export default function MethodologyPage() {
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_no_competitor_first_rate</span>{" "}
-              (weight 10) — what fraction avoided naming a competitor BEFORE your domain. Not measured in the current Audit: no competitor list is supplied, so this check passes by default.
+              (weight 10) — what fraction avoided naming a competitor BEFORE your domain. Not measured in the current Audit: no competitor list is supplied, so this check is not counted.
             </li>
           </ul>
 
@@ -125,7 +125,7 @@ export default function MethodologyPage() {
           </p>
 
           <p className="mt-10 text-xs font-mono uppercase tracking-wider text-[var(--color-muted)]">
-            {DIM6_DISCLOSURE.engineLine}
+            {DIM6_ENGINE_LINE}
           </p>
 
           {/* ── Dim 1-5 stub anchors ────────────────────────────────────── */}
@@ -135,7 +135,8 @@ export default function MethodologyPage() {
           <p className="mt-3 text-sm text-[var(--color-muted)] italic">
             Full methodology section coming in a subsequent release. Sub-checks:
             presence, spec compliance, linked-pages quality, curation quality,
-            blockquote eval. Weight 15.
+            blockquote rules (one paragraph, 10 to 100 words; fixed rules, no
+            AI rating). Weight 15.
           </p>
 
           <h2 id="dim-2" className="mt-12 scroll-mt-20 text-3xl font-bold tracking-tight">
@@ -143,8 +144,10 @@ export default function MethodologyPage() {
           </h2>
           <p className="mt-3 text-sm text-[var(--color-muted)] italic">
             Full methodology section coming in a subsequent release. Sub-checks:
-            well-known card, tool coverage, OAuth metadata, live invocation,
-            DNS TXT. Weight 20.
+            well-known card, tool coverage, OAuth metadata, live invocation. An
+            _mcp DNS TXT record is shown for information but not scored (no
+            ratified standard). Weight 20. Whole-dim N/A only when no MCP or API
+            evidence is found.
           </p>
 
           <h2 id="dim-3" className="mt-12 scroll-mt-20 text-3xl font-bold tracking-tight">
@@ -153,7 +156,7 @@ export default function MethodologyPage() {
           <p className="mt-3 text-sm text-[var(--color-muted)] italic">
             Full methodology section coming in a subsequent release. Sub-checks:
             discovery, spec validity, info completeness, security schemes,
-            operation coverage. Weight 10. Whole-dim N/A on content-only sites.
+            operation coverage. Weight 10. Whole-dim N/A when no OpenAPI description is found.
           </p>
 
           <h2 id="dim-4" className="mt-12 scroll-mt-20 text-3xl font-bold tracking-tight">
@@ -161,8 +164,12 @@ export default function MethodologyPage() {
           </h2>
           <p className="mt-3 text-sm text-[var(--color-muted)] italic">
             Full methodology section coming in a subsequent release. Sub-checks:
-            JSON-LD presence, Organization, Service/Offer, FAQ, Review schemas.
-            Weight 20.
+            JSON-LD presence, Organization, Service/Offer, FAQ, Review schemas
+            (FAQ and Review are N/A when the site has none). FAQ is scored by
+            fixed rules, no AI rating: the share of Q&amp;A pairs whose question
+            is phrased as a question of 2 to 40 words and whose answer has 1 to
+            300 words; entries missing a question or an answer count as not
+            meeting the rules. Weight 20.
           </p>
 
           <h2 id="dim-5" className="mt-12 scroll-mt-20 text-3xl font-bold tracking-tight">
@@ -170,8 +177,10 @@ export default function MethodologyPage() {
           </h2>
           <p className="mt-3 text-sm text-[var(--color-muted)] italic">
             Full methodology section coming in a subsequent release. Sub-checks:
-            JS-vs-no-JS render diff, page weight + LCP, markdown negotiation,
-            pricing text visibility, case-study scannability. Weight 15.
+            JS-vs-no-JS render diff, page weight, pricing text visibility,
+            case-study scannability. Markdown content negotiation is shown for
+            information but not scored (an emerging convention most hosts
+            don&apos;t support yet). Weight 15.
           </p>
 
           <p className="mt-16 text-sm text-[var(--color-muted)]">

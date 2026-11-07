@@ -1,7 +1,7 @@
 // E12 (code-quality audit 2026-11-05): scoring defects in Dim 2 and Dim 3.
 // Fixtures only: every fetch is stubbed, no network.
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { runDim2, findJsonRpcResponse, decodeTxtData, MCP_PROTOCOL_VERSION, MAX_JSON_PARSES, MAX_SSE_PARSE_CHARS } from "./checks/dim2-mcp";
+import { runDim2, findJsonRpcResponse, decodeTxtData, DNS_TXT_INFO_NOTE, MCP_PROTOCOL_VERSION, MAX_JSON_PARSES, MAX_SSE_PARSE_CHARS } from "./checks/dim2-mcp";
 import { runDim3 } from "./checks/dim3-openapi";
 import { runScan } from "./run-scan";
 import { SCORING_VERSION } from "./version";
@@ -88,7 +88,8 @@ describe("E12 Dim 3: a 200 must plausibly be a spec or catalog", () => {
   it("a YAML spec served as text/plain still counts", async () => {
     routes({ "https://acme.com/openapi.yaml": () => new Response("openapi: 3.0.3\ninfo:\n  title: A\n", { status: 200, headers: { "content-type": "text/plain" } }) });
     const d = await runDim3("https://acme.com/", env());
-    expect(d.sub_checks.find((s) => s.id === "spec_validity")!.score).toBe(50);
+    // 1.5.0: parsed in full (was 50, version field only).
+    expect(d.sub_checks.find((s) => s.id === "spec_validity")).toMatchObject({ score: 100, notes: "Valid YAML spec, openapi 3.0.3." });
   });
 });
 
@@ -147,11 +148,14 @@ const dnsCheck = async (answer: unknown[]) => {
   routes({ [DOH]: json({ Status: 0, Answer: answer }, "application/dns-json") });
   return (await runDim2("https://acme.com/", env())).sub_checks.find((s) => s.id === "dns_txt")!;
 };
+// 1.4.0: dns_txt is informational (always N/A, never scored); these tests
+// check the detection itself through the note.
+const found = (s: { notes: string; na?: boolean }) => (s.na === true && s.notes.startsWith("1 TXT record(s) at _mcp.acme.com") ? 100 : 0);
 
 describe("E12 Dim 2: dns_txt counts only real _mcp TXT records", () => {
   it("a wildcard CNAME (the only Answer is type 5) scores 0", async () => {
     const s = await dnsCheck([{ name: "_mcp.acme.com", type: 5, TTL: 300, data: "cname.vercel-dns.com." }]);
-    expect(s).toMatchObject({ score: 0, passed: false, notes: "no TXT at _mcp.acme.com" });
+    expect(s).toMatchObject({ score: 0, passed: false, na: true, notes: `No TXT record at _mcp.acme.com. ${DNS_TXT_INFO_NOTE}` });
   });
 
   it("a TXT record on the CNAME target, not _mcp.<host>, scores 0", async () => {
@@ -159,16 +163,16 @@ describe("E12 Dim 2: dns_txt counts only real _mcp TXT records", () => {
       { name: "_mcp.acme.com", type: 5, data: "target.example.net." },
       { name: "target.example.net", type: 16, data: '"mcp=https://x.example.net/mcp"' },
     ]);
-    expect(s.score).toBe(0);
+    expect(found(s)).toBe(0);
   });
 
   it("a TXT at _mcp.<host> that is not about MCP (wildcard SPF) scores 0", async () => {
-    expect((await dnsCheck([{ name: "_mcp.acme.com", type: 16, data: '"v=spf1 -all"' }])).score).toBe(0);
+    expect(found(await dnsCheck([{ name: "_mcp.acme.com", type: 16, data: '"v=spf1 -all"' }]))).toBe(0);
   });
 
   it("a real _mcp TXT record scores 100 (trailing dot and case tolerated)", async () => {
     const s = await dnsCheck([{ name: "_MCP.acme.com.", type: 16, TTL: 300, data: '"v=1; mcp=https://mcp.acme.com/mcp"' }]);
-    expect(s).toMatchObject({ score: 100, passed: true, notes: "1 TXT record(s) at _mcp.acme.com" });
+    expect(s).toMatchObject({ score: 0, passed: false, na: true, notes: `1 TXT record(s) at _mcp.acme.com. ${DNS_TXT_INFO_NOTE}` });
   });
 });
 
@@ -382,11 +386,11 @@ describe("E12 r1: TXT data is decoded from presentation syntax before matching",
   });
 
   it('a record split as "m" "cp=..." scores 100', async () => {
-    expect((await dnsCheck([{ name: "_mcp.acme.com", type: 16, data: '"v=1; m" "cp=https://mcp.acme.com/mcp"' }])).score).toBe(100);
+    expect(found(await dnsCheck([{ name: "_mcp.acme.com", type: 16, data: '"v=1; m" "cp=https://mcp.acme.com/mcp"' }]))).toBe(100);
   });
 
   it("an escaped \\109cp (m) scores 100", async () => {
-    expect((await dnsCheck([{ name: "_mcp.acme.com", type: 16, data: '"\\109cp=https://mcp.acme.com/mcp"' }])).score).toBe(100);
+    expect(found(await dnsCheck([{ name: "_mcp.acme.com", type: 16, data: '"\\109cp=https://mcp.acme.com/mcp"' }]))).toBe(100);
   });
 });
 
@@ -526,7 +530,7 @@ describe("E12 r2: strict TXT decoding", () => {
   });
 
   it("a malformed record does not count", async () => {
-    expect((await dnsCheck([{ name: "_mcp.acme.com", type: 16, data: '"v=1; mcp=https://x' }])).score).toBe(0);
+    expect(found(await dnsCheck([{ name: "_mcp.acme.com", type: 16, data: '"v=1; mcp=https://x' }]))).toBe(0);
   });
 });
 

@@ -27,7 +27,7 @@ const FREE_TIER_DEMO_NOTE =
   "about your domain — the dimension Cloudflare's Agent Readiness Score " +
   "cannot see. Free Score shows a static demo preview only; the live " +
   "4-model audit (OpenAI GPT-4o, Anthropic Claude, Google Gemini, " +
-  "Perplexity Sonar — ~10 prompts, ~40 cells per audit) ships with the " +
+  "Perplexity Sonar — ~10 prompts, ~40 test answers per audit) ships with the " +
   "$79 Audit. Sample output: GPT-4o cites your domain 6/10 times, Claude " +
   "4/10, Gemini 2/10, Perplexity 7/10 — aggregate 47/100 D+. (This is a " +
   "static example; your live audit measures your domain across these " +

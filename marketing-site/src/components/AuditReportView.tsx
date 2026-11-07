@@ -98,7 +98,7 @@ function Dimension({ d }: { d: AuditReportModel["dimensions"][number] }) {
           <h3 className="text-lg font-semibold text-[var(--color-fg)]">
             {d.name}{" "}
             <span className="font-mono text-xs uppercase tracking-wider text-[var(--color-dim)]">
-              {C.naLabel}
+              {d.unmeasured ? C.naLabelUnmeasured : C.naLabel}
             </span>
           </h3>
           <span className="font-mono text-sm italic text-[var(--color-dim)]">

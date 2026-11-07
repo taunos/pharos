@@ -1,15 +1,15 @@
 // Security pass 2026-11-04: input validation / SSRF, burst rate limiting,
-// bounded fetches (deadline covers the body, byte caps), AI budget, and
+// bounded fetches (deadline covers the body, byte caps), no model call in a
+// scan (1.5.0; the AI budget tests went with the AI ratings), and
 // "truncated or errored reads never produce absence evidence".
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { validateTargetUrl, safeFetch, MAX_HTML_BYTES, MAX_TEXT_BYTES } from "./safe-fetch";
 import { checkBurstLimit, checkRateLimit, isIpLiteral, limiterIdentity, urlCacheKey, urlLimitKey } from "./ratelimit";
 import { runDim3, INCOMPLETE_SPEC_NOTE } from "./checks/dim3-openapi";
 import { compositeOf } from "./scoring";
-import { evalWithCache, aiBudgetKey, DAILY_AI_CALL_CAP, MAX_PROMPT_CHARS } from "./checks/llm-eval";
 import { runDim1, evalBlockquote } from "./checks/dim1-llmstxt";
 import { runDim2 } from "./checks/dim2-mcp";
-import { runDim4, evalConversational } from "./checks/dim4-structured";
+import { runDim4, faqPairMeetsRules } from "./checks/dim4-structured";
 import { runDim5 } from "./checks/dim5-parsable";
 import app from "./index";
 
@@ -751,71 +751,34 @@ describe("Dim 5 page weight keeps its >3MB bucket past the HTML cap", () => {
   });
 });
 
-// ── AI budget + prompt cap ────────────────────────────────────────────────
+// ── 1.5.0: no model call in a scan ─────────────────────────────────────────
 
-function aiEnv(initial: Record<string, string> = {}) {
-  const store = new Map(Object.entries(initial));
-  const run = vi.fn(async () => ({ response: "80" }));
-  const env = {
-    AI: { run },
-    CACHE: { get: async (k: string) => store.get(k) ?? null, put: async (k: string, v: string) => void store.set(k, v) },
-  } as never;
-  return { env, run, store };
-}
-
-describe("daily Workers AI budget", () => {
-  it("metered calls are counted; cache hits are not", async () => {
-    const { env, run, store } = aiEnv();
-    await evalWithCache(env, { prompt: "p", cacheKey: "k", metered: true });
-    await evalWithCache(env, { prompt: "p", cacheKey: "k", metered: true }); // cache hit
-    expect(run).toHaveBeenCalledTimes(1);
-    expect(store.get(aiBudgetKey())).toBe("1");
-  });
-
-  it("exhausted budget: no AI call, default score, fallback (unmeasured), not cached, logged", async () => {
-    const err = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { env, run, store } = aiEnv({ [aiBudgetKey()]: String(DAILY_AI_CALL_CAP) });
-    const r = await evalWithCache(env, { prompt: "p", cacheKey: "k2", metered: true });
-    expect(run).not.toHaveBeenCalled();
-    expect(r).toEqual({ score: 50, cached: false, fallback: true });
-    expect([...store.keys()]).toEqual([aiBudgetKey()]);
-    expect(err.mock.calls.some((c) => String(c[0]).includes("AI_BUDGET_EXHAUSTED"))).toBe(true);
-    err.mockRestore();
-  });
-
-  it("Dim 4 FAQ eval is metered: exhausted budget => the FAQ LLM part gets the AI-failure default and note", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+describe("1.5.0: Dim 1 / Dim 4 text checks are fixed rules", () => {
+  it("runDim1 and runDim4 never call Workers AI, even with a binding present", async () => {
+    const run = vi.fn(async () => ({ response: "100" }));
+    const env = { AI: { run }, CACHE: { get: async () => null, put: async () => {} } } as never;
     const faq = {
       "@type": "FAQPage",
-      mainEntity: ["How do I start?", "What does it cost?", "Can I cancel?"].map((q) => ({ "@type": "Question", name: q })),
+      mainEntity: ["How do I start?", "What does it cost?", "Can I cancel?"].map((q) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: "Yes." } })),
     };
-    vi.stubGlobal("fetch", vi.fn(async () =>
-      new Response(`<script type="application/ld+json">${JSON.stringify(faq)}</script>`, { status: 200, headers: { "content-type": "text/html" } })
+    vi.stubGlobal("fetch", vi.fn(async (u: string) =>
+      String(u).endsWith("/llms.txt")
+        ? new Response("# Acme\n\n> Acme makes invoicing software for agencies.\n", { status: 200, headers: { "content-type": "text/plain" } })
+        : new Response(`<script type="application/ld+json">${JSON.stringify(faq)}</script>`, { status: 200, headers: { "content-type": "text/html" } })
     ));
-    const { env, run } = aiEnv({ [aiBudgetKey()]: String(DAILY_AI_CALL_CAP + 5) });
-    const d = await runDim4("https://acme.com/", env);
-    const s = d.sub_checks.find((x) => x.id === "faq_schema")!;
+    const d1 = await runDim1("https://acme.com/", env);
+    const d4 = await runDim4("https://acme.com/", env);
     expect(run).not.toHaveBeenCalled();
-    expect(s.notes).toBe("3 Q&A pair(s); LLM rated 3 question(s) avg 50/100 (LLM output unusable; default)");
-    expect(s.score).toBe(Math.round(60 * 0.6 + 50 * 0.4));
-    vi.restoreAllMocks();
+    expect(d1.sub_checks.find((x) => x.id === "blockquote_eval")!.na).toBeUndefined();
+    // 1.5.1: "Yes." is a short answer that meets the rules; scored by them, not N/A.
+    expect(d4.sub_checks.find((x) => x.id === "faq_schema")).toMatchObject({ score: 100, passed: true, notes: "3 Q&A pair(s); 3 are phrased as questions and have an answer of reasonable length." });
   });
 
-  it("worst-case prompts from today's callers stay under the cap (scoring unchanged)", async () => {
-    const { env, run } = aiEnv();
-    await evalBlockquote(env, "word ".repeat(2000));
-    await evalConversational(env, Array.from({ length: 20 }, (_, i) => `question ${i} ` + "q".repeat(400)));
-    expect(run).toHaveBeenCalledTimes(2);
-    for (const c of run.mock.calls as unknown as [string, { messages: { content: string }[] }][])
-      expect(c[1].messages[0].content.length).toBeLessThan(MAX_PROMPT_CHARS);
-  });
-
-  it("an over-long prompt is never sent", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const { env, run } = aiEnv();
-    const r = await evalWithCache(env, { prompt: "x".repeat(MAX_PROMPT_CHARS + 1), cacheKey: "k3" });
-    expect(run).not.toHaveBeenCalled();
-    expect(r.fallback).toBe(true);
-    vi.restoreAllMocks();
+  it("hostile-size inputs are bounded and linear", () => {
+    const t0 = Date.now();
+    const r = evalBlockquote(["word ".repeat(200_000)]);
+    expect(r.note).toContain("10 to 100 words (no, ");
+    expect(faqPairMeetsRules("q ".repeat(100_000) + "?", "a ".repeat(1_000_000))).toBe(false);
+    expect(Date.now() - t0).toBeLessThan(2000);
   });
 });

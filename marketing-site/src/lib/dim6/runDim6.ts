@@ -19,7 +19,7 @@ import {
   type CellEnvelope,
   type Dim6Result,
 } from "./types";
-import { DIM6_DISCLOSURE } from "./disclosure";
+import { DIM6_ENGINE_LINE } from "./disclosure";
 
 export interface Dim6SubCheck {
   id: string;
@@ -38,6 +38,9 @@ export interface Dim6Dimension {
   grade: string;
   sub_checks: Dim6SubCheck[];
   na?: boolean;
+  // Set with na:true: Citation Visibility applies to every site, so an N/A
+  // Dim 6 here was not measured (daily cap, no usable answers).
+  unmeasured?: boolean;
   // Cells are NOT placed on the public dimension shape (would leak raw model
   // text into the per-scan JSON). Audit-fulfill consumes them separately for
   // the corpus write.
@@ -94,7 +97,25 @@ function rateOf(cells: CellEnvelope[], flag: string): number {
   return Math.round((trues / measurable.length) * 100);
 }
 
-function buildSubChecks(result: Dim6Result): Dim6SubCheck[] {
+// Customer-facing model names, keyed by the provider prefix of the model id.
+// An unknown provider keeps its prefix so a new model still shows something.
+const MODEL_LABELS: Record<string, string> = {
+  openai: "ChatGPT",
+  anthropic: "Claude",
+  google: "Gemini",
+  perplexity: "Perplexity",
+};
+
+export function modelLabel(modelId: string): string {
+  const provider = modelId.split(":")[0];
+  return MODEL_LABELS[provider] ?? provider;
+}
+
+/** dim6:v4: competitor-first sub-check note when no competitor list was given. */
+export const COMPETITOR_FIRST_NA_NOTE =
+  "Not measured: this Audit doesn't take a competitor list yet, so there is nothing to compare against. This check is not counted in your score.";
+
+function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6SubCheck[] {
   const cells = result.cells;
   const measurableCount = cells.length - result.unmeasurableCount;
 
@@ -103,8 +124,8 @@ function buildSubChecks(result: Dim6Result): Dim6SubCheck[] {
   const ctxRate = rateOf(cells, "context_relevant");
   const compRate = rateOf(cells, "no_competitor_first");
 
-  const summary = `${measurableCount}/${cells.length} cells measurable across ${ALL_MODEL_IDS.length} models. Per-model averages: ${ALL_MODEL_IDS.map(
-    (m) => `${m.split(":")[0]}=${result.perModelAverage[m] ?? "n/a"}`
+  const summary = `${measurableCount} of ${cells.length} test answers could be scored, across ${ALL_MODEL_IDS.length} AI models. Average by model: ${ALL_MODEL_IDS.map(
+    (m) => `${modelLabel(m)} ${result.perModelAverage[m] ?? "not measured"}`
   ).join(", ")}.`;
 
   return [
@@ -114,7 +135,7 @@ function buildSubChecks(result: Dim6Result): Dim6SubCheck[] {
       weight: 40,
       score: dnRate,
       passed: dnRate >= 70,
-      notes: `${dnRate}% of measurable cells named the target domain. ${summary}`,
+      notes: `${dnRate}% of scored test answers named your domain. ${summary}`,
     },
     {
       id: SUBCHECK_IDS.url_referenced_rate,
@@ -122,7 +143,7 @@ function buildSubChecks(result: Dim6Result): Dim6SubCheck[] {
       weight: 30,
       score: urlRate,
       passed: urlRate >= 70,
-      notes: `${urlRate}% of measurable cells included at least one URL on the target host.`,
+      notes: `${urlRate}% of scored test answers included at least one link to your site.`,
     },
     {
       id: SUBCHECK_IDS.context_relevant_rate,
@@ -130,25 +151,55 @@ function buildSubChecks(result: Dim6Result): Dim6SubCheck[] {
       weight: 20,
       score: ctxRate,
       passed: ctxRate >= 70,
-      notes: `${ctxRate}% of measurable cells positioned the target domain in the first half of the response (vs a footer-style mention).`,
+      notes: `${ctxRate}% of scored test answers put your domain in the first half of the answer, rather than only mentioning it at the end.`,
     },
-    {
-      id: SUBCHECK_IDS.no_competitor_first_rate,
-      name: "Competitor-first check (not measured)",
-      weight: 10,
-      score: compRate,
-      passed: compRate >= 70,
-      notes:
-        compRate === 100
-          ? "Not measured: this Audit doesn't take a competitor list yet, so this check passes by default."
-          : `${compRate}% of measurable cells avoided a competitor-first mention.`,
-    },
+    // dim6:v4: N/A without a competitor list (the cell scores give it no
+    // points either, see parser.ts), so it is never a gap. With no list the
+    // old rate was really the AFFIRM rate (DENY cells carry no flag).
+    hasCompetitorList
+      ? {
+          id: SUBCHECK_IDS.no_competitor_first_rate,
+          name: "Competitor-first check (not measured)",
+          weight: 10,
+          score: compRate,
+          passed: compRate >= 70,
+          notes: `${compRate}% of scored test answers did not name a competitor before your domain.`,
+        }
+      : {
+          id: SUBCHECK_IDS.no_competitor_first_rate,
+          name: "Competitor-first check (not measured)",
+          weight: 10,
+          score: 0,
+          passed: false,
+          notes: COMPETITOR_FIRST_NA_NOTE,
+          na: true,
+        },
   ];
 }
 
+/** Daily-cap note shown on a report that ships without Citation Visibility. */
+export const DIM6_DAILY_CAP_NOTE =
+  "Citation Visibility was not measured on this run: the daily limit for live AI assistant tests (100 paid audits per day) was reached. It is not counted in your score; the other dimensions are scored normally below.";
+
+/**
+ * Not-run note (r4): no AI assistant was set up for this run (every test
+ * answer failed because no provider API key was configured), as opposed to
+ * answers that failed on the network or at a provider.
+ */
+export const DIM6_NOT_RUN_NOTE = `Citation Visibility was not run on this report: no AI assistant was set up to answer the test questions. It is not counted in your score. ${DIM6_ENGINE_LINE}.`;
+
+/** true when every cell failed only because its provider has no API key configured. */
+export function noProviderConfigured(cells: Array<{ result: { unmeasurable: boolean; notes: string } }>): boolean {
+  return cells.length > 0 && cells.every((c) => c.result.unmeasurable && /\b[A-Z_]+_API_KEY not set\b/.test(c.result.notes));
+}
+
+/** All-unmeasurable note: no AI assistant answer could be scored. */
+export const dim6AllUnmeasurableNote = (totalAnswers: number) =>
+  `Citation Visibility was not measured on this run: none of the ${totalAnswers} test answers from the AI assistants could be scored (network or provider failures). It is not counted in your score. ${DIM6_ENGINE_LINE}.`;
+
 /**
  * Build the DAILY-CAP-EXCEEDED dimension. Distinct note from free-tier so
- * audit-fulfill can flag the customer (and re-queue for tomorrow) cleanly.
+ * audit-fulfill can flag the customer cleanly.
  */
 function buildDailyCapDim6(): Dim6Dimension {
   return {
@@ -164,13 +215,13 @@ function buildDailyCapDim6(): Dim6Dimension {
         weight: 1,
         score: 0,
         passed: false,
-        notes:
-          "Citation Visibility audit hit Astrant's daily soft cap (100 paid audits/day). " +
-          "Your audit will run automatically tomorrow and an updated PDF will be emailed " +
-          "when it's ready. The other 5 dimensions are scored normally below.",
+        // No re-run exists for a report shipped this way (the queue path
+        // defers before this point instead), so the note promises none.
+        notes: DIM6_DAILY_CAP_NOTE,
         na: true,
       },
     ],
+    unmeasured: true,
   };
 }
 
@@ -253,10 +304,11 @@ export async function runDim6Paid(
             weight: 1,
             score: 0,
             passed: false,
-            notes: `All ${result.totalCells} cells came back unmeasurable (network or provider failures). Dimension dropped from composite. ${DIM6_DISCLOSURE.engineLine}`,
+            notes: noProviderConfigured(result.cells) ? DIM6_NOT_RUN_NOTE : dim6AllUnmeasurableNote(result.totalCells),
             na: true,
           },
         ],
+        unmeasured: true,
       },
       cells: result.cells,
       raw: result,
@@ -264,7 +316,7 @@ export async function runDim6Paid(
     };
   }
 
-  const subChecks = buildSubChecks(result);
+  const subChecks = buildSubChecks(result, competitorHosts.length > 0);
   const score = result.score; // already aggregated 0-100
 
   return {

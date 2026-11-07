@@ -1,0 +1,32 @@
+[
+ {
+  "@context": "http://schema.org",
+  "@type": "Organization",
+  "name": "Ugmonk",
+  "logo": "https://ugmonk.com/cdn/shop/files/ugmonk-logo-1000_049acf69-2410-4ebe-ba63-a576142eeb51.png?v=1739292625&width=500",
+  "url": "https://ugmonk.com"
+ },
+ {
+  "@context": "http://schema.org/",
+  "@id": "/products/ugmonk-utility-tote-field-tan#product",
+  "@type": "Product",
+  "brand": {
+   "@type": "Brand",
+   "name": "Ugmonk"
+  },
+  "category": "Tote Bags",
+  "description": "The tote you’ll grab every time you head out the door. Most tote bags are flimsy, awkward to carry, or just plain ugly. This one is thick, sturdy, and thoughtfully designed.\n\nHeavyweight 100% cotton canvas\nShoulder strap and grab handles\nTwo interior pockets to keep your small items organized\nSnap closure keeps everything secure\n\nFeatures:\n\nHeavyweight 100% cotton canvas \nShoulder strap and grab handles\nTwo interior pockets \nSnap closure\nDimensions: 12\" x 15\" x 3\" (excluding handles)\nShoulder strap: 31\" long\n",
+  "image": "https://ugmonk.com/cdn/shop/files/tote-tan-1.jpg?v=1793117251&width=1920",
+  "name": "Ugmonk Utility Tote (Field Tan)",
+  "offers": {
+   "@id": "/products/ugmonk-utility-tote-field-tan?variant=67640440324246#offer",
+   "@type": "Offer",
+   "availability": "http://schema.org/InStock",
+   "price": "29.00",
+   "priceCurrency": "USD",
+   "url": "https://ugmonk.com/products/ugmonk-utility-tote-field-tan?variant=67640440324246"
+  },
+  "sku": "tote-tan",
+  "url": "https://ugmonk.com/products/ugmonk-utility-tote-field-tan"
+ }
+]

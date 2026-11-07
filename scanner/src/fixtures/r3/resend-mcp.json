@@ -1,0 +1,180 @@
+{
+  "name": "Resend",
+  "description": "Email API for developers. Send transactional and marketing emails at scale.",
+  "homepage": "https://resend.com",
+  "documentation": "https://resend.com/docs/mcp-server",
+  "repository": "https://github.com/resend/resend-mcp",
+  "remote": {
+    "url": "https://mcp.resend.com/mcp",
+    "transport": "streamable-http",
+    "authentication": {
+      "type": "oauth2",
+      "authorization_server": "https://api.resend.com",
+      "resource": "https://mcp.resend.com/mcp",
+      "protected_resource_metadata": "https://mcp.resend.com/.well-known/oauth-protected-resource",
+      "bearer_methods_supported": ["header"],
+      "api_key": {
+        "description": "Alternatively, send a Resend API key as a Bearer token: `Authorization: Bearer re_...`. Get one at https://resend.com/api-keys",
+        "required": false
+      }
+    }
+  },
+  "server": {
+    "package": "resend-mcp",
+    "command": "npx",
+    "args": ["-y", "resend-mcp"],
+    "environment": {
+      "RESEND_API_KEY": {
+        "description": "Your Resend API key. Get one at https://resend.com/api-keys",
+        "required": true
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "emails",
+      "description": "Send, list, get, cancel, update, and batch send emails with HTML, attachments, CC/BCC, reply-to, scheduling, and tags"
+    },
+    {
+      "name": "received-emails",
+      "description": "List and read inbound emails and manage attachments"
+    },
+    {
+      "name": "contacts",
+      "description": "Create, list, get, update, and remove contacts with custom properties, segments, and topics"
+    },
+    {
+      "name": "broadcasts",
+      "description": "Create, send, list, get, update, and remove marketing campaigns with scheduling and personalization"
+    },
+    {
+      "name": "domains",
+      "description": "Create, list, get, update, remove, and verify sender domains with tracking, TLS, and DNS configuration"
+    },
+    {
+      "name": "segments",
+      "description": "Create, list, get, and remove audience segments"
+    },
+    {
+      "name": "topics",
+      "description": "Create, list, get, update, and remove subscription topics"
+    },
+    {
+      "name": "contact-properties",
+      "description": "Create, list, get, update, and remove custom contact attributes"
+    },
+    {
+      "name": "api-keys",
+      "description": "Create, list, and remove API keys"
+    },
+    {
+      "name": "templates",
+      "description": "Create, list, get, update, remove, publish, and duplicate email templates"
+    },
+    {
+      "name": "logs",
+      "description": "List and inspect API request logs for debugging, auditing, and reviewing recent API activity"
+    },
+    {
+      "name": "webhooks",
+      "description": "Create, list, get, update, and remove webhooks for event notifications"
+    }
+  ],
+  "clients": {
+    "claude-web": {
+      "setup": "Settings → Connectors → Add custom connector → https://mcp.resend.com/mcp"
+    },
+    "claude-code": {
+      "command": "claude plugin install resend@claude-plugins-official"
+    },
+    "claude-desktop": {
+      "setup": "Settings → Connectors → Add custom connector → https://mcp.resend.com/mcp"
+    },
+    "cursor": {
+      "config": {
+        "mcpServers": {
+          "resend": {
+            "url": "https://mcp.resend.com/mcp"
+          }
+        }
+      }
+    },
+    "codex": {
+      "command": "codex mcp add resend --url https://mcp.resend.com/mcp"
+    },
+    "github-copilot": {
+      "config": {
+        "mcp": {
+          "servers": {
+            "resend": {
+              "type": "http",
+              "url": "https://mcp.resend.com/mcp"
+            }
+          }
+        }
+      }
+    },
+    "devin": {
+      "config": {
+        "mcpServers": {
+          "resend": {
+            "transport": "HTTP",
+            "url": "https://mcp.resend.com/mcp"
+          }
+        }
+      }
+    },
+    "zed": {
+      "config": {
+        "context_servers": {
+          "resend": {
+            "url": "https://mcp.resend.com/mcp"
+          }
+        }
+      }
+    },
+    "antigravity": {
+      "config": {
+        "mcpServers": {
+          "resend": {
+            "serverUrl": "https://mcp.resend.com/mcp"
+          }
+        }
+      }
+    },
+    "gemini": {
+      "config": {
+        "mcpServers": {
+          "resend": {
+            "httpUrl": "https://mcp.resend.com/mcp"
+          }
+        }
+      }
+    },
+    "opencode": {
+      "config": {
+        "$schema": "https://opencode.ai/config.json",
+        "mcp": {
+          "resend": {
+            "type": "remote",
+            "url": "https://mcp.resend.com/mcp",
+            "enabled": true
+          }
+        }
+      }
+    },
+    "warp": {
+      "config": {
+        "resend": {
+          "serverUrl": "https://mcp.resend.com/mcp"
+        }
+      }
+    },
+    "hermes": {
+      "command": "hermes plugins install resend/resend-skills --enable"
+    },
+    "openclaw": {
+      "command": "openclaw mcp add resend --url https://mcp.resend.com/mcp --transport streamable-http"
+    }
+  }
+}
