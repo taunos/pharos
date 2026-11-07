@@ -43,7 +43,7 @@ const sub = (d: { sub_checks: { id: string }[] }, id: string) =>
   d.sub_checks.find((s) => s.id === id) as import("./types").SubCheck;
 
 it("SCORING_VERSION is 1.5.0 (supersedes 1.3.3)", () => {
-  expect(SCORING_VERSION).toBe("1.5.0");
+  expect(SCORING_VERSION).toBe("1.5.1");
 });
 
 describe("1.3.3 Dim 4: schema.org subtypes, optional sameAs / price, FAQ N/A, nested ratings", () => {
@@ -107,14 +107,14 @@ describe("1.3.3 Dim 4: schema.org subtypes, optional sameAs / price, FAQ N/A, ne
     routes({ [HOME]: html(ldPage(faq)) });
     const f = sub(await runDim4(HOME, env()), "faq_schema");
     expect(f.na).toBeUndefined();
-    expect(f).toMatchObject({ score: 100, passed: true, notes: "1 Q&A pair(s); 1 read as clear questions with direct answers." });
+    expect(f).toMatchObject({ score: 100, passed: true, notes: "1 Q&A pair(s); 1 are phrased as questions and have an answer of reasonable length." });
   });
 
   it("1.5.0: a present FAQ is always scored by the rules (no AI call, never 'not measured')", async () => {
-    const faq = { "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Do you take insurance?", acceptedAnswer: { "@type": "Answer", text: "Yes, most plans." } }] };
+    const faq = { "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Insurance", acceptedAnswer: { "@type": "Answer", text: "Yes, most plans." } }] };
     routes({ [HOME]: html(ldPage(faq)) });
     const f = sub(await runDim4(HOME, env(() => { throw new Error("AI must not be called"); })), "faq_schema");
-    expect(f).toMatchObject({ score: 0, passed: false, notes: "1 Q&A pair(s); 0 read as clear questions with direct answers." });
+    expect(f).toMatchObject({ score: 0, passed: false, notes: "1 Q&A pair(s); 0 are phrased as questions and have an answer of reasonable length." });
     expect(f.na).toBeUndefined();
   });
 
@@ -254,8 +254,8 @@ describe("1.3.3 / 1.5.0 Dim 1: multi-line blockquote, fixed rules", () => {
   it("the full blockquote is counted (words across every '>' line)", async () => {
     routes({ "https://acme.com/llms.txt": text("# Acme\n\n> Line one of the summary\n> line two of the summary.\n") });
     const b = sub(await runDim1(HOME, env()), "blockquote_eval");
-    expect(b.notes).toBe("1 of 3 blockquote rules met: one paragraph (yes); 50 to 250 words (no, 10 words); names the business (no).");
-    expect(b).toMatchObject({ score: 33, passed: false });
+    expect(b.notes).toBe("2 of 2 blockquote rules met: one paragraph (yes); 10 to 100 words (yes, 10 words).");
+    expect(b).toMatchObject({ score: 100, passed: true });
   });
 
   it("1.5.0: no AI call and never 'not measured'; the same text always gets the same score", async () => {
@@ -265,6 +265,6 @@ describe("1.3.3 / 1.5.0 Dim 1: multi-line blockquote, fixed rules", () => {
     const b = sub(await runDim1(HOME, failing), "blockquote_eval");
     expect(a.na).toBeUndefined();
     expect(a).toEqual(b);
-    expect(a.notes).toBe("2 of 3 blockquote rules met: one paragraph (yes); 50 to 250 words (no, 4 words); names the business (yes).");
+    expect(a.notes).toBe("1 of 2 blockquote rules met: one paragraph (yes); 10 to 100 words (no, 4 words).");
   });
 });

@@ -538,12 +538,12 @@ describe("1.4.0 F34: page weight only, no internal tool names", () => {
 // ── 10. 1.5.0: FAQ fixed rules on real data ──────────────────────────────
 
 describe("1.5.0 faq_schema: Rachel Queiroz's 4 real FAQ pairs are scored by fixed rules", () => {
-  it("each question is phrased as a question and each answer has 5-300 words: 4 of 4, score 100", async () => {
+  it("each question is phrased as a question and each answer has 1-300 words: 4 of 4, score 100", async () => {
     const ld = fxJson<unknown[]>("rachelqueiroz-ld.json");
     routes({ "https://rachelqueiroz.com/": html(page({ ld })) });
     const f = sub(await runDim4("https://rachelqueiroz.com/", env(() => { throw new Error("AI must not be called"); })), "faq_schema");
     expect(f.na).toBeUndefined();
-    expect(f).toMatchObject({ score: 100, passed: true, notes: "4 Q&A pair(s); 4 read as clear questions with direct answers." });
+    expect(f).toMatchObject({ score: 100, passed: true, notes: "4 Q&A pair(s); 4 are phrased as questions and have an answer of reasonable length." });
   });
 });
 

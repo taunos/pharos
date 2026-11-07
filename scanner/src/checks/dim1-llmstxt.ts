@@ -93,63 +93,21 @@ export function extractBlockquote(body: string): string | null {
   return paras ? paras.join(" ") : null;
 }
 
-// Longer than any 250-word summary needs; keeps the work bounded.
+// Far longer than any 100-word summary needs; keeps the work bounded.
 const BLOCKQUOTE_MAX_CHARS = 3000;
 
 // 1.5.0: blockquote_eval is scored by fixed rules, not an AI rating (the
-// model gave different scores to the same text on different runs). Three
-// rules, a third of the score each; the 50-250 word range is the one the AI
-// rating was asked to apply.
-export const BLOCKQUOTE_MIN_WORDS = 50;
-export const BLOCKQUOTE_MAX_WORDS = 250;
-
-/** Lowercase, accents removed, anything but letters and digits as one space. */
-function foldForMatch(s: string): string {
-  return s
-    .normalize("NFKD")
-    .replace(/\p{M}+/gu, "")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim();
-}
-
-// Second-level labels under a country code (example.com.br, example.co.uk).
-const GENERIC_SLDS = new Set(["com", "net", "org", "co", "gov", "edu", "ac", "gob", "nom"]);
-
-/** The host's main label: "resend" for docs.resend.com, "acme" for acme.com.br. */
-export function hostMainLabel(host: string): string {
-  const labels = host.toLowerCase().replace(/\.$/, "").split(".").filter(Boolean);
-  if (labels.length <= 1) return labels[0] ?? "";
-  labels.pop();
-  if (labels.length >= 2 && GENERIC_SLDS.has(labels[labels.length - 1])) labels.pop();
-  return labels[labels.length - 1];
-}
-
-/** The site name in an llms.txt H1: the part before a " - ", " | " or ": " separator. */
-export function h1SiteName(h1: string): string {
-  return cleanSiteText(h1, 200).split(/\s+[|\u2013\u2014-]\s+|:\s/)[0].trim();
-}
-
-/** true when `text` contains one of `names` (case- and accent-insensitive, whole words). */
-export function namesBusiness(text: string, names: string[]): boolean {
-  const t = foldForMatch(text);
-  const tCompact = t.replace(/ /g, "");
-  return names.some((raw) => {
-    const n = foldForMatch(raw);
-    if (!n) return false;
-    if (` ${t} `.includes(` ${n} `)) return true;
-    // "rachel-queiroz" / "RachelQueiroz" written as one word or two.
-    const nCompact = n.replace(/ /g, "");
-    return nCompact.length >= 4 && tCompact.includes(nCompact);
-  });
-}
+// model gave different scores to the same text on different runs).
+// 1.5.1 (r7): the llmstxt.org proposal asks only for "a blockquote with a
+// short summary". Two rules, half the score each: one paragraph, and 10-100
+// words (was 50-250, which failed resend.com's good 19-word summary). The
+// "names the business" rule is gone: the H1 right above already names it.
+export const BLOCKQUOTE_MIN_WORDS = 10;
+export const BLOCKQUOTE_MAX_WORDS = 100;
 
 const yesNo = (b: boolean) => (b ? "yes" : "no");
 
-export function evalBlockquote(
-  paragraphs: string[],
-  names: string[]
-): { score: number; note: string } {
+export function evalBlockquote(paragraphs: string[]): { score: number; note: string } {
   // The blockquote is site-controlled text: clean it and screen it.
   const text = cleanSiteText(paragraphs.join(" "), BLOCKQUOTE_MAX_CHARS);
   if (!text) return { score: 0, note: "blockquote empty after cleaning" };
@@ -160,11 +118,10 @@ export function evalBlockquote(
   const words = text.split(" ").filter(Boolean).length;
   const onePara = paragraphs.filter((p) => cleanSiteText(p, BLOCKQUOTE_MAX_CHARS) !== "").length === 1;
   const lengthOk = words >= BLOCKQUOTE_MIN_WORDS && words <= BLOCKQUOTE_MAX_WORDS;
-  const named = namesBusiness(text, names);
-  const met = [onePara, lengthOk, named].filter(Boolean).length;
+  const met = [onePara, lengthOk].filter(Boolean).length;
   return {
-    score: Math.round((met / 3) * 100),
-    note: `${met} of 3 blockquote rules met: one paragraph (${yesNo(onePara)}); ${BLOCKQUOTE_MIN_WORDS} to ${BLOCKQUOTE_MAX_WORDS} words (${yesNo(lengthOk)}, ${words} words); names the business (${yesNo(named)}).`,
+    score: Math.round((met / 2) * 100),
+    note: `${met} of 2 blockquote rules met: one paragraph (${yesNo(onePara)}); ${BLOCKQUOTE_MIN_WORDS} to ${BLOCKQUOTE_MAX_WORDS} words (${yesNo(lengthOk)}, ${words} words).`,
   };
 }
 
@@ -325,8 +282,7 @@ export async function runDim1(
   let bqScore = 0;
   let bqNote = "no blockquote to evaluate";
   if (bqParas && blockquote) {
-    const names = [h1 ? h1SiteName(h1) : "", hostMainLabel(new URL(targetUrl).hostname)];
-    const r = evalBlockquote(bqParas, names);
+    const r = evalBlockquote(bqParas);
     bqScore = r.score;
     bqNote = r.note;
   }

@@ -770,14 +770,14 @@ describe("1.5.0: Dim 1 / Dim 4 text checks are fixed rules", () => {
     const d4 = await runDim4("https://acme.com/", env);
     expect(run).not.toHaveBeenCalled();
     expect(d1.sub_checks.find((x) => x.id === "blockquote_eval")!.na).toBeUndefined();
-    // "Yes." is a 1-word answer: no pair meets the rules; scored 0, not N/A.
-    expect(d4.sub_checks.find((x) => x.id === "faq_schema")).toMatchObject({ score: 0, passed: false, notes: "3 Q&A pair(s); 0 read as clear questions with direct answers." });
+    // 1.5.1: "Yes." is a short answer that meets the rules; scored by them, not N/A.
+    expect(d4.sub_checks.find((x) => x.id === "faq_schema")).toMatchObject({ score: 100, passed: true, notes: "3 Q&A pair(s); 3 are phrased as questions and have an answer of reasonable length." });
   });
 
   it("hostile-size inputs are bounded and linear", () => {
     const t0 = Date.now();
-    const r = evalBlockquote(["word ".repeat(200_000)], ["acme"]);
-    expect(r.note).toContain("50 to 250 words (no, ");
+    const r = evalBlockquote(["word ".repeat(200_000)]);
+    expect(r.note).toContain("10 to 100 words (no, ");
     expect(faqPairMeetsRules("q ".repeat(100_000) + "?", "a ".repeat(1_000_000))).toBe(false);
     expect(Date.now() - t0).toBeLessThan(2000);
   });

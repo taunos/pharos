@@ -127,5 +127,16 @@
  *   `yaml` package: failsafe schema, alias cap, no unknown tags; a YAML spec
  *   over 512 KB is "not read in full") and runs the JSON checks on them.
  *   `CURRENT_SCORING_VERSION` on /score/[id] bumped in lockstep.
+ * - 1.5.1 (report truthfulness r6, 2026-11-07): Dim 3 YAML specs: cap
+ *   lowered to 256 KB plus a 20,000-node budget counted on yaml's token
+ *   stream before parsing (over either is "not read in full"); a key repeated
+ *   in one mapping fails spec_validity (linear per-mapping check). Dim 4
+ *   faq_schema: question 2-40 words, answer 1-300 words and 2+ characters;
+ *   the note describes structure only; a typed Question missing its name or
+ *   answer text counts as failing and the note gives how many. Dim 1
+ *   blockquote_eval: two rules, one paragraph and 10-100 words (was 50-250;
+ *   "names the business" dropped, the H1 names it). Dim 2 well_known
+ *   evidence says whether both card addresses answered 404 / 410.
+ *   `CURRENT_SCORING_VERSION` on /score/[id] bumped in lockstep.
  */
-export const SCORING_VERSION = "1.5.0";
+export const SCORING_VERSION = "1.5.1";

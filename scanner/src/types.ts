@@ -93,6 +93,11 @@ export type SubCheckEvidence = {
    * application/ld+json script exists in the static HTML, whatever the markup.
    */
   ld_json_absent_proven?: boolean;
+  /**
+   * Dim 2 well_known only (1.5.1): true iff both MCP card addresses answered
+   * 404 or 410; false when a request failed or got another status.
+   */
+  card_absent_proven?: boolean;
 };
 
 export type SubCheck = {

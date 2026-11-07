@@ -238,7 +238,10 @@ describe("1.4.2 Dim 4: rating scale needs bestRating above 5; notes name the fai
         })
       ),
     });
-    expect(sub(await runDim4(ACME, env()), "faq_schema").notes).toContain("1 Q&A pair(s)");
+    // 1.5.1: the Question whose answer is not an Answer counts as malformed.
+    expect(sub(await runDim4(ACME, env()), "faq_schema").notes).toBe(
+      "2 Q&A pair(s); 1 are phrased as questions and have an answer of reasonable length. 1 entries are missing a question or an answer."
+    );
   });
 });
 
@@ -259,5 +262,5 @@ describe("1.4.2 notes", () => {
     expect(s.notes).not.toMatch(/[hlb]:[^ ]/);
   });
 
-  it("SCORING_VERSION is 1.5.0", () => expect(SCORING_VERSION).toBe("1.5.0"));
+  it("SCORING_VERSION is 1.5.1", () => expect(SCORING_VERSION).toBe("1.5.1"));
 });

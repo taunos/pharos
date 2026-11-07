@@ -2,7 +2,15 @@
 // FAQ), Markdown negotiation informational, YAML OpenAPI specs parsed in
 // full with strict limits. Every fetch is stubbed.
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { runDim3, parseYamlSpec, MAX_YAML_SPEC_CHARS, INCOMPLETE_SPEC_NOTE } from "./checks/dim3-openapi";
+import {
+  runDim3,
+  parseYamlSpec,
+  yamlOverBudget,
+  yamlSpecDuplicateKey,
+  MAX_YAML_SPEC_CHARS,
+  YAML_MAX_NODES,
+  INCOMPLETE_SPEC_NOTE,
+} from "./checks/dim3-openapi";
 import { runDim5, MARKDOWN_INFO_NOTE } from "./checks/dim5-parsable";
 import { runDim1 } from "./checks/dim1-llmstxt";
 import type { SubCheck } from "./types";
@@ -57,13 +65,52 @@ describe("parseYamlSpec: strict limits", () => {
     expect(parseYamlSpec("openapi: 3.0.0" + NL + "#".repeat(MAX_YAML_SPEC_CHARS))).toBeNull();
   });
 
-  it("a spec at the size cap parses in bounded time", () => {
-    let body = lines("openapi: 3.0.3", "info:", "  title: A", "  version: 1.0.0", "paths:");
-    for (let i = 0; body.length < MAX_YAML_SPEC_CHARS - 200; i++) body += lines(`  /p${i}:`, "    get:", "      summary: x");
+  it("a spec just under the node budget parses in bounded time", () => {
+    const head = lines("openapi: 3.0.3", "info:", "  title: A", "  version: 1.0.0", "paths:");
+    // 7 nodes per path (3 keys, 3 pairs, 1 value) + 12 in the head.
+    const paths = Math.floor((YAML_MAX_NODES - 12) / 7);
+    let body = head;
+    for (let i = 0; i < paths; i++) body += lines(`  /p${i}:`, "    get:", "      summary: x");
+    expect(yamlOverBudget(body)).toBe(false);
     const t0 = Date.now();
     const spec = parseYamlSpec(body);
     expect(spec).not.toBeNull();
+    expect(Object.keys(spec?.paths as object)).toHaveLength(paths);
     expect(Date.now() - t0).toBeLessThan(5000);
+    // A few more paths and it is over the budget, so it is not parsed.
+    body += lines("  /q1:", "    get:", "      summary: x", "  /q2:", "    get:", "      summary: x");
+    expect(yamlOverBudget(body)).toBe(true);
+    expect(parseYamlSpec(body)).toBeNull();
+  });
+
+  it("a small body with many nodes is not parsed (bytes alone do not bound memory)", () => {
+    const body = "openapi: 3.0.0" + NL + "x: [" + "a,".repeat(YAML_MAX_NODES) + "a]" + NL;
+    expect(body.length).toBeLessThan(MAX_YAML_SPEC_CHARS);
+    expect(yamlOverBudget(body)).toBe(true);
+    expect(parseYamlSpec(body)).toBeNull();
+  });
+
+  it("rejects a key repeated in the same mapping, at the root or nested", () => {
+    expect(yamlSpecDuplicateKey(lines("openapi: 3.0.0", "paths:", "  /a: {}", "info:", "  title: A", "paths:", "  /b: {}"))).toBe("paths");
+    expect(parseYamlSpec(lines("openapi: 3.0.0", "paths:", "  /a: {}", "paths:", "  /b: {}"))).toBeNull();
+    expect(yamlSpecDuplicateKey(lines("openapi: 3.0.0", "info:", "  title: A", "  title: B"))).toBe("title");
+    expect(yamlSpecDuplicateKey(lines("openapi: 3.0.0", "x: {a: 1, a: 2}"))).toBe("a");
+    expect(yamlSpecDuplicateKey(lines("openapi: 3.0.0", "x: [{a: 1}, {a: 2}]"))).toBeNull();
+  });
+
+  it("the same key in different mappings is not a duplicate", () => {
+    const body = lines("openapi: 3.0.0", "info:", "  title: A", "paths:", "  /a:", "    get:", "      summary: x", "  /b:", "    get:", "      summary: y");
+    expect(yamlSpecDuplicateKey(body)).toBeNull();
+    expect(parseYamlSpec(body)).toMatchObject({ paths: { "/a": { get: { summary: "x" } }, "/b": { get: { summary: "y" } } } });
+  });
+
+  it("the duplicate-key check is linear on a large mapping", () => {
+    let body = lines("openapi: 3.0.0", "paths:");
+    for (let i = 0; i < 6000; i++) body += `  /p${i}: x` + NL;
+    body += "  /p0: y" + NL;
+    const t0 = Date.now();
+    expect(yamlSpecDuplicateKey(body)).toBe("/p0");
+    expect(Date.now() - t0).toBeLessThan(2000);
   });
 });
 
@@ -73,6 +120,26 @@ describe("runDim3 on YAML (1.5.0)", () => {
     const d3 = await runDim3("https://acme.com/", env());
     expect(d3).toMatchObject({ na: true, unmeasured: true });
     expect(sub(d3, "spec_validity").notes).toBe(INCOMPLETE_SPEC_NOTE);
+  });
+
+  it("a YAML spec over the node budget is 'not read in full' too", async () => {
+    routes({ "https://acme.com/openapi.yaml": text("openapi: 3.0.3" + NL + "x: [" + "a,".repeat(YAML_MAX_NODES) + "a]" + NL) });
+    const d3 = await runDim3("https://acme.com/", env());
+    expect(d3).toMatchObject({ na: true, unmeasured: true });
+    expect(sub(d3, "spec_validity").notes).toBe(INCOMPLETE_SPEC_NOTE);
+  });
+
+  it("a YAML spec that repeats a key fails validity with a plain note", async () => {
+    routes({
+      "https://acme.com/openapi.yaml": text(lines("openapi: 3.0.3", "info:", "  title: A", "paths:", "  /a:", "    get:", "      summary: x", "paths:", "  /b: {}")),
+    });
+    const d3 = await runDim3("https://acme.com/", env());
+    expect(sub(d3, "spec_validity")).toMatchObject({
+      score: 0,
+      passed: false,
+      notes: "The YAML spec repeats a key (paths) in the same section, so we could not tell which version to read.",
+    });
+    expect(sub(d3, "operation_coverage").score).toBe(0);
   });
 
   it("a YAML spec that does not parse scores 0 on validity; the spec checks are skipped", async () => {
@@ -137,12 +204,9 @@ describe("Dim 5 markdown_negotiation is informational (1.5.0)", () => {
 });
 
 describe("Dim 1 blockquote_eval end to end (1.5.0)", () => {
-  it("names the business through the host label when the H1 is a longer title", async () => {
-    const quote =
-      "Resend is the email platform for developers. Send transactional and marketing email with a simple API, React Email templates, " +
-      "webhooks for delivery events, and dedicated IPs for teams that send at volume. Domains, audiences and broadcasts are managed from one dashboard, " +
-      "and SDKs cover Node.js, Python, Go, Ruby and PHP.";
-    routes({ "https://resend.com/llms.txt": text(lines("# Resend Documentation", "", "> " + quote)) });
+  it("1.5.1: resend.com's real 19-word summary passes (10 to 100 words, one paragraph)", async () => {
+    const quote = "Resend is the email API for developers. Send transactional and marketing emails at scale with a simple, modern API.";
+    routes({ "https://resend.com/llms.txt": text(lines("# Resend", "", "> " + quote)) });
     const b = sub(await runDim1("https://resend.com/", env()), "blockquote_eval");
     expect(b).toMatchObject({ score: 100, passed: true, name: "Blockquote elevator-pitch quality" });
     expect(b.na).toBeUndefined();

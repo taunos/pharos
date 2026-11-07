@@ -30,7 +30,7 @@ import type { DimensionResult, Env, SubCheck } from "../types";
 import { dimensionScore, gradeFor } from "../scoring";
 import { MAX_SPEC_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
 import { isSameSite, NO_SIGNALS, siteBase, type SiteSignals } from "./site-signals";
-import { parseDocument } from "yaml";
+import { CST, Lexer, isScalar, parseDocument, visit, type Document } from "yaml";
 
 const FETCH_TIMEOUT_MS = 5000;
 
@@ -449,11 +449,105 @@ interface ParsedSpec {
 // Limits: the failsafe schema (every scalar is a string, so `openapi: 3.0`
 // stays "3.0"), at most YAML_MAX_ALIASES alias expansions (billion-laughs),
 // one document, and no tag the schema does not know (custom tags rejected).
-// A YAML parse costs ~100x the body in memory (~100 MB at 1 MB), far above
-// JSON.parse, so a YAML body over MAX_YAML_SPEC_CHARS is not parsed: runDim3
-// reports it like a spec it could not read in full.
-export const MAX_YAML_SPEC_CHARS = 512 * 1024;
+// 1.5.1 (Codex r6): a YAML parse costs ~0.5-1.1 KB of heap per node, so the
+// byte cap alone does not bound memory (a 512 KB flow sequence of one-letter
+// items is ~260k nodes, ~290 MB). Before parsing, a linear pass over yaml's
+// Lexer token stream counts nodes and stops past YAML_MAX_NODES; a body over
+// MAX_YAML_SPEC_CHARS or YAML_MAX_NODES is not parsed and runDim3 reports it
+// like a spec it could not read in full.
+export const MAX_YAML_SPEC_CHARS = 256 * 1024;
+export const YAML_MAX_NODES = 20_000;
 const YAML_MAX_ALIASES = 50;
+const YAML_NODE_TOKENS = new Set([
+  "scalar",
+  "single-quoted-scalar",
+  "double-quoted-scalar",
+  "alias",
+  "flow-map-start",
+  "flow-seq-start",
+  "map-value-ind",
+  "seq-item-ind",
+  "explicit-key-ind",
+]);
+
+/** Over the YAML byte cap or node budget (linear, stops at the budget). */
+export function yamlOverBudget(body: string): boolean {
+  if (body.length > MAX_YAML_SPEC_CHARS) return true;
+  let nodes = 0;
+  try {
+    for (const token of new Lexer().lex(body)) {
+      if (YAML_NODE_TOKENS.has(CST.tokenType(token) ?? "") && ++nodes > YAML_MAX_NODES) return true;
+    }
+  } catch {
+    return true;
+  }
+  return false;
+}
+
+type YamlRead = { spec: Record<string, unknown> } | { duplicateKey: string };
+
+/**
+ * 1.5.1 (Codex r6): a key repeated in one mapping is ambiguous (a parser keeps
+ * one value and silently drops the other), so the spec is rejected. One walk,
+ * one Set per mapping: linear, unlike yaml's quadratic uniqueKeys.
+ */
+function firstDuplicateKey(doc: Document.Parsed): string | null {
+  let dup: string | null = null;
+  visit(doc, {
+    Map(_, map) {
+      const seen = new Set<string>();
+      for (const pair of map.items) {
+        if (!isScalar(pair.key)) continue;
+        const key = String(pair.key.value);
+        if (seen.has(key)) {
+          dup = key;
+          return visit.BREAK;
+        }
+        seen.add(key);
+      }
+      return undefined;
+    },
+  });
+  return dup;
+}
+
+function readYamlSpec(body: string): YamlRead | null {
+  if (yamlOverBudget(body)) return null;
+  try {
+    const doc = parseDocument(body, {
+      schema: "failsafe",
+      prettyErrors: false,
+      // uniqueKeys is quadratic per map (seconds on a large paths map);
+      // firstDuplicateKey does the same check in one linear walk.
+      uniqueKeys: false,
+    });
+    if (doc.errors.length > 0) return null;
+    if (doc.warnings.some((w) => w.code === "TAG_RESOLVE_FAILED")) return null;
+    const duplicateKey = firstDuplicateKey(doc);
+    if (duplicateKey !== null) return { duplicateKey };
+    const out: unknown = doc.toJS({ maxAliasCount: YAML_MAX_ALIASES });
+    if (!out || typeof out !== "object" || Array.isArray(out)) return null;
+    return { spec: out as Record<string, unknown> };
+  } catch {
+    // alias-count overflow and other hard failures
+    return null;
+  }
+}
+
+export function parseYamlSpec(body: string): Record<string, unknown> | null {
+  const read = readYamlSpec(body);
+  return read && "spec" in read ? read.spec : null;
+}
+
+/** The repeated key that made a YAML spec ambiguous, or null. */
+export function yamlSpecDuplicateKey(body: string): string | null {
+  const read = readYamlSpec(body);
+  return read && "duplicateKey" in read ? read.duplicateKey : null;
+}
+
+/** spec_validity note (1.5.1) for a YAML spec that repeats a key in one mapping. */
+export const yamlDuplicateKeyNote = (key: string) =>
+  `The YAML spec repeats a key (${key.length > 80 ? `${key.slice(0, 80)}…` : key}) in the same section, so we could not tell which version to read.`;
 
 function tryParseJsonSpec(body: string, contentType: string): Record<string, unknown> | null {
   const trimmed = body.trim();
@@ -474,40 +568,20 @@ function tryParseJsonSpec(body: string, contentType: string): Record<string, unk
   return null;
 }
 
-export function parseYamlSpec(body: string): Record<string, unknown> | null {
-  if (body.length > MAX_YAML_SPEC_CHARS) return null;
-  try {
-    const doc = parseDocument(body, {
-      schema: "failsafe",
-      prettyErrors: false,
-      // uniqueKeys is quadratic per map (seconds on a large paths map); a
-      // repeated key keeps its last value instead.
-      uniqueKeys: false,
-    });
-    if (doc.errors.length > 0) return null;
-    if (doc.warnings.some((w) => w.code === "TAG_RESOLVE_FAILED")) return null;
-    const out: unknown = doc.toJS({ maxAliasCount: YAML_MAX_ALIASES });
-    if (!out || typeof out !== "object" || Array.isArray(out)) return null;
-    return out as Record<string, unknown>;
-  } catch {
-    // alias-count overflow and other hard failures
-    return null;
-  }
-}
-
-function tryParseSpec(body: string, contentType: string): ParsedSpec | null {
+function tryParseSpec(body: string, contentType: string): ParsedSpec | { duplicateKey: string } | null {
   const json = tryParseJsonSpec(body, contentType);
   if (json) return { spec: json, format: "json" };
   // YAML only when the body carries an openapi / swagger version key (cheap
   // linear scan), so arbitrary text is never handed to the YAML parser.
   if (!yamlVersionKey(body)) return null;
-  const yaml = parseYamlSpec(body);
-  return yaml ? { spec: yaml, format: "yaml" } : null;
+  const yaml = readYamlSpec(body);
+  if (!yaml) return null;
+  return "spec" in yaml ? { spec: yaml.spec, format: "yaml" } : yaml;
 }
 
-/** A YAML-looking spec (version key, not JSON) too large to parse. */
+/** A YAML-looking spec (version key, not JSON) too large to parse (bytes or nodes). */
 function isOversizedYaml(body: string, contentType: string): boolean {
-  return body.length > MAX_YAML_SPEC_CHARS && !tryParseJsonSpec(body, contentType) && yamlVersionKey(body) !== null;
+  return !tryParseJsonSpec(body, contentType) && yamlVersionKey(body) !== null && yamlOverBudget(body);
 }
 
 // E12 (Codex r1): the old /^\s*openapi\s*:/m regexes were quadratic on runs of
@@ -676,10 +750,13 @@ export async function runDim3(
 
 
   // ── Sub-check 2: spec_validity ────────────────────────────────────────
-  const parsed = tryParseSpec(hit.body, hit.contentType);
+  const read = tryParseSpec(hit.body, hit.contentType);
+  const parsed = read && "spec" in read ? read : null;
   let validityScore = 0;
   let validityNote: string;
-  if (!parsed) {
+  if (read && "duplicateKey" in read) {
+    validityNote = yamlDuplicateKeyNote(read.duplicateKey);
+  } else if (!parsed) {
     validityNote = `Spec at ${hit.url} did not parse as JSON or recognizable YAML.`;
   } else {
     const fmt = parsed.format === "yaml" ? "YAML" : "JSON";

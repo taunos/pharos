@@ -210,22 +210,29 @@ export function normalizeCard(raw: RawCard): McpCard {
 }
 
 // 1.4.2: every hop of a card fetch stays on the audited site.
-async function fetchCard(origin: string, base: string): Promise<{ card: McpCard | null; status: number; from: string }> {
+// 1.5.1: `absent` is true only when both card addresses answered 404 or 410
+// (a failed request or another status proves nothing about the card).
+async function fetchCard(origin: string, base: string): Promise<{ card: McpCard | null; status: number; from: string; absent: boolean }> {
+  let absent = true;
   for (const path of ["/.well-known/mcp.json", "/.well-known/mcp/server-card.json"]) {
     const url = `${origin}${path}`;
     const r = await timedFetch(url, { headers: { Accept: "application/json" } }, FETCH_TIMEOUT_MS, base);
-    if (!r) continue;
+    if (!r) {
+      absent = false;
+      continue;
+    }
+    if (r.status !== 404 && r.status !== 410) absent = false;
     if (r.status === 200) {
       try {
         const raw = obj(await readJson(r));
-        return { card: raw ? normalizeCard(raw) : null, status: 200, from: path };
+        return { card: raw ? normalizeCard(raw) : null, status: 200, from: path, absent: false };
       } catch {
-        return { card: null, status: 200, from: path };
+        return { card: null, status: 200, from: path, absent: false };
       }
     }
     r.discard();
   }
-  return { card: null, status: 0, from: "" };
+  return { card: null, status: 0, from: "", absent };
 }
 
 /**
@@ -470,7 +477,7 @@ export async function runDim2(
   const subs: SubCheck[] = [];
 
   // 1. well_known
-  const { card, status: cardStatus, from } = await fetchCard(origin, base);
+  const { card, status: cardStatus, from, absent: cardAbsent } = await fetchCard(origin, base);
   const dnsP = dnsTxt(u.host);
   const ucpP = cardStatus === 200 ? Promise.resolve(null) : ucpMcpEndpoints(origin, base);
   let wellKnownScore = 0;
@@ -660,6 +667,8 @@ export async function runDim2(
       score: wellKnownScore,
       passed: wellKnownScore >= 70,
       notes: wellKnownNote,
+      // 1.5.1: lets a consumer tell "no card" (404 / 410) from "could not read it".
+      ...(cardStatus !== 200 ? { evidence: { status: null, content_type: "", parsed: false, card_absent_proven: cardAbsent } } : {}),
     },
     {
       id: "tool_coverage",

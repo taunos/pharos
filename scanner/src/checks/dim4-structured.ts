@@ -23,6 +23,11 @@ export const notFullyInspectedNote = (what: string) =>
   `Not fully inspected: this page's JSON-LD is nested deeper or is larger than the scanner reads, so it could not confirm whether ${what} markup is present. This check is not counted in your score.`;
 
 /** faq_schema note (1.4.0): FAQPage markup whose questions carry no answer text. */
+/** faq_schema note (1.5.1): structural rules only, no claim that answers are relevant. */
+export const faqRulesNote = (total: number, clear: number, malformed: number) =>
+  `${total} Q&A pair(s); ${clear} are phrased as questions and have an answer of reasonable length.` +
+  (malformed > 0 ? ` ${malformed} entries are missing a question or an answer.` : "");
+
 export const FAQ_NO_ANSWERS_NOTE =
   "FAQPage markup found, but none of its entries is a Question with an answer text (acceptedAnswer.text), so there are no Q&A pairs to rate.";
 
@@ -352,13 +357,17 @@ export function findProductLink(html: string, pageUrl: string): string | null {
 // 1.5.0: faq_schema is scored by fixed rules, not an AI rating (the model
 // gave different scores to the same questions on different runs). A Q&A
 // pair meets the rules when its question is phrased as a question and is
-// 3-40 words long (10-300 characters when it has fewer than 3 words, for
-// scripts written without spaces), and its answer is 5-300 words long.
+// 2-40 words long (10-300 characters when it is one word, for scripts
+// written without spaces), and its answer is 1-300 words and at least 2
+// characters long. 1.5.1 (Codex r6): the minimums were 3 and 5 words, which
+// failed short correct answers ("Quanto custa?" / "30 euros."). The rules
+// are structural: they do not check that the answer is relevant.
 const QUESTION_MAX_CHARS = 300;
 const ANSWER_MAX_CHARS = 5000;
-export const FAQ_QUESTION_MIN_WORDS = 3;
+export const FAQ_QUESTION_MIN_WORDS = 2;
 export const FAQ_QUESTION_MAX_WORDS = 40;
-export const FAQ_ANSWER_MIN_WORDS = 5;
+export const FAQ_ANSWER_MIN_WORDS = 1;
+export const FAQ_ANSWER_MIN_CHARS = 2;
 export const FAQ_ANSWER_MAX_WORDS = 300;
 
 // First words that open a question in English, Portuguese, Spanish, French
@@ -405,7 +414,13 @@ export function faqPairMeetsRules(question: string, answer: string): boolean {
       ? qWords <= FAQ_QUESTION_MAX_WORDS
       : q.length >= 10 && q.length <= QUESTION_MAX_CHARS;
   const aWords = wordCount(a);
-  return qLengthOk && isQuestionPhrased(q) && aWords >= FAQ_ANSWER_MIN_WORDS && aWords <= FAQ_ANSWER_MAX_WORDS;
+  return (
+    qLengthOk &&
+    isQuestionPhrased(q) &&
+    aWords >= FAQ_ANSWER_MIN_WORDS &&
+    a.trim().length >= FAQ_ANSWER_MIN_CHARS &&
+    aWords <= FAQ_ANSWER_MAX_WORDS
+  );
 }
 
 export async function runDim4(
@@ -606,6 +621,10 @@ export async function runDim4(
   const faqFound = findByType(validBlocks, "FAQPage");
   const faqPages = faqFound.matches.map((m) => m.obj);
   const pairs: Array<{ q: string; a: string }> = [];
+  // 1.5.1 (Codex r6): a typed Question missing its name or its answer text
+  // counts in the denominator as failing (it used to vanish, so 1 good pair
+  // plus 5 unanswered Questions scored 100).
+  let malformed = 0;
   for (const f of faqPages) {
     const me = f.mainEntity;
     const arr = Array.isArray(me) ? me : me ? [me] : [];
@@ -616,7 +635,9 @@ export async function runDim4(
         const o = item as Record<string, unknown>;
         const q = o.name;
         const a = answerText(o);
-        if (typeNames(o["@type"]).includes("Question") && typeof q === "string" && q.trim() && a !== null) pairs.push({ q: q.trim(), a });
+        if (!typeNames(o["@type"]).includes("Question")) continue;
+        if (typeof q === "string" && q.trim() && a !== null) pairs.push({ q: q.trim(), a });
+        else malformed++;
       }
     }
   }
@@ -638,14 +659,15 @@ export async function runDim4(
     subs.push({ id: "faq_schema", name: faqName, weight: 20, score: 0, passed: false, notes: FAQ_NO_ANSWERS_NOTE });
   } else {
     const clear = pairs.filter((p) => faqPairMeetsRules(p.q, p.a)).length;
-    const faqScore = Math.round((clear / qCount) * 100);
+    const total = qCount + malformed;
+    const faqScore = Math.round((clear / total) * 100);
     subs.push({
       id: "faq_schema",
       name: faqName,
       weight: 20,
       score: faqScore,
       passed: faqScore >= 70,
-      notes: `${qCount} Q&A pair(s); ${clear} read as clear questions with direct answers.`,
+      notes: faqRulesNote(total, clear, malformed),
     });
   }
 
