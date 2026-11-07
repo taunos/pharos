@@ -1,0 +1,21 @@
+{
+  "scan": {
+    "dimensions": [
+      { "dimension_id": 2, "dimension_name": "MCP Server Discoverability", "score": 15, "grade": "F", "sub_checks": [
+        { "id": "well_known", "name": "Well-known discovery", "weight": 30, "score": 0, "passed": false, "notes": "no card" },
+        { "id": "oauth_metadata", "name": "OAuth metadata", "weight": 15, "score": 100, "passed": true, "notes": "no auth declared (N/A)" }
+      ] },
+      { "dimension_id": 3, "dimension_name": "OpenAPI / API Catalog", "score": 0, "grade": "F", "na": true, "sub_checks": [
+        { "id": "discovery", "name": "Discovery", "weight": 20, "score": 0, "passed": false, "notes": "none", "na": true }
+      ] },
+      { "dimension_id": 4, "dimension_name": "Structured Capability Data", "score": 56, "grade": "D", "sub_checks": [
+        { "id": "organization_schema", "name": "Organization schema completeness", "weight": 20, "score": 0, "passed": false, "notes": "no Organization schema" },
+        { "id": "faq_schema", "name": "FAQPage schema", "weight": 20, "score": 0, "passed": false, "notes": "Not measured: the AI rating was unavailable", "na": true },
+        { "id": "review_schema", "name": "Review / AggregateRating schema", "weight": 15, "score": 0, "passed": false, "notes": "no Review or AggregateRating" }
+      ] }
+    ]
+  },
+  "gaps": [
+    { "dimension_id": 4, "check_id": "review_schema", "check_name": "Review / AggregateRating schema", "score": 0, "notes": "no Review", "remediation": "Add an AggregateRating with ratingValue and the number of reviews to your homepage JSON-LD." }
+  ]
+}

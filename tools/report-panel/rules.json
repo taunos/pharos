@@ -1,0 +1,27 @@
+{
+  "_readme": "Rule list for check.mjs. `text` rules run over the customer-visible report text (report*.md, harness banner removed). `fabrication` runs over gap remediation text in audit*.json when the site has no ratings. Per-site rules (expect.na / expect.exists / expect.forbid) come from sites.json. Patterns are JavaScript regular expressions; `flags` is optional. Add a rule by adding an entry; add a test for it in check.test.mjs.",
+  "text": [
+    { "id": "placeholder", "class": "placeholder", "pattern": "\\[site value\\]", "flags": "i", "why": "literal template placeholder shown to the customer" },
+    { "id": "jargon-slice", "class": "jargon", "pattern": "\\bSlice \\d", "why": "internal slice name" },
+    { "id": "jargon-dim-coordinate", "class": "jargon", "pattern": "\\bdim\\d+:v\\d+", "flags": "i", "why": "internal dim<N>:v<N> coordinate; customers see Astrant Score v<N>" },
+    { "id": "jargon-browser-rendering", "class": "jargon", "pattern": "Browser Rendering", "flags": "i", "why": "Astrant's internal Cloudflare tool" },
+    { "id": "jargon-llm-unusable", "class": "jargon", "pattern": "LLM output unusable", "flags": "i", "why": "internal parser failure text" },
+    { "id": "jargon-doh", "class": "jargon", "pattern": "\\bDoH\\b", "why": "internal DNS-over-HTTPS shorthand" },
+    { "id": "jargon-puppeteer", "class": "jargon", "pattern": "Puppeteer", "flags": "i", "why": "internal rendering tool" },
+    { "id": "jargon-cells", "class": "jargon", "pattern": "\\bcells\\b", "flags": "i", "why": "internal Dim 6 measurement unit" },
+    { "id": "jargon-oq", "class": "jargon", "pattern": "\\bOQ-\\d", "why": "internal open-question id" },
+    { "id": "halluc-learning-management", "class": "hallucination", "pattern": "Learning Management", "flags": "i", "why": "llms.txt misread as a Learning Management System" },
+    { "id": "halluc-lms", "class": "hallucination", "pattern": "\\bLMS\\b", "why": "llms.txt misread as an LMS" },
+    { "id": "halluc-model-configuration", "class": "hallucination", "pattern": "model configurations?", "flags": "i", "why": "owner cannot configure hosted AI models" },
+    { "id": "halluc-knowledge-graph", "class": "hallucination", "pattern": "knowledge graph", "flags": "i", "why": "owner cannot update a model's knowledge graph" },
+    { "id": "halluc-entity-ranking", "class": "hallucination", "pattern": "entity ranking", "flags": "i", "why": "invented mechanism" },
+    { "id": "halluc-update-models", "class": "hallucination", "pattern": "update the models?\\b", "flags": "i", "why": "owner cannot update hosted AI models" },
+    { "id": "promise-will-improve", "class": "outcome-promise", "pattern": "\\bwill improve\\b", "flags": "i", "why": "outcome promise" },
+    { "id": "promise-will-enable", "class": "outcome-promise", "pattern": "\\bwill enable\\b", "flags": "i", "why": "outcome promise" },
+    { "id": "promise-guarantee", "class": "outcome-promise", "pattern": "\\bguarantee", "flags": "i", "why": "outcome guarantee" },
+    { "id": "promise-rank-higher", "class": "outcome-promise", "pattern": "\\brank(?:s|ing)? higher\\b", "flags": "i", "why": "ranking promise" }
+  ],
+  "fabrication": [
+    { "id": "fabricate-ratings", "class": "fabrication", "pattern": "ratingValue|AggregateRating|aggregate rating|reviewCount|number of reviews|star rating", "flags": "i", "why": "asks for ratings markup on a site with no ratings: can only be followed by inventing them" }
+  ]
+}

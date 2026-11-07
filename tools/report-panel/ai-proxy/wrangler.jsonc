@@ -1,0 +1,17 @@
+// =====================================================================
+// LOCAL-ONLY Workers AI proxy for tools/report-panel. NEVER DEPLOY THIS.
+// Start it with `node tools/report-panel/start-proxy.mjs` (wrangler dev on
+// 127.0.0.1). It has no auth: anyone who can reach it can spend Workers AI
+// on the account. If it is ever deployed by mistake it stays unreachable:
+// workers_dev is false, there are no routes, and the Worker rejects every
+// request whose Host is not localhost / 127.0.0.1. Delete the deployed
+// Worker anyway (`wrangler delete --name report-panel-ai-proxy-local-only`).
+// =====================================================================
+{
+  "name": "report-panel-ai-proxy-local-only",
+  "main": "src/index.js",
+  "compatibility_date": "2025-12-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "ai": { "binding": "AI" }
+}

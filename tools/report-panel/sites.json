@@ -1,0 +1,180 @@
+[
+  {
+    "label": "rachelqueiroz",
+    "url": "https://www.rachelqueiroz.com/",
+    "type": "psychologist practice, Brazil (pt-BR), business-card site; the real customer whose paid Audit scored 23",
+    "expect": {
+      "notes": [
+        "llms.txt exists (H1 + Portuguese blockquote).",
+        "JSON-LD @type is [\"MedicalBusiness\",\"LocalBusiness\"] (an Organization subtype), so the report must not say there is no Organization schema.",
+        "JSON-LD has an FAQPage with 4 Q&A pairs and an Offer.",
+        "No API, so MCP and OpenAPI must be N/A, not scored and not listed as gaps.",
+        "No ratings or reviews markup, so the report must not ask for ratingValue / AggregateRating.",
+        "A price is shown on /mapa-do-casal (Portuguese path; English path heuristics miss it)."
+      ],
+      "na": ["2.*", "3.*", "4.review_schema"],
+      "exists": ["1.presence", "1.spec_compliance", "4.json_ld_present", "4.organization_schema", "4.faq_schema"],
+      "has_ratings": false,
+      "forbid": ["no Organization schema"]
+    }
+  },
+  {
+    "label": "drveit",
+    "url": "https://drveit.com.br/",
+    "type": "dental clinic, Brazil (pt-BR)",
+    "expect": {
+      "notes": [
+        "llms.txt exists (H1, no blockquote).",
+        "JSON-LD includes Dentist (a LocalBusiness subtype) and Organization.",
+        "No API, so MCP and OpenAPI must be N/A.",
+        "No FAQPage and no ratings markup: no FAQ or ratings advice that would require inventing content.",
+        "Has \"Casos Clínicos\" (case study) pages under a Portuguese path."
+      ],
+      "na": ["2.*", "3.*", "4.review_schema", "4.faq_schema"],
+      "exists": ["1.presence", "4.json_ld_present", "4.organization_schema"],
+      "has_ratings": false,
+      "forbid": []
+    }
+  },
+  {
+    "label": "tartine",
+    "url": "https://tartinebakery.com/",
+    "type": "local bakery / restaurant, San Francisco (en)",
+    "expect": {
+      "notes": [
+        "No llms.txt (404) and no JSON-LD on the homepage.",
+        "No API, so MCP and OpenAPI must be N/A (a bakery must not be told to declare MCP tools).",
+        "No ratings markup and no FAQ markup.",
+        "Remediation must not say \"review the existing JSON-LD block\": there is none."
+      ],
+      "na": ["2.*", "3.*", "4.review_schema", "4.faq_schema"],
+      "exists": [],
+      "has_ratings": false,
+      "forbid": []
+    }
+  },
+  {
+    "label": "ugmonk",
+    "url": "https://ugmonk.com/",
+    "type": "small e-commerce store, Shopify (en)",
+    "expect": {
+      "notes": [
+        "Has a live Shopify MCP server: /api/mcp answers tools/list; its llms.txt points to /api/ucp/mcp; /.well-known/ucp returns 200. The report must not say AI agents can't discover or use an MCP server.",
+        "llms.txt is a rich ~5 KB file (prose, not only bullet links); it is not empty.",
+        "Product pages carry Product + Offer JSON-LD; homepage shows prices.",
+        "/account/login is not a case study.",
+        "The brand is \"Ugmonk\", not \"UG Monks\"."
+      ],
+      "na": ["3.*", "4.review_schema", "4.faq_schema"],
+      "exists": ["1.presence", "2.*", "4.json_ld_present", "4.organization_schema"],
+      "has_ratings": false,
+      "forbid": ["can't discover or use an MCP server", "empty file", "UG Monks", "/account/login"]
+    }
+  },
+  {
+    "label": "metalab",
+    "url": "https://www.metalab.com/",
+    "type": "design / product agency (en)",
+    "expect": {
+      "notes": [
+        "No llms.txt (404). JSON-LD has a complete Organization (with ContactPoint + PostalAddress).",
+        "No API, so MCP and OpenAPI must be N/A.",
+        "No ratings markup and no FAQ markup.",
+        "Content is mostly client-rendered: the fix is server rendering, not \"reduce the HTML size\"."
+      ],
+      "na": ["2.*", "3.*", "4.review_schema", "4.faq_schema"],
+      "exists": ["4.json_ld_present", "4.organization_schema"],
+      "has_ratings": false,
+      "forbid": []
+    }
+  },
+  {
+    "label": "tuple",
+    "url": "https://tuple.app/",
+    "type": "small B2B SaaS without a public API (pair-programming app) (en)",
+    "expect": {
+      "notes": [
+        "No llms.txt (404) and no JSON-LD on the homepage.",
+        "No public API, so MCP and OpenAPI must be N/A.",
+        "Pricing page shows \"$30 / per user per month\": the price does have a period.",
+        "No ratings markup and no FAQ markup."
+      ],
+      "na": ["2.*", "3.*", "4.review_schema", "4.faq_schema"],
+      "exists": ["5.pricing_text_visibility"],
+      "has_ratings": false,
+      "forbid": []
+    }
+  },
+  {
+    "label": "resend",
+    "url": "https://resend.com/",
+    "type": "dev-tool SaaS with a public API (en)",
+    "expect": {
+      "notes": [
+        "Valid MCP card at /.well-known/mcp.json: name, remote.url (https://mcp.resend.com/mcp) with streamable-http transport, oauth2 authentication, 12 described tools.",
+        "OpenAPI: /.well-known/api-catalog is an RFC 9727 linkset whose service-desc points to /openapi.yaml, a valid OpenAPI 3.0.3 spec with info, paths and components.securitySchemes. The linkset itself is not the spec.",
+        "Has an API, so the scope note must not say \"no API surface\".",
+        "Homepage JSON-LD includes Organization and SoftwareApplication with an Offer.",
+        "No ratings markup."
+      ],
+      "na": ["4.review_schema", "4.faq_schema"],
+      "exists": ["1.presence", "2.well_known", "2.tool_coverage", "2.oauth_metadata", "3.discovery", "3.spec_validity", "3.info_completeness", "3.security_schemes", "3.operation_coverage", "4.organization_schema"],
+      "has_ratings": false,
+      "forbid": ["no transport URL", "no auth declared", "missing name or transports"]
+    }
+  },
+  {
+    "label": "linear",
+    "url": "https://linear.app/",
+    "type": "mid-size SaaS (en)",
+    "expect": {
+      "notes": [
+        "Has an official remote MCP server at mcp.linear.app (answers OAuth 401). The report must not say AI agents can't discover or use an MCP server, and MCP must not be N/A.",
+        "Has a public GraphQL API (not OpenAPI); it must not be called content-only.",
+        "llms.txt has ~180 links: advice must not be \"add more links\".",
+        "No JSON-LD on the homepage, no ratings markup, no FAQ markup."
+      ],
+      "na": ["4.review_schema", "4.faq_schema"],
+      "exists": ["1.presence", "1.spec_compliance", "2.*"],
+      "has_ratings": false,
+      "forbid": ["can't discover or use an MCP server"]
+    }
+  },
+  {
+    "label": "eff",
+    "url": "https://www.eff.org/",
+    "type": "nonprofit + content site (Deeplinks blog), US (en)",
+    "expect": {
+      "notes": [
+        "US 501(c)(3) nonprofit; most content is blog posts, issue pages and legal case pages. No products, no prices (donations only).",
+        "llms.txt exists (~5.6 KB) with H1, blockquote and curated `- [title](url): description` links.",
+        "No JSON-LD on the homepage.",
+        "No API, no MCP card, no api-catalog (all 404), so MCP and OpenAPI must be N/A.",
+        "No ratings markup and no FAQ markup: no advice to add ratings, reviews, prices or FAQs.",
+        "A nonprofit must not be told to add Product / Offer / pricing schema."
+      ],
+      "na": ["2.*", "3.*", "4.review_schema", "4.faq_schema"],
+      "exists": ["1.presence", "1.spec_compliance"],
+      "has_ratings": false,
+      "forbid": []
+    }
+  },
+  {
+    "label": "coffeecircle",
+    "url": "https://www.coffeecircle.com/",
+    "type": "coffee roaster + online shop, Germany (de, prices in € such as \"16,90 €\")",
+    "expect": {
+      "notes": [
+        "German-language store (de is the default locale, en also available); prices are shown in euros with comma decimals (\"16,90 €\") on the homepage and product pages.",
+        "llms.txt exists (~6 KB, H1 \"Agent Instructions — Coffee Circle\", no blockquote) and says explicitly there is no self-hosted agent-commerce API (no UCP/MCP endpoint).",
+        "No MCP card, no api-catalog, no OpenAPI (all 404), so MCP and OpenAPI must be N/A.",
+        "Homepage JSON-LD has a Product with brand and a real AggregateRating (ratingValue + reviewCount); product pages have ProductGroup, Offer (priceCurrency EUR) and Review markup. Ratings exist, so review_schema must be scored and not 0.",
+        "No Organization block on the homepage (Product + Brand only)."
+      ],
+      "na": ["2.*", "3.*"],
+      "exists": ["1.presence", "4.json_ld_present", "4.review_schema"],
+      "has_ratings": true,
+      "forbid": []
+    }
+  }
+]
