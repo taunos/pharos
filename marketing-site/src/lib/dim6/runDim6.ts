@@ -97,6 +97,20 @@ function rateOf(cells: CellEnvelope[], flag: string): number {
   return Math.round((trues / measurable.length) * 100);
 }
 
+// Customer-facing model names, keyed by the provider prefix of the model id.
+// An unknown provider keeps its prefix so a new model still shows something.
+const MODEL_LABELS: Record<string, string> = {
+  openai: "ChatGPT",
+  anthropic: "Claude",
+  google: "Gemini",
+  perplexity: "Perplexity",
+};
+
+export function modelLabel(modelId: string): string {
+  const provider = modelId.split(":")[0];
+  return MODEL_LABELS[provider] ?? provider;
+}
+
 /** dim6:v4: competitor-first sub-check note when no competitor list was given. */
 export const COMPETITOR_FIRST_NA_NOTE =
   "Not measured: this Audit doesn't take a competitor list yet, so there is nothing to compare against. This check is not counted in your score.";
@@ -110,8 +124,8 @@ function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6Sub
   const ctxRate = rateOf(cells, "context_relevant");
   const compRate = rateOf(cells, "no_competitor_first");
 
-  const summary = `${measurableCount}/${cells.length} cells measurable across ${ALL_MODEL_IDS.length} models. Per-model averages: ${ALL_MODEL_IDS.map(
-    (m) => `${m.split(":")[0]}=${result.perModelAverage[m] ?? "n/a"}`
+  const summary = `${measurableCount} of ${cells.length} test answers could be scored, across ${ALL_MODEL_IDS.length} AI models. Average by model: ${ALL_MODEL_IDS.map(
+    (m) => `${modelLabel(m)} ${result.perModelAverage[m] ?? "not measured"}`
   ).join(", ")}.`;
 
   return [
@@ -121,7 +135,7 @@ function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6Sub
       weight: 40,
       score: dnRate,
       passed: dnRate >= 70,
-      notes: `${dnRate}% of measurable cells named the target domain. ${summary}`,
+      notes: `${dnRate}% of scored test answers named your domain. ${summary}`,
     },
     {
       id: SUBCHECK_IDS.url_referenced_rate,
@@ -129,7 +143,7 @@ function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6Sub
       weight: 30,
       score: urlRate,
       passed: urlRate >= 70,
-      notes: `${urlRate}% of measurable cells included at least one URL on the target host.`,
+      notes: `${urlRate}% of scored test answers included at least one link to your site.`,
     },
     {
       id: SUBCHECK_IDS.context_relevant_rate,
@@ -137,7 +151,7 @@ function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6Sub
       weight: 20,
       score: ctxRate,
       passed: ctxRate >= 70,
-      notes: `${ctxRate}% of measurable cells positioned the target domain in the first half of the response (vs a footer-style mention).`,
+      notes: `${ctxRate}% of scored test answers put your domain in the first half of the answer, rather than only mentioning it at the end.`,
     },
     // dim6:v4: N/A without a competitor list (the cell scores give it no
     // points either, see parser.ts), so it is never a gap. With no list the
@@ -149,7 +163,7 @@ function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6Sub
           weight: 10,
           score: compRate,
           passed: compRate >= 70,
-          notes: `${compRate}% of measurable cells avoided a competitor-first mention.`,
+          notes: `${compRate}% of scored test answers did not name a competitor before your domain.`,
         }
       : {
           id: SUBCHECK_IDS.no_competitor_first_rate,

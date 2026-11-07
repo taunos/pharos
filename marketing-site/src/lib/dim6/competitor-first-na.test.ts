@@ -29,7 +29,8 @@ vi.mock("./orchestrator", () => ({
 }));
 
 import { scoreResponse } from "./parser";
-import { runDim6Paid, COMPETITOR_FIRST_NA_NOTE } from "./runDim6";
+import { runDim6Paid, COMPETITOR_FIRST_NA_NOTE, modelLabel } from "./runDim6";
+import { citationCoverage } from "../audit-executive-summary";
 import { generatePromptSet } from "./promptset";
 import { buildRemediationGaps } from "../audit-pipeline";
 import type { ScanResult } from "../audit-types";
@@ -63,6 +64,26 @@ describe("dim6:v4 competitor-first N/A", () => {
     const c = r.dimension.sub_checks.find((s) => s.id === "citation_no_competitor_first_rate")!;
     expect(c).toMatchObject({ na: true, score: 0, passed: false, notes: COMPETITOR_FIRST_NA_NOTE });
     expect(c.notes).not.toMatch(/passes by default/);
+  });
+
+  it("runDim6Paid notes are plain English and round-trip through citationCoverage", async () => {
+    const r = await runDim6Paid({ cacheKv: kv() } as never, "https://acme.com/", {}, ["rival.com"]);
+    const notes = Object.fromEntries(r.dimension.sub_checks.map((s) => [s.id, s.notes]));
+    expect(notes.citation_domain_named_rate).toBe(
+      "33% of scored test answers named your domain. 3 of 3 test answers could be scored, across 4 AI models. Average by model: ChatGPT 33, Claude 33, Gemini 33, Perplexity 33.",
+    );
+    expect(notes.citation_url_referenced_rate).toBe("33% of scored test answers included at least one link to your site.");
+    expect(notes.citation_context_relevant_rate).toBe(
+      "33% of scored test answers put your domain in the first half of the answer, rather than only mentioning it at the end.",
+    );
+    expect(notes.citation_no_competitor_first_rate).toBe("33% of scored test answers did not name a competitor before your domain.");
+    for (const n of Object.values(notes)) expect(n).not.toMatch(/cells|target (domain|host)|openai=|n\/a/);
+    expect(citationCoverage(r.dimension as never)).toEqual({ measurableCells: 3, totalCells: 3, measuredModels: 4, totalModels: 4 });
+  });
+
+  it("modelLabel maps provider prefixes and keeps an unknown one", () => {
+    expect(ALL_MODEL_IDS.map(modelLabel)).toEqual(["ChatGPT", "Claude", "Gemini", "Perplexity"]);
+    expect(modelLabel("mistral:large")).toBe("mistral");
   });
 
   it("runDim6Paid with competitors: the sub-check is scored", async () => {

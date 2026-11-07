@@ -296,6 +296,20 @@ describe("1.4.0 F6 / F8 resend: the real server card is read correctly", () => {
     });
     expect(sub(await runDim2("https://acme.com/", env()), "tool_coverage")).toMatchObject({ score: 100 });
   });
+
+  it("12 described tools without inputSchema score tool_coverage 70 and pass", async () => {
+    routes({
+      "https://acme.com/.well-known/mcp.json": json({
+        name: "acme",
+        tools: Array.from({ length: 12 }, (_, i) => ({ name: `tool_${i}`, description: `does thing ${i}` })),
+      }),
+    });
+    expect(sub(await runDim2("https://acme.com/", env()), "tool_coverage")).toMatchObject({
+      score: 70,
+      passed: true,
+      notes: "12 tool(s) declared: 12 with a description, 0 with an input schema (inputSchema); 0 have both",
+    });
+  });
 });
 
 // ── 3. F11 / F12: API catalog linkset ────────────────────────────────────

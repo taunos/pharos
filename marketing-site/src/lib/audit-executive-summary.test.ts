@@ -16,7 +16,16 @@ function dim(id: number, name: string, score: number, extra: Partial<DimensionRe
   return { dimension_id: id, dimension_name: name, score, grade: "X", sub_checks: [sub(`d${id}`, score)], ...extra };
 }
 
-function citationNotes(measurable: number, total: number, perModel = "openai=n/a, anthropic=n/a, google=n/a, perplexity=73") {
+function citationNotes(
+  measurable: number,
+  total: number,
+  perModel = "ChatGPT not measured, Claude not measured, Gemini not measured, Perplexity 73",
+) {
+  return `100% of scored test answers named your domain. ${measurable} of ${total} test answers could be scored, across 4 AI models. Average by model: ${perModel}.`;
+}
+
+// Notes shape written before 2026-11-07; stored audits are re-rendered.
+function oldCitationNotes(measurable: number, total: number, perModel = "openai=n/a, anthropic=n/a, google=n/a, perplexity=73") {
   return `100% of measurable cells named the target domain. ${measurable}/${total} cells measurable across 4 models. Per-model averages: ${perModel}.`;
 }
 
@@ -219,13 +228,19 @@ describe("buildExecutiveSummary", () => {
 
   it("fully measured Citation Visibility adds no caveat", () => {
     const s = buildExecutiveSummary(
-      audit(90, [dim(1, "llms.txt Quality", 90), citationDim(90, citationNotes(40, 40, "openai=90, anthropic=88, google=91, perplexity=92"))]),
+      audit(90, [dim(1, "llms.txt Quality", 90), citationDim(90, citationNotes(40, 40, "ChatGPT 90, Claude 88, Gemini 91, Perplexity 92"))]),
       GAPS_HEADING,
     );
     expect(s.join(" ")).not.toContain("partly measured");
   });
 
   it("partly measured Citation Visibility without a parseable per-model list uses the cells-only wording", () => {
+    const notes = "100% of scored test answers named your domain. 12 of 40 test answers could be scored, across 4 AI models.";
+    const s = buildExecutiveSummary(audit(90, [dim(1, "llms.txt Quality", 90), citationDim(90, notes)]), GAPS_HEADING);
+    expect(s).toContain(`${C.citationPartialNoModels(12, 40)}.`);
+  });
+
+  it("old-format notes without a per-model list still use the cells-only wording", () => {
     const notes = "100% of measurable cells named the target domain. 12/40 cells measurable across 4 models.";
     const s = buildExecutiveSummary(audit(90, [dim(1, "llms.txt Quality", 90), citationDim(90, notes)]), GAPS_HEADING);
     expect(s).toContain(`${C.citationPartialNoModels(12, 40)}.`);
@@ -253,6 +268,30 @@ describe("citationCoverage", () => {
       measurableCells: 10,
       totalCells: 40,
       measuredModels: 1,
+      totalModels: 4,
+    });
+  });
+
+  it("parses the old notes shape (stored audits written before 2026-11-07)", () => {
+    expect(citationCoverage(citationDim(73, oldCitationNotes(10, 40)))).toEqual({
+      measurableCells: 10,
+      totalCells: 40,
+      measuredModels: 1,
+      totalModels: 4,
+    });
+    expect(citationCoverage(citationDim(73, oldCitationNotes(40, 40, "openai=90, anthropic=88, google=91, perplexity=92")))).toEqual({
+      measurableCells: 40,
+      totalCells: 40,
+      measuredModels: 4,
+      totalModels: 4,
+    });
+  });
+
+  it("parses all-measured new notes and an unknown model label", () => {
+    expect(citationCoverage(citationDim(73, citationNotes(36, 40, "ChatGPT 12, Claude 4, mistral not measured, Perplexity 31")))).toEqual({
+      measurableCells: 36,
+      totalCells: 40,
+      measuredModels: 3,
       totalModels: 4,
     });
   });

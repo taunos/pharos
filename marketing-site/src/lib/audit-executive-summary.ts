@@ -160,25 +160,40 @@ export type CitationCoverage = {
   totalModels: number | null;
 };
 
-// Dim 6 records its coverage only inside the domain-named sub-check's notes,
-// written by buildSubChecks in lib/dim6/runDim6.ts:
+// Dim 6 records its coverage only inside the domain-named sub-check's notes
+// (the sub-check carries no structured counts), written by buildSubChecks in
+// lib/dim6/runDim6.ts. Current shape:
+//   "<n>% of scored test answers named your domain. <m> of <t> test answers
+//    could be scored, across <k> AI models. Average by model: ChatGPT not
+//    measured, ..., Perplexity 73."
+// Stored audits written before 2026-11-07 carry the old shape, and are
+// re-rendered, so it is still read:
 //   "<n>% of measurable cells named the target domain. <m>/<t> cells
 //    measurable across <k> models. Per-model averages: openai=n/a, ..., perplexity=73."
-// Returns null when the notes don't carry that shape.
+// Returns null when the notes carry neither shape.
 export function citationCoverage(d: DimensionResult): CitationCoverage | null {
   const notes = d.sub_checks.find((s) => s.id === CITATION_SUMMARY_CHECK_ID)?.notes;
   if (!notes) return null;
-  const cells = notes.match(/(\d+)\/(\d+) cells measurable/);
+  const cells =
+    notes.match(/(\d+) of (\d+) test answers could be scored/) ??
+    notes.match(/(\d+)\/(\d+) cells measurable/);
   if (!cells) return null;
-  const perModel = notes.match(/Per-model averages: ([^]*?)\.?$/);
   let measuredModels: number | null = null;
   let totalModels: number | null = null;
-  if (perModel) {
-    const pairs = [...perModel[1].matchAll(/[\w.-]+=(n\/a|\d+)/g)];
-    if (pairs.length > 0) {
-      totalModels = pairs.length;
-      measuredModels = pairs.filter((p) => p[1] !== "n/a").length;
-    }
+  const perModelNew = notes.match(/Average by model: ([^]*?)\.?$/);
+  const perModelOld = notes.match(/Per-model averages: ([^]*?)\.?$/);
+  let values: string[] = [];
+  if (perModelNew) {
+    values = perModelNew[1]
+      .split(", ")
+      .map((p) => p.match(/^\S.* (not measured|\d+)$/)?.[1])
+      .filter((v): v is string => v !== undefined);
+  } else if (perModelOld) {
+    values = [...perModelOld[1].matchAll(/[\w.-]+=(n\/a|\d+)/g)].map((p) => p[1]);
+  }
+  if (values.length > 0) {
+    totalModels = values.length;
+    measuredModels = values.filter((v) => v !== "n/a" && v !== "not measured").length;
   }
   return {
     measurableCells: Number(cells[1]),
