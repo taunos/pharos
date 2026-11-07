@@ -37,7 +37,11 @@ const ARROW = String.fromCharCode(0x2192);
 // [check id, scanner note (verbatim template shape), siblings, substring the
 // selected template must contain]
 const FIXTURES: [string, string, SubCheck[], string][] = [
-  ["presence", "fetch failed", [], "Create a file at https://example.com/llms.txt"],
+  // r7: only 404 / 410 proves the file is missing.
+  ["presence", "fetch failed", [], "We couldn't read https://example.com/llms.txt on this run (the request timed out or failed)."],
+  ["presence", "status=403", [], "We couldn't read https://example.com/llms.txt on this run (it returned status 403)."],
+  ["presence", "status=500", [], "(it returned status 500). If the file exists, check that your server lets automated clients fetch it"],
+  ["presence", "status=410", [], "Create a file at https://example.com/llms.txt"],
   ["presence", "status=404", [], "Create a file at https://example.com/llms.txt"],
   ["presence", 'status=200, content-type="text/html"', [], "does not send it as text"],
   ["spec_compliance", "h1=no, blockquote=no", [presenceMissing], "Depends on Presence"],
@@ -58,15 +62,22 @@ const FIXTURES: [string, string, SubCheck[], string][] = [
   // 1.5.0 fixed rules: one fix phrase per failed rule.
   [
     "blockquote_eval",
-    "1 of 3 blockquote rules met: one paragraph (no); 50 to 250 words (no, 32 words); names the business (yes).",
+    "0 of 2 blockquote rules met: one paragraph (no); 10 to 100 words (no, 132 words).",
     [presenceOk],
-    "make it a single paragraph (a > line with no text starts a new one) and make it 50 to 250 words long (it has 32 now).",
+    "make it a single paragraph (a > line with no text starts a new one) and make it 10 to 100 words long (it has 132 now).",
   ],
+  [
+    "blockquote_eval",
+    "1 of 2 blockquote rules met: one paragraph (yes); 10 to 100 words (no, 3 words).",
+    [presenceOk],
+    "Edit the blockquote summary in https://example.com/llms.txt: make it 10 to 100 words long (it has 3 now). This check scores two fixed rules",
+  ],
+  // A 1.5.0 note (three rules, 50 to 250 words) is not a state the 1.5.1 template speaks to.
   [
     "blockquote_eval",
     "2 of 3 blockquote rules met: one paragraph (yes); 50 to 250 words (yes, 80 words); names the business (no).",
     [presenceOk],
-    "Edit the blockquote summary in https://example.com/llms.txt: name your business in it",
+    "This check did not pass",
   ],
   // An AI rating (before 1.5.0) is not a state a template can speak to.
   ["blockquote_eval", "LLM rated blockquote 22/100", [presenceOk], "This check did not pass"],
@@ -117,7 +128,15 @@ const FIXTURES: [string, string, SubCheck[], string][] = [
   ["organization_schema", "Organization found: name=true, url=false, description=false, sameAs=0", [], "is missing url and description"],
   ["service_offer_schema", "no Service / Product / Offer schema", [], "If your site doesn't sell anything"],
   ["service_offer_schema", "2 Service/Product/Offer block(s); best match has 1/3 required fields", [], "has 1 of the 3 fields"],
-  ["faq_schema", "3 Q&A pair(s); 1 read as clear questions with direct answers.", [], "2 of the 3 Q&A pairs in your FAQPage markup do not meet this check's rules"],
+  ["faq_schema", "3 Q&A pair(s); 1 are phrased as questions and have an answer of reasonable length.", [], "2 of the 3 Q&A pairs in your FAQPage markup do not meet this check's rules"],
+  [
+    "faq_schema",
+    "6 Q&A pair(s); 1 are phrased as questions and have an answer of reasonable length. 5 entries are missing a question or an answer.",
+    [],
+    "5 of the 6 Q&A pairs in your FAQPage markup do not meet this check's rules",
+  ],
+  // The 1.5.0 note was scored by other length rules: general text.
+  ["faq_schema", "3 Q&A pair(s); 1 read as clear questions with direct answers.", [], "If you revise your FAQPage markup"],
   // Before 1.5.0 (AI rating): the general advice, never a rating.
   ["faq_schema", "3 Q&A pair(s); LLM rated 3 question(s) avg 10/100", [], "If you revise your FAQPage markup"],
   ["faq_schema", "3 Q&A pair(s); 3 question(s); instruction-like text detected; scored 0 without LLM eval", [], "If you revise your FAQPage markup"],
@@ -254,7 +273,7 @@ describe("copy rules", () => {
     expect(T.presence.missing(ORIGIN)).toMatch(/plain Markdown file/);
     expect(T.presence.missing(ORIGIN)).toContain("llmstxt.org");
     expect(T.faq_schema.general).toMatch(/mainEntity.*acceptedAnswer/);
-    expect(T.faq_schema.rules(1, 2)).toMatch(/Question's name.*acceptedAnswer/);
+    expect(T.faq_schema.rules(1, 2)).toMatch(/Question has a name.*acceptedAnswer/);
     expect(T.well_known.noCard(ORIGIN)).toContain(`${ORIGIN}/.well-known/mcp.json`);
     expect(ALL_OUTPUTS.join(" ")).not.toMatch(/HTML blockquote|<blockquote/i);
   });

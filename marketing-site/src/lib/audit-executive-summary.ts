@@ -149,7 +149,7 @@ function phrasesFor(d: DimensionResult): DimPhrases {
  * we could not find one. (Scanner 1.5.0 reads YAML specs in full, so the
  * r4 "only partly checked" Dim 3 phrase is gone.)
  */
-function weakPhrase(d: DimensionResult): string {
+function weakPhraseByState(d: DimensionResult): string {
   const C = EXEC_SUMMARY_COPY;
   const p = phrasesFor(d);
   const band = d.score < FAIL_BELOW ? p.fail : p.partial;
@@ -163,6 +163,33 @@ function weakPhrase(d: DimensionResult): string {
     if (answered || hasCard) return p.partial;
   }
   return band;
+}
+
+/**
+ * r7 (Codex r6 LOW): a phrase that claims a share of the checks ("passed
+ * most", "failed most", "passed only some") is used only when the counts of
+ * the dimension's applicable sub-checks support it, not from the weighted
+ * score (metalab: 1 failed, 1 passed was "failed most").
+ */
+function countsSupport(phrase: string, d: DimensionResult): boolean {
+  const applicable = d.sub_checks.filter((s) => !s.na);
+  const passed = applicable.filter((s) => s.passed).length;
+  const failed = applicable.length - passed;
+  if (phrase.includes("passed most")) return passed > failed;
+  if (phrase.includes("failed most")) return failed > passed;
+  if (phrase.includes("passed only some")) return passed > 0 && failed > 0;
+  return true;
+}
+
+function weakPhrase(d: DimensionResult): string {
+  const phrase = weakPhraseByState(d);
+  if (countsSupport(phrase, d)) return phrase;
+  // Swap only between the two share-claiming phrases (Dim 5); otherwise the
+  // neutral "<name> needs work" (a state-based phrase must not be undone).
+  const p = phrasesFor(d);
+  const shareClaim = (x: string) => x.includes("passed only some") || x.includes("failed most");
+  const alt = [p.fail, p.partial].find((x) => x !== phrase && shareClaim(x) && countsSupport(x, d));
+  return alt ?? EXEC_SUMMARY_COPY.dimensionFallback(d.dimension_name).partial;
 }
 
 // "a; b; and c" — semicolons because some phrases contain commas.
@@ -274,8 +301,9 @@ export function buildExecutiveSummary(
   }
 
   // 3. What's working (highest score first; ties keep dimension order).
+  // r7: a "passed most" claim the sub-check counts don't support is left out.
   const strong = scored
-    .filter((d) => d.score >= STRONG_FROM)
+    .filter((d) => d.score >= STRONG_FROM && countsSupport(phrasesFor(d).strong, d))
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_LISTED)
     .map((d) => phrasesFor(d).strong);

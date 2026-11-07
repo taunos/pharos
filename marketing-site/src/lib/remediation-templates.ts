@@ -66,6 +66,12 @@ export const T = {
   presence: {
     missing: (o: string) =>
       `Create a file at ${o}/llms.txt. Per the llmstxt.org proposal it is a plain Markdown file: an H1 line with your business or site name, a one-paragraph summary as a blockquote (a line starting with >), then short lists of links to your most important pages. Serve it as text/plain or text/markdown. Estimated effort: 1 to 2 hours.`,
+    // 1.5.1 (Codex r6): a fetch failure or a status other than 404 / 410
+    // does not prove the file is missing.
+    unreadable: (o: string, reason: string) =>
+      `We couldn't read ${o}/llms.txt on this run (${reason}). If the file exists, check that your server lets automated clients fetch it; if it doesn't, create it — see the llms.txt format at llmstxt.org. Estimated effort: under 30 minutes.`,
+    reasonFailed: "the request timed out or failed",
+    reasonStatus: (status: number) => `it returned status ${status}`,
     wrongType: (o: string) =>
       `${o}/llms.txt exists, but your server does not send it as text. Set its Content-Type to text/plain or text/markdown (with charset=utf-8) in your server or hosting settings. Estimated effort: under 30 minutes.`,
   },
@@ -110,12 +116,11 @@ export const T = {
       `The blockquote summary in ${o}/llms.txt contains text that reads like instructions to an AI system, so we scored it 0 without rating it. Rewrite it as a plain description of your business: what you do, who you serve and where. Estimated effort: under 30 minutes.`,
     empty: (o: string) =>
       `The blockquote in ${o}/llms.txt had no readable text once formatting and hidden characters were removed. Write the summary as plain sentences on one line starting with >. Estimated effort: under 30 minutes.`,
-    // 1.5.0: fixed rules; `fixes` joins one phrase per rule the note says failed.
+    // 1.5.1: fixed rules; `fixes` joins one phrase per rule the note says failed.
     rules: (o: string, fixes: string) =>
-      `Edit the blockquote summary in ${o}/llms.txt: ${fixes}. This check scores three fixed rules: one paragraph, 50 to 250 words, and your business name in the text. Estimated effort: under 30 minutes.`,
+      `Edit the blockquote summary in ${o}/llms.txt: ${fixes}. This check scores two fixed rules: one paragraph, and 10 to 100 words. Estimated effort: under 30 minutes.`,
     fixParagraph: "make it a single paragraph (a > line with no text starts a new one)",
-    fixLength: (words: number) => `make it 50 to 250 words long (it has ${words} now)`,
-    fixName: "name your business in it, as your llms.txt H1 or your domain names it",
+    fixLength: (words: number) => `make it 10 to 100 words long (it has ${words} now)`,
   },
 
   // ── Dim 2: MCP Server Discoverability ─────────────────────────────────
@@ -232,9 +237,10 @@ export const T = {
       `The best Service, Product or Offer block on your homepage has ${fields} of the 3 fields this check looks for: name, description and a provider (or brand or seller). Add the missing ones; a price is not required. Estimated effort: under 30 minutes.`,
   },
   faq_schema: {
-    // 1.5.0: fixed rules; the note gives the pair count and how many met them.
+    // 1.5.1: fixed rules; the note gives the pair count and how many met them
+    // (entries missing a question or an answer count as not meeting them).
     rules: (missed: number, total: number) =>
-      `${missed} of the ${total} Q&A pairs in your FAQPage markup do not meet this check's rules: each Question's name is phrased as a question (for example ending in ?) of 3 to 40 words, and its acceptedAnswer text answers it in 5 to 300 words. Revise those pairs to match the questions and answers shown on the page; don't add questions to raise this score. Estimated effort: 30 minutes to 1 hour.`,
+      `${missed} of the ${total} Q&A pairs in your FAQPage markup do not meet this check's rules: each Question has a name phrased as a question (for example ending in ?) of 2 to 40 words, and an acceptedAnswer text of 1 to 300 words. Revise those pairs to match the questions and answers shown on the page; don't add questions to raise this score. Estimated effort: 30 minutes to 1 hour.`,
     general:
       "If you revise your FAQPage markup, make each Question in mainEntity a question a customer would ask, with an acceptedAnswer that answers it directly. Mark up only questions and answers that appear on the page. Estimated effort: 30 minutes to 1 hour.",
   },
@@ -307,11 +313,27 @@ function sibling(ctx: RemediationContext, id: string): SubCheck | undefined {
   return ctx.siblings.find((s) => s.id === id);
 }
 
-// llms.txt fetched? (Dim 1 presence scored 0 means no file / fetch failed.)
-function llmsFileMissing(ctx: RemediationContext): boolean {
+// r7 (Codex r6): the llms.txt file is "absent" only when Presence got a 404
+// or 410; any other Presence 0 (fetch failed, 401/403/429/5xx) is
+// "unreadable" and gets no absence wording.
+const LLMS_ABSENT_NOTE = /^status=(?:404|410)$/;
+function llmsFileState(ctx: RemediationContext): "absent" | "unreadable" | "read" | "unknown" {
   const p = sibling(ctx, "presence");
-  return p !== undefined && p.score === 0;
+  if (!p) return "unknown";
+  if (p.score > 0) return "read";
+  return LLMS_ABSENT_NOTE.test(String(p.notes ?? "")) ? "absent" : "unreadable";
 }
+
+// r7: Dim 2 (scanner 1.5.1) says whether both card addresses answered 404 /
+// 410; a card probe that failed or got another status proves no absence.
+// Reports from older scanners carry no such evidence and keep their text.
+const cardAbsenceUnproven = (s: SubCheck | undefined) => s?.evidence?.card_absent_proven === false;
+
+// r7: Dim 4 sub-checks carry the homepage request's evidence; when it shows
+// the homepage was not read (or JSON-LD absence not proven), no template may
+// say the homepage has no markup.
+const homepageUnread = (s: SubCheck) => s.evidence !== undefined && !(s.evidence.status === 200 && s.evidence.parsed === true);
+const jsonLdAbsenceUnproven = (s: SubCheck) => s.evidence !== undefined && s.evidence.ld_json_absent_proven !== true;
 
 function joinWithAnd(items: string[]): string {
   if (items.length <= 1) return items.join("");
@@ -356,12 +378,17 @@ const SELECTORS: Record<string, Selector> = {
   // proves the state; any other note gets UNKNOWN_CHECK_REMEDIATION.
   presence: (s, c) => {
     if (/^status=200, content-type=/.test(s.notes)) return T.presence.wrongType(c.origin);
-    if (/^fetch failed$|^status=\d{3}$/.test(s.notes)) return T.presence.missing(c.origin);
+    if (LLMS_ABSENT_NOTE.test(s.notes)) return T.presence.missing(c.origin);
+    if (/^fetch failed$/.test(s.notes)) return T.presence.unreadable(c.origin, T.presence.reasonFailed);
+    const status = int(s.notes.match(/^status=(\d{3})$/)?.[1]);
+    if (status !== null) return T.presence.unreadable(c.origin, T.presence.reasonStatus(status));
     return UNKNOWN_CHECK_REMEDIATION;
   },
 
   spec_compliance: (s, c) => {
-    if (llmsFileMissing(c)) return T.spec_compliance.fileMissing(c.origin);
+    const file = llmsFileState(c);
+    if (file === "absent") return T.spec_compliance.fileMissing(c.origin);
+    if (file === "unreadable") return UNKNOWN_CHECK_REMEDIATION;
     const m = s.notes.match(/^h1=(yes|no), blockquote=(yes|no)$/);
     if (!m) return UNKNOWN_CHECK_REMEDIATION;
     const h1 = m[1] === "yes";
@@ -373,7 +400,9 @@ const SELECTORS: Record<string, Selector> = {
   },
 
   linked_pages_quality: (s, c) => {
-    if (llmsFileMissing(c)) return T.linked_pages_quality.fileMissing(c.origin);
+    const file = llmsFileState(c);
+    if (file === "absent") return T.linked_pages_quality.fileMissing(c.origin);
+    if (file === "unreadable") return UNKNOWN_CHECK_REMEDIATION;
     const m = s.notes.match(/^(\d+)\/(\d+) sampled links/);
     const good = int(m?.[1]);
     const n = int(m?.[2]);
@@ -383,7 +412,11 @@ const SELECTORS: Record<string, Selector> = {
   },
 
   curation_quality: (s, c) => {
-    if (llmsFileMissing(c) || /^file missing/.test(s.notes)) return T.curation_quality.fileMissing(c.origin);
+    // "file missing" is also the scanner's note on a fetch failure, so only
+    // Presence's 404 / 410 proves the file is absent.
+    const file = llmsFileState(c);
+    if (file === "absent") return T.curation_quality.fileMissing(c.origin);
+    if (file === "unreadable" || /^file missing/.test(s.notes)) return UNKNOWN_CHECK_REMEDIATION;
     if (/^empty file|^the file has no Markdown links/.test(s.notes)) return T.curation_quality.noLinks(c.origin);
     const fixes: string[] = [];
     const many = int(s.notes.match(/(\d+) links \(>100\)/)?.[1]);
@@ -397,18 +430,20 @@ const SELECTORS: Record<string, Selector> = {
   },
 
   blockquote_eval: (s, c) => {
-    if (llmsFileMissing(c)) return T.blockquote_eval.fileMissing(c.origin);
+    const file = llmsFileState(c);
+    if (file === "absent") return T.blockquote_eval.fileMissing(c.origin);
+    if (file === "unreadable") return UNKNOWN_CHECK_REMEDIATION;
     const B = T.blockquote_eval;
     if (/^blockquote contains instruction-like text/.test(s.notes)) return B.instructionLike(c.origin);
     if (/^blockquote empty after cleaning$/.test(s.notes)) return B.empty(c.origin);
     if (/^no blockquote to evaluate$/.test(s.notes)) return B.none(c.origin);
-    const m = s.notes.match(/^\d of 3 blockquote rules met: one paragraph \((yes|no)\); 50 to 250 words \((yes|no), (\d+) words\); names the business \((yes|no)\)\.$/);
+    // 1.5.1 note; a 1.5.0 note (three rules, 50 to 250 words) gets the neutral text.
+    const m = s.notes.match(/^\d of 2 blockquote rules met: one paragraph \((yes|no)\); 10 to 100 words \((yes|no), (\d+) words\)\.$/);
     if (!m) return UNKNOWN_CHECK_REMEDIATION;
     const fixes: string[] = [];
     if (m[1] === "no") fixes.push(B.fixParagraph);
     const words = int(m[3]);
     if (m[2] === "no" && words !== null) fixes.push(B.fixLength(words));
-    if (m[4] === "no") fixes.push(B.fixName);
     return fixes.length > 0 ? B.rules(c.origin, joinWithAnd(fixes)) : UNKNOWN_CHECK_REMEDIATION;
   },
 
@@ -418,11 +453,11 @@ const SELECTORS: Record<string, Selector> = {
     // "missing name or transports" (before 1.4.0); "missing a server name and
     // a transport URL ..." (1.4.0).
     if (path && /^card present at \S+ but missing /.test(s.notes)) return T.well_known.missingFields(c.origin, path);
-    if (/^no card at /.test(s.notes)) return T.well_known.noCard(c.origin);
+    if (/^no card at /.test(s.notes)) return cardAbsenceUnproven(s) ? UNKNOWN_CHECK_REMEDIATION : T.well_known.noCard(c.origin);
     return UNKNOWN_CHECK_REMEDIATION;
   },
 
-  tool_coverage: (s) => {
+  tool_coverage: (s, c) => {
     // "<q> of <n> tools have ..." (before 1.4.0); "<n> tool(s) declared: <d>
     // with a description, <k> with an input schema (inputSchema); <q> have
     // both" (1.4.0).
@@ -432,7 +467,9 @@ const SELECTORS: Record<string, Selector> = {
     const n = int(old?.[2] ?? cur?.[1]);
     if (q !== null && n !== null && n > 0 && q <= n) return T.tool_coverage.counts(q, n);
     if (/no tools\[\] field/.test(s.notes)) return T.tool_coverage.noToolsField;
-    if (/^no card or no tools declared$/.test(s.notes)) return T.tool_coverage.noCard;
+    if (/^no card or no tools declared$/.test(s.notes)) {
+      return cardAbsenceUnproven(sibling(c, "well_known")) ? UNKNOWN_CHECK_REMEDIATION : T.tool_coverage.noCard;
+    }
     return UNKNOWN_CHECK_REMEDIATION;
   },
 
@@ -453,6 +490,8 @@ const SELECTORS: Record<string, Selector> = {
     const L = T.live_invocation;
     const n = s.notes;
     const wk = sibling(c, "well_known");
+    // r7: no "no card" text when the card probes failed.
+    if (cardAbsenceUnproven(wk)) return UNKNOWN_CHECK_REMEDIATION;
     // 1.4.0: no card, and no declared or guessed endpoint answered.
     if (/^no MCP endpoint answered/.test(n)) return L.noCard;
     if (/^no usable transport URL in card/.test(n)) return L.failed(L.reasonBadUrl);
@@ -537,7 +576,7 @@ const SELECTORS: Record<string, Selector> = {
   json_ld_present: (s) => {
     const n = int(s.notes.match(/^(\d+) JSON-LD block\(s\) present but failed to parse/)?.[1]);
     if (n !== null && n > 0) return T.json_ld_present.invalid(n);
-    if (/^no JSON-LD found on homepage$/.test(s.notes)) return T.json_ld_present.none;
+    if (/^no JSON-LD found on homepage$/.test(s.notes)) return jsonLdAbsenceUnproven(s) ? UNKNOWN_CHECK_REMEDIATION : T.json_ld_present.none;
     return UNKNOWN_CHECK_REMEDIATION;
   },
 
@@ -554,7 +593,8 @@ const SELECTORS: Record<string, Selector> = {
     }
     if (!/^no Organization schema$/.test(s.notes)) return UNKNOWN_CHECK_REMEDIATION;
     const ld = sibling(c, "json_ld_present");
-    return ld && ld.score === 100 ? O.none : O.noneNoJsonLd;
+    if (ld && ld.score === 100) return homepageUnread(s) ? UNKNOWN_CHECK_REMEDIATION : O.none;
+    return jsonLdAbsenceUnproven(s) ? UNKNOWN_CHECK_REMEDIATION : O.noneNoJsonLd;
   },
 
   service_offer_schema: (s) => {
@@ -564,12 +604,16 @@ const SELECTORS: Record<string, Selector> = {
     const k = int(s.notes.match(/best match has (\d)\/3 required fields/)?.[1]);
     // Markup with 0 of 3 fields is markup, not "no structured data".
     if (k !== null && k <= 2) return T.service_offer_schema.partial(k);
-    if (/^no Service \/ Product \/ Offer schema$/.test(s.notes)) return T.service_offer_schema.none;
+    if (/^no Service \/ Product \/ Offer schema$/.test(s.notes)) return homepageUnread(s) ? UNKNOWN_CHECK_REMEDIATION : T.service_offer_schema.none;
     return UNKNOWN_CHECK_REMEDIATION;
   },
 
   faq_schema: (s) => {
-    const m = s.notes.match(/^(\d+) Q&A pair\(s\); (\d+) read as clear questions with direct answers\.$/);
+    // 1.5.1 note; the 1.5.0 note ("read as clear questions") was scored by
+    // other length rules, so it gets the general text.
+    const m = s.notes.match(
+      /^(\d+) Q&A pair\(s\); (\d+) are phrased as questions and have an answer of reasonable length\.(?: \d+ entries are missing a question or an answer\.)?$/
+    );
     const q = int(m?.[1]);
     const k = int(m?.[2]);
     if (q !== null && k !== null && q > 0 && k < q) return T.faq_schema.rules(q - k, q);

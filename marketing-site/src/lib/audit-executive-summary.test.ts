@@ -179,7 +179,7 @@ describe("buildExecutiveSummary", () => {
     expectWellFormed(s);
     expect(s[0]).toContain(C.overallBands.weak);
     expect(weakest(s)).toBe(
-      `The weakest areas: ${C.dimensions[2].fail} (MCP Server Discoverability, 10/100); ${C.dimensions[4].fail} (Structured Capability Data, 39/100); and ${C.dimensions[5].partial} (Agent-Parsable Content, 45/100).`,
+      `The weakest areas: ${C.dimensions[2].fail} (MCP Server Discoverability, 10/100); ${C.dimensions[4].fail} (Structured Capability Data, 39/100); and ${C.dimensions[5].fail} (Agent-Parsable Content, 45/100).`, // r7: its one check failed, so "failed most"
     );
     expect(s.join(" ")).not.toContain("What's working");
   });
@@ -319,8 +319,19 @@ describe("r4: weak-area phrases follow the sub-check evidence", () => {
   });
 
   it("a card but a failing endpoint -> 'passed only some', never 'could not find'", () => {
-    const s = summary(mcp(30, sub("well_known", 50, "card present at /.well-known/mcp.json but missing a server name"), sub("live_invocation", 0, "initialize returned status 500")));
+    const s = summary(
+      dim(2, "MCP Server Discoverability", 30, {
+        sub_checks: [sub("well_known", 50, "card present at /.well-known/mcp.json but missing a server name"), sub("tool_coverage", 100), sub("live_invocation", 0, "initialize returned status 500")],
+      }),
+    );
     expect(s).toContain(C.dimensions[2].partial);
+  });
+
+  it("r7: a card but no check passed -> neither 'passed only some' nor 'could not find'", () => {
+    const s = summary(mcp(30, sub("well_known", 50, "card present at /.well-known/mcp.json but missing a server name"), sub("live_invocation", 0, "initialize returned status 500")));
+    expect(s).not.toContain(C.dimensions[2].partial);
+    expect(s).not.toContain(C.dimensions[2].fail);
+    expect(s).toContain("MCP Server Discoverability needs work");
   });
 
   it("nothing answered and no card -> the fail phrase stays", () => {
@@ -372,5 +383,29 @@ describe("r5: Dim 4 phrases follow what was sampled", () => {
 
   it("homepage-only results keep the homepage phrase", () => {
     expect(all(sd(88, "1 Service/Product/Offer block(s); best match has 3/3 required fields"))).toContain(C.dimensions[4].strong);
+  });
+});
+
+describe("r7 (Codex r6 LOW): share-of-checks wording follows the sub-check counts", () => {
+  it("metalab: Dim 5 at 33/100 with 1 failed and 1 passed check (3 N/A) does not say 'failed most'", () => {
+    const d5 = dim(5, "Agent-Parsable Content", 33, {
+      sub_checks: [sub("js_vs_no_js_render_diff", 0), sub("page_weight_lcp", 100), sub("a", 0, "", true), sub("b", 0, "", true), sub("c", 0, "", true)],
+    });
+    const text = buildExecutiveSummary(audit(50, [dim(1, "llms.txt Quality", 0), d5]), GAPS_HEADING).join(" ");
+    expect(text).not.toContain("failed most of our readability checks");
+    expect(text).toContain("your pages passed only some of our readability checks (Agent-Parsable Content, 33/100)");
+  });
+
+  it("a partial score with no passed check does not say 'passed only some'", () => {
+    const d5 = dim(5, "Agent-Parsable Content", 60, { sub_checks: [sub("a", 60), sub("b", 60)] });
+    const text = buildExecutiveSummary(audit(60, [d5]), GAPS_HEADING).join(" ");
+    expect(text).not.toContain("passed only some");
+    expect(text).toContain("your pages failed most of our readability checks (Agent-Parsable Content, 60/100)");
+  });
+
+  it("a high score with most checks failed is not listed as 'passed most'", () => {
+    const d1 = dim(1, "llms.txt Quality", 88, { sub_checks: [sub("presence", 100), sub("a", 60), sub("b", 60)] });
+    const text = buildExecutiveSummary(audit(88, [d1]), GAPS_HEADING).join(" ");
+    expect(text).not.toContain("your llms.txt file passed most of our checks");
   });
 });

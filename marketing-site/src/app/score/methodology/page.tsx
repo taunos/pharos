@@ -135,8 +135,8 @@ export default function MethodologyPage() {
           <p className="mt-3 text-sm text-[var(--color-muted)] italic">
             Full methodology section coming in a subsequent release. Sub-checks:
             presence, spec compliance, linked-pages quality, curation quality,
-            blockquote rules (one paragraph, 50 to 250 words, names the
-            business; fixed rules, no AI rating). Weight 15.
+            blockquote rules (one paragraph, 10 to 100 words; fixed rules, no
+            AI rating). Weight 15.
           </p>
 
           <h2 id="dim-2" className="mt-12 scroll-mt-20 text-3xl font-bold tracking-tight">
@@ -167,8 +167,9 @@ export default function MethodologyPage() {
             JSON-LD presence, Organization, Service/Offer, FAQ, Review schemas
             (FAQ and Review are N/A when the site has none). FAQ is scored by
             fixed rules, no AI rating: the share of Q&amp;A pairs whose question
-            is phrased as a question of 3 to 40 words and whose answer has 5 to
-            300 words. Weight 20.
+            is phrased as a question of 2 to 40 words and whose answer has 1 to
+            300 words; entries missing a question or an answer count as not
+            meeting the rules. Weight 20.
           </p>
 
           <h2 id="dim-5" className="mt-12 scroll-mt-20 text-3xl font-bold tracking-tight">

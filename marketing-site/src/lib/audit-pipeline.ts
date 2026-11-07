@@ -38,7 +38,10 @@ const SCANNER_URL = `${DEFAULT_SCANNER_URL}/api/scan`;
 // state (neutral text otherwise); review_schema by validation failure.
 // v9 (2026-11-07): scanner 1.5.0 fixed-rule notes (blockquote, FAQ), full
 // YAML specs, informational Markdown; no "AI rating" or YAML-limit text.
-const REMEDIATION_ENGINE_VERSION = "v9";
+// v10 (2026-11-07): scanner 1.5.1 notes (FAQ and blockquote rules); absence
+// wording only for a proven 404 / 410 (llms.txt), card absence (Dim 2) or a
+// homepage read in full (Dim 4); "couldn't read" llms.txt template.
+const REMEDIATION_ENGINE_VERSION = "v10";
 
 export type AuditEnv = {
   AI: Ai;

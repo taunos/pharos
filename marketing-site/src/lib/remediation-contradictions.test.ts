@@ -89,13 +89,21 @@ const CURRENT: Array<[string, string, string, SubCheck[]]> = [
   ],
   ["faq_schema", "FAQPage markup found, but none of its entries is a Question with an answer text (acceptedAnswer.text), so there are no Q&A pairs to rate.", "none of its entries is a Question", []],
   // 1.5.0 fixed-rule notes.
-  ["faq_schema", "4 Q&A pair(s); 1 read as clear questions with direct answers.", "Q&A pair(s); ${clear} read as clear questions with direct answers.", []],
+  // 1.5.1 fixed-rule notes.
+  ["faq_schema", "4 Q&A pair(s); 1 are phrased as questions and have an answer of reasonable length.", "are phrased as questions and have an answer of reasonable length.", []],
   [
-    "blockquote_eval",
-    "1 of 3 blockquote rules met: one paragraph (yes); 50 to 250 words (no, 12 words); names the business (no).",
-    "blockquote rules met: one paragraph (${yesNo(onePara)}); ${BLOCKQUOTE_MIN_WORDS} to ${BLOCKQUOTE_MAX_WORDS} words (${yesNo(lengthOk)}, ${words} words); names the business (${yesNo(named)}).",
+    "faq_schema",
+    "6 Q&A pair(s); 1 are phrased as questions and have an answer of reasonable length. 5 entries are missing a question or an answer.",
+    "entries are missing a question or an answer.",
     [],
   ],
+  [
+    "blockquote_eval",
+    "1 of 2 blockquote rules met: one paragraph (yes); 10 to 100 words (no, 120 words).",
+    "of 2 blockquote rules met: one paragraph (${yesNo(onePara)}); ${BLOCKQUOTE_MIN_WORDS} to ${BLOCKQUOTE_MAX_WORDS} words (${yesNo(lengthOk)}, ${words} words).",
+    [],
+  ],
+  ["spec_validity", "The YAML spec repeats a key (paths) in the same section, so we could not tell which version to read.", "in the same section, so we could not tell which version to read.", []],
   ["blockquote_eval", "blockquote contains instruction-like text; scored 0", '"blockquote contains instruction-like text; scored 0"', []],
   ["review_schema", "2 Review/AggregateRating block(s); well-formed=false", "Review/AggregateRating block(s); well-formed=", []],
   ["js_vs_no_js_render_diff", "About 16% of the distinct words on your homepage appear in both the HTML your server sends and the page after JavaScript runs.", "of the distinct words on your homepage appear in both", []],
@@ -189,9 +197,9 @@ function contradiction(s: SubCheck, siblings: SubCheck[], out: string): string |
     case "blockquote_eval":
       if (has("AI rating") || has("judgement, not a measurement")) return "AI-rating text after 1.5.0";
       if (/one paragraph \(yes\)/.test(n) && has("make it a single paragraph")) return "paragraph fix for one paragraph";
-      if (/words \(yes,/.test(n) && has("make it 50 to 250 words long")) return "length fix for a valid length";
-      if (/names the business \(yes\)/.test(n) && has("name your business in it")) return "name fix for a named business";
-      if (/^\d of 3 blockquote rules met/.test(n) && has("There is no blockquote summary")) return "no-blockquote text with a blockquote";
+      if (/words \(yes,/.test(n) && has("make it 10 to 100 words long")) return "length fix for a valid length";
+      if (has("name your business in it")) return "name fix after 1.5.1 (rule dropped)";
+      if (/^\d of [23] blockquote rules met/.test(n) && has("There is no blockquote summary")) return "no-blockquote text with a blockquote";
       break;
     case "spec_validity":
       if (has("limit of our tool") || has("reads only the version field")) return "YAML-limit text after 1.5.0";
@@ -328,11 +336,91 @@ describe("r4: remediation templates never contradict the scanner note", () => {
     expect(remediationFor(sc("curation_quality", "clean link list"), ctxFor("https://example.com", [presenceOk]))).toBe(UNKNOWN_CHECK_REMEDIATION);
     expect(
       remediationFor(
-        sc("blockquote_eval", "3 of 3 blockquote rules met: one paragraph (yes); 50 to 250 words (yes, 80 words); names the business (yes)."),
+        sc("blockquote_eval", "2 of 2 blockquote rules met: one paragraph (yes); 10 to 100 words (yes, 80 words)."),
         ctxFor("https://example.com", [presenceOk]),
       ),
     ).toBe(UNKNOWN_CHECK_REMEDIATION);
-    expect(remediationFor(sc("faq_schema", "3 Q&A pair(s); 3 read as clear questions with direct answers."), ctxFor("https://example.com", []))).not.toMatch(/do not meet/);
+    expect(remediationFor(sc("faq_schema", "3 Q&A pair(s); 3 are phrased as questions and have an answer of reasonable length."), ctxFor("https://example.com", []))).not.toMatch(/do not meet/);
     expect(remediationFor(sc("dns_txt", "1 TXT record(s) at _mcp.example.com. Informational only: no ratified standard defines an _mcp DNS record, so this is not scored."), ctxFor("https://example.com", []))).toBe(UNKNOWN_CHECK_REMEDIATION);
+  });
+});
+
+describe("r7 (Codex r6): a failed measurement never selects absence wording", () => {
+  const ctx = (siblings: SubCheck[]) => ctxFor("https://example.com", siblings);
+  const ABSENCE = /there is no https:\/\/example\.com\/llms\.txt yet|Create a file at/;
+  const DIM1_DEPENDENTS: Array<[string, string]> = [
+    ["spec_compliance", "h1=no, blockquote=no"],
+    ["linked_pages_quality", "no links to sample"],
+    ["curation_quality", "file missing — no link list to evaluate"],
+    ["blockquote_eval", "no blockquote to evaluate"],
+  ];
+
+  it.each(["fetch failed", "status=401", "status=403", "status=429", "status=500", "status=503"])("presence %s: the couldn't-read template, no absence", (note) => {
+    const out = remediationFor(sc("presence", note), ctx([]));
+    expect(out).not.toMatch(ABSENCE);
+    expect(out).toMatch(/^We couldn't read https:\/\/example\.com\/llms\.txt on this run \(/);
+    expect(out).toContain("If the file exists, check that your server lets automated clients fetch it; if it doesn't, create it — see the llms.txt format at llmstxt.org. Estimated effort: under 30 minutes.");
+  });
+
+  it.each(["status=404", "status=410"])("presence %s: the missing-file template", (note) => {
+    expect(remediationFor(sc("presence", note), ctx([]))).toMatch(/^Create a file at https:\/\/example\.com\/llms\.txt/);
+  });
+
+  it.each(["fetch failed", "status=403", "status=500"])("Dim 1 dependents after presence %s: no absence wording", (note) => {
+    const presence = sc("presence", note);
+    for (const [id, n] of DIM1_DEPENDENTS) {
+      const out = remediationFor(sc(id, n), ctx([presence]));
+      expect(out, id).not.toMatch(ABSENCE);
+      expect(out, id).toBe(UNKNOWN_CHECK_REMEDIATION);
+    }
+  });
+
+  it("Dim 1 dependents after a 404: the missing-file text", () => {
+    for (const [id, n] of DIM1_DEPENDENTS) {
+      expect(remediationFor(sc(id, n), ctx([sc("presence", "status=404")])), id).toContain("there is no https://example.com/llms.txt yet");
+    }
+  });
+
+  it("curation 'file missing' without a Presence result proves nothing", () => {
+    expect(remediationFor(sc("curation_quality", "file missing — no link list to evaluate"), ctx([]))).toBe(UNKNOWN_CHECK_REMEDIATION);
+  });
+
+  const NO_CARD = "no card at /.well-known/mcp.json or /.well-known/mcp/server-card.json";
+  const wkUnread = sc("well_known", NO_CARD, 0, { evidence: { status: null, parsed: false, card_absent_proven: false } });
+  const wkAbsent = sc("well_known", NO_CARD, 0, { evidence: { status: null, parsed: false, card_absent_proven: true } });
+
+  it("Dim 2: card probes that failed get no 'no card' text", () => {
+    expect(remediationFor(wkUnread, ctx([wkUnread]))).toBe(UNKNOWN_CHECK_REMEDIATION);
+    expect(remediationFor(sc("tool_coverage", "no card or no tools declared"), ctx([wkUnread]))).toBe(UNKNOWN_CHECK_REMEDIATION);
+    expect(
+      remediationFor(
+        sc("live_invocation", "no MCP endpoint answered: no server card with a transport URL, and https://example.com/api/mcp did not answer an MCP initialize request"),
+        ctx([wkUnread]),
+      ),
+    ).toBe(UNKNOWN_CHECK_REMEDIATION);
+  });
+
+  it("Dim 2: 404 / 410 at both card addresses keeps the no-card text", () => {
+    expect(remediationFor(wkAbsent, ctx([wkAbsent]))).toContain("We found no MCP discovery card");
+    expect(remediationFor(sc("tool_coverage", "no card or no tools declared"), ctx([wkAbsent]))).toContain("there is no discovery card");
+  });
+
+  it("Dim 4: a homepage that was not read gets no 'has no markup' text", () => {
+    const failed = { evidence: { status: null, parsed: false, ld_json_absent_proven: false } };
+    const forbidden = sc("json_ld_present", "no JSON-LD found on homepage", 0, failed);
+    expect(remediationFor(forbidden, ctx([forbidden]))).toBe(UNKNOWN_CHECK_REMEDIATION);
+    expect(remediationFor(sc("organization_schema", "no Organization schema", 0, failed), ctx([forbidden]))).toBe(UNKNOWN_CHECK_REMEDIATION);
+    expect(remediationFor(sc("service_offer_schema", "no Service / Product / Offer schema", 0, failed), ctx([forbidden]))).toBe(UNKNOWN_CHECK_REMEDIATION);
+    // Read in full but "ld+json" not proven absent (e.g. truncated): no JSON-LD absence claim either.
+    const truncated = { evidence: { status: 200, parsed: true, ld_json_absent_proven: false } };
+    expect(remediationFor(sc("json_ld_present", "no JSON-LD found on homepage", 0, truncated), ctx([]))).toBe(UNKNOWN_CHECK_REMEDIATION);
+  });
+
+  it("Dim 4: a homepage read in full with no JSON-LD keeps the absence text", () => {
+    const proven = { evidence: { status: 200, parsed: true, ld_json_absent_proven: true } };
+    const ld = sc("json_ld_present", "no JSON-LD found on homepage", 0, proven);
+    expect(remediationFor(ld, ctx([ld]))).toContain("Your homepage has no JSON-LD structured data");
+    expect(remediationFor(sc("organization_schema", "no Organization schema", 0, proven), ctx([ld]))).toContain("Your homepage has no Organization structured data");
+    expect(remediationFor(sc("service_offer_schema", "no Service / Product / Offer schema", 0, proven), ctx([ld]))).toContain("We found no Service, Product or Offer structured data");
   });
 });

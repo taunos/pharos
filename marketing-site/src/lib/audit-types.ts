@@ -12,6 +12,13 @@ export type SubCheck = {
   passed: boolean;
   notes: string;
   na?: boolean;
+  /** Scanner request evidence (scanner/src/types.ts SubCheckEvidence); read by remediation-templates only. */
+  evidence?: {
+    status?: number | null;
+    parsed?: boolean;
+    ld_json_absent_proven?: boolean;
+    card_absent_proven?: boolean;
+  };
 };
 
 export type DimensionResult = {
