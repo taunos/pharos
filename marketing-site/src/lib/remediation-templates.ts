@@ -612,7 +612,7 @@ const SELECTORS: Record<string, Selector> = {
     // 1.5.1 note; the 1.5.0 note ("read as clear questions") was scored by
     // other length rules, so it gets the general text.
     const m = s.notes.match(
-      /^(\d+) Q&A pair\(s\); (\d+) are phrased as questions and have an answer of reasonable length\.(?: \d+ entries are missing a question or an answer\.)?$/
+      /^(\d+) Q&A pair\(s\); (\d+) (?:is|are) phrased as (?:a question|questions) and (?:has|have) an answer of reasonable length\.(?: \d+ (?:entry is|entries are) missing a question or an answer\.)?$/
     );
     const q = int(m?.[1]);
     const k = int(m?.[2]);
