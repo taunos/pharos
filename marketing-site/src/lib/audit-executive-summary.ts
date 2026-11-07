@@ -115,8 +115,6 @@ export const EXEC_SUMMARY_COPY = {
   // summary never contradicts the table. Dim 2: an MCP endpoint answered
   // (tools/list or an OAuth challenge) but there is no server card.
   mcpFoundNoCard: "we found your MCP server, but it isn't fully discoverable (no server card)",
-  // Dim 3: the only checks below passing are limited by the scanner (YAML).
-  openApiScannerLimited: "our scanner could only partly check the OpenAPI description of your API",
   // Dim 4 (r5): a scored check read a sampled product page, not the homepage.
   structuredDataSampled: {
     partial: "the structured data (JSON-LD) we sampled is incomplete",
@@ -148,8 +146,8 @@ function phrasesFor(d: DimensionResult): DimPhrases {
 /**
  * r4: the weak-area phrase for a dimension, read from its sub-check states,
  * not its score alone. Dim 2 with an MCP endpoint that answered never says
- * we could not find one; Dim 3 held down only by the scanner's YAML limit is
- * "only partly checked", not "incomplete".
+ * we could not find one. (Scanner 1.5.0 reads YAML specs in full, so the
+ * r4 "only partly checked" Dim 3 phrase is gone.)
  */
 function weakPhrase(d: DimensionResult): string {
   const C = EXEC_SUMMARY_COPY;
@@ -163,12 +161,6 @@ function weakPhrase(d: DimensionResult): string {
     const hasCard = !!card && !card.na && card.score > 0;
     if (answered && !hasCard) return C.mcpFoundNoCard;
     if (answered || hasCard) return p.partial;
-  }
-  if (d.dimension_id === 3) {
-    const failing = d.sub_checks.filter((s) => !s.na && !s.passed);
-    if (failing.length > 0 && failing.every((s) => s.id === "spec_validity" && /^YAML spec detected/.test(String(s.notes ?? "")))) {
-      return C.openApiScannerLimited;
-    }
   }
   return band;
 }

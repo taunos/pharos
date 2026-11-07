@@ -36,7 +36,9 @@ const SCANNER_URL = `${DEFAULT_SCANNER_URL}/api/scan`;
 // weighted impact (lib/audit-gaps.ts).
 // v8 (2026-11-07): templates chosen only when the scanner note proves the
 // state (neutral text otherwise); review_schema by validation failure.
-const REMEDIATION_ENGINE_VERSION = "v8";
+// v9 (2026-11-07): scanner 1.5.0 fixed-rule notes (blockquote, FAQ), full
+// YAML specs, informational Markdown; no "AI rating" or YAML-limit text.
+const REMEDIATION_ENGINE_VERSION = "v9";
 
 export type AuditEnv = {
   AI: Ai;

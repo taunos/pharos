@@ -329,7 +329,7 @@ describe("r4: weak-area phrases follow the sub-check evidence", () => {
 
   const openApi = (subs: SubCheck[], score: number) => dim(3, "OpenAPI / API Catalog", score, { sub_checks: subs });
 
-  it("resend: held down only by the YAML limit -> 'only partly check', not 'incomplete'", () => {
+  it("1.5.0: no 'scanner could only partly check' phrase (YAML specs are read in full)", () => {
     const s = summary(
       openApi(
         [
@@ -340,8 +340,9 @@ describe("r4: weak-area phrases follow the sub-check evidence", () => {
         75,
       ),
     );
-    expect(s).toContain(`${C.openApiScannerLimited} (OpenAPI / API Catalog, 75/100)`);
-    expect(s).not.toContain("incomplete");
+    expect(s).not.toMatch(/only partly check/);
+    expect(s).toContain(C.dimensions[3].partial);
+    expect(Object.keys(C)).not.toContain("openApiScannerLimited");
   });
 
   it("a real spec gap keeps 'incomplete'", () => {

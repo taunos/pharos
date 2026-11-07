@@ -66,7 +66,11 @@ const CURRENT: Array<[string, string, string, SubCheck[]]> = [
   ["live_invocation", "tools/list timed out or failed for https://example.com/mcp", "tools/list timed out or failed for", [sc("well_known", "no card at x")]],
   ["live_invocation", "initialize returned status 500", "initialize returned status ${init.status}", [sc("well_known", 'valid card at /.well-known/mcp.json with name="x", transports=1', 100)]],
   ["dns_txt", "DNS lookup for _mcp.example.com did not complete. Informational only: no ratified standard defines an _mcp DNS record, so this is not scored.", "did not complete. ${DNS_TXT_INFO_NOTE}", []],
-  ["spec_validity", "YAML spec detected (openapi 3.0.3). The scanner checks a YAML spec's version field and reachability only, so it gets partial credit here.", "YAML spec detected (", []],
+  ["dns_txt", "No TXT record at _mcp.example.com. Informational only: no ratified standard defines an _mcp DNS record, so this is not scored.", "`No TXT record at _mcp.${host}. ${DNS_TXT_INFO_NOTE}`", []],
+  ["spec_validity", "Spec at https://example.com/openapi.yaml did not parse as JSON or recognizable YAML.", "did not parse as JSON or recognizable YAML.", []],
+  ["spec_validity", 'YAML parsed but no "openapi" or "swagger" version field at the root.', '${fmt} parsed but no "openapi" or "swagger" version field at the root.', []],
+  ["security_schemes", "Skipped — spec did not parse as JSON or YAML.", "Skipped — spec did not parse as JSON or YAML.", []],
+  ["discovery", "Found via homepage link https://example.com/v1/api.yaml (content-type=text/plain).", "source: `homepage link ${candidate}`", []],
   ["json_ld_present", "2 JSON-LD block(s) present but failed to parse", "JSON-LD block(s) present but failed to parse", []],
   ["organization_schema", "Organization found: name=true, url=true, description=false, sameAs=0", "Organization found: name=", []],
   ["service_offer_schema", "no Service / Product / Offer schema", '"no Service / Product / Offer schema"', []],
@@ -84,6 +88,15 @@ const CURRENT: Array<[string, string, string, SubCheck[]]> = [
     [],
   ],
   ["faq_schema", "FAQPage markup found, but none of its entries is a Question with an answer text (acceptedAnswer.text), so there are no Q&A pairs to rate.", "none of its entries is a Question", []],
+  // 1.5.0 fixed-rule notes.
+  ["faq_schema", "4 Q&A pair(s); 1 read as clear questions with direct answers.", "Q&A pair(s); ${clear} read as clear questions with direct answers.", []],
+  [
+    "blockquote_eval",
+    "1 of 3 blockquote rules met: one paragraph (yes); 50 to 250 words (no, 12 words); names the business (no).",
+    "blockquote rules met: one paragraph (${yesNo(onePara)}); ${BLOCKQUOTE_MIN_WORDS} to ${BLOCKQUOTE_MAX_WORDS} words (${yesNo(lengthOk)}, ${words} words); names the business (${yesNo(named)}).",
+    [],
+  ],
+  ["blockquote_eval", "blockquote contains instruction-like text; scored 0", '"blockquote contains instruction-like text; scored 0"', []],
   ["review_schema", "2 Review/AggregateRating block(s); well-formed=false", "Review/AggregateRating block(s); well-formed=", []],
   ["js_vs_no_js_render_diff", "About 16% of the distinct words on your homepage appear in both the HTML your server sends and the page after JavaScript runs.", "of the distinct words on your homepage appear in both", []],
   ["js_vs_no_js_render_diff", "Static fetch returned minimal HTML (likely a JS-required SPA shell). Live page rendering failed on this run, so this check was scored on your server's HTML only.", "Static fetch returned minimal HTML", []],
@@ -95,6 +108,12 @@ const CURRENT: Array<[string, string, string, SubCheck[]]> = [
     [],
   ],
   ["markdown_negotiation", "Site did not respond to markdown or HTML requests.", "Site did not respond to markdown or HTML requests.", []],
+  [
+    "markdown_negotiation",
+    "Site did not respond to markdown or HTML requests. Informational only: serving Markdown is an emerging convention most hosts don't support yet, so this is not scored.",
+    "serving Markdown is an emerging convention most hosts don't support yet, so this is not scored.",
+    [],
+  ],
   ["pricing_text_visibility", 'Detected https://example.com/pricing; 1 price token(s) but none with a billing period (such as "/month") or marked one-time.', "price token(s) but none with a billing period", []],
   ["pricing_text_visibility", "Detected https://example.com/pricing; no price patterns detected on the pricing page.", "no price patterns detected on the pricing page", []],
   ["pricing_text_visibility", "Detected https://example.com/pricing; prices found but appear inside modal-suggesting markup.", "modal-suggesting markup", []],
@@ -165,6 +184,21 @@ function contradiction(s: SubCheck, siblings: SubCheck[], out: string): string |
       break;
     case "dns_txt":
       if (/did not complete|^DoH /.test(n) !== has("failed on this run")) return "lookup state mismatch";
+      if (/^\d+ TXT record\(s\) at/.test(n) && has("We found no TXT record")) return "no-record text with a record";
+      break;
+    case "blockquote_eval":
+      if (has("AI rating") || has("judgement, not a measurement")) return "AI-rating text after 1.5.0";
+      if (/one paragraph \(yes\)/.test(n) && has("make it a single paragraph")) return "paragraph fix for one paragraph";
+      if (/words \(yes,/.test(n) && has("make it 50 to 250 words long")) return "length fix for a valid length";
+      if (/names the business \(yes\)/.test(n) && has("name your business in it")) return "name fix for a named business";
+      if (/^\d of 3 blockquote rules met/.test(n) && has("There is no blockquote summary")) return "no-blockquote text with a blockquote";
+      break;
+    case "spec_validity":
+      if (has("limit of our tool") || has("reads only the version field")) return "YAML-limit text after 1.5.0";
+      if (/^YAML parsed/.test(n) && has("The JSON document we found")) return "JSON text for a YAML spec";
+      break;
+    case "discovery":
+      if (!/homepage[ -]link/.test(n) && has("only through a link on your homepage")) return "homepage-link text the note does not prove";
       break;
     case "json_ld_present":
       if (/valid JSON-LD block|failed to parse/.test(n) && has("has no JSON-LD")) return "no-JSON-LD text with JSON-LD";
@@ -191,6 +225,7 @@ function contradiction(s: SubCheck, siblings: SubCheck[], out: string): string |
       break;
     case "faq_schema":
       if (/^[1-9]\d* Q&A pair/.test(n) && has("no questions")) return "no-questions text with questions";
+      if (has("AI rating") || has("judgement, not a measurement")) return "AI-rating text after 1.5.0";
       break;
     case "js_vs_no_js_render_diff": {
       const pct = (n.match(/^About (\d+)% of the distinct words/) ?? n.match(/token overlap (\d+)%/))?.[1];
@@ -267,8 +302,37 @@ describe("r4: remediation templates never contradict the scanner note", () => {
       "info_completeness",
       "operation_coverage",
       "review_schema",
+      // r6 (Codex round-5 leftover): these used to default to a specific state.
+      "presence",
+      "spec_compliance",
+      "linked_pages_quality",
+      "curation_quality",
+      "blockquote_eval",
+      "dns_txt",
+      "discovery",
+      "spec_validity",
+      "security_schemes",
+      "markdown_negotiation",
     ]) {
       expect(remediationFor(sc(id, "some future note shape"), ctxFor("https://example.com", []))).toBe(UNKNOWN_CHECK_REMEDIATION);
     }
+  });
+
+  it("r6: an unrecognized note stays neutral even when the llms.txt file exists", () => {
+    const presenceOk = sc("presence", 'status=200, content-type="text/plain"', 100);
+    for (const id of ["spec_compliance", "linked_pages_quality", "curation_quality", "blockquote_eval"]) {
+      expect(remediationFor(sc(id, "some future note shape"), ctxFor("https://example.com", [presenceOk]))).toBe(UNKNOWN_CHECK_REMEDIATION);
+    }
+    // Passing states never get a "fix" template either.
+    expect(remediationFor(sc("spec_compliance", "h1=yes, blockquote=yes"), ctxFor("https://example.com", [presenceOk]))).toBe(UNKNOWN_CHECK_REMEDIATION);
+    expect(remediationFor(sc("curation_quality", "clean link list"), ctxFor("https://example.com", [presenceOk]))).toBe(UNKNOWN_CHECK_REMEDIATION);
+    expect(
+      remediationFor(
+        sc("blockquote_eval", "3 of 3 blockquote rules met: one paragraph (yes); 50 to 250 words (yes, 80 words); names the business (yes)."),
+        ctxFor("https://example.com", [presenceOk]),
+      ),
+    ).toBe(UNKNOWN_CHECK_REMEDIATION);
+    expect(remediationFor(sc("faq_schema", "3 Q&A pair(s); 3 read as clear questions with direct answers."), ctxFor("https://example.com", []))).not.toMatch(/do not meet/);
+    expect(remediationFor(sc("dns_txt", "1 TXT record(s) at _mcp.example.com. Informational only: no ratified standard defines an _mcp DNS record, so this is not scored."), ctxFor("https://example.com", []))).toBe(UNKNOWN_CHECK_REMEDIATION);
   });
 });

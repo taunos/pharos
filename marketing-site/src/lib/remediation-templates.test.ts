@@ -53,8 +53,23 @@ const FIXTURES: [string, string, SubCheck[], string][] = [
   ["blockquote_eval", "no blockquote to evaluate", [presenceMissing], "Depends on Presence"],
   ["blockquote_eval", "no blockquote to evaluate", [presenceOk], "There is no blockquote summary"],
   ["blockquote_eval", "blockquote contains instruction-like text; scored 0 without LLM eval", [presenceOk], "reads like instructions"],
+  ["blockquote_eval", "blockquote contains instruction-like text; scored 0", [presenceOk], "reads like instructions"],
   ["blockquote_eval", "blockquote empty after cleaning", [presenceOk], "no readable text"],
-  ["blockquote_eval", "LLM rated blockquote 22/100", [presenceOk], "was 22/100"],
+  // 1.5.0 fixed rules: one fix phrase per failed rule.
+  [
+    "blockquote_eval",
+    "1 of 3 blockquote rules met: one paragraph (no); 50 to 250 words (no, 32 words); names the business (yes).",
+    [presenceOk],
+    "make it a single paragraph (a > line with no text starts a new one) and make it 50 to 250 words long (it has 32 now).",
+  ],
+  [
+    "blockquote_eval",
+    "2 of 3 blockquote rules met: one paragraph (yes); 50 to 250 words (yes, 80 words); names the business (no).",
+    [presenceOk],
+    "Edit the blockquote summary in https://example.com/llms.txt: name your business in it",
+  ],
+  // An AI rating (before 1.5.0) is not a state a template can speak to.
+  ["blockquote_eval", "LLM rated blockquote 22/100", [presenceOk], "This check did not pass"],
   ["well_known", "no card at /.well-known/mcp.json or /.well-known/mcp/server-card.json", [], "We found no MCP discovery card"],
   ["well_known", "card present at /.well-known/mcp/server-card.json but missing name or transports[]", [], "https://example.com/.well-known/mcp/server-card.json but not both"],
   ["well_known", "card present at /.well-known/mcp.json but invalid JSON", [], "is not valid JSON"],
@@ -76,13 +91,19 @@ const FIXTURES: [string, string, SubCheck[], string][] = [
   ["live_invocation", "initialize returned 200 but the reply exceeded the scan limit", [], "larger than our scan limit"],
   ["dns_txt", "no TXT at _mcp.www.example.com", [], "_mcp.www.example.com"],
   ["dns_txt", "DoH status 500", [], "Our DNS lookup for _mcp.example.com failed"],
+  ["dns_txt", "No TXT record at _mcp.example.com. Informational only: no ratified standard defines an _mcp DNS record, so this is not scored.", [], "We found no TXT record at _mcp.example.com"],
+  ["dns_txt", "DNS lookup for _mcp.example.com did not complete. Informational only: no ratified standard defines an _mcp DNS record, so this is not scored.", [], "Our DNS lookup for _mcp.example.com failed"],
+  ["discovery", "Found via homepage link https://example.com/docs/openapi.json (content-type=application/json).", [], "only through a link on your homepage"],
   ["discovery", "Found via homepage-link at https://example.com/docs/openapi.json (content-type=application/json).", [], "only through a link on your homepage"],
   ["spec_validity", "Spec at https://example.com/openapi.json did not parse as JSON or recognizable YAML.", [], "did not parse as JSON"],
-  ["spec_validity", "YAML spec detected (openapi 3.0.3). The scanner checks a YAML spec's version field and reachability only, so it gets partial credit here.", [], "reflects a limit of our tool"],
+  // 1.5.0: YAML is parsed in full; the old partial-credit note proves nothing now.
+  ["spec_validity", "YAML spec detected (openapi 3.0.3). The scanner checks a YAML spec's version field and reachability only, so it gets partial credit here.", [], "This check did not pass"],
+  ["spec_validity", 'YAML parsed but no "openapi" or "swagger" version field at the root.', [], "This check did not pass"],
   ["spec_validity", 'JSON parsed but no "openapi" or "swagger" version field at the root.', [], "no openapi or swagger version field"],
   ["info_completeness", "info: title=yes, version=no, description=<20 chars or missing (1/3)", [], "add info.version and info.description"],
   ["info_completeness", 'Spec is missing the "info" object entirely — required by OpenAPI 3.x §4.1.', [], "has no info object"],
   ["info_completeness", "Skipped — spec did not parse as JSON.", [], "needs a spec that parses"],
+  ["info_completeness", "Skipped — spec did not parse as JSON or YAML.", [], "needs a spec that parses"],
   ["security_schemes", "No components.securitySchemes and no top-level security:[] — agents have no signal.", [], "doesn't say how clients authenticate"],
   ["security_schemes", "Skipped — spec did not parse as JSON.", [], "needs a spec that parses"],
   ["operation_coverage", "3 operation(s); 1/3 have a summary or description. (count=75, doc=33)", [], "2 of the 3 operations"],
@@ -96,8 +117,10 @@ const FIXTURES: [string, string, SubCheck[], string][] = [
   ["organization_schema", "Organization found: name=true, url=false, description=false, sameAs=0", [], "is missing url and description"],
   ["service_offer_schema", "no Service / Product / Offer schema", [], "If your site doesn't sell anything"],
   ["service_offer_schema", "2 Service/Product/Offer block(s); best match has 1/3 required fields", [], "has 1 of the 3 fields"],
-  ["faq_schema", "3 Q&A pair(s); LLM rated 3 question(s) avg 10/100", [], "has 3 question(s)"],
-  ["faq_schema", "3 Q&A pair(s); 3 question(s); instruction-like text detected; scored 0 without LLM eval", [], "reads like instructions"],
+  ["faq_schema", "3 Q&A pair(s); 1 read as clear questions with direct answers.", [], "2 of the 3 Q&A pairs in your FAQPage markup do not meet this check's rules"],
+  // Before 1.5.0 (AI rating): the general advice, never a rating.
+  ["faq_schema", "3 Q&A pair(s); LLM rated 3 question(s) avg 10/100", [], "If you revise your FAQPage markup"],
+  ["faq_schema", "3 Q&A pair(s); 3 question(s); instruction-like text detected; scored 0 without LLM eval", [], "If you revise your FAQPage markup"],
   ["review_schema", "2 Review/AggregateRating block(s); well-formed=false", [], "We found 2 Review or AggregateRating"],
   ["review_schema", "2 Review/AggregateRating block(s); well-formed=false: each block is missing a required field", [], "but each is missing a field this check needs"],
   ["review_schema", "1 Review/AggregateRating block(s); well-formed=false: each block has a rating value or count that is not valid", [], "but their values did not pass our checks"],
@@ -114,6 +137,12 @@ const FIXTURES: [string, string, SubCheck[], string][] = [
   ["js_vs_no_js_render_diff", "Static fetch returned 3000 chars of body text but no obvious pricing/capabilities signals. Free-tier.", [], "didn't find words such as pricing"],
   ["page_weight_lcp", "Page weight 1.52MB (1593835 bytes); LCP not measured (free tier).", [], "is 1.52 MB"],
   ["markdown_negotiation", "No markdown variant or content negotiation. Agents must fall back to HTML extraction.", [], "https://example.com/index.md"],
+  [
+    "markdown_negotiation",
+    "We found no Markdown version at the addresses we checked (https://example.com/index.md and an Accept: text/markdown request to the homepage). Agents read the HTML instead. Informational only: serving Markdown is an emerging convention most hosts don't support yet, so this is not scored.",
+    [],
+    "https://example.com/index.md",
+  ],
   ["markdown_negotiation", "Site did not respond to markdown or HTML requests.", [], "did not answer our requests"],
   ["pricing_text_visibility", "Detected https://example.com/pricing; no price patterns detected on the pricing page.", [], "We found a pricing page (https://example.com/pricing) but no prices"],
   ["pricing_text_visibility", "Detected pricing path https://example.com/plans but it didn't return 200.", [], "(https://example.com/plans) did not load"],
@@ -202,6 +231,12 @@ describe("copy rules", () => {
     expect(t.length).toBeGreaterThan(80);
   });
 
+  it("1.5.0: no template speaks of an AI rating or a YAML limit of the scanner", () => {
+    const src = readFileSync(new URL("./remediation-templates.ts", import.meta.url), "utf8");
+    const textBlock = src.slice(src.indexOf("export const DIM6_REMEDIATION"), src.indexOf("// ─── State selection"));
+    expect(textBlock).not.toMatch(/AI rating|judgement, not a measurement|reads only the version field|limit of our tool/);
+  });
+
   it("the template module text itself carries no banned pattern", () => {
     const src = readFileSync(new URL("./remediation-templates.ts", import.meta.url), "utf8");
     const textBlock = src.slice(src.indexOf("export const DIM6_REMEDIATION"), src.indexOf("// ─── State selection"));
@@ -218,7 +253,8 @@ describe("copy rules", () => {
   it("uses correct terms: llms.txt is Markdown at /llms.txt, FAQPage uses mainEntity/acceptedAnswer, MCP card under /.well-known/", () => {
     expect(T.presence.missing(ORIGIN)).toMatch(/plain Markdown file/);
     expect(T.presence.missing(ORIGIN)).toContain("llmstxt.org");
-    expect(T.faq_schema.instructionLike).toMatch(/mainEntity.*acceptedAnswer/);
+    expect(T.faq_schema.general).toMatch(/mainEntity.*acceptedAnswer/);
+    expect(T.faq_schema.rules(1, 2)).toMatch(/Question's name.*acceptedAnswer/);
     expect(T.well_known.noCard(ORIGIN)).toContain(`${ORIGIN}/.well-known/mcp.json`);
     expect(ALL_OUTPUTS.join(" ")).not.toMatch(/HTML blockquote|<blockquote/i);
   });
@@ -227,7 +263,7 @@ describe("copy rules", () => {
     for (const t of [T.review_schema.missing(1), T.review_schema.invalid(1), T.review_schema.general(1)]) {
       expect(t).toMatch(/Only add ratings markup for real ratings/);
     }
-    expect(T.faq_schema.rated(3, 10)).toMatch(/don't add questions to raise this score/);
+    expect(T.faq_schema.rules(2, 3)).toMatch(/don't add questions to raise this score/);
     expect(T.tool_coverage.counts(1, 1)).toMatch(/don't list tools it doesn't offer/);
     expect(T.service_offer_schema.none).toMatch(/price only if you publish one/);
     expect(T.organization_schema.missingFields("description")).toMatch(/only for profiles you really have/);

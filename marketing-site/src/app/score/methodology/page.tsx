@@ -135,7 +135,8 @@ export default function MethodologyPage() {
           <p className="mt-3 text-sm text-[var(--color-muted)] italic">
             Full methodology section coming in a subsequent release. Sub-checks:
             presence, spec compliance, linked-pages quality, curation quality,
-            blockquote eval. Weight 15.
+            blockquote rules (one paragraph, 50 to 250 words, names the
+            business; fixed rules, no AI rating). Weight 15.
           </p>
 
           <h2 id="dim-2" className="mt-12 scroll-mt-20 text-3xl font-bold tracking-tight">
@@ -164,7 +165,10 @@ export default function MethodologyPage() {
           <p className="mt-3 text-sm text-[var(--color-muted)] italic">
             Full methodology section coming in a subsequent release. Sub-checks:
             JSON-LD presence, Organization, Service/Offer, FAQ, Review schemas
-            (FAQ and Review are N/A when the site has none). Weight 20.
+            (FAQ and Review are N/A when the site has none). FAQ is scored by
+            fixed rules, no AI rating: the share of Q&amp;A pairs whose question
+            is phrased as a question of 3 to 40 words and whose answer has 5 to
+            300 words. Weight 20.
           </p>
 
           <h2 id="dim-5" className="mt-12 scroll-mt-20 text-3xl font-bold tracking-tight">
@@ -172,8 +176,10 @@ export default function MethodologyPage() {
           </h2>
           <p className="mt-3 text-sm text-[var(--color-muted)] italic">
             Full methodology section coming in a subsequent release. Sub-checks:
-            JS-vs-no-JS render diff, page weight, markdown negotiation,
-            pricing text visibility, case-study scannability. Weight 15.
+            JS-vs-no-JS render diff, page weight, pricing text visibility,
+            case-study scannability. Markdown content negotiation is shown for
+            information but not scored (an emerging convention most hosts
+            don&apos;t support yet). Weight 15.
           </p>
 
           <p className="mt-16 text-sm text-[var(--color-muted)]">

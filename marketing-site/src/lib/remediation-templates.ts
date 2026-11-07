@@ -110,8 +110,12 @@ export const T = {
       `The blockquote summary in ${o}/llms.txt contains text that reads like instructions to an AI system, so we scored it 0 without rating it. Rewrite it as a plain description of your business: what you do, who you serve and where. Estimated effort: under 30 minutes.`,
     empty: (o: string) =>
       `The blockquote in ${o}/llms.txt had no readable text once formatting and hidden characters were removed. Write the summary as plain sentences on one line starting with >. Estimated effort: under 30 minutes.`,
-    rated: (o: string, score: number) =>
-      `Our automated AI rating of the blockquote summary in ${o}/llms.txt was ${score}/100; that is a judgement, not a measurement. If you revise it, say in one or two plain sentences what your business does, who it serves and what sets it apart, in the words your customers use. Estimated effort: under 30 minutes.`,
+    // 1.5.0: fixed rules; `fixes` joins one phrase per rule the note says failed.
+    rules: (o: string, fixes: string) =>
+      `Edit the blockquote summary in ${o}/llms.txt: ${fixes}. This check scores three fixed rules: one paragraph, 50 to 250 words, and your business name in the text. Estimated effort: under 30 minutes.`,
+    fixParagraph: "make it a single paragraph (a > line with no text starts a new one)",
+    fixLength: (words: number) => `make it 50 to 250 words long (it has ${words} now)`,
+    fixName: "name your business in it, as your llms.txt H1 or your domain names it",
   },
 
   // ── Dim 2: MCP Server Discoverability ─────────────────────────────────
@@ -172,8 +176,6 @@ export const T = {
   spec_validity: {
     noParse:
       "The file we found as your API description did not parse as JSON, or as YAML with an openapi or swagger version field. Check that it is the OpenAPI document itself (not an HTML page) and that it is valid JSON or YAML. If the address is an RFC 9727 API catalog, our check may have read the catalog instead of the OpenAPI file it links to, and your spec itself may be fine. Estimated effort: 1 to 2 hours.",
-    yaml: (o: string) =>
-      `Your OpenAPI document is YAML. Our scanner reads only the version field of a YAML spec, so this partial score reflects a limit of our tool, not a problem we found in your spec. If you want it checked in full, also publish the same spec as JSON, for example at ${o}/openapi.json. Estimated effort: under 30 minutes if your tooling exports JSON.`,
     noVersion:
       'The JSON document we found has no openapi or swagger version field at the top level. If it is your OpenAPI spec, add "openapi" with the 3.x version you follow (for example "3.1.0") at the root. If it is an RFC 9727 API catalog, our check may have read the catalog instead of the OpenAPI file it links to. Estimated effort: under 30 minutes.',
   },
@@ -230,10 +232,9 @@ export const T = {
       `The best Service, Product or Offer block on your homepage has ${fields} of the 3 fields this check looks for: name, description and a provider (or brand or seller). Add the missing ones; a price is not required. Estimated effort: under 30 minutes.`,
   },
   faq_schema: {
-    instructionLike:
-      "Your FAQPage markup contains text that reads like instructions to an AI system, so we scored it without rating it. Make each Question in mainEntity a plain customer question, with an acceptedAnswer that answers it directly, matching the FAQ text on the page. Estimated effort: 30 minutes to 1 hour.",
-    rated: (questions: number, score: number) =>
-      `Your FAQPage markup has ${questions} question(s), and our automated AI rating of how naturally they read was ${score}/100; that is a judgement, not a measurement. If you revise them, write each Question's name the way a customer would ask it and keep each acceptedAnswer a direct answer. Mark up only questions and answers that appear on the page; don't add questions to raise this score. Estimated effort: 30 minutes to 1 hour.`,
+    // 1.5.0: fixed rules; the note gives the pair count and how many met them.
+    rules: (missed: number, total: number) =>
+      `${missed} of the ${total} Q&A pairs in your FAQPage markup do not meet this check's rules: each Question's name is phrased as a question (for example ending in ?) of 3 to 40 words, and its acceptedAnswer text answers it in 5 to 300 words. Revise those pairs to match the questions and answers shown on the page; don't add questions to raise this score. Estimated effort: 30 minutes to 1 hour.`,
     general:
       "If you revise your FAQPage markup, make each Question in mainEntity a question a customer would ask, with an acceptedAnswer that answers it directly. Mark up only questions and answers that appear on the page. Estimated effort: 30 minutes to 1 hour.",
   },
@@ -351,16 +352,24 @@ function dnsHost(notes: string, ctx: RemediationContext): string {
 type Selector = (sub: SubCheck, ctx: RemediationContext) => string;
 
 const SELECTORS: Record<string, Selector> = {
-  presence: (s, c) =>
-    /^status=200\b/.test(s.notes) ? T.presence.wrongType(c.origin) : T.presence.missing(c.origin),
+  // r6: every selector below picks a specific template only for a note that
+  // proves the state; any other note gets UNKNOWN_CHECK_REMEDIATION.
+  presence: (s, c) => {
+    if (/^status=200, content-type=/.test(s.notes)) return T.presence.wrongType(c.origin);
+    if (/^fetch failed$|^status=\d{3}$/.test(s.notes)) return T.presence.missing(c.origin);
+    return UNKNOWN_CHECK_REMEDIATION;
+  },
 
   spec_compliance: (s, c) => {
     if (llmsFileMissing(c)) return T.spec_compliance.fileMissing(c.origin);
-    const h1 = /\bh1=yes\b/.test(s.notes);
-    const bq = /\bblockquote=yes\b/.test(s.notes);
+    const m = s.notes.match(/^h1=(yes|no), blockquote=(yes|no)$/);
+    if (!m) return UNKNOWN_CHECK_REMEDIATION;
+    const h1 = m[1] === "yes";
+    const bq = m[2] === "yes";
     if (!h1 && bq) return T.spec_compliance.noH1(c.origin);
     if (h1 && !bq) return T.spec_compliance.noBlockquote(c.origin);
-    return T.spec_compliance.both(c.origin);
+    if (!h1 && !bq) return T.spec_compliance.both(c.origin);
+    return UNKNOWN_CHECK_REMEDIATION;
   },
 
   linked_pages_quality: (s, c) => {
@@ -369,12 +378,13 @@ const SELECTORS: Record<string, Selector> = {
     const good = int(m?.[1]);
     const n = int(m?.[2]);
     if (good !== null && n !== null && n > 0 && good <= n) return T.linked_pages_quality.sampled(c.origin, good, n);
-    return T.linked_pages_quality.noLinks(c.origin);
+    if (/^no links to sample$/.test(s.notes)) return T.linked_pages_quality.noLinks(c.origin);
+    return UNKNOWN_CHECK_REMEDIATION;
   },
 
   curation_quality: (s, c) => {
     if (llmsFileMissing(c) || /^file missing/.test(s.notes)) return T.curation_quality.fileMissing(c.origin);
-    if (/^empty file/.test(s.notes)) return T.curation_quality.noLinks(c.origin);
+    if (/^empty file|^the file has no Markdown links/.test(s.notes)) return T.curation_quality.noLinks(c.origin);
     const fixes: string[] = [];
     const many = int(s.notes.match(/(\d+) links \(>100\)/)?.[1]);
     if (many !== null) fixes.push(T.curation_quality.fixTooMany(many));
@@ -382,17 +392,24 @@ const SELECTORS: Record<string, Selector> = {
     if (/archive pages linked/.test(s.notes)) fixes.push(T.curation_quality.fixArchive);
     if (/search-result URLs linked/.test(s.notes)) fixes.push(T.curation_quality.fixSearch);
     if (/links contain query strings/.test(s.notes)) fixes.push(T.curation_quality.fixQuery);
-    if (fixes.length === 0) return T.curation_quality.noLinks(c.origin);
+    if (fixes.length === 0) return UNKNOWN_CHECK_REMEDIATION;
     return T.curation_quality.antipatterns(c.origin, joinWithAnd(fixes));
   },
 
   blockquote_eval: (s, c) => {
     if (llmsFileMissing(c)) return T.blockquote_eval.fileMissing(c.origin);
-    if (/instruction-like/.test(s.notes)) return T.blockquote_eval.instructionLike(c.origin);
-    if (/empty after cleaning/.test(s.notes)) return T.blockquote_eval.empty(c.origin);
-    const rated = int(s.notes.match(/rated blockquote (\d+)\/100/)?.[1]);
-    if (rated !== null && rated <= 100) return T.blockquote_eval.rated(c.origin, rated);
-    return T.blockquote_eval.none(c.origin);
+    const B = T.blockquote_eval;
+    if (/^blockquote contains instruction-like text/.test(s.notes)) return B.instructionLike(c.origin);
+    if (/^blockquote empty after cleaning$/.test(s.notes)) return B.empty(c.origin);
+    if (/^no blockquote to evaluate$/.test(s.notes)) return B.none(c.origin);
+    const m = s.notes.match(/^\d of 3 blockquote rules met: one paragraph \((yes|no)\); 50 to 250 words \((yes|no), (\d+) words\); names the business \((yes|no)\)\.$/);
+    if (!m) return UNKNOWN_CHECK_REMEDIATION;
+    const fixes: string[] = [];
+    if (m[1] === "no") fixes.push(B.fixParagraph);
+    const words = int(m[3]);
+    if (m[2] === "no" && words !== null) fixes.push(B.fixLength(words));
+    if (m[4] === "no") fixes.push(B.fixName);
+    return fixes.length > 0 ? B.rules(c.origin, joinWithAnd(fixes)) : UNKNOWN_CHECK_REMEDIATION;
   },
 
   well_known: (s, c) => {
@@ -462,17 +479,21 @@ const SELECTORS: Record<string, Selector> = {
 
   dns_txt: (s, c) => {
     const h = dnsHost(s.notes, c);
-    if (/^DoH |did not complete/.test(s.notes)) return T.dns_txt.lookupFailed(c.origin, h);
+    // "DoH status <n>" / "DoH error: ..." / "no TXT at _mcp.<host>" before 1.4.0.
+    if (/^DNS lookup for _mcp\.\S+ did not complete\.|^DoH (?:status|error)\b/.test(s.notes)) return T.dns_txt.lookupFailed(c.origin, h);
+    if (!/^(?:No TXT record|no TXT) at _mcp\./.test(s.notes)) return UNKNOWN_CHECK_REMEDIATION;
     const w = Math.max(0, Math.min(100, Math.round(Number(s.weight) || 0)));
     return T.dns_txt.notFound(c.origin, h, w);
   },
 
-  discovery: (_s, c) => T.discovery.homepageLinkOnly(c.origin),
+  // "homepage-link" before E12.
+  discovery: (s, c) => (/^Found via homepage[ -]link /.test(s.notes) ? T.discovery.homepageLinkOnly(c.origin) : UNKNOWN_CHECK_REMEDIATION),
 
   spec_validity: (s, c) => {
-    if (/^YAML spec detected/.test(s.notes)) return T.spec_validity.yaml(c.origin);
-    if (/no "openapi" or "swagger" version field/.test(s.notes)) return T.spec_validity.noVersion;
-    return T.spec_validity.noParse;
+    // noVersion speaks of a JSON document; a YAML one gets the neutral text.
+    if (/^JSON parsed but no "openapi" or "swagger" version field/.test(s.notes)) return T.spec_validity.noVersion;
+    if (/did not parse as JSON or recognizable YAML\.$/.test(s.notes)) return T.spec_validity.noParse;
+    return UNKNOWN_CHECK_REMEDIATION;
   },
 
   info_completeness: (s) => {
@@ -492,7 +513,11 @@ const SELECTORS: Record<string, Selector> = {
     return UNKNOWN_CHECK_REMEDIATION;
   },
 
-  security_schemes: (s) => (/^Skipped/.test(s.notes) ? T.security_schemes.skipped : T.security_schemes.none),
+  security_schemes: (s) => {
+    if (/^Skipped/.test(s.notes)) return T.security_schemes.skipped;
+    if (/^No components\.securitySchemes and no top-level security/.test(s.notes)) return T.security_schemes.none;
+    return UNKNOWN_CHECK_REMEDIATION;
+  },
 
   operation_coverage: (s) => {
     const O = T.operation_coverage;
@@ -544,10 +569,10 @@ const SELECTORS: Record<string, Selector> = {
   },
 
   faq_schema: (s) => {
-    if (/instruction-like/.test(s.notes)) return T.faq_schema.instructionLike;
-    const q = int(s.notes.match(/^(\d+) Q&A pair\(s\)/)?.[1]);
-    const r = int(s.notes.match(/avg (\d+)\/100/)?.[1]);
-    if (q !== null && q > 0 && r !== null && r <= 100) return T.faq_schema.rated(q, r);
+    const m = s.notes.match(/^(\d+) Q&A pair\(s\); (\d+) read as clear questions with direct answers\.$/);
+    const q = int(m?.[1]);
+    const k = int(m?.[2]);
+    if (q !== null && k !== null && q > 0 && k < q) return T.faq_schema.rules(q - k, q);
     return T.faq_schema.general;
   },
 
@@ -573,8 +598,14 @@ const SELECTORS: Record<string, Selector> = {
     return mb ? T.page_weight_lcp.heavy(mb) : T.page_weight_lcp.general;
   },
 
-  markdown_negotiation: (s, c) =>
-    /did not respond/.test(s.notes) ? T.markdown_negotiation.noResponse : T.markdown_negotiation.noMarkdown(c.origin),
+  markdown_negotiation: (s, c) => {
+    if (/^Site did not respond to markdown or HTML requests\./.test(s.notes)) return T.markdown_negotiation.noResponse;
+    // "No markdown variant or content negotiation." before 1.4.1.
+    if (/^We found no Markdown version at the addresses we checked |^No markdown variant or content negotiation\./.test(s.notes)) {
+      return T.markdown_negotiation.noMarkdown(c.origin);
+    }
+    return UNKNOWN_CHECK_REMEDIATION;
+  },
 
   pricing_text_visibility: (s, c) => {
     const P = T.pricing_text_visibility;
