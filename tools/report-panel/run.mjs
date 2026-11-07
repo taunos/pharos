@@ -224,7 +224,7 @@ globalThis.fetch = async (input, init) => {
 // ── synthetic Dim 6 (shape = runDim6.ts buildSubChecks) ─────────────────
 function syntheticDim6() {
   const summary =
-    "36/40 cells measurable across 4 models. Per-model averages: openai=12, anthropic=4, google=9, perplexity=31.";
+    "36 of 40 test answers could be scored, across 4 AI models. Average by model: ChatGPT 12, Claude 4, Gemini 9, Perplexity 31.";
   return {
     dimension_id: 6,
     dimension_name: "Citation Visibility",
@@ -232,13 +232,13 @@ function syntheticDim6() {
     grade: "F",
     sub_checks: [
       { id: "citation_domain_named_rate", name: "Models name your domain", weight: 40, score: 17, passed: false,
-        notes: `17% of measurable cells named the target domain. ${summary}` },
+        notes: `17% of scored test answers named your domain. ${summary}` },
       { id: "citation_url_referenced_rate", name: "Models cite your URL", weight: 30, score: 6, passed: false,
-        notes: "6% of measurable cells included at least one URL on the target host." },
+        notes: "6% of scored test answers included at least one link to your site." },
       { id: "citation_context_relevant_rate", name: "Models treat your domain as the principal answer", weight: 20, score: 8, passed: false,
-        notes: "8% of measurable cells positioned the target domain in the first half of the response (vs a footer-style mention)." },
-      { id: "citation_no_competitor_first_rate", name: "Competitor-first check (not measured)", weight: 10, score: 100, passed: true,
-        notes: "Not measured: this Audit doesn't take a competitor list yet, so this check passes by default." },
+        notes: "8% of scored test answers put your domain in the first half of the answer, rather than only mentioning it at the end." },
+      { id: "citation_no_competitor_first_rate", name: "Competitor-first check (not measured)", weight: 10, score: 0, passed: false, na: true,
+        notes: "Not measured: this Audit doesn't take a competitor list yet, so there is nothing to compare against. This check is not counted in your score." },
     ],
   };
 }
@@ -331,7 +331,7 @@ async function runSite(M, site) {
     // 3. splice + LLM remediation + render (audit-fulfill-run.ts order).
     const scan = M.pipeline.splicePaidDim6(scannerScan, dim6.dimension);
     const mEnv = { AI, SESSIONS: kv };
-    const gaps = await M.pipeline.llmEnrichGaps(mEnv, scan, sessionId);
+    const gaps = M.pipeline.buildRemediationGaps ? M.pipeline.buildRemediationGaps(scan) : await M.pipeline.llmEnrichGaps(mEnv, scan, sessionId);
     const audit = { scan, gaps, engine_version: M.pipeline.REMEDIATION_ENGINE_VERSION_TAG };
     fs.writeFileSync(path.join(dir, "audit.json"), JSON.stringify(audit, null, 2));
     const html = M.pipeline.renderAuditHtml(audit, sessionId);
@@ -346,7 +346,7 @@ async function runSite(M, site) {
     // 4. synthetic Dim 6 variant (same KV => non-Dim-6 remediations are cache hits).
     if (SYNTH_DIM6) {
       const scanS = M.pipeline.splicePaidDim6(scannerScan, syntheticDim6());
-      const gapsS = await M.pipeline.llmEnrichGaps(mEnv, scanS, sessionId);
+      const gapsS = M.pipeline.buildRemediationGaps ? M.pipeline.buildRemediationGaps(scanS) : await M.pipeline.llmEnrichGaps(mEnv, scanS, sessionId);
       const auditS = { scan: scanS, gaps: gapsS, engine_version: M.pipeline.REMEDIATION_ENGINE_VERSION_TAG };
       fs.writeFileSync(path.join(dir, "audit-SYNTHETIC-DIM6.json"), JSON.stringify(auditS, null, 2));
       fs.writeFileSync(path.join(dir, "report-SYNTHETIC-DIM6.html"), injectBanner(M.pipeline.renderAuditHtml(auditS, sessionId), SYNTH_BANNER));
