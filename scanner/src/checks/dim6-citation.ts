@@ -22,16 +22,16 @@
 
 import type { DimensionResult, ScanTier } from "../types";
 
+// Same text as DIM6_DISCLOSURE.freeTierPreview (marketing-site). 2026-11-07:
+// the old note printed invented sample numbers ("GPT-4o cites your domain
+// 6/10 times ... 47/100 D+", a grade that does not exist) under the visitor's
+// URL in the Score PDF, plus an unverified claim about a competitor's tool.
 const FREE_TIER_DEMO_NOTE =
-  "Citation Visibility (Dim 6) measures what hosted models actually say " +
-  "about your domain — the dimension Cloudflare's Agent Readiness Score " +
-  "cannot see. Free Score shows a static demo preview only; the live " +
-  "4-model audit (OpenAI GPT-4o, Anthropic Claude, Google Gemini, " +
-  "Perplexity Sonar — ~10 prompts, ~40 test answers per audit) ships with the " +
-  "$79 Audit. Sample output: GPT-4o cites your domain 6/10 times, Claude " +
-  "4/10, Gemini 2/10, Perplexity 7/10 — aggregate 47/100 D+. (This is a " +
-  "static example; your live audit measures your domain across these " +
-  "4 models.)";
+  "Not measured in the free Score. The $79 Audit asks four AI models " +
+  "(OpenAI GPT-4o, Anthropic Claude, Google Gemini and Perplexity Sonar) " +
+  "about 10 questions each about your domain and checks whether each " +
+  "answer names and cites it. This dimension is not counted in your free " +
+  "score.";
 
 /**
  * Free-tier Dim 6: returns na:true with a demo-preview note. The composite

@@ -245,7 +245,7 @@ describe("Score PDF: N/A grade label and scope note", () => {
   it("old scans (no unmeasured flag): 'not applicable' and the legacy scope sentence", () => {
     const html = renderScoreReportHTML({ scan: withDim3({}), email: "a@b.com", scoringVersion: "1.1.0" });
     expect(html).toContain('font-style:italic;">not applicable</span>');
-    expect(html).not.toContain("not measured");
+    expect(html).not.toContain('font-style:italic;">not measured</span>');
     expect(html).toContain(
       " Some dimensions did not apply to your site (e.g. no API surface for the OpenAPI dimension) and were dropped from the composite.</p>",
     );

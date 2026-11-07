@@ -1,3 +1,6 @@
+import type { DimensionResult, SubCheck } from "./audit-types";
+import { gapImpact, isGap } from "./audit-gaps";
+
 export const DIM6_DEMO_SUBCHECK_ID = "free_tier_dim6_preview";
 export function applicableDimensionCount(applicable: number | undefined, scored: number): number {
   return applicable ?? scored;
@@ -40,4 +43,26 @@ export function gradeColorClass(grade: string): string {
 }
 export function isDim6DemoPreview(dim: { sub_checks?: { id: string }[] }): boolean {
   return dim.sub_checks?.some((sc) => sc.id === DIM6_DEMO_SUBCHECK_ID) ?? false;
+}
+/**
+ * The gaps the free Score lists (results page "Where you're losing points",
+ * email "Top gaps"): the paid Audit's rule (audit-gaps isGap: did not pass and
+ * not N/A, the same rule as the Score PDF's "Passing" label), highest
+ * weighted impact on the composite first; ties keep dimension order. Before
+ * this the page and email listed every score below 80, so a check the PDF
+ * marked "Passing" (e.g. 70/100 with a pass mark of 70) showed up as a gap.
+ */
+export function scoreGaps(
+  dimensions: readonly DimensionResult[],
+): { dim: DimensionResult; sub: SubCheck }[] {
+  const out: { dim: DimensionResult; sub: SubCheck; impact: number; i: number }[] = [];
+  for (const dim of dimensions) {
+    if (dim.na) continue;
+    for (const sub of dim.sub_checks) {
+      if (!isGap(sub)) continue;
+      out.push({ dim, sub, impact: gapImpact(dim, sub.weight, sub.score), i: out.length });
+    }
+  }
+  out.sort((a, b) => b.impact - a.impact || a.i - b.i);
+  return out.map(({ dim, sub }) => ({ dim, sub }));
 }

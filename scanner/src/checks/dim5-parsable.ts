@@ -28,7 +28,7 @@ const BR_TIMEOUT_MS = 30_000;
 const STATIC_UA = "AstrantScanner-Static/1.1.0";
 
 const FREE_TIER_DISCLOSURE =
-  "Free-tier signal: static fetch only. Full render diff (Puppeteer-vs-static) available in $79 Audit.";
+  "The free Score reads your server's HTML only; the $79 Audit also loads the page in a browser and compares the two.";
 
 // Security pass 2026-11-04: validated hops (incl. homepage-discovered pricing
 // and case-study links), max 3 redirects, one deadline covering headers AND

@@ -16,7 +16,9 @@
 
 import type { ScanResult, SubCheck } from "./audit-types";
 import { hashEmailForR2Key } from "./score-tokens";
-import { dimensionCountPhrase, droppedDimensionsNote } from "./score-display";
+import { dimensionCountPhrase, droppedDimensionsNote, isDim6DemoPreview } from "./score-display";
+import { plainScoreNote } from "./score-notes";
+import { DIM6_DISCLOSURE } from "./dim6/disclosure";
 import { isAuditCheckoutEnabled } from "./audit-gate";
 
 export const PDF_TEMPLATE_VERSION = "1.0.0";
@@ -99,7 +101,7 @@ function renderSubCheck(sub: SubCheck): string {
       <td class="check-score">${sub.na ? "—" : `${sub.score}/100`}</td>
       <td class="check-weight">${sub.weight}%</td>
       <td class="check-lift" style="color:${liftColor(sub.passed ? "low" : bucket)}">${sub.na ? "—" : sub.passed ? "Passing" : liftLabel(bucket)}</td>
-      <td class="check-notes">${escapeHtml(sub.notes)}</td>
+      <td class="check-notes">${escapeHtml(plainScoreNote(sub))}</td>
     </tr>`;
 }
 
@@ -127,13 +129,19 @@ export function renderScoreReportHTML(input: RenderInput): string {
       // rather than a sub-check table — every sub-check is N/A so the table
       // would be a wall of em-dashes.
       if (d.na) {
-        const naNote = d.sub_checks[0]?.notes ?? "Dimension did not apply to this site; dropped from composite.";
+        // Free-tier Dim 6 is not measured, not "not applicable". Its text comes
+        // from the disclosure SOT, never the stored scanner note: scans stored
+        // before 2026-11-07 carry a note with invented sample numbers.
+        const demo = isDim6DemoPreview(d);
+        const naNote = demo
+          ? DIM6_DISCLOSURE.freeTierPreview
+          : (d.sub_checks[0]?.notes ?? "Dimension did not apply to this site; dropped from composite.");
         return `
       <section class="dim">
         <div class="dim-head">
           <h3>${escapeHtml(d.dimension_name)} <span style="font-size:9pt;font-family:ui-monospace,monospace;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">N/A</span></h3>
           <div class="dim-score">
-            <span class="dim-grade" style="color:#64748b;font-style:italic;">${d.unmeasured ? "not measured" : "not applicable"}</span>
+            <span class="dim-grade" style="color:#64748b;font-style:italic;">${d.unmeasured || demo ? "not measured" : "not applicable"}</span>
           </div>
         </div>
         <p style="font-size:10pt;color:#64748b;margin:6pt 0;">${escapeHtml(naNote)}</p>
@@ -256,7 +264,7 @@ export function renderScoreReportHTML(input: RenderInput): string {
     <span class="composite-num">${scan.composite.score}</span>
     <span class="composite-grade" style="color:${gradeColor(scan.composite.grade)}">${escapeHtml(scan.composite.grade)}</span>
   </div>
-  <p class="scope">Scored on ${dimensionCountPhrase(scan.dimensions_applicable, scan.dimensions_scored, scan.dimensions_total)} dimensions applicable to this site. Citation Visibility ships as a static demo preview on the free Score and runs live with the $79 Audit.${droppedDimensionsNote(scan)}</p>
+  <p class="scope">Scored on ${dimensionCountPhrase(scan.dimensions_applicable, scan.dimensions_scored, scan.dimensions_total)} dimensions applicable to this site. Citation Visibility is not measured in the free Score; it runs live with the $79 Audit.${droppedDimensionsNote(scan)}</p>
 
   <h2>Dimension breakdown</h2>
   ${dimsHtml}

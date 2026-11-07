@@ -16,7 +16,9 @@ import {
   dimensionCountPhrase,
   droppedDimensionsNote,
   isDim6DemoPreview,
+  scoreGaps,
 } from "@/lib/score-display";
+import { plainScoreNote } from "@/lib/score-notes";
 import ScorePanel from "@/components/ScorePanel";
 import { isAuditCheckoutEnabled } from "@/lib/audit-gate";
 import {
@@ -271,9 +273,9 @@ export default async function ScoreResultsPage({
               scan.dimensions_total
             )}{" "}
             dimensions
-            applicable to this site (engine v{renderedScoringVersion}). Dim 6
-            (Citation Visibility) shows a demo preview on free Score; the live
-            4-model audit ships with the $79 Audit. See{" "}
+            applicable to this site (engine v{renderedScoringVersion}).
+            Citation Visibility is not measured in the free Score; the live
+            4-model check runs with the $79 Audit. See{" "}
             <Link href="/score/methodology" className="text-[var(--color-fg)] underline-offset-4 hover:underline">methodology</Link>.
             {droppedDimensionsNote(scan)}
           </p>
@@ -282,13 +284,14 @@ export default async function ScoreResultsPage({
               stash from the scan-to-route hop (client-side; server can't). */}
           <SessionResultCleanup scanId={scanId} />
 
-          {/* A7 — "Where you're losing points": per-dimension below-threshold
-              gaps (truncated ~80 chars), sectioned out of the clean ScorePanel
+          {/* A7 — "Where you're losing points": per-dimension failing checks
+              (scoreGaps: the PDF/Audit gap rule, impact order), sectioned out of the clean ScorePanel
               and positioned to feed the email/Audit CTA below. Full gap detail
               stays in the emailed PDF. Heading is hot-class. */}
           {(() => {
-            const gapDims = scan.dimensions.filter(
-              (d) => !d.na && d.sub_checks.some((s) => !s.na && s.score < 80)
+            const gaps = scoreGaps(scan.dimensions);
+            const gapDims = scan.dimensions.filter((d) =>
+              gaps.some((g) => g.dim === d)
             );
             if (gapDims.length === 0) return null;
             return (
@@ -311,16 +314,16 @@ export default async function ScoreResultsPage({
                         </span>
                       </div>
                       <ul className="mt-4 flex flex-col gap-3 text-sm">
-                        {d.sub_checks
-                          .filter((s) => !s.na && s.score < 80)
+                        {gaps
+                          .filter((g) => g.dim === d)
                           .slice(0, 3)
-                          .map((s) => (
+                          .map(({ sub: s }) => (
                             <li key={s.id}>
                               <span className="font-medium text-[var(--color-fg)]">
                                 {s.name}
                               </span>
                               <span className="mt-0.5 block text-[var(--color-muted)]">
-                                {s.notes}
+                                {plainScoreNote(s)}
                               </span>
                             </li>
                           ))}
