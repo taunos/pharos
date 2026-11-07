@@ -27,7 +27,7 @@
 
 ## Astrant Methodology — Citation Audit Calibration
 
-**Current engine version:** dim6:v3
+**Current engine version:** Astrant Citation Visibility v4 (last calibrated on v3; v4 changed the question wording and dropped the competitor check, and has not been re-calibrated)
 **Last calibrated:** 2026-05-02
 **Methodology overview page:** /methodology/calibration
 
@@ -47,7 +47,7 @@ Astrant's calibration follows a multi-pass methodology against a corpus of contr
 - Verify-at-endpoint discipline post-deploy
 - Version-stamped recalibration when contamination is discovered
 
-### Known limits at dim6:v3
+### Known limits at the last calibration (v3)
 
 - Single high-end calibration anchor (more known-positive anchors queued)
 - No known-negative anchor yet (queued)

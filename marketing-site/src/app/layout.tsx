@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   },
   other: {
     "ai-summary":
-      "Astrant: Check how ChatGPT, Claude, Perplexity and Gemini read and describe your B2B SaaS site. Free Score, $79 audit, $1,299 implementation, $149-$899/mo subscriptions.",
+      "Astrant: Check how ChatGPT, Claude, Perplexity and Gemini read and describe your website. Free Score and a $79 Audit; Implementation and subscriptions are not open yet.",
     "service-category":
       "Agent Engine Optimization, AEO, agent discoverability, LLM SEO",
   },
