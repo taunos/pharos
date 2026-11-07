@@ -28,6 +28,7 @@
 import type { DimensionResult, Env, SubCheck } from "../types";
 import { dimensionScore, gradeFor } from "../scoring";
 import { MAX_SPEC_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
+import { isSameSite, NO_SIGNALS, siteBase, type SiteSignals } from "./site-signals";
 
 const FETCH_TIMEOUT_MS = 5000;
 
@@ -37,6 +38,21 @@ export const INCOMPLETE_SPEC_NOTE =
 export const YAML_UNMEASURED_NOTE =
   "Not measured: the scanner cannot read this part of a YAML spec. Weight redistributed across other Dim 3 sub-checks.";
 const STATIC_UA = "AstrantScanner-Dim3/1.2.0";
+
+/** Whole-dimension N/A note (1.4.0): no OpenAPI and no other API evidence. */
+export const DIM3_NO_API_NA_NOTE =
+  "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. Dimension marked N/A — composite math drops it without penalty.";
+
+/**
+ * Whole-dimension N/A note (1.4.0) when the site shows an API but publishes no
+ * OpenAPI description. N/A, not 0: a GraphQL API describes itself through its
+ * own schema, and API evidence found from links is too indirect to score.
+ */
+export const dim3ApiWithoutOpenApiNote = (evidence: string) =>
+  `No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (${evidence}), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API.`;
+
+/** discovery note suffix (1.4.0) when an RFC 9727 API catalog's service-desc was followed. */
+const viaCatalog = (catalogUrl: string) => ` Read through the API catalog at ${catalogUrl} (its service-desc link).`;
 
 // Security pass 2026-11-04: validated hops (incl. homepage-discovered spec
 // links), max 3 redirects, one deadline covering headers AND body, capped
@@ -343,6 +359,62 @@ async function probeHomepageLink(
   return null;
 }
 
+/** First service-desc href in an RFC 9727 linkset, resolved against the catalog URL. */
+function linksetServiceDesc(spec: Record<string, unknown>, catalogUrl: string): string | null {
+  const linkset = spec["linkset"];
+  if (!Array.isArray(linkset)) return null;
+  for (const entry of linkset) {
+    const links = entry && typeof entry === "object" ? (entry as Record<string, unknown>)["service-desc"] : null;
+    if (!Array.isArray(links)) continue;
+    for (const l of links) {
+      const href = l && typeof l === "object" ? (l as { href?: unknown }).href : null;
+      if (typeof href !== "string" || !href.trim()) continue;
+      try {
+        return new URL(href.trim(), catalogUrl).toString();
+      } catch {
+        // try the next link
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * 1.4.0: an API catalog (RFC 9727 linkset) is an index, not the spec. Follow
+ * its service-desc link (same host or a subdomain of the audited site, one
+ * request, same byte / time caps) and score the spec it points to. Returns
+ * null when the hit is not a linkset (score the hit as it is), else the
+ * followed spec or the reason it could not be read.
+ */
+async function followCatalog(
+  hit: DiscoveryHit,
+  siteUrl: string
+): Promise<{ hit: DiscoveryHit } | { unreadable: string } | null> {
+  const parsed = tryParseSpec(hit.body, hit.contentType);
+  if (!parsed || parsed.format !== "json") return null;
+  const spec = parsed.spec;
+  if ("openapi" in spec || "swagger" in spec || !Array.isArray(spec["linkset"])) return null;
+  const desc = linksetServiceDesc(spec, hit.url);
+  if (!desc) return { unreadable: `the API catalog at ${hit.url} has no service-desc link to an API description.` };
+  if (!isSafeSpecUrl(desc) || !isSameSite(new URL(desc).hostname, siteBase(siteUrl))) {
+    return { unreadable: `the API catalog at ${hit.url} points to ${desc}, on another site, which the scanner does not fetch.` };
+  }
+  const res = await timedFetch(desc, {
+    headers: { Accept: "application/json, application/yaml, text/yaml, text/plain", "User-Agent": STATIC_UA },
+    redirect: "follow",
+  });
+  if (!res || !res.ok) {
+    res?.discard();
+    return { unreadable: `the API catalog at ${hit.url} points to ${desc}, which returned ${res ? `status ${res.status}` : "no response"}.` };
+  }
+  const read = await res.body({ maxBytes: MAX_SPEC_BYTES });
+  const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+  if (!isPlausibleSpec(read.text, contentType, read.complete)) {
+    return { unreadable: `the API catalog at ${hit.url} points to ${desc}, which is not a recognizable OpenAPI / Swagger document.` };
+  }
+  return { hit: { url: desc, body: read.text, contentType, source: hit.source, complete: read.complete } };
+}
+
 async function discoverApiSpec(
   origin: string,
   homepage: HomepageRead | null | Promise<HomepageRead | null>
@@ -433,7 +505,10 @@ export async function runDim3(
   env: Env,
   // E12: the homepage another check already read (run-scan passes Dim 4's
   // read as a promise); awaited only when well-known and canonical both miss.
-  homepage: HomepageRead | null | Promise<HomepageRead | null> = null
+  homepage: HomepageRead | null | Promise<HomepageRead | null> = null,
+  // 1.4.0: API evidence from links / a GraphQL probe (site-signals); awaited
+  // only when no spec is found, to word the N/A note truthfully.
+  signals: SiteSignals | Promise<SiteSignals> = NO_SIGNALS
 ): Promise<DimensionResult> {
   void env; // reserved for future use; no LLM in Slice 3a
   const origin = new URL(targetUrl).origin;
@@ -441,13 +516,26 @@ export async function runDim3(
   const subs: SubCheck[] = [];
 
   // ── Discovery ──────────────────────────────────────────────────────────
-  const hit = await discoverApiSpec(origin, homepage);
+  const found = await discoverApiSpec(origin, homepage);
+  let hit = found;
+  let catalogUrl = "";
+  let catalogUnreadable = "";
+  if (found && found.complete) {
+    const followed = await followCatalog(found, targetUrl);
+    if (followed && "hit" in followed) {
+      hit = followed.hit;
+      catalogUrl = found.url;
+    } else if (followed) {
+      catalogUnreadable = followed.unreadable;
+    }
+  }
 
   // Whole-dimension N/A: nothing discovered. Mark every sub-check N/A,
   // dimensionScore() returns null, return DimensionResult with na:true.
   if (!hit) {
-    const naNote =
-      "No OpenAPI / API catalog discovered (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). Site appears to be content-only from an API-catalog perspective. Dimension marked N/A — composite math drops it without penalty.";
+    const sig = await Promise.resolve(signals).catch(() => NO_SIGNALS);
+    const evidence = sig.apiSignals[0] ?? (sig.mcpUrls[0] ? `a link to an MCP endpoint, ${sig.mcpUrls[0]}` : "");
+    const naNote = evidence ? dim3ApiWithoutOpenApiNote(evidence) : DIM3_NO_API_NA_NOTE;
     for (const id of [
       "discovery",
       "spec_validity",
@@ -513,6 +601,30 @@ export async function runDim3(
     };
   }
 
+  // 1.4.0: an API catalog whose service-desc could not be read: the catalog
+  // itself is scored for discovery; the spec checks were not measured (the
+  // linkset is an index, so scoring it as the spec reported "missing info").
+  if (catalogUnreadable) {
+    subs.push({
+      id: "discovery",
+      name: "API spec discovery",
+      weight: 25,
+      score: 100,
+      passed: true,
+      notes: `Found via ${hit.source} at ${hit.url} (content-type=${hit.contentType || "unknown"}).`,
+    });
+    for (const [id, name, weight] of [
+      ["spec_validity", "Spec validity (parses + has version field)", 25],
+      ["info_completeness", "Spec info completeness (title + version + description)", 15],
+      ["security_schemes", "Security schemes documented", 15],
+      ["operation_coverage", "Operation coverage + per-operation docs", 20],
+    ] as const) {
+      subs.push({ id, name, weight, score: 0, passed: false, notes: `Not measured: ${catalogUnreadable} Weight redistributed across other Dim 3 sub-checks.`, na: true });
+    }
+    const score = dimensionScore(subs) ?? 0;
+    return { dimension_id: 3, dimension_name: "OpenAPI / API Catalog", score, grade: gradeFor(score), sub_checks: subs };
+  }
+
   // ── Sub-check 1: discovery ─────────────────────────────────────────────
   // Well-known → 100. Canonical → 75. Homepage-link fallback → 50.
   let discoveryScore: number;
@@ -525,7 +637,7 @@ export async function runDim3(
     weight: 25,
     score: discoveryScore,
     passed: discoveryScore >= 70,
-    notes: `Found via ${hit.source} at ${hit.url} (content-type=${hit.contentType || "unknown"}).`,
+    notes: `Found via ${hit.source} at ${hit.url} (content-type=${hit.contentType || "unknown"}).${catalogUrl ? viaCatalog(catalogUrl) : ""}`,
   });
 
 

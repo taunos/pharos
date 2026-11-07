@@ -3,7 +3,7 @@
 // fetch is stubbed, no network.
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { runDim1, extractBlockquote, BLOCKQUOTE_UNMEASURED_NOTE } from "./checks/dim1-llmstxt";
-import { runDim2, OAUTH_NO_CARD_NA_NOTE } from "./checks/dim2-mcp";
+import { runDim2, OAUTH_NO_AUTH_NA_NOTE, OAUTH_NO_CARD_NA_NOTE } from "./checks/dim2-mcp";
 import { runDim3, YAML_UNMEASURED_NOTE } from "./checks/dim3-openapi";
 import { runDim4, FAQ_SCHEMA_NA_NOTE, FAQ_UNMEASURED_NOTE } from "./checks/dim4-structured";
 import { runDim5, PRICE_BARE_RE, PRICE_TEXT_RE } from "./checks/dim5-parsable";
@@ -42,8 +42,8 @@ const HOME = "https://acme.com/";
 const sub = (d: { sub_checks: { id: string }[] }, id: string) =>
   d.sub_checks.find((s) => s.id === id) as import("./types").SubCheck;
 
-it("SCORING_VERSION is 1.3.3", () => {
-  expect(SCORING_VERSION).toBe("1.3.3");
+it("SCORING_VERSION is 1.4.0 (r3 supersedes 1.3.3)", () => {
+  expect(SCORING_VERSION).toBe("1.4.0");
 });
 
 describe("1.3.3 Dim 4: schema.org subtypes, optional sameAs / price, FAQ N/A, nested ratings", () => {
@@ -55,13 +55,13 @@ describe("1.3.3 Dim 4: schema.org subtypes, optional sameAs / price, FAQ N/A, ne
     description: "Family dental clinic in Curitiba.",
   };
 
-  it("a Dentist (LocalBusiness subtype) with name + url + description passes without sameAs", async () => {
+  it("a Dentist (LocalBusiness subtype) with name + url + description scores 100 without sameAs (1.4.0)", async () => {
     routes({ [HOME]: html(ldPage(DENTIST)) });
     const org = sub(await runDim4(HOME, env()), "organization_schema");
-    expect(org).toMatchObject({ score: 90, passed: true });
+    expect(org).toMatchObject({ score: 100, passed: true });
   });
 
-  it("sameAs is a bonus on a complete block (100), never required", async () => {
+  it("sameAs on a complete block changes nothing (100), never required", async () => {
     routes({ [HOME]: html(ldPage({ ...DENTIST, sameAs: ["https://instagram.com/sorriso"] })) });
     expect(sub(await runDim4(HOME, env()), "organization_schema").score).toBe(100);
   });
@@ -78,7 +78,7 @@ describe("1.3.3 Dim 4: schema.org subtypes, optional sameAs / price, FAQ N/A, ne
     ["inside @graph", { "@context": "https://schema.org", "@graph": [{ ...DENTIST, "@type": "LegalService" }] }],
   ])("Organization subtype via %s is recognized", async (_n, block) => {
     routes({ [HOME]: html(ldPage(block)) });
-    expect(sub(await runDim4(HOME, env()), "organization_schema").score).toBe(90);
+    expect(sub(await runDim4(HOME, env()), "organization_schema").score).toBe(100);
   });
 
   it("a Service with name + description + provider and no price scores 100", async () => {
@@ -103,7 +103,7 @@ describe("1.3.3 Dim 4: schema.org subtypes, optional sameAs / price, FAQ N/A, ne
   });
 
   it("a well-formed FAQPage with one Q&A can pass (no >=5 count ladder)", async () => {
-    const faq = { "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Do you take insurance?" }] };
+    const faq = { "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Do you take insurance?", acceptedAnswer: { "@type": "Answer", text: "Yes, most plans." } }] };
     routes({ [HOME]: html(ldPage(faq)) });
     const f = sub(await runDim4(HOME, env(() => ({ response: "50" }))), "faq_schema");
     expect(f.na).toBeUndefined();
@@ -112,7 +112,7 @@ describe("1.3.3 Dim 4: schema.org subtypes, optional sameAs / price, FAQ N/A, ne
 
   it("AI rating failure on a present FAQ => not measured (N/A), not a default 50", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const faq = { "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Do you take insurance?" }] };
+    const faq = { "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Do you take insurance?", acceptedAnswer: { "@type": "Answer", text: "Yes, most plans." } }] };
     routes({ [HOME]: html(ldPage(faq)) });
     const f = sub(await runDim4(HOME, env(() => { throw new Error("AI down"); })), "faq_schema");
     expect(f).toMatchObject({ na: true, score: 0, passed: false, notes: `1 Q&A pair(s); ${FAQ_UNMEASURED_NOTE}` });
@@ -204,11 +204,10 @@ describe("1.3.3 Dim 2: oauth_metadata is N/A without an MCP card", () => {
     expect(o).toMatchObject({ na: true, score: 0, passed: false, notes: OAUTH_NO_CARD_NA_NOTE });
   });
 
-  it("a card with no auth declared is still scored (100)", async () => {
+  it("a card with no auth declared is N/A (1.4.0: it scored 100 with an N/A note)", async () => {
     routes({ "https://acme.com/.well-known/mcp.json": () => new Response(JSON.stringify({ name: "acme", transports: [] }), { status: 200, headers: { "content-type": "application/json" } }) });
     const o = sub(await runDim2(HOME, env()), "oauth_metadata");
-    expect(o.na).toBeUndefined();
-    expect(o.score).toBe(100);
+    expect(o).toMatchObject({ na: true, score: 0, notes: OAUTH_NO_AUTH_NA_NOTE });
   });
 });
 

@@ -65,5 +65,27 @@
  *   (Dim 1 blockquote, Dim 4 FAQ) marks the sub-check N/A "not measured"
  *   instead of a default 50. `CURRENT_SCORING_VERSION` on /score/[id]
  *   bumped in lockstep.
+ * - 1.4.0 (report truthfulness r3, 2026-11-07): no false statements about
+ *   what a site has. Dim 2 goes N/A only on positive absence: MCP links in
+ *   /llms.txt or on the homepage, /.well-known/ucp, a /api/mcp endpoint
+ *   answering MCP initialize, API links and a GraphQL endpoint all count as
+ *   evidence, and a declared endpoint that answers (or asks for OAuth) is
+ *   credited in the live check. Server cards in the remotes[] / remote /
+ *   serverInfo shapes are read (name, transport, nested auth, input_schema);
+ *   oauth_metadata uses the card's authorization server and is N/A when the
+ *   card declares no auth; dns_txt is informational (no ratified standard).
+ *   Dim 3 follows an API catalog's service-desc link (same site) and scores
+ *   that spec; with API evidence but no OpenAPI the N/A note says so. Dim 1
+ *   counts every Markdown link. Dim 4 traverses nested JSON-LD for every type
+ *   (bounded; "not fully inspected" past the bound), complete Organization
+ *   = 100, FAQ Q&A needs answer text, ratings need numeric values, and a
+ *   store's product page is sampled when the homepage has no Product. Dim 5
+ *   markdown needs a markdown / text content type and a non-HTML body,
+ *   billing periods are read in more forms and languages (one-time prices
+ *   need none), account / login / cart paths are never content pages, and
+ *   case-study detection is multilingual and samples one study from an index.
+ *   "Page weight + LCP" is "Page weight". The FAQ AI rating accepts a numbered
+ *   per-question reply. `CURRENT_SCORING_VERSION` on /score/[id] bumped in
+ *   lockstep.
  */
-export const SCORING_VERSION = "1.3.3";
+export const SCORING_VERSION = "1.4.0";

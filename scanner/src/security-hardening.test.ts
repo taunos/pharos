@@ -787,7 +787,7 @@ describe("daily Workers AI budget", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const faq = {
       "@type": "FAQPage",
-      mainEntity: ["How do I start?", "What does it cost?", "Can I cancel?"].map((q) => ({ "@type": "Question", name: q })),
+      mainEntity: ["How do I start?", "What does it cost?", "Can I cancel?"].map((q) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: "Yes." } })),
     };
     vi.stubGlobal("fetch", vi.fn(async () =>
       new Response(`<script type="application/ld+json">${JSON.stringify(faq)}</script>`, { status: 200, headers: { "content-type": "text/html" } })

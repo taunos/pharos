@@ -17,15 +17,49 @@ function isMarkdowny(body: string): boolean {
   return /(^|\n)(#|>|\*|-|\d+\.)\s/.test(body) || /\]\(/.test(body);
 }
 
-function extractLinks(body: string): string[] {
+// 1.4.0: every Markdown link [text](url) anywhere in the file counts, not
+// only "- [text](url)" bullets (a prose file full of links was reported as
+// "empty"). Images (![alt](src)) are not links. Bounded scan: each "](" is
+// checked within LINK_TEXT_MAX chars back on its line and LINK_URL_MAX chars
+// forward, at most MAX_LINK_ATTEMPTS times, so hostile text stays linear.
+const MAX_LINKS_READ = 5000;
+const MAX_LINK_ATTEMPTS = 20000;
+const LINK_TEXT_MAX = 500;
+const LINK_URL_MAX = 2048;
+const LF = 10;
+
+export function extractLinks(body: string): string[] {
   const out: string[] = [];
-  const re = /^\s*[-*]\s*\[.+?\]\(([^)]+)\)/gm;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(body)) !== null) {
-    out.push(m[1].trim());
+  let from = 0;
+  for (let attempts = 0; out.length < MAX_LINKS_READ && attempts < MAX_LINK_ATTEMPTS; attempts++) {
+    const j = body.indexOf("](", from);
+    if (j < 0) break;
+    from = j + 2;
+    let open = -1;
+    for (let k = j - 1; k >= 0 && k >= j - LINK_TEXT_MAX && body.charCodeAt(k) !== LF; k--) {
+      if (body[k] === "[") {
+        open = k;
+        break;
+      }
+    }
+    if (open < 0 || (open > 0 && body[open - 1] === "!")) continue;
+    let close = -1;
+    for (let k = j + 2; k < body.length && k <= j + 2 + LINK_URL_MAX && body.charCodeAt(k) !== LF; k++) {
+      if (body[k] === ")") {
+        close = k;
+        break;
+      }
+    }
+    if (close < 0) continue;
+    // [text](url "title"): the target is the first token.
+    const target = body.slice(j + 2, close).trim().split(/\s+/)[0] ?? "";
+    if (target && !target.includes("(")) out.push(target);
   }
   return out;
 }
+
+/** curation_quality note (1.4.0) for a non-empty file with no Markdown links. */
+export const NO_MARKDOWN_LINKS_NOTE = "the file has no Markdown links ([text](url)) to evaluate";
 
 function extractH1(body: string): string | null {
   for (const line of body.split(/\r?\n/, 50)) {
@@ -96,7 +130,13 @@ Return ONLY a number 0-100, nothing else.`;
   return { score, note: `LLM rated blockquote ${score}/100${tag}` };
 }
 
-export async function runDim1(targetUrl: string, env: Env): Promise<DimensionResult> {
+export async function runDim1(
+  targetUrl: string,
+  env: Env,
+  // 1.4.0: receives the /llms.txt text this check read (null when there is
+  // none), so Dim 2 / Dim 3 can look for MCP and API links without a refetch.
+  onLlmsTxt?: (text: string | null) => void
+): Promise<DimensionResult> {
   const origin = new URL(targetUrl).origin;
   const llmsUrl = `${origin}/llms.txt`;
   const subs: SubCheck[] = [];
@@ -141,6 +181,7 @@ export async function runDim1(targetUrl: string, env: Env): Promise<DimensionRes
   } else {
     res?.discard();
   }
+  onLlmsTxt?.(body || null);
 
   // 2. spec_compliance
   const h1 = body ? extractH1(body) : null;
@@ -199,10 +240,12 @@ export async function runDim1(targetUrl: string, env: Env): Promise<DimensionRes
   // breakdown reflects the missing-file reality.
   let curationScore = 0;
   let curationNotes = "";
-  if (!presenceOk || !body) {
+  if (!presenceOk) {
     curationNotes = "file missing — no link list to evaluate";
-  } else if (links.length === 0) {
+  } else if (!body.trim()) {
     curationNotes = "empty file — no links to evaluate";
+  } else if (links.length === 0) {
+    curationNotes = NO_MARKDOWN_LINKS_NOTE;
   } else {
     curationScore = 100;
     const antipatterns: string[] = [];
