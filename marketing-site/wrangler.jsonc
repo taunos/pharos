@@ -98,8 +98,9 @@
 		// with the /subscriptions CTA consts at launch.
 		"SUBSCRIPTION_CHECKOUT_ENABLED": "false",
 		// Pre-launch gate for paid Audit checkout (Test C-A). Fail-closed:
-		// only the exact string "true" enables it. Flip to "true" at launch.
-		"AUDIT_CHECKOUT_ENABLED": "true",
+		// only the exact string "true" enables it. Paused 2026-11-07 until the
+		// report-truthfulness fixes ship (claude/report-truthfulness*).
+		"AUDIT_CHECKOUT_ENABLED": "false",
 		// /api/audit-create per-IP limit per hour.
 		"AUDIT_CHECKOUT_RATE_LIMIT": "5",
 		// Test C-B: canonical public origin for links in the Audit buyer email
