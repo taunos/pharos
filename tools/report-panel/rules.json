@@ -1,5 +1,5 @@
 {
-  "_readme": "Rule list for check.mjs. `text` rules run over the customer-visible report text (report*.md, harness banner removed). `fabrication` runs over gap remediation text in audit*.json when the site has no ratings. Per-site rules (expect.na / expect.exists / expect.forbid) come from sites.json. Patterns are JavaScript regular expressions; `flags` is optional. Add a rule by adding an entry; add a test for it in check.test.mjs.",
+  "_readme": "Rule list for check.mjs. `text` rules run over the customer-visible report text (report*.md, harness banner removed). `fabrication` runs over gap remediation text in audit*.json when the site has no ratings. Per-site rules (expect.na / expect.exists / expect.forbid) come from sites.json. Patterns are JavaScript regular expressions; `flags` is optional. `\"only\": \"free\"` limits a text rule to the free Score surfaces (score-*.md from run.mjs --tier free). Add a rule by adding an entry; add a test for it in check.test.mjs.",
   "text": [
     { "id": "placeholder", "class": "placeholder", "pattern": "\\[site value\\]", "flags": "i", "why": "literal template placeholder shown to the customer" },
     { "id": "jargon-slice", "class": "jargon", "pattern": "\\bSlice \\d", "why": "internal slice name" },
@@ -19,7 +19,11 @@
     { "id": "promise-will-improve", "class": "outcome-promise", "pattern": "\\bwill improve\\b", "flags": "i", "why": "outcome promise" },
     { "id": "promise-will-enable", "class": "outcome-promise", "pattern": "\\bwill enable\\b", "flags": "i", "why": "outcome promise" },
     { "id": "promise-guarantee", "class": "outcome-promise", "pattern": "\\bguarantee", "flags": "i", "why": "outcome guarantee" },
-    { "id": "promise-rank-higher", "class": "outcome-promise", "pattern": "\\brank(?:s|ing)? higher\\b", "flags": "i", "why": "ranking promise" }
+    { "id": "promise-rank-higher", "class": "outcome-promise", "pattern": "\\brank(?:s|ing)? higher\\b", "flags": "i", "why": "ranking promise" },
+    { "id": "dim6-sample-numbers", "class": "hallucination", "pattern": "cites your domain (?:in )?\\d+/10|\\bD\\+", "why": "invented Dim 6 sample numbers / a grade that does not exist, shown under the visitor's URL" },
+    { "id": "competitor-claim", "class": "hallucination", "pattern": "Agent Readiness Score cannot see", "flags": "i", "why": "unverified claim about a competitor's tool" },
+    { "id": "free-raw-note", "class": "jargon", "only": "free", "pattern": "\\bstatus=\\d{3}|\\bh1=(?:yes|no)|\\b(?:name|url|description)=(?:true|false)|markdown-ish|tools/list returned \\d+ tools", "why": "raw scanner note shown on a free Score surface with no explanation next to it" },
+    { "id": "free-remediation-overclaim", "class": "outcome-promise", "only": "free", "pattern": "remediation paths", "flags": "i", "why": "the free Score PDF has no remediation" }
   ],
   "fabrication": [
     { "id": "fabricate-ratings", "class": "fabrication", "pattern": "ratingValue|AggregateRating|aggregate rating|reviewCount|number of reviews|star rating", "flags": "i", "why": "asks for ratings markup on a site with no ratings: can only be followed by inventing them" }

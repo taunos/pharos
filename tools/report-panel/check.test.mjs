@@ -55,11 +55,40 @@ test("every text rule fires on its own example and compiles", () => {
     "promise-will-enable": "will enable the models to answer",
     "promise-guarantee": "we guarantee results",
     "promise-rank-higher": "your site will rank higher",
+    "dim6-sample-numbers": "GPT-4o cites your domain 6/10 times",
+    "competitor-claim": "the dimension Cloudflare's Agent Readiness Score cannot see",
+    "free-raw-note": "Presence — 0/100. status=404",
+    "free-remediation-overclaim": "priority per gap, remediation paths, and your score",
   };
   for (const r of rules.text) {
     assert.ok(examples[r.id], `add an example for new rule ${r.id}`);
-    assert.deepEqual(ids(checkReportText(examples[r.id], rules)), [r.id], r.id);
+    assert.deepEqual(ids(checkReportText(examples[r.id], rules, { free: true })), [r.id], r.id);
   }
+});
+
+test("free-only rules skip the paid report but run on the free Score surfaces", () => {
+  const line = "| Presence | 0/100 | 25% | status=404 |";
+  assert.deepEqual(ids(checkReportText(line, rules)), []);
+  assert.deepEqual(ids(checkReportText(line, rules, { free: true })), ["free-raw-note"]);
+  assert.deepEqual(ids(checkReportText("aggregate 47/100 D+.", rules)), ["dim6-sample-numbers"]);
+});
+
+test("checkSiteDir lints the free Score files and runs expect checks once", () => {
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), "report-panel-free-"));
+  const dir = path.join(out, "x");
+  fs.mkdirSync(dir);
+  const scan = audit("good").scan;
+  fs.writeFileSync(path.join(dir, "score.json"), JSON.stringify({ scan, gaps: [] }));
+  fs.writeFileSync(path.join(dir, "score-page.md"), "> HARNESS NOTE: free Score results page\n\nclean line\n");
+  fs.writeFileSync(path.join(dir, "score-pdf.md"), "Presence status=404\n");
+  fs.writeFileSync(path.join(dir, "score-email.md"), "Sample output: GPT-4o cites your domain 6/10 times\n");
+  const r = checkSiteDir(dir, { label: "x", expect: { na: ["9.*"] } }, rules);
+  assert.deepEqual(Object.keys(r.files).sort(), ["score-email.md", "score-page.md", "score-pdf.md"]);
+  assert.deepEqual(ids(r.files["score-pdf.md"]), ["free-raw-note"]);
+  assert.deepEqual(ids(r.files["score-email.md"]), ["dim6-sample-numbers"]);
+  // expect (here an unknown check -> one WARN) runs on the page only.
+  assert.equal(r.files["score-page.md"].filter((f) => f.class === "expect-na").length, 1);
+  assert.equal(r.files["score-pdf.md"].filter((f) => f.class === "expect-na").length, 0);
 });
 
 test("text rules do not fire on clean copy or on the harness banner", () => {

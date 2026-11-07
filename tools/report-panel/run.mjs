@@ -7,8 +7,17 @@
 //   node tools/report-panel/run.mjs [--repo <checkout>] [--only a,b]
 //        [--sites <file>] [--out <dir>] [--dim6 off|env] [--no-synthetic-dim6]
 //        [--no-pdf] [--ai-url http://127.0.0.1:8799] [--chrome <chrome.exe>]
+//   node tools/report-panel/run.mjs --tier free [--checkout-open] [--repo ...] [--only a,b]
 //
-// Prereq: the AI proxy is running (node tools/report-panel/start-proxy.mjs).
+// Prereq (paid tier): the AI proxy is running (node tools/report-panel/start-proxy.mjs).
+//
+// --tier free: the FREE Score instead of the paid Audit (see free-tier.mjs).
+//   Runs runScan(tier "free") and renders the results page, the Score PDF HTML
+//   and the "gap report ready" email for each site into out/free/<site>/
+//   (score-page.md, score-pdf.md, score-email.md + .html, scan.json,
+//   score.json). No AI proxy, no Browser Rendering, nothing is sent or stored.
+//   --checkout-open renders the Audit-checkout-open variant (default: closed,
+//   as in production).
 //
 // --repo (default: the checkout this file lives in) is the code under test.
 //   Its scanner/ and marketing-site/ sources are bundled with esbuild. If that
@@ -40,6 +49,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFile, execFileSync } from "node:child_process";
 import crypto from "node:crypto";
+import { bundleFree, runSiteFree } from "./free-tier.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -51,7 +61,9 @@ const opt = (name, def) => {
   return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith("--") ? argv[i + 1] : def;
 };
 const REPO = path.resolve(opt("repo", path.resolve(HERE, "..", "..")));
-const OUT = path.resolve(opt("out", path.join(HERE, "out")));
+const TIER = opt("tier", "paid");
+if (!["paid", "free"].includes(TIER)) throw new Error(`--tier must be paid|free`);
+const OUT = path.resolve(opt("out", TIER === "free" ? path.join(HERE, "out", "free") : path.join(HERE, "out")));
 const SITES_FILE = path.resolve(opt("sites", path.join(HERE, "sites.json")));
 const ONLY = opt("only", null)?.split(",").map((s) => s.trim()).filter(Boolean) ?? null;
 const DIM6_MODE = opt("dim6", "off");
@@ -377,6 +389,26 @@ async function runSite(M, site) {
 // ── main ─────────────────────────────────────────────────────────────────
 const sites = JSON.parse(fs.readFileSync(SITES_FILE, "utf8")).filter((s) => !ONLY || ONLY.includes(s.label));
 if (sites.length === 0) throw new Error(`no sites selected from ${SITES_FILE}`);
+if (TIER === "free") {
+  fs.mkdirSync(OUT, { recursive: true });
+  const F = await bundleFree({ REPO, HERE, NODE_PATHS, esbuild: findEsbuild() });
+  console.log(`repo=${REPO} tier=free checkout=${flag("checkout-open") ? "open" : "closed"} sites=${sites.map((s) => s.label).join(",")}`);
+  const results = [];
+  for (const s of sites) {
+    const t0 = Date.now();
+    try {
+      const r = await runSiteFree(F, s, path.join(OUT, s.label), { checkoutOpen: flag("checkout-open") });
+      results.push(r);
+      console.log(`${s.label}: ${r.composite.score} ${r.composite.grade} ${Math.round((Date.now() - t0) / 1000)}s`);
+    } catch (e) {
+      console.log(`${s.label}: FAILED ${e?.stack ?? e}`);
+      results.push({ label: s.label, error: String(e) });
+    }
+  }
+  fs.writeFileSync(path.join(OUT, `run-free-${Date.now()}.json`), JSON.stringify({ repo: REPO, tier: "free", results }, null, 2));
+  if (results.some((r) => r.error)) process.exitCode = 1;
+  process.exit();
+}
 const ping = await realFetch(AI_URL, { method: "GET" }).catch(() => null);
 if (!ping) throw new Error(`AI proxy not reachable at ${AI_URL} — start it: node tools/report-panel/start-proxy.mjs`);
 fs.mkdirSync(OUT, { recursive: true });
