@@ -107,7 +107,7 @@ describe("1.3.3 Dim 4: schema.org subtypes, optional sameAs / price, FAQ N/A, ne
     routes({ [HOME]: html(ldPage(faq)) });
     const f = sub(await runDim4(HOME, env()), "faq_schema");
     expect(f.na).toBeUndefined();
-    expect(f).toMatchObject({ score: 100, passed: true, notes: "1 Q&A pair(s); 1 are phrased as questions and have an answer of reasonable length." });
+    expect(f).toMatchObject({ score: 100, passed: true, notes: "1 Q&A pair(s); 1 is phrased as a question and has an answer of reasonable length." });
   });
 
   it("1.5.0: a present FAQ is always scored by the rules (no AI call, never 'not measured')", async () => {

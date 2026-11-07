@@ -128,10 +128,10 @@ const FIXTURES: [string, string, SubCheck[], string][] = [
   ["organization_schema", "Organization found: name=true, url=false, description=false, sameAs=0", [], "is missing url and description"],
   ["service_offer_schema", "no Service / Product / Offer schema", [], "If your site doesn't sell anything"],
   ["service_offer_schema", "2 Service/Product/Offer block(s); best match has 1/3 required fields", [], "has 1 of the 3 fields"],
-  ["faq_schema", "3 Q&A pair(s); 1 are phrased as questions and have an answer of reasonable length.", [], "2 of the 3 Q&A pairs in your FAQPage markup do not meet this check's rules"],
+  ["faq_schema", "3 Q&A pair(s); 1 is phrased as a question and has an answer of reasonable length.", [], "2 of the 3 Q&A pairs in your FAQPage markup do not meet this check's rules"],
   [
     "faq_schema",
-    "6 Q&A pair(s); 1 are phrased as questions and have an answer of reasonable length. 5 entries are missing a question or an answer.",
+    "6 Q&A pair(s); 1 is phrased as a question and has an answer of reasonable length. 5 entries are missing a question or an answer.",
     [],
     "5 of the 6 Q&A pairs in your FAQPage markup do not meet this check's rules",
   ],

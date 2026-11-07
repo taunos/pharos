@@ -25,8 +25,8 @@ export const notFullyInspectedNote = (what: string) =>
 /** faq_schema note (1.4.0): FAQPage markup whose questions carry no answer text. */
 /** faq_schema note (1.5.1): structural rules only, no claim that answers are relevant. */
 export const faqRulesNote = (total: number, clear: number, malformed: number) =>
-  `${total} Q&A pair(s); ${clear} are phrased as questions and have an answer of reasonable length.` +
-  (malformed > 0 ? ` ${malformed} entries are missing a question or an answer.` : "");
+  `${total} Q&A pair(s); ${clear} ${clear === 1 ? "is" : "are"} phrased as ${clear === 1 ? "a question" : "questions"} and ${clear === 1 ? "has" : "have"} an answer of reasonable length.` +
+  (malformed > 0 ? ` ${malformed} ${malformed === 1 ? "entry is" : "entries are"} missing a question or an answer.` : "");
 
 export const FAQ_NO_ANSWERS_NOTE =
   "FAQPage markup found, but none of its entries is a Question with an answer text (acceptedAnswer.text), so there are no Q&A pairs to rate.";

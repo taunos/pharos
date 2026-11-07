@@ -56,7 +56,7 @@ describe("1.5.1 faq_schema: malformed entries count in the denominator", () => {
     expect(f.score).toBe(17);
     expect(f.passed).toBe(false);
     expect(f.notes).toBe(
-      "6 Q&A pair(s); 1 are phrased as questions and have an answer of reasonable length. 5 entries are missing a question or an answer."
+      "6 Q&A pair(s); 1 is phrased as a question and has an answer of reasonable length. 5 entries are missing a question or an answer."
     );
   });
 
@@ -64,13 +64,13 @@ describe("1.5.1 faq_schema: malformed entries count in the denominator", () => {
     const f = await faqFor([qa("How do I start?", "Sign up."), qa("   ", "An answer."), qa("", "Another."), qa("What is it?", "")]);
     expect(f.score).toBe(25);
     expect(f.notes).toBe(
-      "4 Q&A pair(s); 1 are phrased as questions and have an answer of reasonable length. 3 entries are missing a question or an answer."
+      "4 Q&A pair(s); 1 is phrased as a question and has an answer of reasonable length. 3 entries are missing a question or an answer."
     );
   });
 
   it("an entry not typed Question is not an FAQ item (not counted)", async () => {
     const f = await faqFor([qa("How do I start?", "Sign up."), { "@type": "Thing", name: "Footer" }]);
-    expect(f).toMatchObject({ score: 100, notes: "1 Q&A pair(s); 1 are phrased as questions and have an answer of reasonable length." });
+    expect(f).toMatchObject({ score: 100, notes: "1 Q&A pair(s); 1 is phrased as a question and has an answer of reasonable length." });
   });
 });
 
