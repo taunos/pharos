@@ -237,7 +237,18 @@ async function dnsTxt(host: string): Promise<{ found: boolean; note: string }> {
   }
 }
 
-export async function runDim2(targetUrl: string, env: Env): Promise<DimensionResult> {
+/** Whole-dimension N/A note (1.3.2): shown in the Score and Audit reports. */
+export const DIM2_CONTENT_ONLY_NA_NOTE =
+  "No MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), no _mcp DNS TXT record and no MCP endpoint found, and no API was detected (OpenAPI / API Catalog is N/A). A content-only site is not expected to run an MCP server. Dimension marked N/A — composite math drops it without penalty.";
+
+export async function runDim2(
+  targetUrl: string,
+  env: Env,
+  // 1.3.2: true when Dim 3 is whole-dimension N/A for "no API surface" (not
+  // unmeasured). run-scan passes Dim 3's result as a promise; awaited only
+  // when no MCP artifact was found.
+  contentOnly: boolean | Promise<boolean> = false
+): Promise<DimensionResult> {
   const u = new URL(targetUrl);
   const origin = u.origin;
   const subs: SubCheck[] = [];
@@ -421,6 +432,20 @@ export async function runDim2(targetUrl: string, env: Env): Promise<DimensionRes
     passed: dns.found,
     notes: dns.note,
   });
+
+  // 1.3.2: no MCP artifact of any kind (no 200 at either well-known card
+  // path, hence no transport to invoke, and no _mcp TXT) on a site with no
+  // API surface: an MCP server is not expected, so the dimension is N/A.
+  if (cardStatus !== 200 && !dns.found && (await contentOnly)) {
+    return {
+      dimension_id: 2,
+      dimension_name: "MCP Server Discoverability",
+      score: 0,
+      grade: gradeFor(0),
+      sub_checks: subs.map((s) => ({ ...s, score: 0, passed: false, notes: DIM2_CONTENT_ONLY_NA_NOTE, na: true })),
+      na: true,
+    };
+  }
 
   const score = dimensionScoreOrThrow(subs);
   // Suppress unused-env warning (env reserved for future LLM-augmented checks).

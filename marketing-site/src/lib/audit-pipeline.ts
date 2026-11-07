@@ -41,7 +41,27 @@ const REMEDIATION_CACHE_TTL = 30 * 24 * 60 * 60;
 // v4 (2026-11-04): prompt-injection hardening. The prompt carries only the
 // audited origin + vocabulary-filtered scanner facts; output is sanitized and
 // link-allowlisted. Bump also invalidates every v3 cache entry.
-const REMEDIATION_ENGINE_VERSION = "v4";
+// v5 (2026-11-07): Dim 6 (Citation Visibility) remediation is fixed text
+// (DIM6_REMEDIATION), never model-written; the bump drops cached v4 entries.
+const REMEDIATION_ENGINE_VERSION = "v5";
+
+/**
+ * Fixed remediation text for the Dim 6 checks. There is no artifact the
+ * customer edits for these (the hosted models are not theirs to change), so
+ * the 8B model invented fixes ("update the model configuration file"). Only
+ * true, actionable steps, no promised results. Copy needs Bruno's approval
+ * (see _tmp/report-truthfulness-copy-2026-11-07.md in the main checkout).
+ */
+export const DIM6_REMEDIATION: Record<string, string> = {
+  citation_domain_named_rate:
+    "You cannot edit ChatGPT, Claude, Gemini or Perplexity directly, so there is no setting to change here. What can help these models name your business is clear content on your own site that says who you are, what you do and who you serve, using your business name and domain; Organization or LocalBusiness structured data on your homepage; the same business name, address and description everywhere you are listed; and mentions on independent sources these models read, such as directories, press coverage, industry lists and reviews on third-party platforms. Estimated effort: 4+ hours.",
+  citation_url_referenced_rate:
+    "You cannot edit ChatGPT, Claude, Gemini or Perplexity directly, so there is no setting that makes them link to your site. What can help is having pages worth citing: one clear page for each thing you offer, each at a single stable address with a canonical URL, that answers the question in plain text near the top. Links to those pages from independent sources, such as directories, press coverage and industry lists, can also help, because these models draw on what other sites say. Estimated effort: 2 to 4 hours.",
+  citation_context_relevant_rate:
+    "You cannot edit ChatGPT, Claude, Gemini or Perplexity directly. What can help them present your business as a main answer rather than a passing mention is stating plainly, near the top of your homepage and key pages, who you are, what you do and who you serve, with your business name and domain; structured data (such as Organization or LocalBusiness) that says the same thing; and the same description of your business on the third-party sites that list you. Estimated effort: 2 to 4 hours.",
+  citation_no_competitor_first_rate:
+    "You cannot edit ChatGPT, Claude, Gemini or Perplexity directly, and you cannot remove competitors from their answers. What can help your business appear earlier is being clearly described for the questions people ask: content on your site that says what you do and who you serve in the words your customers use, the same business name, address and description everywhere you are listed, and mentions on independent sources these models read, such as directories, industry lists, press coverage and reviews on third-party platforms. Estimated effort: 4+ hours.",
+};
 
 /**
  * Per-check description of WHAT THE CHECK EXAMINES — the artifact (file, DNS record,
@@ -583,6 +603,10 @@ async function enrichGap(
   sessionId: string,
   check: SubCheck
 ): Promise<string> {
+  // v5: Dim 6 checks get fixed text; no model call, no cache.
+  const fixed = DIM6_REMEDIATION[check.id];
+  if (fixed !== undefined) return fixed;
+
   // v2 cache key: includes scanUrl so per-site remediations don't bleed across
   // tenants, and bumps the version to invalidate the broken-prompt v1 entries.
   const cacheInput = `${scanUrl}|${check.id}|${check.score}|${check.notes}`;

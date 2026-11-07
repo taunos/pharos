@@ -76,10 +76,18 @@ export async function runScan(
   // handing it over (resolve is idempotent), so Dim 3 never waits forever.
   let handHomepage!: (homepage: HomepageRead | null) => void;
   const homepage = new Promise<HomepageRead | null>((resolve) => (handHomepage = resolve));
+  // 1.3.2: Dim 2 goes whole-dim N/A when Dim 3 found no API surface (na, not
+  // unmeasured) and Dim 2 found no MCP artifact. Dim 3's result is handed over
+  // as a promise (no extra fetch); a Dim 3 failure counts as "not content-only".
+  const d3p = runDim3(url, env, homepage);
+  const contentOnly = d3p.then(
+    (d) => d.na === true && !d.unmeasured,
+    () => false
+  );
   const [d1, d2, d3, d4, d5, d6] = await Promise.all([
     runDim1(url, env),
-    runDim2(url, env),
-    runDim3(url, env, homepage),
+    runDim2(url, env, contentOnly),
+    d3p,
     runDim4(url, env, handHomepage).finally(() => handHomepage(null)),
     runDim5(url, env, tier),
     runDim6(url, tier),
@@ -92,7 +100,8 @@ export async function runScan(
   // Slice 3a:
   //   - dimensions_scored: dimensions ATTEMPTED in this engine version (5/6 in v1.2.0).
   //   - dimensions_applicable: attempted minus whole-dim N/A (e.g. content-only
-  //     site has Dim 3 N/A, so applicable=4). Counted from the array; never
+  //     site has Dim 3 N/A, so applicable=4; from 1.3.2 also Dim 2 N/A when
+  //     no MCP artifact exists, so applicable=3). Counted from the array; never
   //     extrapolated. Older v1.1.0 scans did not emit this — render-side falls
   //     back to dimensions_scored when undefined.
   const dimensionsApplicable = dimensions.filter((d) => !d.na).length;

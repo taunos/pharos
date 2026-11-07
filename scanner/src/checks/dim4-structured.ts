@@ -6,6 +6,10 @@ import { MAX_HTML_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
 
 const FETCH_TIMEOUT_MS = 8000;
 
+/** review_schema N/A note (1.3.2): shown in the Score and Audit reports. */
+export const REVIEW_SCHEMA_NA_NOTE =
+  "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. Weight redistributed across other Dim 4 sub-checks.";
+
 // Security pass 2026-11-04: validated hops, max 3 redirects, one deadline
 // covering headers AND body, capped body (see ../safe-fetch).
 function timedFetch(url: string, init?: RequestInit): Promise<SafeResponse | null> {
@@ -356,23 +360,32 @@ export async function runDim4(
     notes: `${qCount} Q&A pair(s); ${conv.note}`,
   });
 
-  // 5. review_schema
+  // 5. review_schema. 1.3.2: N/A when no Review/AggregateRating markup is
+  // present (weight redistributed, like Dim 5 pricing_text_visibility).
+  // Scoring its absence pushed sites without real ratings to invent them.
   const reviews = [...findByType(validBlocks, "Review"), ...findByType(validBlocks, "AggregateRating")];
-  let reviewScore = 0;
-  let reviewNote = "no Review or AggregateRating (common for B2B SaaS — does not imply broken)";
   if (reviews.length > 0) {
     const wellFormed = reviews.some((r) => typeof r.ratingValue !== "undefined" || typeof r.reviewRating !== "undefined" || typeof r.author !== "undefined");
-    reviewScore = wellFormed ? 100 : 50;
-    reviewNote = `${reviews.length} Review/AggregateRating block(s); well-formed=${wellFormed}`;
+    const reviewScore = wellFormed ? 100 : 50;
+    subs.push({
+      id: "review_schema",
+      name: "Review / AggregateRating schema",
+      weight: 15,
+      score: reviewScore,
+      passed: reviewScore >= 70,
+      notes: `${reviews.length} Review/AggregateRating block(s); well-formed=${wellFormed}`,
+    });
+  } else {
+    subs.push({
+      id: "review_schema",
+      name: "Review / AggregateRating schema",
+      weight: 15,
+      score: 0,
+      passed: false,
+      notes: REVIEW_SCHEMA_NA_NOTE,
+      na: true,
+    });
   }
-  subs.push({
-    id: "review_schema",
-    name: "Review / AggregateRating schema",
-    weight: 15,
-    score: reviewScore,
-    passed: reviewScore >= 70,
-    notes: reviewNote,
-  });
 
   for (const sc of subs) sc.evidence = { ...evidence };
   const score = dimensionScoreOrThrow(subs);

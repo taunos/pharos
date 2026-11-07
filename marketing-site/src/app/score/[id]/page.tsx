@@ -46,7 +46,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const CURRENT_SCORING_VERSION = "1.3.1";
+const CURRENT_SCORING_VERSION = "1.3.2";
 
 interface PageProps {
   params: Promise<{ id: string }>;

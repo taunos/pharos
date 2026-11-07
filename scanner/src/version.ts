@@ -41,5 +41,14 @@
  *   the MCP initialize handshake before tools/list and parses JSON / SSE
  *   replies per message (no greedy regex). `CURRENT_SCORING_VERSION` on
  *   /score/[id] bumped in lockstep.
+ * - 1.3.2 (report truthfulness, 2026-11-07): Dim 4 review_schema is sub-check
+ *   N/A (weight redistributed) when no Review / AggregateRating markup exists;
+ *   scored on well-formedness only when present (absence used to score 0 and
+ *   pushed sites to invent ratings). Dim 2 is whole-dimension N/A when Dim 3
+ *   is whole-dimension N/A for no API surface (not unmeasured) AND no MCP
+ *   artifact was found (no 200 at either card path, no _mcp TXT); composite
+ *   renormalizes as for any whole-dim N/A. Dim 3's result is handed to Dim 2
+ *   in run-scan (no extra fetch). `CURRENT_SCORING_VERSION` on /score/[id]
+ *   bumped in lockstep.
  */
-export const SCORING_VERSION = "1.3.1";
+export const SCORING_VERSION = "1.3.2";
