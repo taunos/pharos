@@ -1,0 +1,170 @@
+# Trimmed copy of https://resend.com/openapi.yaml (plain GET, 2026-11-07): lines 1-164 (info, security, tags, first 4 paths) + components.securitySchemes.
+openapi: 3.0.3
+info:
+  title: Resend
+  version: 1.5.0
+  description: 'Resend is the email platform for developers.'
+servers:
+  - url: https://api.resend.com
+security:
+  - bearerAuth: []
+tags:
+  - name: Emails
+    description: Start sending emails through the Resend API.
+  - name: Domains
+    description: Create and manage domains through the Resend API.
+  - name: API Keys
+    description: Create and manage API Keys through the Resend API.
+  - name: Audiences
+    description: 'Deprecated: Use Segments instead. Create and manage Audiences through the Resend API.'
+  - name: Contacts
+    description: Create and manage Contacts through the Resend API.
+  - name: Receiving Emails
+    description: Retrieve and manage received emails and attachments through the Resend API.
+  - name: Webhooks
+    description: Create and manage Webhooks through the Resend API.
+  - name: Templates
+    description: Create and manage Templates through the Resend API.
+  - name: Broadcasts
+    description: Create and manage Broadcasts through the Resend API.
+  - name: Segments
+    description: Create and manage Segments through the Resend API.
+  - name: Topics
+    description: Create and manage Topics through the Resend API.
+  - name: Contact Properties
+    description: Create and manage Contact Properties through the Resend API.
+  - name: Logs
+    description: Retrieve API request logs through the Resend API.
+  - name: Automations
+    description: Create and manage Automations through the Resend API.
+  - name: Events
+    description: Create and manage Events through the Resend API.
+paths:
+  /emails:
+    post:
+      tags:
+        - Emails
+      summary: Send an email
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            maxLength: 256
+          description: A unique identifier for the request to ensure emails are only sent once. [Learn more](https://resend.com/docs/dashboard/emails/idempotency-keys)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendEmailRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendEmailResponse'
+    get:
+      tags:
+        - Emails
+      summary: Retrieve a list of emails
+      parameters:
+        - $ref: '#/components/parameters/PaginationLimit'
+        - $ref: '#/components/parameters/PaginationAfter'
+        - $ref: '#/components/parameters/PaginationBefore'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListEmailsResponse'
+  /emails/{email_id}:
+    get:
+      tags:
+        - Emails
+      summary: Retrieve a single email
+      parameters:
+        - name: email_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the email.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Email'
+    patch:
+      tags:
+        - Emails
+      summary: Update a single email
+      parameters:
+        - name: email_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the email.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateEmailOptions'
+  /emails/{email_id}/cancel:
+    post:
+      tags:
+        - Emails
+      summary: Cancel the schedule of the e-mail.
+      parameters:
+        - name: email_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the email.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Email'
+  /emails/batch:
+    post:
+      tags:
+        - Emails
+      summary: Trigger up to 100 batch emails at once.
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            maxLength: 256
+          description: A unique identifier for the request to ensure emails are only sent once. [Learn more](https://resend.com/docs/dashboard/emails/idempotency-keys)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/SendEmailRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateBatchEmailsResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer

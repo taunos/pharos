@@ -259,5 +259,5 @@ describe("1.4.2 notes", () => {
     expect(s.notes).not.toMatch(/[hlb]:[^ ]/);
   });
 
-  it("SCORING_VERSION is 1.4.2", () => expect(SCORING_VERSION).toBe("1.4.2"));
+  it("SCORING_VERSION is 1.5.0", () => expect(SCORING_VERSION).toBe("1.5.0"));
 });

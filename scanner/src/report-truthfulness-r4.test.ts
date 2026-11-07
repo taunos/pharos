@@ -12,6 +12,7 @@ import {
   caseStudyChildren,
   looksLikeCaseStudy,
   noMarkdownNote,
+  MARKDOWN_INFO_NOTE,
   renderOverlapNote,
   stripTags,
   CASE_STUDY_JS_NOTE,
@@ -376,13 +377,14 @@ describe("1.4.1 notes", () => {
 
   it("markdown note names the addresses checked (root and non-root)", async () => {
     routes({ "https://acme.com/": html(page({})) });
-    expect(sub(await runDim5("https://acme.com/", env(), "free"), "markdown_negotiation").notes).toBe(noMarkdownNote(["https://acme.com/index.md"]));
+    // 1.5.0: informational suffix.
+    expect(sub(await runDim5("https://acme.com/", env(), "free"), "markdown_negotiation").notes).toBe(`${noMarkdownNote(["https://acme.com/index.md"])} ${MARKDOWN_INFO_NOTE}`);
     expect(noMarkdownNote(["https://acme.com/index.md"])).toBe(
       "We found no Markdown version at the addresses we checked (https://acme.com/index.md and an Accept: text/markdown request to the homepage). Agents read the HTML instead."
     );
     routes({ "https://acme.com/about": html(page({})) });
     expect(sub(await runDim5("https://acme.com/about", env(), "free"), "markdown_negotiation").notes).toBe(
-      noMarkdownNote(["https://acme.com/index.md", "https://acme.com/about.md"], "https://acme.com/about")
+      `${noMarkdownNote(["https://acme.com/index.md", "https://acme.com/about.md"], "https://acme.com/about")} ${MARKDOWN_INFO_NOTE}`
     );
   });
 
@@ -391,5 +393,5 @@ describe("1.4.1 notes", () => {
     expect(DIM3_NO_API_NA_NOTE).not.toMatch(/composite|penalty|marked N\/A/);
   });
 
-  it("SCORING_VERSION is 1.4.2 (bumped in r5)", () => expect(SCORING_VERSION).toBe("1.4.2"));
+  it("SCORING_VERSION is 1.5.0 (bumped after r5)", () => expect(SCORING_VERSION).toBe("1.5.0"));
 });

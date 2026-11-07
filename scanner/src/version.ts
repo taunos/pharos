@@ -116,5 +116,16 @@
  *   (missing field / invalid value). service_offer_schema N/A note says what
  *   was checked. Case-study notes use plain words for headings / lists /
  *   bold text. `CURRENT_SCORING_VERSION` on /score/[id] bumped in lockstep.
+ * - 1.5.0 (fixed rules, 2026-11-07): no model call in the scan. Dim 1
+ *   blockquote_eval scores three rules (one paragraph, 50-250 words, names
+ *   the business: the llms.txt H1 name or the host's main label); text that
+ *   reads like instructions to an AI still scores 0. Dim 4 faq_schema scores
+ *   the share of Q&A pairs whose question is phrased as a question of 3-40
+ *   words and whose answer has 5-300 words. The Workers AI binding and daily
+ *   AI budget are gone. Dim 5 markdown_negotiation is informational (N/A,
+ *   not scored), like Dim 2 dns_txt. Dim 3 parses YAML specs in full (the
+ *   `yaml` package: failsafe schema, alias cap, no unknown tags; a YAML spec
+ *   over 512 KB is "not read in full") and runs the JSON checks on them.
+ *   `CURRENT_SCORING_VERSION` on /score/[id] bumped in lockstep.
  */
-export const SCORING_VERSION = "1.4.2";
+export const SCORING_VERSION = "1.5.0";

@@ -9,10 +9,9 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { runDim1, extractLinks, NO_MARKDOWN_LINKS_NOTE } from "./checks/dim1-llmstxt";
 import { runDim2, normalizeCard, mcpAuthRequiredNote, DIM2_CONTENT_ONLY_NA_NOTE, DNS_TXT_INFO_NOTE } from "./checks/dim2-mcp";
-import { runDim3, DIM3_NO_API_NA_NOTE, YAML_UNMEASURED_NOTE } from "./checks/dim3-openapi";
-import { runDim4, notFullyInspectedNote, FAQ_NO_ANSWERS_NOTE, FAQ_UNMEASURED_NOTE } from "./checks/dim4-structured";
+import { runDim3, DIM3_NO_API_NA_NOTE } from "./checks/dim3-openapi";
+import { runDim4, notFullyInspectedNote, FAQ_NO_ANSWERS_NOTE } from "./checks/dim4-structured";
 import { runDim5, caseStudyRank, countPeriodOrOneTimePrices, isExcludedContentPath, CASE_STUDY_NA_NOTE, pageWeightNote } from "./checks/dim5-parsable";
-import { parseNumberedScores } from "./checks/llm-eval";
 import { gatherSiteSignals, linkSignals } from "./checks/site-signals";
 import { runScan } from "./run-scan";
 import type { DimensionResult, SubCheck } from "./types";
@@ -144,7 +143,9 @@ describe("1.4.0 N1 ugmonk (Shopify): the live MCP server is found, Dim 2 is scor
   it("F30 / F33: /index.md served as HTML is no markdown variant; /account/login is no case study", async () => {
     const calls = site();
     const d5 = await runDim5(UG, env(), "free");
-    expect(sub(d5, "markdown_negotiation").score).toBe(25);
+    // 1.5.0: informational (N/A); the note says what was found.
+    expect(sub(d5, "markdown_negotiation")).toMatchObject({ na: true, score: 0 });
+    expect(sub(d5, "markdown_negotiation").notes).toMatch(/^We found no Markdown version at the addresses we checked /);
     const cs = sub(d5, "case_study_scannability");
     expect(cs.notes).not.toContain("account");
     expect(cs).toMatchObject({ na: true, notes: CASE_STUDY_NA_NOTE });
@@ -315,20 +316,24 @@ describe("1.4.0 F6 / F8 resend: the real server card is read correctly", () => {
 // ── 3. F11 / F12: API catalog linkset ────────────────────────────────────
 
 describe("1.4.0 F11 / F12 resend: the API catalog's service-desc spec is scored, not the linkset", () => {
-  it("follows the linkset to /openapi.yaml (same site); YAML stays partial", async () => {
+  it("follows the linkset to /openapi.yaml (same site); 1.5.0: the YAML spec is scored in full", async () => {
+    // resend-openapi-trimmed.yaml: the real file cut to info, security, tags,
+    // the first 4 paths (6 operations) and components.securitySchemes.
     routes({
       "https://resend.com/.well-known/api-catalog": text(fx("resend-api-catalog.json"), "application/linkset+json"),
-      "https://resend.com/openapi.yaml": text(fx("resend-openapi-head.yaml"), "text/yaml; charset=utf-8"),
+      "https://resend.com/openapi.yaml": text(fx("resend-openapi-trimmed.yaml"), "text/yaml; charset=utf-8"),
     });
     const d3 = await runDim3("https://resend.com/", env());
     expect(d3.na).toBeUndefined();
+    expect(d3.sub_checks.every((s) => !s.na)).toBe(true);
     expect(sub(d3, "discovery").notes).toContain("Read through the API catalog at https://resend.com/.well-known/api-catalog (its service-desc link).");
-    expect(sub(d3, "spec_validity")).toMatchObject({ score: 50 });
-    expect(sub(d3, "spec_validity").notes).toContain("openapi 3.0.3");
-    for (const id of ["info_completeness", "security_schemes", "operation_coverage"])
-      expect(sub(d3, id)).toMatchObject({ na: true, notes: YAML_UNMEASURED_NOTE });
-    expect(d3.sub_checks.map((s) => s.notes).join(" ")).not.toMatch(/missing the "info"|no "openapi"|missing "paths"/);
-    expect(d3.score).toBe(75);
+    expect(sub(d3, "spec_validity")).toMatchObject({ score: 100, notes: "Valid YAML spec, openapi 3.0.3." });
+    expect(sub(d3, "info_completeness")).toMatchObject({ score: 100, notes: "info: title=yes, version=yes, description=yes (3/3)" });
+    expect(sub(d3, "security_schemes")).toMatchObject({ score: 100, notes: "components.securitySchemes declared: bearerAuth." });
+    expect(sub(d3, "operation_coverage")).toMatchObject({ score: 100 });
+    expect(sub(d3, "operation_coverage").notes).toContain("6 operation(s); 6/6 have a summary or description.");
+    expect(d3.sub_checks.map((s) => s.notes).join(" ")).not.toMatch(/missing the "info"|no "openapi"|missing "paths"|Not measured|partial credit/);
+    expect(d3.score).toBe(100);
   });
 
   it("a service-desc on another site is not fetched; the spec checks are 'not measured'", async () => {
@@ -371,21 +376,25 @@ describe("1.4.0 F26: llms.txt link counting", () => {
 
 // ── 5. F30: markdown needs a markdown body ───────────────────────────────
 
+// 1.5.0: markdown_negotiation is informational (N/A, score 0); what the
+// check found is read from its note.
 describe("1.4.0 F30: markdown variant / negotiation need a markdown body", () => {
   const ACME = "https://acme.com/";
   it("Accept: text/markdown answered with text/markdown but an HTML body => not negotiation", async () => {
     routes({ [ACME]: (init) => (new Headers(init.headers).get("accept") === "text/markdown" ? text("<!doctype html><html><body>x</body></html>", "text/markdown")() : html("<html><body>x</body></html>")()) });
-    expect(sub(await runDim5(ACME, env(), "free"), "markdown_negotiation").score).toBe(25);
+    expect(sub(await runDim5(ACME, env(), "free"), "markdown_negotiation").notes).toMatch(/^We found no Markdown version at the addresses we checked /);
   });
 
-  it("a real text/plain markdown body at /index.md => 75", async () => {
+  it("a real text/plain markdown body at /index.md => .md variant found", async () => {
     routes({ [ACME]: html("<html><body>x</body></html>"), "https://acme.com/index.md": text("# Acme\n\n> We bake bread.") });
-    expect(sub(await runDim5(ACME, env(), "free"), "markdown_negotiation")).toMatchObject({ score: 75 });
+    expect(sub(await runDim5(ACME, env(), "free"), "markdown_negotiation").notes).toMatch(/^\.md variant exists at https:\/\/acme\.com\/index\.md /);
   });
 
-  it("linear-style negotiation (text/markdown with a markdown body) => 100", async () => {
+  it("linear-style negotiation (text/markdown with a markdown body) => negotiation found", async () => {
     routes({ [ACME]: (init) => (new Headers(init.headers).get("accept") === "text/markdown" ? text("# Linear\n\n> Plan.", "text/markdown; charset=utf-8")() : html("<html><body>x</body></html>")()) });
-    expect(sub(await runDim5(ACME, env(), "free"), "markdown_negotiation").score).toBe(100);
+    const m = sub(await runDim5(ACME, env(), "free"), "markdown_negotiation");
+    expect(m.notes).toMatch(/^Accept: text\/markdown returns text\/markdown/);
+    expect(m).toMatchObject({ na: true, score: 0, passed: false });
   });
 });
 
@@ -526,37 +535,15 @@ describe("1.4.0 F34: page weight only, no internal tool names", () => {
   });
 });
 
-// ── 10. F18: numbered AI reply ───────────────────────────────────────────
+// ── 10. 1.5.0: FAQ fixed rules on real data ──────────────────────────────
 
-describe("1.4.0 F18: numbered per-question AI reply", () => {
-  it.each([
-    ["1. 60 - Sounds like natural", 1, false, 60],
-    ["1. 60\n2. 80", 2, false, 70],
-    ["1) 60/100 - ok\n2) 81 natural", 2, false, 71],
-    ["1. 60\n2. 80", 3, false, null], // count mismatch
-    ["2. 60", 1, false, null], // wrong index
-    ["1. 160", 1, false, null],
-    ["1. 60abc", 1, false, null],
-    ["1. 60\n2. 7", 2, true, null], // cut at the token limit: the last number may be cut short
-    ["1. 60\n2. 75 - Sou", 2, true, 68],
-  ])("%j (count %i, truncated %s) => %s", (raw, count, truncated, want) => {
-    expect(parseNumberedScores(raw as string, count as number, truncated as boolean)).toBe(want);
-  });
-
-  it("Rachel Queiroz's 4 real FAQ questions: a numbered reply is a measurement, not 'not measured'", async () => {
+describe("1.5.0 faq_schema: Rachel Queiroz's 4 real FAQ pairs are scored by fixed rules", () => {
+  it("each question is phrased as a question and each answer has 5-300 words: 4 of 4, score 100", async () => {
     const ld = fxJson<unknown[]>("rachelqueiroz-ld.json");
     routes({ "https://rachelqueiroz.com/": html(page({ ld })) });
-    const d4 = await runDim4("https://rachelqueiroz.com/", env(() => ({ response: "1. 60 - natural\n2. 80\n3. 70\n4. 90", usage: { completion_tokens: 20 } })));
-    const f = sub(d4, "faq_schema");
+    const f = sub(await runDim4("https://rachelqueiroz.com/", env(() => { throw new Error("AI must not be called"); })), "faq_schema");
     expect(f.na).toBeUndefined();
-    expect(f.notes).toBe("4 Q&A pair(s); LLM rated 4 question(s) avg 75/100");
-  });
-
-  it("an unparseable reply stays 'not measured'", async () => {
-    const ld = fxJson<unknown[]>("rachelqueiroz-ld.json");
-    routes({ "https://rachelqueiroz.com/": html(page({ ld })) });
-    const f = sub(await runDim4("https://rachelqueiroz.com/", env(() => ({ response: "1. 60 - Sounds like natural" }))), "faq_schema");
-    expect(f).toMatchObject({ na: true, notes: `4 Q&A pair(s); ${FAQ_UNMEASURED_NOTE}` });
+    expect(f).toMatchObject({ score: 100, passed: true, notes: "4 Q&A pair(s); 4 read as clear questions with direct answers." });
   });
 });
 

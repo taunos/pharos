@@ -3,7 +3,6 @@ import type { RateLimitBinding } from "./ratelimit";
 export interface Env {
   DB: D1Database;
   CACHE: KVNamespace;
-  AI: Ai;
   // Optional bindings — used for paid-tier Dim 5 Browser Rendering. Free tier
   // never invokes them. Marked optional so local dev / older deployments still
   // typecheck if the secrets aren't set yet.

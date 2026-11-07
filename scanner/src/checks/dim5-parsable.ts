@@ -3,7 +3,7 @@
 // Five sub-checks (weights from OQ-04 §2 Dim 5):
 //   1. js_vs_no_js_render_diff (30%)  — paid uses Browser Rendering, free is static-only with disclosure
 //   2. page_weight_lcp (15%)          — homepage HTML weight (1.4.0: LCP was never measured)
-//   3. markdown_negotiation (25%)     — same on free + paid
+//   3. markdown_negotiation (25%)     — same on free + paid; 1.5.0: informational (N/A, not scored)
 //   4. pricing_text_visibility (20%)  — 1.4.2: pricing page, else prices on the homepage or a
 //                                       page it links to; N/A (not measured) with none
 //   5. case_study_scannability (10%)  — heuristic only, no LLM (per Slice 2a constraint)
@@ -351,6 +351,10 @@ async function isMarkdownResponse(r: SafeResponse): Promise<boolean> {
 /** markdown_negotiation note (1.4.1): names the addresses actually checked. */
 export const noMarkdownNote = (checked: string[], page = "the homepage") =>
   `We found no Markdown version at the addresses we checked (${checked.join(", ")} and an Accept: text/markdown request to ${page}). Agents read the HTML instead.`;
+
+/** markdown_negotiation note suffix (1.5.0): the check is informational. */
+export const MARKDOWN_INFO_NOTE =
+  "Informational only: serving Markdown is an emerging convention most hosts don't support yet, so this is not scored.";
 
 async function runMarkdownNegotiation(url: string): Promise<SubCheck> {
   const id = "markdown_negotiation";
@@ -1102,7 +1106,10 @@ export async function runDim5(
   // Parallel would hammer the target site; serial is fine for v1.
   subs.push(await runJsVsNoJsRenderDiff(targetUrl, env, tier, staticBody));
   subs.push(await runPageWeightLcp(targetUrl, staticBody, contentLength));
-  subs.push(await runMarkdownNegotiation(targetUrl));
+  // 1.5.0: informational (weight redistributed), like Dim 2 dns_txt: shown
+  // with what was found, not scored.
+  const md = await runMarkdownNegotiation(targetUrl);
+  subs.push({ ...md, score: 0, passed: false, notes: `${md.notes} ${MARKDOWN_INFO_NOTE}`, na: true });
   subs.push(await runPricingTextVisibility(targetUrl, staticBody, homeRes?.url || targetUrl));
   subs.push(await runCaseStudyScannability(targetUrl, staticBody));
 

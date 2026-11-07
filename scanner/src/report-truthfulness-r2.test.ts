@@ -2,11 +2,11 @@
 // and no default score for an unmeasured AI rating. Fixtures only: every
 // fetch is stubbed, no network.
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { runDim1, extractBlockquote, BLOCKQUOTE_UNMEASURED_NOTE } from "./checks/dim1-llmstxt";
+import { runDim1, extractBlockquote } from "./checks/dim1-llmstxt";
 import { runDim2, OAUTH_NO_AUTH_NA_NOTE, OAUTH_NO_CARD_NA_NOTE } from "./checks/dim2-mcp";
-import { runDim3, YAML_UNMEASURED_NOTE } from "./checks/dim3-openapi";
-import { runDim4, FAQ_SCHEMA_NA_NOTE, FAQ_UNMEASURED_NOTE } from "./checks/dim4-structured";
-import { runDim5, PRICE_BARE_RE, PRICE_TEXT_RE } from "./checks/dim5-parsable";
+import { runDim3 } from "./checks/dim3-openapi";
+import { runDim4, FAQ_SCHEMA_NA_NOTE } from "./checks/dim4-structured";
+import { runDim5, PRICE_BARE_RE, PRICE_TEXT_RE, MARKDOWN_INFO_NOTE } from "./checks/dim5-parsable";
 import { SCORING_VERSION } from "./version";
 
 afterEach(() => {
@@ -42,8 +42,8 @@ const HOME = "https://acme.com/";
 const sub = (d: { sub_checks: { id: string }[] }, id: string) =>
   d.sub_checks.find((s) => s.id === id) as import("./types").SubCheck;
 
-it("SCORING_VERSION is 1.4.1 (r4 supersedes 1.3.3)", () => {
-  expect(SCORING_VERSION).toBe("1.4.2");
+it("SCORING_VERSION is 1.5.0 (supersedes 1.3.3)", () => {
+  expect(SCORING_VERSION).toBe("1.5.0");
 });
 
 describe("1.3.3 Dim 4: schema.org subtypes, optional sameAs / price, FAQ N/A, nested ratings", () => {
@@ -102,20 +102,20 @@ describe("1.3.3 Dim 4: schema.org subtypes, optional sameAs / price, FAQ N/A, ne
     expect(d4.score).toBe(expected);
   });
 
-  it("a well-formed FAQPage with one Q&A can pass (no >=5 count ladder)", async () => {
-    const faq = { "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Do you take insurance?", acceptedAnswer: { "@type": "Answer", text: "Yes, most plans." } }] };
+  it("a well-formed FAQPage with one Q&A meeting the rules can pass (no >=5 count ladder)", async () => {
+    const faq = { "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Do you take insurance?", acceptedAnswer: { "@type": "Answer", text: "Yes, we accept most dental insurance plans." } }] };
     routes({ [HOME]: html(ldPage(faq)) });
-    const f = sub(await runDim4(HOME, env(() => ({ response: "50" }))), "faq_schema");
+    const f = sub(await runDim4(HOME, env()), "faq_schema");
     expect(f.na).toBeUndefined();
-    expect(f).toMatchObject({ score: Math.round(100 * 0.6 + 50 * 0.4), passed: true });
+    expect(f).toMatchObject({ score: 100, passed: true, notes: "1 Q&A pair(s); 1 read as clear questions with direct answers." });
   });
 
-  it("AI rating failure on a present FAQ => not measured (N/A), not a default 50", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+  it("1.5.0: a present FAQ is always scored by the rules (no AI call, never 'not measured')", async () => {
     const faq = { "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Do you take insurance?", acceptedAnswer: { "@type": "Answer", text: "Yes, most plans." } }] };
     routes({ [HOME]: html(ldPage(faq)) });
-    const f = sub(await runDim4(HOME, env(() => { throw new Error("AI down"); })), "faq_schema");
-    expect(f).toMatchObject({ na: true, score: 0, passed: false, notes: `1 Q&A pair(s); ${FAQ_UNMEASURED_NOTE}` });
+    const f = sub(await runDim4(HOME, env(() => { throw new Error("AI must not be called"); })), "faq_schema");
+    expect(f).toMatchObject({ score: 0, passed: false, notes: "1 Q&A pair(s); 0 read as clear questions with direct answers." });
+    expect(f.na).toBeUndefined();
   });
 
   it("Product.aggregateRating nested (not at top level) is found and scored", async () => {
@@ -189,7 +189,9 @@ describe("1.3.3 Dim 5: non-USD prices, no case-study metrics, root .md probe", (
     const m = sub(await runDim5(HOME, env(), "free"), "markdown_negotiation");
     expect(calls).not.toContain("https://acme.com.md");
     expect(calls.filter((c) => c.endsWith("/llms.txt"))).toEqual([]);
-    expect(m.score).toBe(25);
+    // 1.5.0: informational, not scored.
+    expect(m).toMatchObject({ na: true, score: 0, passed: false });
+    expect(m.notes.endsWith(MARKDOWN_INFO_NOTE)).toBe(true);
   });
 
   it("non-root URL still probes <path>.md", async () => {
@@ -213,7 +215,7 @@ describe("1.3.3 Dim 2: oauth_metadata is N/A without an MCP card", () => {
   });
 });
 
-describe("1.3.3 Dim 3: YAML spec sub-checks are not measured, not 0", () => {
+describe("1.5.0 Dim 3: a YAML spec gets the same checks as JSON", () => {
   const YAML = [
     "openapi: 3.1.0",
     "info:",
@@ -227,44 +229,42 @@ describe("1.3.3 Dim 3: YAML spec sub-checks are not measured, not 0", () => {
     "",
   ].join("\n");
 
-  it("a valid YAML spec: info / security / operation sub-checks N/A, no 'Slice 3a' wording", async () => {
+  it("a valid YAML spec: every sub-check scored, no 'not measured', no 'Slice 3a' wording", async () => {
     routes({ "https://acme.com/openapi.yaml": text(YAML, "application/yaml") });
     const d3 = await runDim3(HOME, env());
     expect(d3.na).toBeUndefined();
-    for (const id of ["info_completeness", "security_schemes", "operation_coverage"]) {
-      expect(sub(d3, id)).toMatchObject({ na: true, score: 0, notes: YAML_UNMEASURED_NOTE });
-    }
-    const v = sub(d3, "spec_validity");
-    expect(v.na).toBeUndefined();
-    expect(d3.sub_checks.map((s) => s.notes).join(" ")).not.toMatch(/Slice 3a/);
-    // Scored on discovery + validity only (canonical 75, YAML validity 50).
-    expect(d3.score).toBe(Math.round((75 * 25 + 50 * 25) / 50));
+    expect(d3.sub_checks.every((s) => !s.na)).toBe(true);
+    expect(sub(d3, "spec_validity")).toMatchObject({ score: 100, notes: "Valid YAML spec, openapi 3.1.0." });
+    expect(sub(d3, "info_completeness")).toMatchObject({ score: 100 });
+    expect(sub(d3, "security_schemes").score).toBe(0);
+    expect(sub(d3, "operation_coverage").notes).toContain("1 operation(s); 1/1 have a summary or description.");
+    expect(d3.sub_checks.map((s) => s.notes).join(" ")).not.toMatch(/Slice 3a|Not measured|partial credit/);
+    // canonical 75, validity 100, info 100, security 0, coverage 75.
+    expect(d3.score).toBe(Math.round((75 * 25 + 100 * 25 + 100 * 15 + 0 * 15 + 75 * 20) / 100));
   });
 });
 
-describe("1.3.3 Dim 1: multi-line blockquote, unmeasured AI rating", () => {
+describe("1.3.3 / 1.5.0 Dim 1: multi-line blockquote, fixed rules", () => {
   it("extractBlockquote reads every consecutive '>' line", () => {
     const body = "# Acme\n\n> Acme makes invoicing software\n> for small agencies in Brazil.\n>\n> Founded 2019.\n\n## Docs\n";
     expect(extractBlockquote(body)).toBe("Acme makes invoicing software for small agencies in Brazil. Founded 2019.");
     expect(extractBlockquote("# Acme\n\nno quote")).toBeNull();
   });
 
-  it("the full blockquote reaches the AI rating", async () => {
-    const run = vi.fn(async () => ({ response: "80" }));
+  it("the full blockquote is counted (words across every '>' line)", async () => {
     routes({ "https://acme.com/llms.txt": text("# Acme\n\n> Line one of the summary\n> line two of the summary.\n") });
-    const e = { CACHE: { get: async () => null, put: async () => {} }, AI: { run } } as never;
-    const b = sub(await runDim1(HOME, e), "blockquote_eval");
-    expect(b).toMatchObject({ score: 80 });
-    const prompt = (run.mock.calls[0] as unknown as [string, { messages: { content: string }[] }])[1].messages[0].content;
-    expect(prompt).toContain("Line one of the summary line two of the summary.");
+    const b = sub(await runDim1(HOME, env()), "blockquote_eval");
+    expect(b.notes).toBe("1 of 3 blockquote rules met: one paragraph (yes); 50 to 250 words (no, 10 words); names the business (no).");
+    expect(b).toMatchObject({ score: 33, passed: false });
   });
 
-  it("AI rating failure => blockquote_eval N/A 'not measured', not 50", async () => {
+  it("1.5.0: no AI call and never 'not measured'; the same text always gets the same score", async () => {
     routes({ "https://acme.com/llms.txt": text("# Acme\n\n> Acme makes invoicing software.\n") });
-    const d1 = await runDim1(HOME, env(() => ({ response: "fifty" })));
-    expect(sub(d1, "blockquote_eval")).toMatchObject({ na: true, score: 0, passed: false, notes: BLOCKQUOTE_UNMEASURED_NOTE });
-    const scored = d1.sub_checks.filter((s) => !s.na);
-    const expected = Math.round(scored.reduce((a, s) => a + s.score * s.weight, 0) / scored.reduce((a, s) => a + s.weight, 0));
-    expect(d1.score).toBe(expected);
+    const failing = env(() => { throw new Error("AI must not be called"); });
+    const a = sub(await runDim1(HOME, failing), "blockquote_eval");
+    const b = sub(await runDim1(HOME, failing), "blockquote_eval");
+    expect(a.na).toBeUndefined();
+    expect(a).toEqual(b);
+    expect(a.notes).toBe("2 of 3 blockquote rules met: one paragraph (yes); 50 to 250 words (no, 4 words); names the business (yes).");
   });
 });

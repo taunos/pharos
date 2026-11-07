@@ -88,7 +88,8 @@ describe("E12 Dim 3: a 200 must plausibly be a spec or catalog", () => {
   it("a YAML spec served as text/plain still counts", async () => {
     routes({ "https://acme.com/openapi.yaml": () => new Response("openapi: 3.0.3\ninfo:\n  title: A\n", { status: 200, headers: { "content-type": "text/plain" } }) });
     const d = await runDim3("https://acme.com/", env());
-    expect(d.sub_checks.find((s) => s.id === "spec_validity")!.score).toBe(50);
+    // 1.5.0: parsed in full (was 50, version field only).
+    expect(d.sub_checks.find((s) => s.id === "spec_validity")).toMatchObject({ score: 100, notes: "Valid YAML spec, openapi 3.0.3." });
   });
 });
 

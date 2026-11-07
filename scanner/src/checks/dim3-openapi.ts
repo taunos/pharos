@@ -3,6 +3,7 @@
 // Five sub-checks (weights from OQ-04 §2 Dim 3, sum 100):
 //   1. discovery (25)            — well-known + canonical paths + homepage link fallback
 //   2. spec_validity (25)        — parses as JSON or YAML; has openapi/swagger version field
+//      (1.5.0: YAML is parsed in full; every check below reads it like JSON)
 //   3. info_completeness (15)    — info.title, info.version, info.description
 //   4. security_schemes (15)     — components.securitySchemes OR explicit empty security:[]
 //   5. operation_coverage (20)   — paths + per-operation summary/description coverage
@@ -29,14 +30,12 @@ import type { DimensionResult, Env, SubCheck } from "../types";
 import { dimensionScore, gradeFor } from "../scoring";
 import { MAX_SPEC_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
 import { isSameSite, NO_SIGNALS, siteBase, type SiteSignals } from "./site-signals";
+import { parseDocument } from "yaml";
 
 const FETCH_TIMEOUT_MS = 5000;
 
 export const INCOMPLETE_SPEC_NOTE =
   "Not measured — the API spec could not be read in full (size or time limit), so this dimension is not counted in your score.";
-/** 1.3.3: info / security / operation sub-checks on a YAML spec. */
-export const YAML_UNMEASURED_NOTE =
-  "Not measured: the scanner cannot read this part of a YAML spec. This check is not counted in your score.";
 const STATIC_UA = "AstrantScanner-Dim3/1.2.0";
 
 /** Whole-dimension N/A note (1.4.0): no OpenAPI and no other API evidence. */
@@ -113,10 +112,10 @@ const CANONICAL_CANDIDATES = [
 function isPlausibleSpec(body: string, contentType: string, complete: boolean): boolean {
   if (contentType.includes("text/html") || body.trimStart().startsWith("<")) return false;
   if (!complete) return true;
-  const parsed = tryParseSpec(body, contentType);
-  if (!parsed) return false;
-  if (parsed.format !== "json") return true; // the YAML heuristic already required the key
-  const s = parsed.spec;
+  const s = tryParseJsonSpec(body, contentType);
+  // Not JSON: YAML with an openapi / swagger key (not parsed here; runDim3
+  // parses the hit once).
+  if (!s) return yamlVersionKey(body) !== null;
   return "openapi" in s || "swagger" in s || hasApiLinkset(s["linkset"]);
 }
 
@@ -396,9 +395,8 @@ async function followCatalog(
   hit: DiscoveryHit,
   siteUrl: string
 ): Promise<{ hit: DiscoveryHit } | { unreadable: string } | null> {
-  const parsed = tryParseSpec(hit.body, hit.contentType);
-  if (!parsed || parsed.format !== "json") return null;
-  const spec = parsed.spec;
+  const spec = tryParseJsonSpec(hit.body, hit.contentType);
+  if (!spec) return null;
   if ("openapi" in spec || "swagger" in spec || !Array.isArray(spec["linkset"])) return null;
   const desc = linksetServiceDesc(spec, hit.url);
   if (!desc) return { unreadable: `the API catalog at ${hit.url} has no service-desc link to an API description.` };
@@ -440,21 +438,25 @@ async function discoverApiSpec(
   return hit;
 }
 
-// ── Spec parsing (JSON, with light YAML tolerance) ───────────────────────
+// ── Spec parsing (JSON, or YAML via the `yaml` package) ──────────────────
 
 interface ParsedSpec {
   spec: Record<string, unknown>;
-  format: "json" | "yaml-strict-json" | "yaml-heuristic";
+  format: "json" | "yaml";
 }
 
-// Minimal YAML-to-object conversion for the structural checks we need (top-
-// level keys: openapi, swagger, info, paths, components). Full YAML parsing
-// would pull a heavyweight dep we'd rather not ship in a Worker. We accept
-// the limitation and downgrade YAML-only specs to a partial-credit signal
-// in spec_validity rather than hard-fail.
-function tryParseSpec(body: string, contentType: string): ParsedSpec | null {
+// 1.5.0: a YAML spec is parsed in full and gets the same checks as JSON.
+// Limits: the failsafe schema (every scalar is a string, so `openapi: 3.0`
+// stays "3.0"), at most YAML_MAX_ALIASES alias expansions (billion-laughs),
+// one document, and no tag the schema does not know (custom tags rejected).
+// A YAML parse costs ~100x the body in memory (~100 MB at 1 MB), far above
+// JSON.parse, so a YAML body over MAX_YAML_SPEC_CHARS is not parsed: runDim3
+// reports it like a spec it could not read in full.
+export const MAX_YAML_SPEC_CHARS = 512 * 1024;
+const YAML_MAX_ALIASES = 50;
+
+function tryParseJsonSpec(body: string, contentType: string): Record<string, unknown> | null {
   const trimmed = body.trim();
-  // 1. JSON path.
   if (
     contentType.includes("application/json") ||
     contentType.includes("text/json") ||
@@ -463,31 +465,49 @@ function tryParseSpec(body: string, contentType: string): ParsedSpec | null {
     try {
       const parsed = JSON.parse(trimmed);
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return { spec: parsed as Record<string, unknown>, format: "json" };
+        return parsed as Record<string, unknown>;
       }
     } catch {
-      // fall through to YAML attempt
+      // not JSON
     }
   }
-  // 2. YAML heuristic — we just confirm there's an `openapi:` or `swagger:`
-  //    top-level key so the spec_validity sub-check can give partial credit.
-  //    We do NOT try to parse the whole document; the deeper checks
-  //    (info_completeness, paths, securitySchemes) get scored as 0 with
-  //    notes explaining the limitation. Future work: ship a minimal YAML
-  //    parser or call out to an external parsing service.
-  const yaml = yamlVersionKey(body);
-  if (yaml) {
-    // Build a minimal spec object so downstream checks can at least see the
-    // version field. They'll see no `info` / `paths` and score appropriately.
-    return {
-      spec: {
-        [yaml.key]: yaml.version,
-        __yaml_heuristic: true,
-      },
-      format: "yaml-heuristic",
-    };
-  }
   return null;
+}
+
+export function parseYamlSpec(body: string): Record<string, unknown> | null {
+  if (body.length > MAX_YAML_SPEC_CHARS) return null;
+  try {
+    const doc = parseDocument(body, {
+      schema: "failsafe",
+      prettyErrors: false,
+      // uniqueKeys is quadratic per map (seconds on a large paths map); a
+      // repeated key keeps its last value instead.
+      uniqueKeys: false,
+    });
+    if (doc.errors.length > 0) return null;
+    if (doc.warnings.some((w) => w.code === "TAG_RESOLVE_FAILED")) return null;
+    const out: unknown = doc.toJS({ maxAliasCount: YAML_MAX_ALIASES });
+    if (!out || typeof out !== "object" || Array.isArray(out)) return null;
+    return out as Record<string, unknown>;
+  } catch {
+    // alias-count overflow and other hard failures
+    return null;
+  }
+}
+
+function tryParseSpec(body: string, contentType: string): ParsedSpec | null {
+  const json = tryParseJsonSpec(body, contentType);
+  if (json) return { spec: json, format: "json" };
+  // YAML only when the body carries an openapi / swagger version key (cheap
+  // linear scan), so arbitrary text is never handed to the YAML parser.
+  if (!yamlVersionKey(body)) return null;
+  const yaml = parseYamlSpec(body);
+  return yaml ? { spec: yaml, format: "yaml" } : null;
+}
+
+/** A YAML-looking spec (version key, not JSON) too large to parse. */
+function isOversizedYaml(body: string, contentType: string): boolean {
+  return body.length > MAX_YAML_SPEC_CHARS && !tryParseJsonSpec(body, contentType) && yamlVersionKey(body) !== null;
 }
 
 // E12 (Codex r1): the old /^\s*openapi\s*:/m regexes were quadratic on runs of
@@ -583,6 +603,8 @@ export async function runDim3(
   // call it "no API surface". Discovery alone must not score: a huge or
   // stalled file at a well-known path would otherwise earn 100. The
   // discovery result stays as informational text in the first note.
+  // 1.5.0: a YAML spec too large to parse is reported like one not read in full.
+  if (hit.complete && isOversizedYaml(hit.body, hit.contentType)) hit = { ...hit, complete: false };
   if (!hit.complete) {
     const found = `Found via ${hit.source} at ${hit.url} (content-type=${hit.contentType || "unknown"}).`;
     for (const [id, name, weight] of [
@@ -659,14 +681,8 @@ export async function runDim3(
   let validityNote: string;
   if (!parsed) {
     validityNote = `Spec at ${hit.url} did not parse as JSON or recognizable YAML.`;
-  } else if (parsed.format === "yaml-heuristic") {
-    // Partial credit — spec is reachable + has a recognizable version field,
-    // but our static parser can't validate deeper structure.
-    const verKey = "openapi" in parsed.spec ? "openapi" : "swagger";
-    const ver = String(parsed.spec[verKey] ?? "unknown");
-    validityScore = 50;
-    validityNote = `YAML spec detected (${verKey} ${ver}). The scanner checks a YAML spec's version field and reachability only, so it gets partial credit here.`;
   } else {
+    const fmt = parsed.format === "yaml" ? "YAML" : "JSON";
     const hasOpenapi = typeof parsed.spec["openapi"] === "string";
     const hasSwagger = typeof parsed.spec["swagger"] === "string";
     if (hasOpenapi) {
@@ -674,18 +690,18 @@ export async function runDim3(
       // Accept 3.x. 2.x is "swagger" not "openapi" — covered below.
       if (/^3\.\d+/.test(v)) {
         validityScore = 100;
-        validityNote = `Valid JSON spec, openapi ${v}.`;
+        validityNote = `Valid ${fmt} spec, openapi ${v}.`;
       } else {
         validityScore = 75;
-        validityNote = `Valid JSON spec, openapi ${v} (not a 3.x version; partial credit).`;
+        validityNote = `Valid ${fmt} spec, openapi ${v} (not a 3.x version; partial credit).`;
       }
     } else if (hasSwagger) {
       const v = parsed.spec["swagger"] as string;
       validityScore = 75;
-      validityNote = `Valid JSON spec, swagger ${v} (Swagger 2.0 — recommend migrating to OpenAPI 3.x).`;
+      validityNote = `Valid ${fmt} spec, swagger ${v} (Swagger 2.0 — recommend migrating to OpenAPI 3.x).`;
     } else {
       validityScore = 25;
-      validityNote = `JSON parsed but no "openapi" or "swagger" version field at the root.`;
+      validityNote = `${fmt} parsed but no "openapi" or "swagger" version field at the root.`;
     }
   }
   subs.push({
@@ -698,20 +714,15 @@ export async function runDim3(
   });
 
   // The remaining three sub-checks all read `parsed.spec`. If parsing failed
-  // entirely, they score 0 with explanation. 1.3.3: for a YAML spec they are
-  // N/A "not measured" (weight redistributed): the scanner can't read the
-  // YAML structure, which says nothing about the spec itself.
-  const spec = parsed && parsed.format === "json" ? parsed.spec : null;
-  const yamlUnmeasured = !!parsed && !spec;
-  const yamlNa = yamlUnmeasured ? { na: true } : {};
+  // entirely, they score 0 with explanation. 1.5.0: a YAML spec is parsed in
+  // full, so they read it like JSON.
+  const spec = parsed ? parsed.spec : null;
 
   // ── Sub-check 3: info_completeness ────────────────────────────────────
   let infoScore = 0;
   let infoNote: string;
   if (!spec) {
-    infoNote = parsed
-      ? YAML_UNMEASURED_NOTE
-      : "Skipped — spec did not parse as JSON.";
+    infoNote = "Skipped — spec did not parse as JSON or YAML.";
   } else {
     const info = spec["info"];
     if (typeof info === "object" && info !== null) {
@@ -734,16 +745,13 @@ export async function runDim3(
     score: infoScore,
     passed: infoScore >= 70,
     notes: infoNote,
-    ...yamlNa,
   });
 
   // ── Sub-check 4: security_schemes ─────────────────────────────────────
   let securityScore = 0;
   let securityNote: string;
   if (!spec) {
-    securityNote = parsed
-      ? YAML_UNMEASURED_NOTE
-      : "Skipped — spec did not parse as JSON.";
+    securityNote = "Skipped — spec did not parse as JSON or YAML.";
   } else {
     const components = spec["components"];
     const securitySchemes =
@@ -775,16 +783,13 @@ export async function runDim3(
     score: securityScore,
     passed: securityScore >= 70,
     notes: securityNote,
-    ...yamlNa,
   });
 
   // ── Sub-check 5: operation_coverage ───────────────────────────────────
   let coverageScore = 0;
   let coverageNote: string;
   if (!spec) {
-    coverageNote = parsed
-      ? YAML_UNMEASURED_NOTE
-      : "Skipped — spec did not parse as JSON.";
+    coverageNote = "Skipped — spec did not parse as JSON or YAML.";
   } else {
     const paths = spec["paths"];
     if (typeof paths !== "object" || paths === null) {
@@ -839,7 +844,6 @@ export async function runDim3(
     score: coverageScore,
     passed: coverageScore >= 70,
     notes: coverageNote,
-    ...yamlNa,
   });
 
   // Pattern A: dimensionScore returns null only when every sub-check is N/A,
