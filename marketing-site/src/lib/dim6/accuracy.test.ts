@@ -37,6 +37,7 @@ import { DIM6_ENGINE_LINE } from "./disclosure";
 import { DIM6_ENGINE_VERSION, type CellEnvelope, type ModelId } from "./types";
 import { citationCoverage, buildExecutiveSummary } from "../audit-executive-summary";
 import { renderAuditHtml, buildRemediationGaps } from "../audit-pipeline";
+import { buildAuditReportModel } from "../audit-report-model";
 import type { AuditResult, ScanResult } from "../audit-types";
 
 const REF =
@@ -333,6 +334,14 @@ describe("report output", () => {
     expect(html).not.toContain("<script>alert(1)</script>");
     expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
     expect(html).toContain("Answers that described your site as something it is not");
+
+    // The informational row was measured: no "N/A" label, not counted as a
+    // check that "did not apply or could not be measured".
+    const m = buildAuditReportModel({ scan, gaps, engine_version: "t" } as AuditResult, "session-1234");
+    const row = m.dimensions.flatMap((d) => (d.kind === "scored" ? d.checks : [])).find((c) => c.id === "citation_misidentified_answers")!;
+    expect(row.name).toBe("Answers that described your site as something it is not");
+    expect(row.scoreLabel).toBe("—");
+    expect(m.scopeNote).toMatch(/1 individual check did not apply/);
   });
 
   it("the executive-summary parser reads the v5 note (and the old shapes still)", () => {
