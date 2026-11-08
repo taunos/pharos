@@ -125,5 +125,5 @@ export interface Dim6Result {
   accuracyBlocked?: boolean;
   // dim6:v5: why accuracy was not checked, when the report explains it
   // differently from "no clear description" (set by runDim6Paid).
-  accuracyNotCheckedReason?: "too_many_entities" | "source_too_large" | "structured_data_too_deep";
+  accuracyNotCheckedReason?: "too_many_entities" | "source_too_large" | "structured_data_too_deep" | "structured_data_unreadable";
 }

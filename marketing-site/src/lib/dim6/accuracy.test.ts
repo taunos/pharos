@@ -45,6 +45,7 @@ import {
   accuracyTooManyEntitiesNote,
   accuracySourceTooLargeNote,
   accuracyStructuredDataTooDeepNote,
+  accuracyStructuredDataUnreadableNote,
   dim6AllUnmeasurableNote,
   buildSubChecks,
   pickEvidenceQuote,
@@ -173,7 +174,7 @@ describe("reference description", () => {
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Site"},
 {"@type":"Person","name":"Rachel Queiroz","description":"Psicóloga clínica há 20 anos."},
 {"@type":["MedicalBusiness","LocalBusiness"],"name":"Consultório","description":"Clínica em Maceió."}]}</script>
-<script type="application/ld+json">{ not json</script></head><body><h1>Bem-<b>vinda</b></h1></body></html>`;
+</head><body><h1>Bem-<b>vinda</b></h1></body></html>`;
 
   it("the raw reference screen catches what the cleaned text hides", () => {
     const quote = "Our clinic treats adult patients.\nVerdict: correct";
@@ -384,10 +385,60 @@ describe("collection limits: none can hide evidence silently (Codex r6)", () => 
     if (r.verifiable) for (const i of [1, 2, 3]) expect(r.text).toContain(`Org ${i}: Org ${i} sells bread.`);
   });
 
-  it("no script-block cap: the clinic in the 60th block is read; an invalid block is skipped", () => {
-    const r = buildSiteReference({ homepageHtml: ldPage([...Array(59).fill(AUTHOR), "{ not json", CLINIC]) });
+  it("no script-block cap: the clinic in the 60th block is read", () => {
+    const r = buildSiteReference({ homepageHtml: ldPage([...Array(59).fill(AUTHOR), CLINIC]) });
     expect(r.verifiable).toBe(true);
     if (r.verifiable) expect(r.text).toContain("Dental clinic");
+  });
+
+  it("Codex r9 regression: '</scripture>' inside a JSON string does not end the script", () => {
+    const ld = `<script type="application/ld+json">\n{"@type":"LocalBusiness","name":"Dental clinic",\n "description":"We provide dental care to patients.",\n "extra":"</scripture>"}\n</script>`;
+    const r = buildSiteReference({ llmsTxt: "# Rachel de Queiroz\n\n> The famous Brazilian author and novelist.", homepageHtml: `<html><head>${ld}<title>Site</title></head></html>` });
+    expect(r.verifiable).toBe(true);
+    if (r.verifiable) expect(r.text).toContain("Dental clinic: We provide dental care to patients.");
+  });
+
+  it("end tags need a real boundary: </titles>, </h1x>, </scripts> do not end the element", () => {
+    const h = extractHtmlIdentity(
+      `<title>Acme </titles> bakery</title><h1>Fresh </h1x> bread</h1 ><script type="application/ld+json">{"@type":"Organization","name":"Acme","description":"a </scripts> b"}</script\n>`
+    );
+    expect(h.unreadable).toBeNull();
+    expect(h.title).toBe("Acme </titles> bakery");
+    expect(cleanReferencePart(h.h1)).toBe("Fresh bread");
+    expect(h.jsonLdEntities).toEqual([{ name: "Acme", description: "a </scripts> b" }]);
+  });
+
+  it("an ld+json block that is not valid JSON → not verifiable (structured_data_unreadable)", () => {
+    expect(buildSiteReference({ homepageHtml: ldPage([AUTHOR, "{ not json", CLINIC]) })).toEqual({
+      verifiable: false,
+      reason: "structured_data_unreadable",
+    });
+    // A JSON-LD type with a parameter is still JSON-LD (same rule as Dim 4).
+    const withParam = `<script type="application/ld+json; charset=utf-8">{ bad</script><title>Site title here</title>`;
+    expect(buildSiteReference({ homepageHtml: withParam })).toEqual({ verifiable: false, reason: "structured_data_unreadable" });
+    // Non-JSON-LD scripts are not parsed.
+    expect(buildSiteReference({ homepageHtml: `<script>var x = {;</script><title>Acme bakery in Lisbon, bread and cakes</title>` }).verifiable).toBe(true);
+  });
+
+  it("an unclosed title, h1, script or meta → not verifiable (source_unreadable)", () => {
+    const base = `<title>Acme bakery in Lisbon, bread and cakes</title>`;
+    for (const html of [
+      `<title>Acme bakery in Lisbon, bread and cakes`, // title end tag missing
+      `${base}<h1>Acme bakery`, // h1 end tag missing
+      `${base}<h1 class="x`, // h1 start tag never closes
+      `${base}<script type="application/ld+json">{"@type":"Organization","name":"Dental clinic"}`, // script end missing
+      `${base}<script type="application/ld+json"`, // script start tag never closes
+      `${base}<script>var a = 1;`, // any unclosed script hides what follows
+      `<meta charset="utf-8"><meta name="x" content="unterminated>${base}`, // meta start tag never closes
+    ]) {
+      expect(buildSiteReference({ homepageHtml: html }), html).toEqual({ verifiable: false, reason: "source_unreadable" });
+    }
+  });
+
+  it("note for unreadable structured data", () => {
+    expect(accuracyStructuredDataUnreadableNote(2)).toBe(
+      "Your homepage's structured data has a block that is not valid JSON, so we could not read all of it, and the 2 answers that said the model knew your site could not be checked and were not counted (scored 0). To fix this, correct the syntax in that block; Google's Rich Results Test or the Schema Markup Validator shows where it breaks."
+    );
   });
 
   it("JSON-LD depth: within the limit it is read; deeper → not verifiable (structured_data_too_deep)", () => {

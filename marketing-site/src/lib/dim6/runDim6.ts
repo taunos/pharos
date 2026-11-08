@@ -160,10 +160,18 @@ export const accuracySourceTooLargeNote = (notChecked: number) =>
 export const accuracyStructuredDataTooDeepNote = (notChecked: number) =>
   `Your homepage's structured data is nested more than ${REFERENCE_JSONLD_MAX_DEPTH} levels deep, so we could not read all of it, and ${notCheckedClause(notChecked)}. To fix this, put your Organization, LocalBusiness or Person entry at the top level of your structured data.`;
 
+/**
+ * dim6:v5: a homepage JSON-LD block is not valid JSON (fail closed: it may
+ * hold an identity claim). Fix wording matches the Dim 4 remediation.
+ */
+export const accuracyStructuredDataUnreadableNote = (notChecked: number) =>
+  `Your homepage's structured data has a block that is not valid JSON, so we could not read all of it, and ${notCheckedClause(notChecked)}. To fix this, correct the syntax in that block; Google's Rich Results Test or the Schema Markup Validator shows where it breaks.`;
+
 const NOT_CHECKED_NOTES: Record<NonNullable<Dim6Result["accuracyNotCheckedReason"]>, (n: number) => string> = {
   too_many_entities: accuracyTooManyEntitiesNote,
   source_too_large: accuracySourceTooLargeNote,
   structured_data_too_deep: accuracyStructuredDataTooDeepNote,
+  structured_data_unreadable: accuracyStructuredDataUnreadableNote,
 };
 
 /** dim6:v5: domain-named note addition when the site's description tripped the injection screen. */
@@ -462,7 +470,7 @@ export async function runDim6Paid(
   });
   if (
     !reference.verifiable &&
-    (reference.reason === "too_many_entities" || reference.reason === "source_too_large" || reference.reason === "structured_data_too_deep")
+    (reference.reason === "too_many_entities" || reference.reason === "source_too_large" || reference.reason === "structured_data_too_deep" || reference.reason === "structured_data_unreadable")
   ) {
     result.accuracyNotCheckedReason = reference.reason;
   }

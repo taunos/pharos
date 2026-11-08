@@ -75,8 +75,10 @@ const FETCH_TIMEOUT_MS = 8000;
 //   - JSON-LD entities: no raw cap; all are collected, then deduplicated
 //     (identical name+description),
 //     more than REFERENCE_MAX_ENTITIES distinct → "too_many_entities";
-//   - script blocks: no limit (all are read); a block that is not valid JSON
-//     is skipped, as every JSON-LD consumer does.
+//   - script blocks: no limit (all are read); an ld+json block that is not valid
+//     JSON → "structured_data_unreadable" (Codex r9);
+//   - end tags need a real name boundary (</scripture> is not </script>); a
+//     script, title, h1 or meta tag that never closes → "source_unreadable".
 export const REFERENCE_HTML_MAX_BYTES = 4 * 1024 * 1024;
 export const REFERENCE_LLMS_MAX_BYTES = 512 * 1024;
 export const REFERENCE_JSONLD_MAX_DEPTH = 20;
@@ -87,7 +89,7 @@ export type SiteReference =
   | { verifiable: true; text: string }
   | {
       verifiable: false;
-      reason: "missing" | "too_short" | "injection" | "too_many_entities" | "structured_data_too_deep" | ReferenceFailure;
+      reason: "missing" | "too_short" | "injection" | "too_many_entities" | "structured_data_too_deep" | "structured_data_unreadable" | ReferenceFailure;
     };
 
 export interface ReferenceSources {
@@ -191,6 +193,10 @@ function collectEntities(node: unknown, out: Array<Record<string, unknown>>, dep
 export function extractHtmlIdentity(html: string): {
   jsonLdEntities: Array<{ name: string; description: string }>;
   jsonLdTooDeep: boolean;
+  // Evidence we found but could not read (Codex r9: fail closed, never skip):
+  // an ld+json block that is not valid JSON, or a script / title / h1 / meta
+  // tag that never closes (its start tag or its end tag).
+  unreadable: "structured_data_unreadable" | "source_unreadable" | null;
   title: string;
   metaDescription: string;
   h1: string;
@@ -199,16 +205,20 @@ export function extractHtmlIdentity(html: string): {
   const seenEntities = new Set<string>();
   const entities: Array<Record<string, unknown>> = [];
   let jsonLdTooDeep = false;
+  let unreadable: "structured_data_unreadable" | "source_unreadable" | null = null;
+  const empty = { jsonLdEntities, jsonLdTooDeep, title: "", metaDescription: "", h1: "" };
   // ASCII-only lowercase: same length as html, so offsets found in it apply
   // to html (Codex r8 HIGH: toLowerCase() turns U+0130 into two code units).
   const lower = asciiLower(html);
   const blocks: string[] = [];
   for (let from = 0; ; ) {
     const tag = nextTag(html, lower, "script", from);
-    if (!tag) break;
-    const close = lower.indexOf("</script", tag.end + 1);
-    if (close === -1) break; // unclosed: no block content (as a browser treats it)
-    if ((tag.attrs.type ?? "").trim().toLowerCase() === "application/ld+json") blocks.push(html.slice(tag.end + 1, close));
+    if (tag === null) break;
+    // An unclosed script hides everything after it: fail closed.
+    if (tag === "unclosed") return { ...empty, unreadable: "source_unreadable" };
+    const close = findEndTag(lower, "script", tag.end + 1);
+    if (close === -1) return { ...empty, unreadable: "source_unreadable" };
+    if (isJsonLdType(tag.attrs.type)) blocks.push(html.slice(tag.end + 1, close));
     from = close + 8;
   }
   for (const block of blocks) {
@@ -216,7 +226,9 @@ export function extractHtmlIdentity(html: string): {
     try {
       parsed = JSON.parse(block);
     } catch {
-      // Invalid JSON-LD block: unreadable to every JSON-LD consumer; skipped.
+      // A JSON-LD block we cannot parse may hold an identity claim: fail
+      // closed instead of skipping it (Codex r9).
+      unreadable ??= "structured_data_unreadable";
       continue;
     }
     try {
@@ -237,19 +249,32 @@ export function extractHtmlIdentity(html: string): {
     seenEntities.add(k);
     jsonLdEntities.push({ name, description });
   }
-  const title = raw(firstElementText(html, lower, "title"));
+  const titleText = firstElementText(html, lower, "title");
+  const h1Text = firstElementText(html, lower, "h1");
   let metaDescription = "";
+  let metaUnclosed = false;
   for (let from = 0; ; ) {
     const tag = nextTag(html, lower, "meta", from);
-    if (!tag) break;
+    if (tag === null) break;
+    if (tag === "unclosed") {
+      metaUnclosed = true;
+      break;
+    }
     if ((tag.attrs.name ?? "").trim().toLowerCase() === "description") {
       metaDescription = raw(tag.attrs.content ?? "");
       break;
     }
     from = tag.end + 1;
   }
-  const h1 = raw(stripTagsLinear(firstElementText(html, lower, "h1")));
-  return { jsonLdEntities, jsonLdTooDeep, title, metaDescription, h1 };
+  if (titleText === null || h1Text === null || metaUnclosed) unreadable = "source_unreadable";
+  const title = raw(titleText ?? "");
+  const h1 = raw(stripTagsLinear(h1Text ?? ""));
+  return { jsonLdEntities, jsonLdTooDeep, unreadable, title, metaDescription, h1 };
+}
+
+/** Same rule as the scanner's Dim 4: the media type before any ";" parameter. */
+function isJsonLdType(type: string | undefined): boolean {
+  return (type ?? "").split(";")[0].trim().toLowerCase() === "application/ld+json";
 }
 
 // ── Linear HTML scanning (Codex r7 MED) ─────────────────────────────────
@@ -314,24 +339,47 @@ function readTagAttrs(html: string, i: number): { attrs: Record<string, string>;
   }
 }
 
-/** The next `<name ...>` tag at or after `from` (`lower` is html lowercased); null when none or unclosed. */
-function nextTag(html: string, lower: string, name: string, from: number): { attrs: Record<string, string>; end: number } | null {
+// A tag name ends at whitespace, "/" or ">" (so <scripture>, <h10>,
+// </titles> and </h1x> are other tags, as in a browser).
+const isNameEnd = (c: string | undefined) => c !== undefined && (isTagSpace(c) || c === "/" || c === ">");
+
+/**
+ * The next `<name ...>` start tag at or after `from` (`lower` is html
+ * ASCII-lowercased): null when there is none, "unclosed" when one starts but
+ * its ">" never comes.
+ */
+function nextTag(
+  html: string,
+  lower: string,
+  name: string,
+  from: number
+): { attrs: Record<string, string>; end: number } | "unclosed" | null {
   const open = `<${name}`;
   for (let at = lower.indexOf(open, from); at !== -1; at = lower.indexOf(open, at + open.length)) {
     const after = at + open.length;
-    const c = html[after];
-    if (c !== undefined && !isTagSpace(c) && c !== "/" && c !== ">") continue; // e.g. <metadata>, <h10>
-    return readTagAttrs(html, after);
+    if (after >= html.length) return "unclosed";
+    if (!isNameEnd(html[after])) continue; // e.g. <metadata>, <h10>, <scripture>
+    return readTagAttrs(html, after) ?? "unclosed";
   }
   return null;
 }
 
-/** Raw inner HTML of the first <name> element ("" when absent or unclosed). */
-function firstElementText(html: string, lower: string, name: string): string {
+/** Offset of the next `</name` end tag with a real name boundary at or after `from`; -1 when none. */
+function findEndTag(lower: string, name: string, from: number): number {
+  const open = `</${name}`;
+  for (let at = lower.indexOf(open, from); at !== -1; at = lower.indexOf(open, at + open.length)) {
+    if (isNameEnd(lower[at + open.length])) return at;
+  }
+  return -1;
+}
+
+/** Raw inner HTML of the first <name> element: "" when absent, null when its start or end tag never closes. */
+function firstElementText(html: string, lower: string, name: string): string | null {
   const tag = nextTag(html, lower, name, 0);
-  if (!tag) return "";
-  const close = lower.indexOf(`</${name}`, tag.end + 1);
-  return close === -1 ? "" : html.slice(tag.end + 1, close);
+  if (tag === null) return "";
+  if (tag === "unclosed") return null;
+  const close = findEndTag(lower, name, tag.end + 1);
+  return close === -1 ? null : html.slice(tag.end + 1, close);
 }
 
 /** Every tag replaced by a space, in one pass; an unclosed "<" ends the text. */
@@ -387,6 +435,7 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
   const groups: Array<{ label: string; fields: RefField[] }> = [];
   let tooManyEntities = false;
   let jsonLdTooDeep = false;
+  let htmlUnreadable: "structured_data_unreadable" | "source_unreadable" | null = null;
   if (sources.llmsTxt) {
     const [h1 = "", quote = ""] = extractLlmsTxtIdentity(sources.llmsTxt);
     groups.push({
@@ -398,6 +447,7 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
     const h = extractHtmlIdentity(sources.homepageHtml);
     tooManyEntities = h.jsonLdEntities.length > REFERENCE_MAX_ENTITIES;
     jsonLdTooDeep = h.jsonLdTooDeep;
+    htmlUnreadable = h.unreadable;
     groups.push({
       label: REFERENCE_LABELS.jsonLd,
       fields: h.jsonLdEntities.map((e) => ({
@@ -441,6 +491,7 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
   // full, JSON-LD nested too deep to walk, or more identity entities than we
   // can show in full.
   if (sources.failure) return { verifiable: false, reason: sources.failure };
+  if (htmlUnreadable) return { verifiable: false, reason: htmlUnreadable };
   if (jsonLdTooDeep) return { verifiable: false, reason: "structured_data_too_deep" };
   if (tooManyEntities) return { verifiable: false, reason: "too_many_entities" };
   const blocks: string[] = [];
