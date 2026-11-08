@@ -203,20 +203,15 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
       for (const p of f.raw) if (p && screenUntrustedText(p, detectAccuracyInjection)) return { verifiable: false, reason: "injection" };
     }
   }
-  const seen = new Set<string>();
   const blocks: string[] = [];
   const contents: string[] = [];
   for (const g of groups) {
     const lines: string[] = [];
     for (const f of g.fields) {
-      // Exact duplicates (e.g. a title equal to the llms.txt H1) carry no new
-      // evidence; everything else is kept, trimmed at a word boundary.
-      const items = f.raw.map(cleanReferencePart).filter((p) => {
-        const k = p.toLowerCase();
-        if (!p || seen.has(k)) return false;
-        seen.add(k);
-        return true;
-      });
+      // No deduplication (Codex r4 HIGH): a repeated field can keep, under
+      // its own budget, evidence an earlier field's budget cut off. Every
+      // non-empty field is kept, trimmed at a word boundary.
+      const items = f.raw.map(cleanReferencePart).filter(Boolean);
       if (items.length > 0) lines.push(capLength(items.join(" | "), REFERENCE_FIELD_BUDGETS[f.key]));
     }
     if (lines.length > 0) {

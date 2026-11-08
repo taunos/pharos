@@ -191,15 +191,15 @@ describe("reference description", () => {
     expect(cleanReferencePart(h.h1)).toBe("Bem- vinda");
   });
 
-  it("order llms.txt → JSON-LD → title/meta/h1, deduplicated", () => {
+  it("order llms.txt → JSON-LD → title/meta/h1, repeats kept", () => {
     const r = buildSiteReference({ llmsTxt: "# Rachel Queiroz\n\n> Psicóloga clínica em Maceió para adultos e casais.", homepageHtml: HTML });
     expect(r.verifiable).toBe(true);
     if (!r.verifiable) return;
     expect(r.text).toBe(
       [
         "From llms.txt: Rachel Queiroz\nPsicóloga clínica em Maceió para adultos e casais.",
-        // The JSON-LD name "Rachel Queiroz" duplicates the llms.txt H1 exactly: dropped as a duplicate.
-        "From structured data: Consultório\nPsicóloga clínica há 20 anos. | Clínica em Maceió.",
+        // The JSON-LD name repeats the llms.txt H1 and is kept (no deduplication).
+        "From structured data: Rachel Queiroz | Consultório\nPsicóloga clínica há 20 anos. | Clínica em Maceió.",
         "From the homepage: Rachel Queiroz &ndash; Psic&oacute;loga & Terapeuta\nAtendimento para adultos e casais em Maceió.\nBem- vinda",
       ].join("\n")
     );
@@ -228,6 +228,15 @@ describe("reference description", () => {
     expect(REFERENCE_MAX_CHARS).toBe(800);
     // Trimmed at a word boundary: no field ends in a partial word.
     for (const l of lines) expect(l).toMatch(/(big|word|name|desc|title|meta|heading)$/);
+  });
+
+  it("Codex r4 regression: the same text in the llms.txt H1 and the meta description keeps 'Dental clinic' (no dedup before truncation)", () => {
+    const same = "Famous author of novels and essays with many published books and international awards. Dental clinic.";
+    const r = buildSiteReference({ llmsTxt: `# ${same}`, homepageHtml: `<meta name="description" content="${same}">` });
+    expect(r.verifiable).toBe(true);
+    if (!r.verifiable) return;
+    expect(shareOf(r.text, REFERENCE_LABELS.llmsTxt)).not.toContain("Dental clinic"); // cut by the 80-char H1 share
+    expect(shareOf(r.text, REFERENCE_LABELS.homepage)).toContain("Dental clinic.");
   });
 
   it("Codex r3 regression: author in llms.txt, title and meta; dental clinic only in the h1 → the h1 is in the reference", () => {
