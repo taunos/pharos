@@ -27,8 +27,7 @@ import {
   fetchReferenceSources,
   REFERENCE_MAX_CHARS,
   REFERENCE_LABELS,
-  REFERENCE_SOURCE_BUDGETS,
-  REFERENCE_TITLE_MAX_CHARS,
+  REFERENCE_FIELD_BUDGETS,
 } from "./reference";
 import { cellCacheKey, runLadder, scoreAffirmedCell, type LadderEnv } from "./ladder";
 import { aggregateCells } from "./orchestrator";
@@ -182,7 +181,8 @@ describe("reference description", () => {
 
   it("homepage: JSON-LD Person/Organization/LocalBusiness, title, meta description, h1", () => {
     const h = extractHtmlIdentity(HTML);
-    expect(h.jsonLd).toEqual(["Rachel Queiroz: Psicóloga clínica há 20 anos.", "Consultório: Clínica em Maceió."]);
+    expect(h.jsonLdNames).toEqual(["Rachel Queiroz", "Consultório"]);
+    expect(h.jsonLdDescriptions).toEqual(["Psicóloga clínica há 20 anos.", "Clínica em Maceió."]);
     // Basic and numeric entities are decoded; other named ones stay as text.
     expect(h.title).toBe("Rachel Queiroz &ndash; Psic&oacute;loga & Terapeuta");
     expect(extractHtmlIdentity("<title>Caf&#233; &#x26; Bar</title>").title).toBe("Café & Bar");
@@ -197,7 +197,8 @@ describe("reference description", () => {
     expect(r.text).toBe(
       [
         "From llms.txt: Rachel Queiroz\nPsicóloga clínica em Maceió para adultos e casais.",
-        "From structured data: Rachel Queiroz: Psicóloga clínica há 20 anos.\nConsultório: Clínica em Maceió.",
+        // The JSON-LD name "Rachel Queiroz" duplicates the llms.txt H1 exactly: dropped as a duplicate.
+        "From structured data: Consultório\nPsicóloga clínica há 20 anos. | Clínica em Maceió.",
         "From the homepage: Rachel Queiroz &ndash; Psic&oacute;loga & Terapeuta\nAtendimento para adultos e casais em Maceió.\nBem- vinda",
       ].join("\n")
     );
@@ -212,30 +213,29 @@ describe("reference description", () => {
     return next.length ? rest.slice(0, Math.min(...next)) : rest;
   };
 
-  it("each source has its own share: a long llms.txt cannot push out the homepage evidence", () => {
-    const r = buildSiteReference({ llmsTxt: `# Big\n\n> ${"word ".repeat(400)}`, homepageHtml: HTML });
+  it("every field has its own share: long fields cannot push any other field out", () => {
+    const long = (w: string) => `${w} `.repeat(200).trim();
+    const html = `<title>${long("title")}</title><meta name="description" content="${long("meta")}"><script type="application/ld+json">{"@type":"Organization","name":"${long("name")}","description":"${long("desc")}"}</script><h1>${long("heading")}</h1>`;
+    const r = buildSiteReference({ llmsTxt: `# ${long("big")}\n\n> ${long("word")}`, homepageHtml: html });
     expect(r.verifiable).toBe(true);
     if (!r.verifiable) return;
-    expect(shareOf(r.text, REFERENCE_LABELS.llmsTxt).length).toBeLessThanOrEqual(REFERENCE_SOURCE_BUDGETS.llmsTxt);
-    expect(shareOf(r.text, REFERENCE_LABELS.jsonLd)).toContain("Psicóloga clínica há 20 anos");
-    expect(shareOf(r.text, REFERENCE_LABELS.homepage)).toContain("Atendimento para adultos e casais em Maceió.");
-    const labels = Object.values(REFERENCE_LABELS).join(" ").length + 3;
-    expect(r.text.length).toBeLessThanOrEqual(REFERENCE_MAX_CHARS + labels);
+    const lines = r.text.split("\n").map((l) => l.replace(/^From [^:]+: /, ""));
+    const budgets = Object.values(REFERENCE_FIELD_BUDGETS);
+    expect(lines).toHaveLength(budgets.length); // all 7 fields present
+    lines.forEach((l, i) => expect(l.length).toBeLessThanOrEqual(budgets[i]));
+    for (const w of ["big", "word", "name", "desc", "title", "meta", "heading"]) expect(r.text).toContain(w);
+    expect(REFERENCE_MAX_CHARS).toBe(800);
+    // Trimmed at a word boundary: no field ends in a partial word.
+    for (const l of lines) expect(l).toMatch(/(big|word|name|desc|title|meta|heading)$/);
   });
 
-  it("homepage share: the title is capped so meta/h1 fit, and no dangling fragment is left", () => {
-    const html = `<title>${"Very long title words ".repeat(10)}</title><meta name="description" content="A clinic for adults and couples in Lisbon, in person or online."><h1>“A good life is a process, not a state”</h1>`;
-    const r = buildSiteReference({ homepageHtml: html });
+  it("Codex r3 regression: author in llms.txt, title and meta; dental clinic only in the h1 → the h1 is in the reference", () => {
+    const author = "The life and work of the famous Brazilian author Rachel de Queiroz, novelist, journalist and playwright, first woman in the Brazilian Academy of Letters.";
+    const html = `<title>Rachel de Queiroz – Brazilian author, novelist and journalist, official tribute site</title><meta name="description" content="${author} Biography, bibliography, photos and videos of her life and work."><h1>Sorriso Dental Clinic – dentists in Maceió</h1>`;
+    const r = buildSiteReference({ llmsTxt: `# Rachel de Queiroz\n\n> ${author}`, homepageHtml: html });
     expect(r.verifiable).toBe(true);
     if (!r.verifiable) return;
-    const home = shareOf(r.text, REFERENCE_LABELS.homepage);
-    const [title, meta, ...rest] = home.split("\n");
-    expect(title.length).toBeLessThanOrEqual(REFERENCE_TITLE_MAX_CHARS);
-    expect(meta).toBe("A clinic for adults and couples in Lisbon, in person or online.");
-    expect(home.length).toBeLessThanOrEqual(REFERENCE_SOURCE_BUDGETS.homepage);
-    // The h1 did not fit and fewer than 40 chars were left: dropped, not cut to "“A".
-    expect(rest).toEqual([]);
-    expect(home).not.toMatch(/“A$/);
+    expect(shareOf(r.text, REFERENCE_LABELS.homepage)).toContain("Sorriso Dental Clinic – dentists in Maceió");
   });
 
   it("conflicting sources: the prompt carries the labels and the UNCLEAR rule; the judge's UNCLEAR is kept", async () => {

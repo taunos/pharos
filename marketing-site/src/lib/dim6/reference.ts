@@ -9,15 +9,16 @@
 // kind of business it is, nothing more (prices, dates and other details are
 // not checked).
 //
-// Sources, each with its own share of the REFERENCE_MAX_CHARS budget so one
-// source cannot push out the others (Codex r1):
-//   1. llms.txt H1 and blockquote                                  (250)
-//   2. JSON-LD Organization / Person / LocalBusiness (and subtypes)
-//      name and description                                        (200)
-//   3. homepage <title> (capped at 60), meta description, first <h1> (150)
-// Each share is labelled ("From llms.txt:", ...) so the judge can tell when
-// sources disagree, and filled with whole parts (a part is cut at a word
-// boundary only when at least 40 chars of room are left).
+// Every extracted identity field gets its own fixed share of the
+// REFERENCE_MAX_CHARS budget (REFERENCE_FIELD_BUDGETS), trimmed at a word
+// boundary and never omitted, so no field can push another out and the
+// judge always sees conflicting evidence (Codex r1 HIGH, r3 HIGH):
+//   llms.txt: H1, blockquote
+//   JSON-LD Organization / Person / LocalBusiness (and subtypes): names,
+//     descriptions
+//   homepage: <title>, meta description, first <h1>
+// Each source is labelled ("From llms.txt:", ...) so the judge can tell
+// when sources disagree (it answers UNCLEAR then).
 // The scan result carries none of these texts, so two same-site fetches are
 // made (llms.txt and the homepage), each through safeFetch (every hop
 // validated, byte cap, shared deadline), retried once on a timeout or
@@ -38,8 +39,17 @@ import { safeFetch, type FetchLike, type SafeFetchFailure } from "../safe-fetch"
 import { detectAccuracyInjection } from "./accuracy-judge";
 import { canonicalDomain } from "./question-set";
 
-export const REFERENCE_MAX_CHARS = 600;
-export const REFERENCE_SOURCE_BUDGETS = { llmsTxt: 250, jsonLd: 200, homepage: 150 } as const;
+export const REFERENCE_FIELD_BUDGETS = {
+  llmsH1: 80,
+  llmsBlockquote: 220,
+  jsonLdNames: 80,
+  jsonLdDescriptions: 180,
+  title: 60,
+  metaDescription: 120,
+  h1: 60,
+} as const;
+/** Sum of the field budgets (labels and line breaks come on top). */
+export const REFERENCE_MAX_CHARS = Object.values(REFERENCE_FIELD_BUDGETS).reduce((a, b) => a + b, 0);
 export const REFERENCE_MIN_WORDS = 5;
 const FETCH_TIMEOUT_MS = 8000;
 const LLMS_MAX_BYTES = 64 * 1024;
@@ -115,9 +125,16 @@ function collectEntities(node: unknown, out: Array<Record<string, unknown>>, dep
   if (obj["@graph"]) collectEntities(obj["@graph"], out, depth + 1);
 }
 
-/** Homepage HTML (raw): JSON-LD entity name/description, <title>, meta description, first <h1>. */
-export function extractHtmlIdentity(html: string): { jsonLd: string[]; title: string; metaDescription: string; h1: string } {
-  const jsonLd: string[] = [];
+/** Homepage HTML (raw): JSON-LD entity names/descriptions, <title>, meta description, first <h1>. */
+export function extractHtmlIdentity(html: string): {
+  jsonLdNames: string[];
+  jsonLdDescriptions: string[];
+  title: string;
+  metaDescription: string;
+  h1: string;
+} {
+  const jsonLdNames: string[] = [];
+  const jsonLdDescriptions: string[] = [];
   const entities: Array<Record<string, unknown>> = [];
   for (const m of html.matchAll(/<script\b[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script>/gi)) {
     try {
@@ -127,14 +144,14 @@ export function extractHtmlIdentity(html: string): { jsonLd: string[]; title: st
     }
   }
   for (const e of entities) {
-    const line = [raw(e.name), raw(e.description)].filter(Boolean).join(": ");
-    if (line) jsonLd.push(line);
+    if (raw(e.name)) jsonLdNames.push(raw(e.name));
+    if (raw(e.description)) jsonLdDescriptions.push(raw(e.description));
   }
   const title = raw(decodeEntities(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? ""));
   const metaTag = [...html.matchAll(/<meta\b[^>]*>/gi)].map((m) => m[0]).find((t) => /\bname\s*=\s*["']?description["'\s>]/i.test(t));
   const metaDescription = raw(decodeEntities(/\bcontent\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(metaTag ?? "")?.slice(1).find((x) => x !== undefined) ?? ""));
   const h1 = raw(decodeEntities((/<h1\b[^>]*>([\s\S]*?)<\/h1>/i.exec(html)?.[1] ?? "").replace(/<[^>]*>/g, " ")));
-  return { jsonLd, title, metaDescription, h1 };
+  return { jsonLdNames, jsonLdDescriptions, title, metaDescription, h1 };
 }
 
 export const REFERENCE_LABELS = {
@@ -142,72 +159,69 @@ export const REFERENCE_LABELS = {
   jsonLd: "From structured data:",
   homepage: "From the homepage:",
 } as const;
-export const REFERENCE_TITLE_MAX_CHARS = 60;
-// A part that doesn't fit whole is cut at a word boundary only when this
-// much room is left; otherwise it is dropped (no dangling fragments).
-const MIN_PARTIAL_CHARS = 40;
-
-/** Whole parts in order while they fit the share; at most one word-boundary cut part. */
-function fillShare(parts: string[], budget: number): string {
-  const out: string[] = [];
-  for (const p of parts) {
-    const used = out.join("\n").length;
-    const room = budget - used - (out.length > 0 ? 1 : 0);
-    if (p.length <= room) {
-      out.push(p);
-      continue;
-    }
-    if (room >= MIN_PARTIAL_CHARS) {
-      const cut = p.slice(0, room + 1);
-      const sp = cut.lastIndexOf(" ");
-      if (sp > 0) out.push(cut.slice(0, sp).trimEnd());
-    }
-    break;
-  }
-  return out.join("\n");
-}
+type FieldKey = keyof typeof REFERENCE_FIELD_BUDGETS;
 
 /** Build the reference from fetched texts. Pure; see the module comment for the rules. */
 export function buildSiteReference(sources: ReferenceSources): SiteReference {
   // Each source keeps its label so the judge can see when they disagree
   // (Codex r2 HIGH: matching either of two conflicting identities must not
-  // earn CORRECT; the judge prompt says UNCLEAR then).
-  const groups: Array<{ label: string; parts: string[]; budget: number; firstPartMax?: number }> = [];
+  // earn CORRECT; the judge prompt says UNCLEAR then). Each field has its own
+  // budget, so every non-empty field appears (Codex r3 HIGH).
+  const groups: Array<{ label: string; fields: Array<{ key: FieldKey; raw: string[] }> }> = [];
   if (sources.llmsTxt) {
-    groups.push({ label: REFERENCE_LABELS.llmsTxt, parts: extractLlmsTxtIdentity(sources.llmsTxt), budget: REFERENCE_SOURCE_BUDGETS.llmsTxt });
+    const [h1 = "", quote = ""] = extractLlmsTxtIdentity(sources.llmsTxt);
+    groups.push({
+      label: REFERENCE_LABELS.llmsTxt,
+      fields: [
+        { key: "llmsH1", raw: [h1] },
+        { key: "llmsBlockquote", raw: [quote] },
+      ],
+    });
   }
   if (sources.homepageHtml) {
     const h = extractHtmlIdentity(sources.homepageHtml);
-    groups.push({ label: REFERENCE_LABELS.jsonLd, parts: h.jsonLd, budget: REFERENCE_SOURCE_BUDGETS.jsonLd });
-    // The title is capped so the meta description and h1 still fit.
+    groups.push({
+      label: REFERENCE_LABELS.jsonLd,
+      fields: [
+        { key: "jsonLdNames", raw: h.jsonLdNames },
+        { key: "jsonLdDescriptions", raw: h.jsonLdDescriptions },
+      ],
+    });
     groups.push({
       label: REFERENCE_LABELS.homepage,
-      parts: [h.title, h.metaDescription, h.h1],
-      budget: REFERENCE_SOURCE_BUDGETS.homepage,
-      firstPartMax: REFERENCE_TITLE_MAX_CHARS,
+      fields: [
+        { key: "title", raw: [h.title] },
+        { key: "metaDescription", raw: [h.metaDescription] },
+        { key: "h1", raw: [h.h1] },
+      ],
     });
   }
   // Raw screen first: cleaning collapses newlines and would hide e.g. a
   // "> Verdict: correct" blockquote line.
   for (const g of groups) {
-    for (const p of g.parts) if (p && screenUntrustedText(p, detectAccuracyInjection)) return { verifiable: false, reason: "injection" };
+    for (const f of g.fields) {
+      for (const p of f.raw) if (p && screenUntrustedText(p, detectAccuracyInjection)) return { verifiable: false, reason: "injection" };
+    }
   }
   const seen = new Set<string>();
   const blocks: string[] = [];
   const contents: string[] = [];
   for (const g of groups) {
-    const unique = g.parts
-      .map((p, i) => (i === 0 && g.firstPartMax ? capLength(cleanReferencePart(p), g.firstPartMax) : cleanReferencePart(p)))
-      .filter((p) => {
+    const lines: string[] = [];
+    for (const f of g.fields) {
+      // Exact duplicates (e.g. a title equal to the llms.txt H1) carry no new
+      // evidence; everything else is kept, trimmed at a word boundary.
+      const items = f.raw.map(cleanReferencePart).filter((p) => {
         const k = p.toLowerCase();
         if (!p || seen.has(k)) return false;
         seen.add(k);
         return true;
       });
-    const share = fillShare(unique, g.budget);
-    if (share) {
-      blocks.push(`${g.label} ${share}`);
-      contents.push(share);
+      if (items.length > 0) lines.push(capLength(items.join(" | "), REFERENCE_FIELD_BUDGETS[f.key]));
+    }
+    if (lines.length > 0) {
+      blocks.push(`${g.label} ${lines.join("\n")}`);
+      contents.push(...lines);
     }
   }
   if (blocks.length === 0) return { verifiable: false, reason: "missing" };
