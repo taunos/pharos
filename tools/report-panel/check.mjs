@@ -3,7 +3,9 @@
 //   node tools/report-panel/check.mjs [--out <dir>] [--only a,b] [--sites <file>] [--rules <file>]
 //
 // For each site directory in out/ it checks report.md (+ the SYNTHETIC-DIM6
-// variant) against rules.json, and audit.json against the site's `expect` in
+// variant), or the free Score surfaces written by `run.mjs --tier free`
+// (score-page.md, score-pdf.md, score-email.md; check with --out out/free),
+// against rules.json, and audit.json against the site's `expect` in
 // sites.json. Prints a table per site and exits 1 on any FAIL (2 when there is
 // nothing to check). This is a floor: passing it does not replace reading
 // every report.
@@ -18,7 +20,16 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const VARIANTS = [
   ["report.md", "audit.json", true],
   ["report-SYNTHETIC-DIM6.md", "audit-SYNTHETIC-DIM6.json", false],
+  // Free Score (run.mjs --tier free). One scan feeds all three surfaces, so
+  // the expect checks run once (with the page).
+  ["score-page.md", "score.json", true],
+  ["score-pdf.md", "score.json", false],
+  ["score-email.md", "score.json", false],
 ];
+const SHORT = {
+  "report.md": "report", "report-SYNTHETIC-DIM6.md": "synthetic-dim6",
+  "score-page.md": "page", "score-pdf.md": "pdf", "score-email.md": "email",
+};
 
 // Harness-only banner lines (never shown to customers) are removed before linting.
 const BANNER = /^> (HARNESS NOTE:|SYNTHETIC DIM 6 INPUT)/;
@@ -32,13 +43,15 @@ export function loadRules(file = path.join(HERE, "rules.json")) {
 const excerpt = (s, i, len) =>
   s.slice(Math.max(0, i - 40), i + len + 40).replace(/\s+/g, " ").trim();
 
-/** Text rules over customer-visible report markdown. Returns findings. */
-export function checkReportText(markdown, rules) {
+/** Text rules over customer-visible report markdown. Returns findings.
+ *  Rules with "only": "free" run on the free Score surfaces only (opts.free). */
+export function checkReportText(markdown, rules, opts = {}) {
   const out = [];
   const lines = markdown.split(/\r?\n/);
   lines.forEach((line, n) => {
     if (BANNER.test(line)) return;
     for (const r of rules.text) {
+      if (r.only === "free" && !opts.free) continue;
       const re = new RegExp(r.re.source, r.re.flags.includes("g") ? r.re.flags : r.re.flags + "g");
       for (const m of line.matchAll(re)) {
         out.push({ level: "FAIL", class: r.class, rule: r.id, where: `line ${n + 1}`, detail: `${r.why}: "${excerpt(line, m.index, m[0].length)}"` });
@@ -138,7 +151,7 @@ export function checkSiteDir(dir, site, rules) {
     if (!fs.existsSync(mdPath)) continue;
     const findings = [];
     const text = fs.readFileSync(mdPath, "utf8");
-    findings.push(...checkReportText(text, rules), ...checkForbid(text, site?.expect));
+    findings.push(...checkReportText(text, rules, { free: md.startsWith("score-") }), ...checkForbid(text, site?.expect));
     const jsonPath = path.join(dir, json);
     if (fs.existsSync(jsonPath)) {
       const audit = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
@@ -157,7 +170,7 @@ export const CLASSES = ["placeholder", "jargon", "hallucination", "outcome-promi
 
 export function formatSite(label, url, result) {
   const names = Object.keys(result.files);
-  const short = (n) => (n === "report.md" ? "report" : "synthetic-dim6");
+  const short = (n) => SHORT[n] ?? n;
   const rows = [["class", ...names.map(short), "status"]];
   for (const c of CLASSES) {
     const counts = names.map((n) => result.files[n].filter((f) => f.class === c && f.level === "FAIL").length);
@@ -187,7 +200,7 @@ function main() {
   const only = opt("only", null)?.split(",").map((s) => s.trim()).filter(Boolean) ?? null;
   const dirs = fs.existsSync(OUT)
     ? fs.readdirSync(OUT, { withFileTypes: true })
-        .filter((d) => d.isDirectory() && fs.existsSync(path.join(OUT, d.name, "report.md")))
+        .filter((d) => d.isDirectory() && VARIANTS.some(([md]) => fs.existsSync(path.join(OUT, d.name, md))))
         .map((d) => d.name)
         .filter((l) => !only || only.includes(l))
     : [];

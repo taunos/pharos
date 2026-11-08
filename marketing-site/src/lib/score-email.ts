@@ -16,7 +16,8 @@
 import { Resend } from "resend";
 import type { ScanResult } from "./audit-types";
 import { hashEmailForLog } from "./score-tokens";
-import { dimensionCountPhrase } from "./score-display";
+import { dimensionCountPhrase, scoreGaps } from "./score-display";
+import { plainScoreNote } from "./score-notes";
 import {
   renderEmailLayout,
   escapeHtml,
@@ -48,42 +49,25 @@ interface BaseSendInput {
   origin: string; // e.g. "https://astrant.io"
 }
 
-function topGapsText(scan: ScanResult, max = 3): string {
-  const gaps: { name: string; score: number; notes: string }[] = [];
-  for (const dim of scan.dimensions) {
-    // Slice 3a defense-in-depth: skip whole-dim N/A. Sub-check `na` filter
-    // below would already drop these (every sub-check on an N/A dim is na:true)
-    // but the dim-level skip makes the contract explicit and cheap.
-    if (dim.na) continue;
-    for (const sub of dim.sub_checks) {
-      if (sub.na || sub.score >= 80) continue;
-      gaps.push({ name: sub.name, score: sub.score, notes: sub.notes });
-    }
-  }
-  gaps.sort((a, b) => a.score - b.score);
-  return gaps
+// Same gaps, same order, as the results page and the Score PDF (scoreGaps).
+function topGaps(scan: ScanResult, max: number): { name: string; score: number; notes: string }[] {
+  return scoreGaps(scan.dimensions)
     .slice(0, max)
+    .map(({ sub }) => ({ name: sub.name, score: sub.score, notes: plainScoreNote(sub) }));
+}
+
+function topGapsText(scan: ScanResult, max = 3): string {
+  return topGaps(scan, max)
     .map((g) => `  • ${g.name} — ${g.score}/100. ${g.notes}`)
     .join("\n");
 }
 
 // List items for emailList (E1).
 function topGapsHtml(scan: ScanResult, max = 3): string[] {
-  const gaps: { name: string; score: number; notes: string }[] = [];
-  for (const dim of scan.dimensions) {
-    if (dim.na) continue;
-    for (const sub of dim.sub_checks) {
-      if (sub.na || sub.score >= 80) continue;
-      gaps.push({ name: sub.name, score: sub.score, notes: sub.notes });
-    }
-  }
-  gaps.sort((a, b) => a.score - b.score);
-  return gaps
-    .slice(0, max)
-    .map(
-      (g) =>
-        `<strong>${escapeHtml(g.name)}</strong> — ${escapeHtml(String(g.score))}/100. ${escapeHtml(g.notes)}`
-    );
+  return topGaps(scan, max).map(
+    (g) =>
+      `<strong>${escapeHtml(g.name)}</strong> — ${escapeHtml(String(g.score))}/100. ${escapeHtml(g.notes)}`
+  );
 }
 
 // Large composite score + muted caption (#1, #3).

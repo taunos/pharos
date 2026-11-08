@@ -72,10 +72,11 @@ export const DIM6_DISCLOSURE = {
 
   // Free-tier preview shown in results UI
   freeTierPreview:
-    "Sample Dim 6 audit: GPT-4o cites your domain in 6/10 prompts, Claude " +
-    "in 4/10, Gemini in 2/10, Perplexity in 7/10. Aggregate: 47/100, " +
-    "Grade: D+. (This is a static example; the live audit is your domain " +
-    "across these 4 models.)",
+    "Not measured in the free Score. The $79 Audit asks four AI models " +
+    "(OpenAI GPT-4o, Anthropic Claude, Google Gemini and Perplexity Sonar) " +
+    "about 10 questions each about your domain and checks whether each " +
+    "answer names and cites it. This dimension is not counted in your free " +
+    "score.",
 
   // Engine version line — appears in PDFs + methodology page footer
   engineLine: "Dim 6 engine: dim6:v3 (4 models, prompt-set v3)",

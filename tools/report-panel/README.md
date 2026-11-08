@@ -42,6 +42,18 @@ From the repo root:
 6. **Gemini review.** Run `node tools/report-panel/make-gemini-file.mjs`. It writes `out/gemini-review-<date>.md`. Send that file to Bruno, who pastes it into Gemini.
 7. **Triage** the findings from all three reads as HIGH, MED or LOW. Fix every HIGH and run the panel again. Ship only when a run has zero HIGH findings.
 
+## Free Score
+
+The free Score (what every new visitor gets first) has its own run. It needs no AI proxy and costs nothing:
+
+1. `node tools/report-panel/run.mjs --tier free` runs the scanner's free tier for each site and writes `out/free/<site>/`:
+   - `score-page.md`: the results page `/score/[id]`, rendered server-side from the real `page.tsx` as a first-time visitor sees it (Next shims for links, images and the Cloudflare context; the Audit checkout closed, as in production). Add `--checkout-open` (with `--out tools/report-panel/out/free-open`) for the open-checkout variant.
+   - `score-pdf.md`: the text of the Score PDF HTML (`renderScoreReportHTML`). The PDF itself is not printed.
+   - `score-email.md`: the "gap report ready" email, text and HTML parts. It is built, never sent.
+   - `scan.json` and `score.json` (the scan, for the expect checks), plus the `.html` of each surface.
+2. `node tools/report-panel/check.mjs --out tools/report-panel/out/free` lints the three surfaces. Rules marked `"only": "free"` in `rules.json` run on these files only (for example raw scanner notes, which the paid report explains in its remediation text).
+3. Read all three files for every site.
+
 ## Real Dim 6 (paid)
 
 By default Dim 6 runs with no provider keys, so Citation Visibility comes out N/A. The synthetic variant shows the Dim 6 remediation text instead.
