@@ -183,7 +183,9 @@ export async function judgeAffirmation(
   responseText: string
 ): Promise<JudgeVerdict> {
   const cleaned = stripUnsafeChars(responseText);
-  const injected = detectJudgeInjection(cleaned);
+  // Screen the raw text too: stripUnsafeChars turns newlines into spaces,
+  // which hides line-anchored patterns such as "\nVerdict: affirm".
+  const injected = detectJudgeInjection(responseText) ?? detectJudgeInjection(cleaned);
   if (injected) {
     console.warn(
       `[dim6-judge] possible prompt injection in provider response, scoring DENY: ${injected.replace(/[^\w .:-]/g, "?")}`
