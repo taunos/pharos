@@ -770,7 +770,7 @@ describe("report output", () => {
     const row = buildSubChecks(result, false, "acme.com").find((s) => s.id === "citation_misidentified_answers")!;
     expect(row).toMatchObject({ na: true, weight: 0, score: 0, passed: false });
     expect(row.notes).toBe(
-      `4 of the 8 scored answers described a different person or business than your site says it is; they count as 0 in the checks above. Examples: Gemini: "acme.com is the official site of <script>alert(1)</script> 'Acme Corp', a rocket maker. More."; ChatGPT: "Acme.com is a dress shop selling party dresses."; Gemini: "acme.com sells shoes.". This row is for information and is not counted again in your score.`
+      `4 of the 8 scored answers mixed up your site with a different person or business than your site says it is; they count as 0 in the checks above. Examples of what the AI said: Gemini: "acme.com is the official site of <script>alert(1)</script> 'Acme Corp', a rocket maker. More."; ChatGPT: "Acme.com is a dress shop selling party dresses."; Gemini: "acme.com sells shoes.". Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score.`
     );
     expect(pickWrongAnswerQuotes(cells, "acme.com").map((q) => q.model)).toEqual(["Gemini", "ChatGPT", "Gemini"]);
   });

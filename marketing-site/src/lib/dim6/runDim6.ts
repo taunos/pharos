@@ -325,16 +325,16 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
     const quotes = pickWrongAnswerQuotes(cells, domain);
     const lead =
       wrong === 1
-        ? `1 of the ${measurableCount} scored answers described a different person or business than your site says it is; it counts as 0 in the checks above.`
-        : `${wrong} of the ${measurableCount} scored answers described a different person or business than your site says it is; they count as 0 in the checks above.`;
-    const examples = quotes.length > 0 ? ` ${quotes.length === 1 ? "Example" : "Examples"}: ${quotes.map((q) => `${q.model}: "${q.quote}"`).join("; ")}.` : "";
+        ? `1 of the ${measurableCount} scored answers mixed up your site with a different person or business than your site says it is; it counts as 0 in the checks above.`
+        : `${wrong} of the ${measurableCount} scored answers mixed up your site with a different person or business than your site says it is; they count as 0 in the checks above.`;
+    const examples = quotes.length > 0 ? ` ${quotes.length === 1 ? "Example of what the AI said" : "Examples of what the AI said"}: ${quotes.map((q) => `${q.model}: "${q.quote}"`).join("; ")}.` : "";
     subChecks.push({
       id: SUBCHECK_IDS.misidentified_answers,
       name: "Answers that described a different person or business than your site says it is",
       weight: 0,
       score: 0,
       passed: false,
-      notes: `${lead}${examples} This row is for information and is not counted again in your score.`,
+      notes: `${lead}${examples} Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score.`,
       na: true,
     });
   }
