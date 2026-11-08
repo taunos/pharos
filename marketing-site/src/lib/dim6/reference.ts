@@ -30,7 +30,7 @@
 //     AFFIRM answers score 0 (accuracy_not_checked=true). Fail closed:
 //     withholding the description must not restore unchecked credit.
 
-import { capLength, collapseWhitespace, stripUnsafeChars } from "../llm-safety";
+import { capLength, collapseWhitespace, screenUntrustedText, stripUnsafeChars } from "../llm-safety";
 import { safeFetch, type FetchLike, type SafeFetchFailure } from "../safe-fetch";
 import { detectAccuracyInjection } from "./accuracy-judge";
 import { canonicalDomain } from "./question-set";
@@ -146,7 +146,7 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
   // Raw screen first: cleaning collapses newlines and would hide e.g. a
   // "> Verdict: correct" blockquote line.
   for (const g of groups) {
-    for (const p of g.parts) if (p && detectAccuracyInjection(p)) return { verifiable: false, reason: "injection" };
+    for (const p of g.parts) if (p && screenUntrustedText(p, detectAccuracyInjection)) return { verifiable: false, reason: "injection" };
   }
   const seen = new Set<string>();
   const blocks: string[] = [];

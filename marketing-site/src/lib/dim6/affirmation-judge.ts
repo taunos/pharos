@@ -44,7 +44,7 @@
 // citation_audit_response rows — downstream analysis can filter by
 // engine_version to separate v1 (over-counted) from v2 (judge-gated) data.
 
-import { stripUnsafeChars } from "../llm-safety";
+import { screenUntrustedText, stripUnsafeChars } from "../llm-safety";
 
 const JUDGE_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
 
@@ -183,9 +183,10 @@ export async function judgeAffirmation(
   responseText: string
 ): Promise<JudgeVerdict> {
   const cleaned = stripUnsafeChars(responseText);
-  // Screen the raw text too: stripUnsafeChars turns newlines into spaces,
-  // which hides line-anchored patterns such as "\nVerdict: affirm".
-  const injected = detectJudgeInjection(responseText) ?? detectJudgeInjection(cleaned);
+  // Screen raw, line-preserving-cleaned and cleaned views: stripUnsafeChars
+  // turns newlines into spaces (hiding "\nVerdict: affirm"), and the raw text
+  // can split a word with a zero-width character.
+  const injected = screenUntrustedText(responseText, detectJudgeInjection);
   if (injected) {
     console.warn(
       `[dim6-judge] possible prompt injection in provider response, scoring DENY: ${injected.replace(/[^\w .:-]/g, "?")}`

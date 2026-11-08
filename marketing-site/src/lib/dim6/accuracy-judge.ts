@@ -36,7 +36,7 @@
 // calls plus 40 affirmation calls came to 483 neurons, about $0.005 at
 // Workers AI list price.
 
-import { stripUnsafeChars } from "../llm-safety";
+import { screenUntrustedText, stripUnsafeChars } from "../llm-safety";
 import { detectJudgeInjection, randomTag, type JudgeEnv } from "./affirmation-judge";
 
 export const ACCURACY_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
@@ -134,9 +134,9 @@ export async function judgeAccuracy(
   answer: string
 ): Promise<AccuracyVerdict> {
   const cleaned = stripUnsafeChars(answer);
-  // Screen the raw text too: stripUnsafeChars turns newlines into spaces,
-  // which hides line-anchored patterns such as "\nVerdict: correct".
-  const injected = detectAccuracyInjection(answer) ?? detectAccuracyInjection(cleaned);
+  // Screen raw, line-preserving-cleaned and cleaned views (see
+  // screenUntrustedText): each hides something the others show.
+  const injected = screenUntrustedText(answer, detectAccuracyInjection);
   if (injected) {
     console.warn(
       `[dim6-accuracy] possible prompt injection in provider answer, scoring UNCLEAR: ${injected.replace(/[^\w .:-]/g, "?")}`
