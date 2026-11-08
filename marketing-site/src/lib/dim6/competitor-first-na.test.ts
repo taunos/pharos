@@ -14,7 +14,7 @@ vi.mock("./orchestrator", () => ({
       result: { text: "t", score, unmeasurable: false, truncated: false, notes },
     });
     const cells = [
-      cell("score=100/100; judge=AFFIRM; domain_named=true; url_referenced=true; context_relevant=true; no_competitor_first=true", 100),
+      cell("score=100/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=true; context_relevant=true; no_competitor_first=true", 100),
       cell("score=0/100; judge=DENY", 0),
       cell("score=0/100; judge=DENY", 0),
     ];
@@ -24,12 +24,13 @@ vi.mock("./orchestrator", () => ({
       perModelAverage: Object.fromEntries(ALL_MODEL_IDS.map((m) => [m, 33])) as Record<ModelId, number | null>,
       unmeasurableCount: 0,
       totalCells: cells.length,
+      accuracyChecked: true,
     };
   }),
 }));
 
 import { scoreResponse } from "./parser";
-import { runDim6Paid as runDim6PaidReal, COMPETITOR_FIRST_NA_NOTE, ACCURACY_NOT_CHECKED_NOTE, modelLabel } from "./runDim6";
+import { runDim6Paid as runDim6PaidReal, COMPETITOR_FIRST_NA_NOTE, modelLabel } from "./runDim6";
 import { citationCoverage } from "../audit-executive-summary";
 import { generatePromptSet } from "./promptset";
 import { buildRemediationGaps } from "../audit-pipeline";
@@ -40,8 +41,8 @@ const kv = () => {
   return { get: async (k: string) => m.get(k) ?? null, put: async (k: string, v: string) => void m.set(k, v) } as unknown as KVNamespace;
 };
 
-// dim6:v5: no network in tests. The site has no description → accuracy not
-// checked (the mocked orchestrator result carries no accuracyChecked either).
+// dim6:v5: no network in tests. The orchestrator is mocked, so its fake
+// result (accuracyChecked: true) decides the notes, not the 404 description.
 const noSite = async () => new Response("", { status: 404 });
 const runDim6Paid: typeof runDim6PaidReal = (env, ...rest) =>
   runDim6PaidReal({ siteFetch: noSite, ...(env as object) } as unknown as typeof env, ...rest);
@@ -76,11 +77,11 @@ describe("dim6:v4 competitor-first N/A", () => {
     const r = await runDim6Paid({ cacheKv: kv() } as never, "https://acme.com/", {}, ["rival.com"]);
     const notes = Object.fromEntries(r.dimension.sub_checks.map((s) => [s.id, s.notes]));
     expect(notes.citation_domain_named_rate).toBe(
-      `33% of scored test answers named your domain. ${ACCURACY_NOT_CHECKED_NOTE} 3 of 3 test answers could be scored, across 4 AI models. Average by model: ChatGPT 33, Claude 33, Gemini 33, Perplexity 33.`,
+      "33% of scored test answers named your domain and described your site correctly. Of the 3 scored answers, 1 described your site correctly, 0 described it as something it is not, 0 did not say enough to check, and 2 did not show that the model knew your site. 3 of 3 test answers could be scored, across 4 AI models. Average by model: ChatGPT 33, Claude 33, Gemini 33, Perplexity 33.",
     );
-    expect(notes.citation_url_referenced_rate).toBe("33% of scored test answers included at least one link to your site.");
+    expect(notes.citation_url_referenced_rate).toBe("33% of scored test answers described your site correctly and included at least one link to it.");
     expect(notes.citation_context_relevant_rate).toBe(
-      "33% of scored test answers put your domain in the first half of the answer, rather than only mentioning it at the end.",
+      "33% of scored test answers described your site correctly and put your domain in the first half of the answer, rather than only mentioning it at the end.",
     );
     expect(notes.citation_no_competitor_first_rate).toBe("33% of scored test answers did not name a competitor before your domain.");
     for (const n of Object.values(notes)) expect(n).not.toMatch(/cells|target (domain|host)|openai=|n\/a/);

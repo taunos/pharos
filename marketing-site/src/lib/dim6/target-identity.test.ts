@@ -30,6 +30,12 @@ vi.mock("./affirmation-judge", () => ({
     return { kind: "affirm" };
   },
 }));
+// dim6:v5: with no reference AFFIRM cells fail closed (0), so these tests
+// pass a reference and an accuracy judge that says CORRECT.
+vi.mock("./accuracy-judge", () => ({
+  judgeAccuracy: async () => ({ kind: "correct" }),
+}));
+const REF = "Competitor makes a tool for this job, used by teams.";
 
 import { runDim6Orchestrator, type OrchestratorEnv } from "./orchestrator";
 import { runLadder, type LadderEnv } from "./ladder";
@@ -75,9 +81,9 @@ describe("Dim 6 target identity", () => {
       questionSetDb: createSqliteD1([MIGRATION]).d1,
     } as unknown as OrchestratorEnv;
 
-    const dotted = await runDim6Orchestrator(env, { scanUrl: "https://competitor.com./" });
-    const ported = await runDim6Orchestrator(env, { scanUrl: "https://competitor.com:8443/" });
-    const plain = await runDim6Orchestrator(env, { scanUrl: "https://competitor.com/" });
+    const dotted = await runDim6Orchestrator(env, { scanUrl: "https://competitor.com./", reference: REF });
+    const ported = await runDim6Orchestrator(env, { scanUrl: "https://competitor.com:8443/", reference: REF });
+    const plain = await runDim6Orchestrator(env, { scanUrl: "https://competitor.com/", reference: REF });
 
     expect(plain.score).toBe(100);
     expect(dotted.score).toBe(plain.score);
@@ -89,7 +95,7 @@ describe("Dim 6 target identity", () => {
   it("the cell cache never reuses a cell across different scoring targets", async () => {
     const kv = memKv();
     const env = { cacheKv: kv } as unknown as LadderEnv;
-    const input = { modelId: "openai:gpt-4o" as const, prompt: "Which tool should I use?" };
+    const input = { modelId: "openai:gpt-4o" as const, prompt: "Which tool should I use?", reference: REF };
 
     const seeded = await runLadder(env, { ...input, targetUrl: "https://competitor.com./" });
     expect(seeded.score).toBeLessThan(100); // raw dotted target mis-scores

@@ -4,31 +4,39 @@
 // first real run (a clinical psychologist) had 8 of 15 affirmative answers
 // describing a famous author, a graphic designer or a dress shop, and all 8
 // counted as "named your domain". The accuracy judge (accuracy-judge.ts)
-// compares each affirmative answer with what the site says about itself.
+// compares each affirmative answer with what the site says about itself. It
+// checks consistency with the site's own claims about who it is and what
+// kind of business it is, nothing more (prices, dates and other details are
+// not checked).
 //
-// Sources, in priority order (earlier sources survive the length cap):
-//   1. llms.txt H1 and blockquote
-//   2. JSON-LD Organization / Person / LocalBusiness (and subtypes) name and
-//      description
-//   3. homepage <title>, meta description, first <h1>
+// Sources, each with its own share of the REFERENCE_MAX_CHARS budget so one
+// source cannot push out the others (Codex r1):
+//   1. llms.txt H1 and blockquote                                  (250)
+//   2. JSON-LD Organization / Person / LocalBusiness (and subtypes)
+//      name and description                                        (200)
+//   3. homepage <title>, meta description, first <h1>               (150)
 // The scan result carries none of these texts, so two same-site fetches are
 // made (llms.txt and the homepage), each through safeFetch (every hop
-// validated, byte cap, shared deadline). A response whose final URL is on
-// another site is ignored.
+// validated, byte cap, shared deadline), retried once on a timeout or
+// network failure. A response whose final URL is on another site is ignored.
 //
 // The reference is written by the site owner, who is also the party the
-// score is about, so it is untrusted: unsafe characters stripped, capped at
-// REFERENCE_MAX_CHARS, screened for prompt injection, and fenced in the
-// judge prompt. Missing, too short (< REFERENCE_MIN_WORDS words) or injected
-// → accuracy is "not verifiable" for the run and AFFIRM cells keep the v4
-// behaviour, flagged accuracy_not_checked=true.
+// score is about, so it is untrusted: screened for prompt injection on the
+// raw extracted text (before newlines are collapsed, so line-anchored
+// patterns still match) and again after cleaning, unsafe characters
+// stripped, capped, and fenced in the judge prompt.
+//   - injected → "injection": AFFIRM answers score 0 (accuracy_blocked=true).
+//   - missing, unreadable or too short (< REFERENCE_MIN_WORDS words) →
+//     AFFIRM answers score 0 (accuracy_not_checked=true). Fail closed:
+//     withholding the description must not restore unchecked credit.
 
 import { capLength, collapseWhitespace, stripUnsafeChars } from "../llm-safety";
-import { safeFetch, type FetchLike } from "../safe-fetch";
+import { safeFetch, type FetchLike, type SafeFetchFailure } from "../safe-fetch";
 import { detectAccuracyInjection } from "./accuracy-judge";
 import { canonicalDomain } from "./question-set";
 
 export const REFERENCE_MAX_CHARS = 600;
+export const REFERENCE_SOURCE_BUDGETS = { llmsTxt: 250, jsonLd: 200, homepage: 150 } as const;
 export const REFERENCE_MIN_WORDS = 5;
 const FETCH_TIMEOUT_MS = 8000;
 const LLMS_MAX_BYTES = 64 * 1024;
@@ -55,11 +63,17 @@ function decodeEntities(s: string): string {
   });
 }
 
-function clean(s: unknown): string {
-  return typeof s === "string" ? collapseWhitespace(stripUnsafeChars(s)) : "";
+// Extractors return RAW text (line structure kept) so the injection screen
+// can see it before cleaning; buildSiteReference cleans.
+function raw(s: unknown): string {
+  return typeof s === "string" ? s.trim() : "";
 }
 
-/** llms.txt: the first-line H1 and the blockquote right after it. */
+export function cleanReferencePart(s: string): string {
+  return collapseWhitespace(stripUnsafeChars(s));
+}
+
+/** llms.txt: the first-line H1 and the blockquote right after it (raw). */
 export function extractLlmsTxtIdentity(txt: string): string[] {
   const lines = txt.split(/\r?\n/);
   let i = 0;
@@ -68,7 +82,7 @@ export function extractLlmsTxtIdentity(txt: string): string[] {
   // No H1 on the first non-empty line: not an llms.txt (e.g. an HTML page
   // served for every path).
   if (!h1) return [];
-  const out = [clean(h1[1])];
+  const out = [raw(h1[1])];
   i++;
   while (i < lines.length && lines[i].trim() === "") i++;
   const quote: string[] = [];
@@ -76,7 +90,7 @@ export function extractLlmsTxtIdentity(txt: string): string[] {
     quote.push(lines[i].replace(/^\s*>\s?/, ""));
     i++;
   }
-  if (quote.length > 0) out.push(clean(quote.join(" ")));
+  if (quote.length > 0) out.push(raw(quote.join("\n")));
   return out.filter(Boolean);
 }
 
@@ -98,7 +112,7 @@ function collectEntities(node: unknown, out: Array<Record<string, unknown>>, dep
   if (obj["@graph"]) collectEntities(obj["@graph"], out, depth + 1);
 }
 
-/** Homepage HTML: JSON-LD entity name/description, <title>, meta description, first <h1>. */
+/** Homepage HTML (raw): JSON-LD entity name/description, <title>, meta description, first <h1>. */
 export function extractHtmlIdentity(html: string): { jsonLd: string[]; title: string; metaDescription: string; h1: string } {
   const jsonLd: string[] = [];
   const entities: Array<Record<string, unknown>> = [];
@@ -110,35 +124,43 @@ export function extractHtmlIdentity(html: string): { jsonLd: string[]; title: st
     }
   }
   for (const e of entities) {
-    const name = clean(e.name);
-    const desc = clean(e.description);
-    const line = [name, desc].filter(Boolean).join(": ");
+    const line = [raw(e.name), raw(e.description)].filter(Boolean).join(": ");
     if (line) jsonLd.push(line);
   }
-  const title = clean(decodeEntities(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? ""));
+  const title = raw(decodeEntities(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? ""));
   const metaTag = [...html.matchAll(/<meta\b[^>]*>/gi)].map((m) => m[0]).find((t) => /\bname\s*=\s*["']?description["'\s>]/i.test(t));
-  const metaDescription = clean(decodeEntities(/\bcontent\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(metaTag ?? "")?.slice(1).find((x) => x !== undefined) ?? ""));
-  const h1 = clean(decodeEntities((/<h1\b[^>]*>([\s\S]*?)<\/h1>/i.exec(html)?.[1] ?? "").replace(/<[^>]*>/g, " ")));
+  const metaDescription = raw(decodeEntities(/\bcontent\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(metaTag ?? "")?.slice(1).find((x) => x !== undefined) ?? ""));
+  const h1 = raw(decodeEntities((/<h1\b[^>]*>([\s\S]*?)<\/h1>/i.exec(html)?.[1] ?? "").replace(/<[^>]*>/g, " ")));
   return { jsonLd, title, metaDescription, h1 };
 }
 
 /** Build the reference from fetched texts. Pure; see the module comment for the rules. */
 export function buildSiteReference(sources: ReferenceSources): SiteReference {
-  const parts: string[] = [];
-  if (sources.llmsTxt) parts.push(...extractLlmsTxtIdentity(sources.llmsTxt));
+  const groups: Array<{ parts: string[]; budget: number }> = [];
+  if (sources.llmsTxt) groups.push({ parts: extractLlmsTxtIdentity(sources.llmsTxt), budget: REFERENCE_SOURCE_BUDGETS.llmsTxt });
   if (sources.homepageHtml) {
     const h = extractHtmlIdentity(sources.homepageHtml);
-    parts.push(...h.jsonLd, h.title, h.metaDescription, h.h1);
+    groups.push({ parts: h.jsonLd, budget: REFERENCE_SOURCE_BUDGETS.jsonLd });
+    groups.push({ parts: [h.title, h.metaDescription, h.h1], budget: REFERENCE_SOURCE_BUDGETS.homepage });
+  }
+  // Raw screen first: cleaning collapses newlines and would hide e.g. a
+  // "> Verdict: correct" blockquote line.
+  for (const g of groups) {
+    for (const p of g.parts) if (p && detectAccuracyInjection(p)) return { verifiable: false, reason: "injection" };
   }
   const seen = new Set<string>();
-  const unique = parts.filter((p) => {
-    const k = p.toLowerCase();
-    if (!p || seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
-  if (unique.length === 0) return { verifiable: false, reason: "missing" };
-  const text = capLength(unique.join("\n"), REFERENCE_MAX_CHARS);
+  const blocks: string[] = [];
+  for (const g of groups) {
+    const unique = g.parts.map(cleanReferencePart).filter((p) => {
+      const k = p.toLowerCase();
+      if (!p || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    if (unique.length > 0) blocks.push(capLength(unique.join("\n"), g.budget));
+  }
+  if (blocks.length === 0) return { verifiable: false, reason: "missing" };
+  const text = blocks.join("\n");
   if (text.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length < REFERENCE_MIN_WORDS) {
     return { verifiable: false, reason: "too_short" };
   }
@@ -148,8 +170,8 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
 
 /**
  * Fetch llms.txt and the homepage of the audited site (two requests, in
- * parallel). Never throws; a source that fails, is not 2xx, or ends on
- * another site is null.
+ * parallel; each retried once on a timeout or network failure). Never
+ * throws; a source that fails, is not 2xx, or ends on another site is null.
  */
 export async function fetchReferenceSources(scanUrl: string, fetchImpl?: FetchLike): Promise<ReferenceSources> {
   const domain = canonicalDomain(scanUrl);
@@ -160,19 +182,31 @@ export async function fetchReferenceSources(scanUrl: string, fetchImpl?: FetchLi
     return {};
   }
   if (!domain) return {};
-  const get = async (url: string, maxBytes: number, accept: string): Promise<string | null> => {
+  const getOnce = async (url: string, maxBytes: number, accept: string): Promise<{ text: string | null; retry: boolean }> => {
+    let failure: SafeFetchFailure | null = null;
     try {
-      const res = await safeFetch(url, { headers: { accept } }, { timeoutMs: FETCH_TIMEOUT_MS, fetchImpl });
-      if (!res) return null;
+      const res = await safeFetch(url, { headers: { accept } }, {
+        timeoutMs: FETCH_TIMEOUT_MS,
+        fetchImpl,
+        onFail: (r) => {
+          failure = r;
+        },
+      });
+      if (!res) return { text: null, retry: failure === "timeout" || failure === "network" };
       if (!res.ok || canonicalDomain(res.url) !== domain) {
         res.discard();
-        return null;
+        return { text: null, retry: false };
       }
       const body = await res.body({ maxBytes });
-      return body.text || null;
+      return { text: body.text || null, retry: false };
     } catch {
-      return null;
+      return { text: null, retry: true };
     }
+  };
+  const get = async (url: string, maxBytes: number, accept: string): Promise<string | null> => {
+    const first = await getOnce(url, maxBytes, accept);
+    if (first.text !== null || !first.retry) return first.text;
+    return (await getOnce(url, maxBytes, accept)).text;
   };
   const [llmsTxt, homepageHtml] = await Promise.all([
     get(`${origin}/llms.txt`, LLMS_MAX_BYTES, "text/plain, text/markdown;q=0.9, */*;q=0.1"),

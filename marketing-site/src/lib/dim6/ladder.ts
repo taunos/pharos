@@ -74,7 +74,8 @@ export interface LadderInput {
   targetUrl: string;
   competitorHosts?: string[];
   // dim6:v5: the run's verifiable reference description of the site
-  // (reference.ts). null/absent → accuracy not checked for this run.
+  // (reference.ts). null/absent → accuracy not checked for this run, and
+  // AFFIRM answers score 0 (fail closed, accuracy_not_checked=true).
   reference?: string | null;
   // dim6:v5: the site's description tripped the injection screen. Every AFFIRM
   // answer scores 0 (measurable, accuracy_blocked=true): the site owner is the
@@ -195,10 +196,13 @@ type LadderStep =
 
 /**
  * dim6:v5: the cell for an answer the affirmation judge marked AFFIRM, given
- * the accuracy verdict (null when the run has no verifiable reference).
- * Only CORRECT (or unchecked) answers keep the substring breakdown; WRONG and
- * UNCLEAR score 0 and stay measurable. "blocked" (the site's description
- * tripped the injection screen) scores 0 too, flagged accuracy_blocked=true.
+ * the accuracy verdict. Fail closed (Codex r1): only CORRECT answers keep the
+ * substring breakdown. Everything else scores 0 and stays MEASURABLE:
+ *   WRONG → misidentified=true; UNCLEAR → accuracy_unclear=true (plus
+ *   accuracy_failed=<reason> when the answer could not be checked);
+ *   "blocked" (the site's description tripped the injection screen) →
+ *   accuracy_blocked=true; null (no usable description of the site) →
+ *   accuracy_not_checked=true.
  * Pure, so the replay tool (tools/report-panel/replay-dim6-accuracy.mjs)
  * scores exactly like the ladder.
  */
@@ -209,33 +213,31 @@ export function scoreAffirmedCell(
   truncated: boolean,
   accuracy: AccuracyVerdict | { kind: "blocked" } | null
 ): CellResult {
-  if (accuracy?.kind === "unmeasurable") {
-    return templatedFallback(`accuracy judge: ${accuracy.reason}`);
-  }
-  if (accuracy?.kind === "wrong" || accuracy?.kind === "unclear" || accuracy?.kind === "blocked") {
+  if (accuracy?.kind !== "correct") {
     const notes = [
       `score=0/100`,
       `judge=AFFIRM`,
-      accuracy.kind === "wrong"
-        ? "accuracy=WRONG; misidentified=true"
-        : accuracy.kind === "unclear"
-          ? "accuracy=UNCLEAR; accuracy_unclear=true"
-          : "accuracy_blocked=true",
+      accuracy === null
+        ? "accuracy_not_checked=true"
+        : accuracy.kind === "wrong"
+          ? "accuracy=WRONG; misidentified=true"
+          : accuracy.kind === "unclear"
+            ? `accuracy=UNCLEAR; accuracy_unclear=true${accuracy.failed ? `; accuracy_failed=${accuracy.failed}` : ""}`
+            : "accuracy_blocked=true",
       truncated ? "truncated=true" : null,
     ]
       .filter((s): s is string => s !== null)
       .join("; ");
     return { text, score: 0, unmeasurable: false, truncated, notes };
   }
-  // Substring-counting is appropriate here because the judge has already
-  // confirmed the response is affirmative (and, when checked, accurate).
-  // Granular sub-checks differentiate "passing mention" from "clean named
-  // citation with URL."
+  // Substring-counting is appropriate here because the judges have already
+  // confirmed the response is affirmative and accurate. Granular sub-checks
+  // differentiate "passing mention" from "clean named citation with URL."
   const breakdown = scoreResponse(text, targetUrl, competitorHosts);
   const notes = [
     `score=${breakdown.score}/100`,
     `judge=AFFIRM`,
-    accuracy ? "accuracy=CORRECT" : "accuracy_not_checked=true",
+    "accuracy=CORRECT",
     `domain_named=${breakdown.domainNamed}`,
     `url_referenced=${breakdown.urlReferenced}`,
     `context_relevant=${breakdown.contextRelevant}`,

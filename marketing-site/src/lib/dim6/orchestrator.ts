@@ -42,7 +42,7 @@ export interface OrchestratorInput {
   };
   competitorHosts?: string[];
   // dim6:v5: verifiable reference description of the site (reference.ts).
-  // null/absent → accuracy is not checked on this run.
+  // null/absent → accuracy is not checked on this run; AFFIRM answers score 0.
   reference?: string | null;
   // dim6:v5: the site's description tripped the injection screen → every
   // AFFIRM answer scores 0 (accuracy_blocked=true).

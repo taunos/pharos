@@ -87,7 +87,7 @@ export default function MethodologyPage() {
           <ul className="mt-4 flex flex-col gap-3 text-sm text-[var(--color-muted)]">
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_domain_named_rate</span>{" "}
-              (weight 40) — what fraction of scored test answers named your domain and described your site correctly. Each answer that says it knows your site is compared with how your site describes itself (your llms.txt file, structured data, and homepage title and description). An answer that describes your site as a different person or business, or says too little to check, scores 0. If your site has no clear description we can read, the answers are not checked this way, and the report says so.
+              (weight 40) — what fraction of scored test answers named your domain and described your site correctly. Each answer that says it knows your site is compared with how your site describes itself (your llms.txt file, structured data, and homepage title and description). We check only who the site is and what kind of business it is, against your site&apos;s own description; details such as prices and dates are not checked. An answer that describes your site as a different person or business, says too little to check, or cannot be checked scores 0. If your site has no clear description we can read, those answers cannot be checked and score 0, and the report says so.
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_url_referenced_rate</span>{" "}

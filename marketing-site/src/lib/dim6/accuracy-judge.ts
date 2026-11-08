@@ -9,14 +9,20 @@
 //   CORRECT → the cell keeps its substring breakdown (parser.ts)
 //   WRONG   → score 0, measurable, notes misidentified=true
 //   UNCLEAR → score 0, measurable, notes accuracy_unclear=true
-//   judge fails twice → the cell is unmeasurable (as for the affirmation judge)
+//   could not be checked (judge failed twice, injected answer, answer longer
+//   than ACCURACY_MAX_ANSWER_CHARS) → UNCLEAR with a `failed` reason: score 0,
+//   still MEASURABLE. Never unmeasurable: dropping a cell from the
+//   denominator would give hostile input an upward path (Codex r1 HIGH).
 //
 // Both the reference (written by the site owner) and the answer (provider
 // output, which may quote the site) are attacker-controllable: each sits in
 // its own random-tag fence, both are injection-screened, and the output must
-// be exactly one verdict word. An answer that trips the screen is UNCLEAR
-// (0, measurable): the safe direction is down, and it is never quoted as a
-// wrong-description example.
+// be exactly one verdict word. An answer that trips the screen is never
+// quoted as a wrong-description example.
+//
+// The judge reads the whole answer (up to ACCURACY_MAX_ANSWER_CHARS), since
+// substring scoring and quotes use the whole answer: an unread tail could
+// contradict a matching introduction.
 //
 // Model: @cf/meta/llama-3.3-70b-instruct-fp8-fast. The 8B model used for
 // AFFIRM/DENY is too weak for a cross-language identity comparison (the
@@ -44,11 +50,14 @@ export function detectAccuracyInjection(text: string): string | null {
   return detectJudgeInjection(text) ?? text.match(/\b(?:CORRECT|WRONG|UNCLEAR)\b/)?.[0] ?? null;
 }
 
+export const ACCURACY_MAX_ANSWER_CHARS = 6000;
+
+export type AccuracyFailure = "injection" | "judge_failed" | "too_long";
+
 export type AccuracyVerdict =
   | { kind: "correct" }
   | { kind: "wrong" }
-  | { kind: "unclear"; injection?: true }
-  | { kind: "unmeasurable"; reason: string };
+  | { kind: "unclear"; failed?: AccuracyFailure; reason?: string };
 
 export function buildAccuracyPrompt(
   domain: string,
@@ -56,13 +65,12 @@ export function buildAccuracyPrompt(
   answer: string,
   tag: string = randomTag()
 ): string {
-  const truncated = answer.length > 2000 ? `${answer.slice(0, 2000)}\n[...truncated]` : answer;
   const refOpen = `<site-description-${tag}>`;
   const refClose = `</site-description-${tag}>`;
   const ansOpen = `<untrusted-answer-${tag}>`;
   const ansClose = `</untrusted-answer-${tag}>`;
   const ref = reference.split(tag).join("");
-  const body = truncated.split(tag).join("");
+  const body = answer.split(tag).join("");
 
   return `You check whether an AI assistant's answer about a website describes the website correctly.
 
@@ -133,7 +141,11 @@ export async function judgeAccuracy(
     console.warn(
       `[dim6-accuracy] possible prompt injection in provider answer, scoring UNCLEAR: ${injected.replace(/[^\w .:-]/g, "?")}`
     );
-    return { kind: "unclear", injection: true };
+    return { kind: "unclear", failed: "injection" };
+  }
+  // We can't vouch for what we didn't read.
+  if (cleaned.length > ACCURACY_MAX_ANSWER_CHARS) {
+    return { kind: "unclear", failed: "too_long", reason: `answer longer than ${ACCURACY_MAX_ANSWER_CHARS} chars` };
   }
   const prompt = buildAccuracyPrompt(stripUnsafeChars(domain), stripUnsafeChars(reference), cleaned);
 
@@ -149,7 +161,8 @@ REMINDER: Output ONLY the single word CORRECT, WRONG or UNCLEAR. Nothing else.`
   if (second.ok) return toVerdict(second.verdict);
 
   return {
-    kind: "unmeasurable",
+    kind: "unclear",
+    failed: "judge_failed",
     reason: `judge failed twice: first=${first.reason.slice(0, 60)}; retry=${second.reason.slice(0, 60)}`,
   };
 }

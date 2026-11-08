@@ -54,9 +54,10 @@
 //     homepage title/description/h1) by a Workers AI 70B accuracy judge
 //     (accuracy-judge.ts). Only CORRECT answers keep the substring
 //     breakdown; WRONG (misidentified=true) and UNCLEAR
-//     (accuracy_unclear=true) score 0 and stay measurable. With no
-//     verifiable reference, AFFIRM answers keep the v4 scoring with
-//     accuracy_not_checked=true and the report says so. First real run
+//     (accuracy_unclear=true; judge failures too) score 0 and stay
+//     measurable. Fail closed: with no usable reference AFFIRM answers score
+//     0 (accuracy_not_checked=true), with an injected one too
+//     (accuracy_blocked=true), and the report says why. First real run
 //     (a clinical psychologist): 8 of 15 AFFIRM answers described a
 //     different person or business. Cache key also covers the reference.
 export const DIM6_ENGINE_VERSION = "dim6:v5";

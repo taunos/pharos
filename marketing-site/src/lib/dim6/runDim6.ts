@@ -122,15 +122,26 @@ export function modelLabel(modelId: string): string {
 export const COMPETITOR_FIRST_NA_NOTE =
   "Not measured: this Audit doesn't take a competitor list yet, so there is nothing to compare against. This check is not counted in your score.";
 
-/** dim6:v5: domain-named note addition when the run had no verifiable description of the site. */
-export const ACCURACY_NOT_CHECKED_NOTE =
-  "We could not check whether these answers describe your site correctly: we could not find or read a clear description of your site on it (we look at your llms.txt file, your structured data, and your homepage title and description).";
+const knewYourSite = (n: number, plural: string, singular: string) =>
+  n === 1 ? `the 1 answer that said the model knew your site ${singular}` : `the ${n} answers that said the model knew your site ${plural}`;
+
+/**
+ * dim6:v5: domain-named note addition when the run had no usable description
+ * of the site (missing, unreadable or too short). Fail closed: those answers
+ * score 0.
+ */
+export const accuracyNotCheckedNote = (notChecked: number) =>
+  `We could not find a clear description of your site on it, so ${
+    notChecked === 0
+      ? "an answer that said the model knew your site could not have been checked or counted"
+      : `${knewYourSite(notChecked, "could not be checked and were", "could not be checked and was")} not counted (scored 0)`
+  }. To fix this, say who you are and what you do in an llms.txt file, in structured data, or in your homepage title and description.`;
 
 /** dim6:v5: domain-named note addition when the site's description tripped the injection screen. */
 export const accuracyBlockedNote = (blocked: number) =>
   `We could not check these answers against your site's own description, because that description contains text aimed at automated checkers. So ${
-    blocked === 1 ? "the 1 answer that said the model knew your site was" : `the ${blocked} answers that said the model knew your site were`
-  } not counted and scored 0.`;
+    blocked === 0 ? "an answer that said the model knew your site would not have been counted" : `${knewYourSite(blocked, "were", "was")} not counted and scored 0`
+  }.`;
 
 const EVIDENCE_MAX_WORDS = 25;
 const EVIDENCE_MAX_CHARS = 200;
@@ -203,9 +214,14 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
   // answers only (WRONG / UNCLEAR cells carry no domain_named etc. flags).
   const correct = countFlag(cells, "accuracy=CORRECT");
   const wrong = countFlag(cells, "misidentified=true");
-  const unclear = countFlag(cells, "accuracy_unclear=true");
+  // "could not be checked": the judge failed twice, the answer was too long
+  // to read in full, or it carried text aimed at automated checkers.
+  const failed = countFlag(cells, "accuracy_failed=");
+  const unclear = countFlag(cells, "accuracy_unclear=true") - failed;
   const unknown = countFlag(cells, "judge=DENY");
-  const breakdown = `Of the ${measurableCount} scored ${measurableCount === 1 ? "answer" : "answers"}, ${correct} described your site correctly, ${wrong} described it as something it is not, ${unclear} did not say enough to check, and ${unknown} did not show that the model knew your site.`;
+  const breakdown = `Of the ${measurableCount} scored ${measurableCount === 1 ? "answer" : "answers"}, ${correct} described your site correctly, ${wrong} described it as something it is not, ${unclear} did not say enough to check, ${
+    failed > 0 ? `${failed} could not be checked (scored 0), ` : ""
+  }and ${unknown} did not show that the model knew your site.`;
 
   const subChecks: Dim6SubCheck[] = [
     {
@@ -220,17 +236,17 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
         ? `${dnRate}% of scored test answers named your domain and described your site correctly. ${breakdown} ${summary}`
         : result.accuracyBlocked === true
           ? `${dnRate}% of scored test answers named your domain. ${accuracyBlockedNote(countFlag(cells, "accuracy_blocked=true"))} ${summary}`
-          : `${dnRate}% of scored test answers named your domain. ${ACCURACY_NOT_CHECKED_NOTE} ${summary}`,
+          : `${dnRate}% of scored test answers named your domain. ${accuracyNotCheckedNote(countFlag(cells, "accuracy_not_checked=true"))} ${summary}`,
     },
+    // Only CORRECT answers carry the url/context flags (fail closed), so
+    // these rates always count correctly described answers.
     {
       id: SUBCHECK_IDS.url_referenced_rate,
       name: "Models cite your URL",
       weight: 30,
       score: urlRate,
       passed: urlRate >= 70,
-      notes: checked
-        ? `${urlRate}% of scored test answers described your site correctly and included at least one link to it.`
-        : `${urlRate}% of scored test answers included at least one link to your site.`,
+      notes: `${urlRate}% of scored test answers described your site correctly and included at least one link to it.`,
     },
     {
       id: SUBCHECK_IDS.context_relevant_rate,
@@ -238,9 +254,7 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
       weight: 20,
       score: ctxRate,
       passed: ctxRate >= 70,
-      notes: checked
-        ? `${ctxRate}% of scored test answers described your site correctly and put your domain in the first half of the answer, rather than only mentioning it at the end.`
-        : `${ctxRate}% of scored test answers put your domain in the first half of the answer, rather than only mentioning it at the end.`,
+      notes: `${ctxRate}% of scored test answers described your site correctly and put your domain in the first half of the answer, rather than only mentioning it at the end.`,
     },
     // dim6:v4: N/A without a competitor list (the cell scores give it no
     // points either, see parser.ts), so it is never a gap. With no list the
@@ -398,8 +412,9 @@ export async function runDim6Paid(
   }
 
   // dim6:v5: the site's own description, for the accuracy judge. Not
-  // verifiable → AFFIRM answers keep v4 scoring and the report says the
-  // descriptions were not checked.
+  // verifiable → AFFIRM answers score 0 (fail closed) and the report says
+  // why: no usable description (accuracy_not_checked) or an injected one
+  // (accuracy_blocked).
   const reference = await resolveSiteReference(scanUrl, env.siteFetch);
   if (!reference.verifiable) {
     console.log(`[dim6/runDim6Paid] accuracy not checked: reference ${reference.reason}`);
@@ -411,7 +426,7 @@ export async function runDim6Paid(
     competitorHosts,
     reference: reference.verifiable ? reference.text : null,
     // Injected description: the site owner is the likely attacker, so the
-    // safe direction is down (no v4 credit). Missing/short keeps not-checked.
+    // safe direction is down. Missing/short → not checked (also 0).
     referenceBlocked: !reference.verifiable && reference.reason === "injection",
   });
 
