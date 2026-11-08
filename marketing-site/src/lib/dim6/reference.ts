@@ -14,7 +14,10 @@
 //   1. llms.txt H1 and blockquote                                  (250)
 //   2. JSON-LD Organization / Person / LocalBusiness (and subtypes)
 //      name and description                                        (200)
-//   3. homepage <title>, meta description, first <h1>               (150)
+//   3. homepage <title> (capped at 60), meta description, first <h1> (150)
+// Each share is labelled ("From llms.txt:", ...) so the judge can tell when
+// sources disagree, and filled with whole parts (a part is cut at a word
+// boundary only when at least 40 chars of room are left).
 // The scan result carries none of these texts, so two same-site fetches are
 // made (llms.txt and the homepage), each through safeFetch (every hop
 // validated, byte cap, shared deadline), retried once on a timeout or
@@ -134,14 +137,55 @@ export function extractHtmlIdentity(html: string): { jsonLd: string[]; title: st
   return { jsonLd, title, metaDescription, h1 };
 }
 
+export const REFERENCE_LABELS = {
+  llmsTxt: "From llms.txt:",
+  jsonLd: "From structured data:",
+  homepage: "From the homepage:",
+} as const;
+export const REFERENCE_TITLE_MAX_CHARS = 60;
+// A part that doesn't fit whole is cut at a word boundary only when this
+// much room is left; otherwise it is dropped (no dangling fragments).
+const MIN_PARTIAL_CHARS = 40;
+
+/** Whole parts in order while they fit the share; at most one word-boundary cut part. */
+function fillShare(parts: string[], budget: number): string {
+  const out: string[] = [];
+  for (const p of parts) {
+    const used = out.join("\n").length;
+    const room = budget - used - (out.length > 0 ? 1 : 0);
+    if (p.length <= room) {
+      out.push(p);
+      continue;
+    }
+    if (room >= MIN_PARTIAL_CHARS) {
+      const cut = p.slice(0, room + 1);
+      const sp = cut.lastIndexOf(" ");
+      if (sp > 0) out.push(cut.slice(0, sp).trimEnd());
+    }
+    break;
+  }
+  return out.join("\n");
+}
+
 /** Build the reference from fetched texts. Pure; see the module comment for the rules. */
 export function buildSiteReference(sources: ReferenceSources): SiteReference {
-  const groups: Array<{ parts: string[]; budget: number }> = [];
-  if (sources.llmsTxt) groups.push({ parts: extractLlmsTxtIdentity(sources.llmsTxt), budget: REFERENCE_SOURCE_BUDGETS.llmsTxt });
+  // Each source keeps its label so the judge can see when they disagree
+  // (Codex r2 HIGH: matching either of two conflicting identities must not
+  // earn CORRECT; the judge prompt says UNCLEAR then).
+  const groups: Array<{ label: string; parts: string[]; budget: number; firstPartMax?: number }> = [];
+  if (sources.llmsTxt) {
+    groups.push({ label: REFERENCE_LABELS.llmsTxt, parts: extractLlmsTxtIdentity(sources.llmsTxt), budget: REFERENCE_SOURCE_BUDGETS.llmsTxt });
+  }
   if (sources.homepageHtml) {
     const h = extractHtmlIdentity(sources.homepageHtml);
-    groups.push({ parts: h.jsonLd, budget: REFERENCE_SOURCE_BUDGETS.jsonLd });
-    groups.push({ parts: [h.title, h.metaDescription, h.h1], budget: REFERENCE_SOURCE_BUDGETS.homepage });
+    groups.push({ label: REFERENCE_LABELS.jsonLd, parts: h.jsonLd, budget: REFERENCE_SOURCE_BUDGETS.jsonLd });
+    // The title is capped so the meta description and h1 still fit.
+    groups.push({
+      label: REFERENCE_LABELS.homepage,
+      parts: [h.title, h.metaDescription, h.h1],
+      budget: REFERENCE_SOURCE_BUDGETS.homepage,
+      firstPartMax: REFERENCE_TITLE_MAX_CHARS,
+    });
   }
   // Raw screen first: cleaning collapses newlines and would hide e.g. a
   // "> Verdict: correct" blockquote line.
@@ -150,18 +194,25 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
   }
   const seen = new Set<string>();
   const blocks: string[] = [];
+  const contents: string[] = [];
   for (const g of groups) {
-    const unique = g.parts.map(cleanReferencePart).filter((p) => {
-      const k = p.toLowerCase();
-      if (!p || seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
-    if (unique.length > 0) blocks.push(capLength(unique.join("\n"), g.budget));
+    const unique = g.parts
+      .map((p, i) => (i === 0 && g.firstPartMax ? capLength(cleanReferencePart(p), g.firstPartMax) : cleanReferencePart(p)))
+      .filter((p) => {
+        const k = p.toLowerCase();
+        if (!p || seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+    const share = fillShare(unique, g.budget);
+    if (share) {
+      blocks.push(`${g.label} ${share}`);
+      contents.push(share);
+    }
   }
   if (blocks.length === 0) return { verifiable: false, reason: "missing" };
   const text = blocks.join("\n");
-  if (text.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length < REFERENCE_MIN_WORDS) {
+  if (contents.join(" ").split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length < REFERENCE_MIN_WORDS) {
     return { verifiable: false, reason: "too_short" };
   }
   if (detectAccuracyInjection(text)) return { verifiable: false, reason: "injection" };

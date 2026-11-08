@@ -26,7 +26,9 @@ import {
   extractLlmsTxtIdentity,
   fetchReferenceSources,
   REFERENCE_MAX_CHARS,
+  REFERENCE_LABELS,
   REFERENCE_SOURCE_BUDGETS,
+  REFERENCE_TITLE_MAX_CHARS,
 } from "./reference";
 import { cellCacheKey, runLadder, scoreAffirmedCell, type LadderEnv } from "./ladder";
 import { aggregateCells } from "./orchestrator";
@@ -192,26 +194,67 @@ describe("reference description", () => {
     const r = buildSiteReference({ llmsTxt: "# Rachel Queiroz\n\n> Psicóloga clínica em Maceió para adultos e casais.", homepageHtml: HTML });
     expect(r.verifiable).toBe(true);
     if (!r.verifiable) return;
-    expect(r.text.split("\n")[0]).toBe("Rachel Queiroz");
-    expect(r.text.indexOf("Psicóloga clínica em Maceió")).toBeLessThan(r.text.indexOf("Psicóloga clínica há 20 anos"));
-    expect(r.text).toContain("Atendimento para adultos e casais em Maceió.");
+    expect(r.text).toBe(
+      [
+        "From llms.txt: Rachel Queiroz\nPsicóloga clínica em Maceió para adultos e casais.",
+        "From structured data: Rachel Queiroz: Psicóloga clínica há 20 anos.\nConsultório: Clínica em Maceió.",
+        "From the homepage: Rachel Queiroz &ndash; Psic&oacute;loga & Terapeuta\nAtendimento para adultos e casais em Maceió.\nBem- vinda",
+      ].join("\n")
+    );
   });
+
+  // Content of one labelled share: from its label to the next label.
+  const shareOf = (text: string, label: string) => {
+    const start = text.indexOf(label);
+    if (start < 0) return "";
+    const rest = text.slice(start + label.length + 1);
+    const next = Object.values(REFERENCE_LABELS).map((l) => rest.indexOf(`\n${l}`)).filter((i) => i >= 0);
+    return next.length ? rest.slice(0, Math.min(...next)) : rest;
+  };
 
   it("each source has its own share: a long llms.txt cannot push out the homepage evidence", () => {
     const r = buildSiteReference({ llmsTxt: `# Big\n\n> ${"word ".repeat(400)}`, homepageHtml: HTML });
     expect(r.verifiable).toBe(true);
     if (!r.verifiable) return;
-    const [llms, jsonLd, home] = r.text.split("\n").reduce<string[][]>((acc, line) => {
-      // Group lines back by source: the llms block is "Big" + words.
-      if (line === "Big" || line.startsWith("word")) acc[0].push(line);
-      else if (/^(Rachel Queiroz|Consultório):/.test(line)) acc[1].push(line);
-      else acc[2].push(line);
-      return acc;
-    }, [[], [], []]).map((g) => g.join("\n"));
-    expect(llms.length).toBeLessThanOrEqual(REFERENCE_SOURCE_BUDGETS.llmsTxt);
-    expect(jsonLd).toContain("Psicóloga clínica há 20 anos");
-    expect(home).toContain("Atendimento para adultos e casais em Maceió.");
-    expect(r.text.length).toBeLessThanOrEqual(REFERENCE_MAX_CHARS + 2);
+    expect(shareOf(r.text, REFERENCE_LABELS.llmsTxt).length).toBeLessThanOrEqual(REFERENCE_SOURCE_BUDGETS.llmsTxt);
+    expect(shareOf(r.text, REFERENCE_LABELS.jsonLd)).toContain("Psicóloga clínica há 20 anos");
+    expect(shareOf(r.text, REFERENCE_LABELS.homepage)).toContain("Atendimento para adultos e casais em Maceió.");
+    const labels = Object.values(REFERENCE_LABELS).join(" ").length + 3;
+    expect(r.text.length).toBeLessThanOrEqual(REFERENCE_MAX_CHARS + labels);
+  });
+
+  it("homepage share: the title is capped so meta/h1 fit, and no dangling fragment is left", () => {
+    const html = `<title>${"Very long title words ".repeat(10)}</title><meta name="description" content="A clinic for adults and couples in Lisbon, in person or online."><h1>“A good life is a process, not a state”</h1>`;
+    const r = buildSiteReference({ homepageHtml: html });
+    expect(r.verifiable).toBe(true);
+    if (!r.verifiable) return;
+    const home = shareOf(r.text, REFERENCE_LABELS.homepage);
+    const [title, meta, ...rest] = home.split("\n");
+    expect(title.length).toBeLessThanOrEqual(REFERENCE_TITLE_MAX_CHARS);
+    expect(meta).toBe("A clinic for adults and couples in Lisbon, in person or online.");
+    expect(home.length).toBeLessThanOrEqual(REFERENCE_SOURCE_BUDGETS.homepage);
+    // The h1 did not fit and fewer than 40 chars were left: dropped, not cut to "“A".
+    expect(rest).toEqual([]);
+    expect(home).not.toMatch(/“A$/);
+  });
+
+  it("conflicting sources: the prompt carries the labels and the UNCLEAR rule; the judge's UNCLEAR is kept", async () => {
+    const r = buildSiteReference({
+      llmsTxt: "# Rachel de Queiroz\n\n> The life and work of the famous Brazilian author Rachel de Queiroz, novelist and journalist.",
+      homepageHtml: "<title>Rachel Queiroz – Psicóloga Clínica</title><meta name=\"description\" content=\"Psicoterapia para adultos e casais em Maceió.\">",
+    });
+    expect(r.verifiable).toBe(true);
+    if (!r.verifiable) return;
+    expect(r.text).toContain("From llms.txt: Rachel de Queiroz");
+    expect(r.text).toContain("From the homepage: Rachel Queiroz – Psicóloga Clínica");
+    const { AI, calls } = fakeAi({ [ACCURACY_MODEL]: "UNCLEAR" });
+    const v = await judgeAccuracy({ AI }, "rachelqueiroz.com", r.text, "rachelqueiroz.com is a clinical psychologist's site in Maceió.");
+    expect(v).toEqual({ kind: "unclear" });
+    const p = calls[0].prompt;
+    for (const l of Object.values(REFERENCE_LABELS)) expect(p).toContain(l);
+    expect(p).toContain("If they describe different people or different kinds of business");
+    expect(p).toContain("answer UNCLEAR, whatever the answer says");
+    expect(p).toContain("CORRECT: the sources agree");
   });
 
   it("a failed fetch (network) is retried once; a 404 is not", async () => {
@@ -236,7 +279,7 @@ describe("reference description", () => {
     const zw = String.fromCharCode(0x200b);
     const bidi = String.fromCharCode(0x202e);
     const r = buildSiteReference({ llmsTxt: `# Acme${zw} Clinic\n\n> We treat${bidi} adults and couples in Maceió.` });
-    expect(r).toEqual({ verifiable: true, text: "Acme Clinic\nWe treat adults and couples in Maceió." });
+    expect(r).toEqual({ verifiable: true, text: "From llms.txt: Acme Clinic\nWe treat adults and couples in Maceió." });
   });
 
   it("missing or very short → not verifiable", () => {
