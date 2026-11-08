@@ -212,12 +212,20 @@ export function pickEvidenceQuote(text: string, domain: string): string {
   return cut ? `${q}…` : q;
 }
 
+const HEDGE_RE = /\b(?:I don't|I do not|don't have|not familiar|no (?:specific |current )?information|as of my last)\b/i;
+
 /**
  * Up to EVIDENCE_MAX_QUOTES WRONG answers, in cell order, one per model first
  * (so the examples show which models got it wrong), then filled in order.
  */
 export function pickWrongAnswerQuotes(cells: CellEnvelope[], domain: string): Array<{ model: string; quote: string }> {
-  const wrong = cells.filter((c) => !c.result.unmeasurable && c.result.text && c.result.notes.includes("misidentified=true"));
+  // Prefer answers whose quote states the wrong identity outright over hedged
+  // ones ("I don't have specific information… could be…"), whose 25-word
+  // quote often ends before the wrong identity appears. Stable: cell order
+  // is kept within each group.
+  const hedged = (c: CellEnvelope) => HEDGE_RE.test(pickEvidenceQuote(c.result.text ?? "", domain));
+  const flagged = cells.filter((c) => !c.result.unmeasurable && c.result.text && c.result.notes.includes("misidentified=true"));
+  const wrong = [...flagged.filter((c) => !hedged(c)), ...flagged.filter(hedged)];
   const chosen: CellEnvelope[] = [];
   for (const c of wrong) {
     if (chosen.length < EVIDENCE_MAX_QUOTES && !chosen.some((x) => x.modelId === c.modelId)) chosen.push(c);

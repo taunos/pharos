@@ -775,6 +775,17 @@ describe("report output", () => {
     expect(pickWrongAnswerQuotes(cells, "acme.com").map((q) => q.model)).toEqual(["Gemini", "ChatGPT", "Gemini"]);
   });
 
+  it("prefers a model's outright wrong answer over a hedged one (real run 2026-11-08)", () => {
+    const hedgedFirst = [
+      env("openai:gpt-4o", "q6", WRONG, "As of my last update, I don't have specific information about the website acme.com. However, based on the name, it could potentially be related to Acme Corp, a rocket maker known worldwide for its many products and its long history."),
+      env("openai:gpt-4o", "q10", WRONG, "Acme.com is a website dedicated to Acme Corp, a rocket maker."),
+    ];
+    expect(pickWrongAnswerQuotes(hedgedFirst, "acme.com")).toEqual([
+      { model: "ChatGPT", quote: "Acme.com is a website dedicated to Acme Corp, a rocket maker." },
+      { model: "ChatGPT", quote: expect.stringMatching(/^As of my last update/) },
+    ]);
+  });
+
   it("no wrong answers → no informational row; not checked → fail-closed note with the fix, no row", () => {
     const ok = aggregateCells([cells[0], cells[6]], true);
     expect(buildSubChecks(ok, false, "acme.com").map((s) => s.id)).not.toContain("citation_misidentified_answers");
