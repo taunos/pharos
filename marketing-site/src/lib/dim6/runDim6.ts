@@ -20,7 +20,7 @@ import {
   type Dim6Result,
 } from "./types";
 import { DIM6_ENGINE_LINE } from "./disclosure";
-import { resolveSiteReference } from "./reference";
+import { REFERENCE_MAX_ENTITIES, resolveSiteReference } from "./reference";
 import { canonicalDomain } from "./question-set";
 import type { FetchLike } from "../safe-fetch";
 import { capLength, collapseWhitespace, stripUnsafeChars } from "../llm-safety";
@@ -137,6 +137,18 @@ export const accuracyNotCheckedNote = (notChecked: number) =>
       : `${knewYourSite(notChecked, "could not be checked and were", "could not be checked and was")} not counted (scored 0)`
   }. To fix this, say who you are and what you do in an llms.txt file, in structured data, or in your homepage title and description.`;
 
+/**
+ * dim6:v5: domain-named note addition when the homepage structured data
+ * describes more than REFERENCE_MAX_ENTITIES people or businesses (fail
+ * closed: we can't tell which one the site is about).
+ */
+export const accuracyTooManyEntitiesNote = (notChecked: number) =>
+  `Your homepage's structured data describes more than ${REFERENCE_MAX_ENTITIES} different people or businesses, so we could not tell which one your site is, and ${
+    notChecked === 0
+      ? "an answer that said the model knew your site could not have been checked or counted"
+      : `${knewYourSite(notChecked, "could not be checked and were", "could not be checked and was")} not counted (scored 0)`
+  }. To fix this, describe your own business or yourself in your structured data (as an Organization, LocalBusiness or Person), not every person or business you mention.`;
+
 /** dim6:v5: domain-named note addition when the site's description tripped the injection screen. */
 export const accuracyBlockedNote = (blocked: number) =>
   `We could not check these answers against your site's own description, because that description contains text aimed at automated checkers. So ${
@@ -238,7 +250,7 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
         ? `${dnRate}% of scored test answers named your domain and matched how your site describes itself. ${breakdown} ${summary}`
         : result.accuracyBlocked === true
           ? `${dnRate}% of scored test answers named your domain. ${accuracyBlockedNote(countFlag(cells, "accuracy_blocked=true"))} ${summary}`
-          : `${dnRate}% of scored test answers named your domain. ${accuracyNotCheckedNote(countFlag(cells, "accuracy_not_checked=true"))} ${summary}`,
+          : `${dnRate}% of scored test answers named your domain. ${(result.accuracyNotCheckedReason === "too_many_entities" ? accuracyTooManyEntitiesNote : accuracyNotCheckedNote)(countFlag(cells, "accuracy_not_checked=true"))} ${summary}`,
     },
     // Only CORRECT answers carry the url/context flags (fail closed), so
     // these rates always count correctly described answers.
@@ -431,6 +443,9 @@ export async function runDim6Paid(
     // safe direction is down. Missing/short → not checked (also 0).
     referenceBlocked: !reference.verifiable && reference.reason === "injection",
   });
+  if (!reference.verifiable && reference.reason === "too_many_entities") {
+    result.accuracyNotCheckedReason = "too_many_entities";
+  }
 
   // Every cell unmeasurable → na:true.
   if (result.score === null) {

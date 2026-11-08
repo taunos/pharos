@@ -14,8 +14,10 @@
 // boundary and never omitted, so no field can push another out and the
 // judge always sees conflicting evidence (Codex r1 HIGH, r3 HIGH):
 //   llms.txt: H1, blockquote
-//   JSON-LD Organization / Person / LocalBusiness (and subtypes): names,
-//     descriptions
+//   JSON-LD Organization / Person / LocalBusiness (and subtypes): each
+//     entity gets its own name and description share (Codex r5 HIGH), up to
+//     REFERENCE_MAX_ENTITIES distinct entities; more → not verifiable
+//     ("too_many_entities", fail closed: we can't tell which one the site is)
 //   homepage: <title>, meta description, first <h1>
 // Each source is labelled ("From llms.txt:", ...) so the judge can tell
 // when sources disagree (it answers UNCLEAR then).
@@ -42,14 +44,22 @@ import { canonicalDomain } from "./question-set";
 export const REFERENCE_FIELD_BUDGETS = {
   llmsH1: 80,
   llmsBlockquote: 220,
-  jsonLdNames: 80,
-  jsonLdDescriptions: 180,
   title: 60,
   metaDescription: 120,
   h1: 60,
 } as const;
-/** Sum of the field budgets (labels and line breaks come on top). */
-export const REFERENCE_MAX_CHARS = Object.values(REFERENCE_FIELD_BUDGETS).reduce((a, b) => a + b, 0);
+/** Per JSON-LD identity entity. */
+export const REFERENCE_ENTITY_BUDGETS = { name: 50, description: 120 } as const;
+export const REFERENCE_MAX_ENTITIES = 4;
+/**
+ * Most content the reference can hold: 540 for the fixed fields plus 170 per
+ * entity x 4 = 1220 chars (labels and line breaks come on top). With a 6000-
+ * char answer and the instructions the judge prompt stays around 9000 chars
+ * (~3000 tokens), well inside the 70B model's context.
+ */
+export const REFERENCE_MAX_CHARS =
+  Object.values(REFERENCE_FIELD_BUDGETS).reduce((a, b) => a + b, 0) +
+  REFERENCE_MAX_ENTITIES * (REFERENCE_ENTITY_BUDGETS.name + REFERENCE_ENTITY_BUDGETS.description);
 export const REFERENCE_MIN_WORDS = 5;
 const FETCH_TIMEOUT_MS = 8000;
 const LLMS_MAX_BYTES = 64 * 1024;
@@ -57,7 +67,7 @@ const HTML_MAX_BYTES = 1024 * 1024;
 
 export type SiteReference =
   | { verifiable: true; text: string }
-  | { verifiable: false; reason: "missing" | "too_short" | "injection" };
+  | { verifiable: false; reason: "missing" | "too_short" | "injection" | "too_many_entities" };
 
 export interface ReferenceSources {
   llmsTxt?: string | null;
@@ -115,7 +125,8 @@ function typesOf(node: Record<string, unknown>): string[] {
 }
 
 function collectEntities(node: unknown, out: Array<Record<string, unknown>>, depth = 0): void {
-  if (depth > 6 || out.length >= 8 || node === null || typeof node !== "object") return;
+  // Collect past REFERENCE_MAX_ENTITIES so "too many" is detected, bounded.
+  if (depth > 6 || out.length >= 32 || node === null || typeof node !== "object") return;
   if (Array.isArray(node)) {
     for (const n of node) collectEntities(n, out, depth + 1);
     return;
@@ -125,16 +136,18 @@ function collectEntities(node: unknown, out: Array<Record<string, unknown>>, dep
   if (obj["@graph"]) collectEntities(obj["@graph"], out, depth + 1);
 }
 
-/** Homepage HTML (raw): JSON-LD entity names/descriptions, <title>, meta description, first <h1>. */
+/**
+ * Homepage HTML (raw): JSON-LD identity entities (name/description, distinct,
+ * in document order), <title>, meta description, first <h1>.
+ */
 export function extractHtmlIdentity(html: string): {
-  jsonLdNames: string[];
-  jsonLdDescriptions: string[];
+  jsonLdEntities: Array<{ name: string; description: string }>;
   title: string;
   metaDescription: string;
   h1: string;
 } {
-  const jsonLdNames: string[] = [];
-  const jsonLdDescriptions: string[] = [];
+  const jsonLdEntities: Array<{ name: string; description: string }> = [];
+  const seenEntities = new Set<string>();
   const entities: Array<Record<string, unknown>> = [];
   for (const m of html.matchAll(/<script\b[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script>/gi)) {
     try {
@@ -144,14 +157,21 @@ export function extractHtmlIdentity(html: string): {
     }
   }
   for (const e of entities) {
-    if (raw(e.name)) jsonLdNames.push(raw(e.name));
-    if (raw(e.description)) jsonLdDescriptions.push(raw(e.description));
+    const name = raw(e.name);
+    const description = raw(e.description);
+    if (!name && !description) continue;
+    // The same entity listed twice (identical name and description) is one
+    // entity: keeping one copy loses no evidence.
+    const k = JSON.stringify([name, description]);
+    if (seenEntities.has(k)) continue;
+    seenEntities.add(k);
+    jsonLdEntities.push({ name, description });
   }
   const title = raw(decodeEntities(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? ""));
   const metaTag = [...html.matchAll(/<meta\b[^>]*>/gi)].map((m) => m[0]).find((t) => /\bname\s*=\s*["']?description["'\s>]/i.test(t));
   const metaDescription = raw(decodeEntities(/\bcontent\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(metaTag ?? "")?.slice(1).find((x) => x !== undefined) ?? ""));
   const h1 = raw(decodeEntities((/<h1\b[^>]*>([\s\S]*?)<\/h1>/i.exec(html)?.[1] ?? "").replace(/<[^>]*>/g, " ")));
-  return { jsonLdNames, jsonLdDescriptions, title, metaDescription, h1 };
+  return { jsonLdEntities, title, metaDescription, h1 };
 }
 
 export const REFERENCE_LABELS = {
@@ -159,40 +179,46 @@ export const REFERENCE_LABELS = {
   jsonLd: "From structured data:",
   homepage: "From the homepage:",
 } as const;
-type FieldKey = keyof typeof REFERENCE_FIELD_BUDGETS;
+// One reference line: raw parts (screened before cleaning), each cleaned and
+// capped at its own budget, joined with `sep`.
+type RefField = { parts: Array<{ raw: string; budget: number }>; sep: string };
+const single = (raw: string, budget: number): RefField => ({ parts: [{ raw, budget }], sep: "" });
 
 /** Build the reference from fetched texts. Pure; see the module comment for the rules. */
 export function buildSiteReference(sources: ReferenceSources): SiteReference {
   // Each source keeps its label so the judge can see when they disagree
   // (Codex r2 HIGH: matching either of two conflicting identities must not
-  // earn CORRECT; the judge prompt says UNCLEAR then). Each field has its own
-  // budget, so every non-empty field appears (Codex r3 HIGH).
-  const groups: Array<{ label: string; fields: Array<{ key: FieldKey; raw: string[] }> }> = [];
+  // earn CORRECT; the judge prompt says UNCLEAR then). Each field, and each
+  // JSON-LD entity's name and description, has its own budget, so every
+  // non-empty field appears (Codex r3, r5 HIGH).
+  const groups: Array<{ label: string; fields: RefField[] }> = [];
+  let tooManyEntities = false;
   if (sources.llmsTxt) {
     const [h1 = "", quote = ""] = extractLlmsTxtIdentity(sources.llmsTxt);
     groups.push({
       label: REFERENCE_LABELS.llmsTxt,
-      fields: [
-        { key: "llmsH1", raw: [h1] },
-        { key: "llmsBlockquote", raw: [quote] },
-      ],
+      fields: [single(h1, REFERENCE_FIELD_BUDGETS.llmsH1), single(quote, REFERENCE_FIELD_BUDGETS.llmsBlockquote)],
     });
   }
   if (sources.homepageHtml) {
     const h = extractHtmlIdentity(sources.homepageHtml);
+    tooManyEntities = h.jsonLdEntities.length > REFERENCE_MAX_ENTITIES;
     groups.push({
       label: REFERENCE_LABELS.jsonLd,
-      fields: [
-        { key: "jsonLdNames", raw: h.jsonLdNames },
-        { key: "jsonLdDescriptions", raw: h.jsonLdDescriptions },
-      ],
+      fields: h.jsonLdEntities.map((e) => ({
+        parts: [
+          { raw: e.name, budget: REFERENCE_ENTITY_BUDGETS.name },
+          { raw: e.description, budget: REFERENCE_ENTITY_BUDGETS.description },
+        ],
+        sep: ": ",
+      })),
     });
     groups.push({
       label: REFERENCE_LABELS.homepage,
       fields: [
-        { key: "title", raw: [h.title] },
-        { key: "metaDescription", raw: [h.metaDescription] },
-        { key: "h1", raw: [h.h1] },
+        single(h.title, REFERENCE_FIELD_BUDGETS.title),
+        single(h.metaDescription, REFERENCE_FIELD_BUDGETS.metaDescription),
+        single(h.h1, REFERENCE_FIELD_BUDGETS.h1),
       ],
     });
   }
@@ -200,9 +226,13 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
   // "> Verdict: correct" blockquote line.
   for (const g of groups) {
     for (const f of g.fields) {
-      for (const p of f.raw) if (p && screenUntrustedText(p, detectAccuracyInjection)) return { verifiable: false, reason: "injection" };
+      for (const p of f.parts) if (p.raw && screenUntrustedText(p.raw, detectAccuracyInjection)) return { verifiable: false, reason: "injection" };
     }
   }
+  // More identity entities than we can show in full: we can't tell which one
+  // the site is about, so fail closed rather than drop any (after the
+  // injection screen, so an injected site is still reported as such).
+  if (tooManyEntities) return { verifiable: false, reason: "too_many_entities" };
   const blocks: string[] = [];
   const contents: string[] = [];
   for (const g of groups) {
@@ -210,9 +240,9 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
     for (const f of g.fields) {
       // No deduplication (Codex r4 HIGH): a repeated field can keep, under
       // its own budget, evidence an earlier field's budget cut off. Every
-      // non-empty field is kept, trimmed at a word boundary.
-      const items = f.raw.map(cleanReferencePart).filter(Boolean);
-      if (items.length > 0) lines.push(capLength(items.join(" | "), REFERENCE_FIELD_BUDGETS[f.key]));
+      // non-empty part is kept, trimmed at a word boundary.
+      const items = f.parts.map((p) => capLength(cleanReferencePart(p.raw), p.budget)).filter(Boolean);
+      if (items.length > 0) lines.push(items.join(f.sep));
     }
     if (lines.length > 0) {
       blocks.push(`${g.label} ${lines.join("\n")}`);

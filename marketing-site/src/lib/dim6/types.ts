@@ -123,4 +123,7 @@ export interface Dim6Result {
   // dim6:v5: the site's own description tripped the injection screen, so
   // AFFIRM answers were not counted (score 0, accuracy_blocked=true).
   accuracyBlocked?: boolean;
+  // dim6:v5: why accuracy was not checked, when the report explains it
+  // differently from "no clear description" (set by runDim6Paid).
+  accuracyNotCheckedReason?: "too_many_entities";
 }
