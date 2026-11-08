@@ -214,10 +214,12 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
   // answers only (WRONG / UNCLEAR cells carry no domain_named etc. flags).
   const correct = countFlag(cells, "accuracy=CORRECT");
   const wrong = countFlag(cells, "misidentified=true");
-  // "could not be checked": the judge failed twice, the answer was too long
-  // to read in full, or it carried text aimed at automated checkers.
-  const failed = countFlag(cells, "accuracy_failed=");
-  const unclear = countFlag(cells, "accuracy_unclear=true") - failed;
+  // "could not be checked": a judge failed twice (affirmation or accuracy),
+  // the answer was too long to read in full, or it carried text aimed at
+  // automated checkers.
+  const accuracyFailed = countFlag(cells, "accuracy_failed=");
+  const failed = accuracyFailed + countFlag(cells, "affirmation_failed=true");
+  const unclear = countFlag(cells, "accuracy_unclear=true") - accuracyFailed;
   const unknown = countFlag(cells, "judge=DENY");
   const breakdown = `Of the ${measurableCount} scored ${measurableCount === 1 ? "answer" : "answers"}, ${correct} matched how your site describes itself, ${wrong} described a different person or business than your site says it is, ${unclear} did not say enough to check, ${
     failed > 0 ? `${failed} could not be checked (scored 0), ` : ""

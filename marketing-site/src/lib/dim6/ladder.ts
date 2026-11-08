@@ -249,6 +249,19 @@ export function scoreAffirmedCell(
   return { text, score: breakdown.score, unmeasurable: false, truncated, notes };
 }
 
+/** dim6:v5: the affirmation judge failed twice on a received answer: 0, measurable, flagged. */
+export function affirmationFailedCell(text: string, truncated: boolean): CellResult {
+  return {
+    text,
+    score: 0,
+    unmeasurable: false,
+    truncated,
+    notes: ["score=0/100", "affirmation_failed=true", truncated ? "truncated=true" : null]
+      .filter((s): s is string => s !== null)
+      .join("; "),
+  };
+}
+
 async function classifyAdapterResult(
   env: LadderEnv,
   adapter: AdapterResult,
@@ -330,10 +343,13 @@ async function classifyAdapterResult(
       const truncated = o.truncated;
 
       if (verdict.kind === "unmeasurable") {
-        return {
-          kind: "result",
-          cell: templatedFallback(`affirmation judge: ${verdict.reason}`),
-        };
+        // dim6:v5 (Codex r3 MED): a received answer the judge could not
+        // classify stays measurable at 0, so a judge failure can't drop a
+        // losing answer from the denominator. aggregateCells turns a run
+        // where EVERY received answer failed (a Workers AI outage) back into
+        // all-unmeasurable, so our outage never gives a customer a 0.
+        console.warn(`[dim6] affirmation judge failed, scoring 0: ${verdict.reason.slice(0, 120)}`);
+        return { kind: "result", cell: affirmationFailedCell(o.text, o.truncated) };
       }
 
       if (verdict.kind === "deny") {
@@ -483,8 +499,10 @@ async function writeCacheCell(
   key: string,
   cell: CellResult
 ): Promise<void> {
-  // Only measured results are cacheable (see readCache).
+  // Only measured results are cacheable (see readCache). A judge failure is
+  // our own transient failure, not a result: never replay it.
   if (cell.unmeasurable) return;
+  if (/\baffirmation_failed=true\b|\baccuracy_failed=judge_failed\b/.test(cell.notes)) return;
   await writeCache(kv, key, {
     text: cell.text,
     score: cell.score,

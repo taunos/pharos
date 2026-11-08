@@ -168,7 +168,22 @@ export async function runDim6Orchestrator(
   return aggregateCells(cells, reference !== null && !referenceBlocked, referenceBlocked);
 }
 
-export function aggregateCells(cells: CellEnvelope[], accuracyChecked = false, accuracyBlocked = false): Dim6Result {
+export function aggregateCells(input: CellEnvelope[], accuracyChecked = false, accuracyBlocked = false): Dim6Result {
+  // dim6:v5: an affirmation-judge failure scores 0 and stays measurable
+  // (ladder.ts affirmationFailedCell). If it failed on EVERY received answer
+  // the judge itself was down (Workers AI outage): those cells become
+  // unmeasurable, so the run takes the all-unmeasurable path instead of a 0.
+  const received = input.filter((c) => !c.result.unmeasurable);
+  const judgeOutage =
+    received.length > 0 && received.every((c) => c.result.notes.includes("affirmation_failed=true"));
+  const cells = judgeOutage
+    ? input.map((c) =>
+        c.result.unmeasurable
+          ? c
+          : { ...c, result: { ...c.result, score: 0, unmeasurable: true, notes: `Affirmation judge unavailable on every answer: ${c.result.notes}` } }
+      )
+    : input;
+
   // Score formula: average of all cells where unmeasurable === false.
   // Truncated cells ARE INCLUDED (per locked decision 4) — they have a real
   // score even when capped by max_tokens.

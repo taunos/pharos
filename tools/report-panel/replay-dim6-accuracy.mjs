@@ -70,7 +70,7 @@ async function bundle() {
     `export * from ${p("reference.ts")};`,
     `export { judgeAffirmation } from ${p("affirmation-judge.ts")};`,
     `export { judgeAccuracy } from ${p("accuracy-judge.ts")};`,
-    `export { scoreAffirmedCell } from ${p("ladder.ts")};`,
+    `export { scoreAffirmedCell, affirmationFailedCell } from ${p("ladder.ts")};`,
     `export { aggregateCells } from ${p("orchestrator.ts")};`,
     `export { buildSubChecks, pickEvidenceQuote, modelLabel } from ${p("runDim6.ts")};`,
     `export { canonicalDomain } from ${p("question-set.ts")};`,
@@ -115,6 +115,7 @@ console.log(reference.verifiable ? `reference (${reference.text.length} chars):\
 const verdictOf = (notes, unmeasurable) =>
   unmeasurable ? "UNMEASURABLE"
     : /accuracy_blocked=true/.test(notes) ? "BLOCKED"
+    : /affirmation_failed=true/.test(notes) ? "AFF-FAILED"
     : /accuracy=(CORRECT|WRONG|UNCLEAR)/.exec(notes)?.[1]
       ?? (/judge=(AFFIRM|DENY)/.exec(notes)?.[1] ?? "?");
 
@@ -129,7 +130,7 @@ for (const c of cells) {
   } else {
     const aff = await M.judgeAffirmation({ AI }, targetUrl, text);
     if (aff.kind === "unmeasurable") {
-      result = { text, score: 0, unmeasurable: true, truncated: c.result.truncated, notes: `affirmation judge: ${aff.reason}` };
+      result = M.affirmationFailedCell(text, c.result.truncated);
     } else if (aff.kind === "deny") {
       result = { text, score: 0, unmeasurable: false, truncated: c.result.truncated, notes: `score=0/100; judge=DENY${c.result.truncated ? "; truncated=true" : ""}` };
     } else {

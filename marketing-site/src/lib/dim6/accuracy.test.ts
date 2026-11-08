@@ -29,13 +29,14 @@ import {
   REFERENCE_LABELS,
   REFERENCE_FIELD_BUDGETS,
 } from "./reference";
-import { cellCacheKey, runLadder, scoreAffirmedCell, type LadderEnv } from "./ladder";
+import { affirmationFailedCell, cellCacheKey, runLadder, scoreAffirmedCell, type LadderEnv } from "./ladder";
 import { aggregateCells } from "./orchestrator";
 import { detectJudgeInjection, judgeAffirmation } from "./affirmation-judge";
 import { screenUntrustedText, stripUnsafeChars, stripUnsafeCharsKeepLines } from "../llm-safety";
 import {
   accuracyNotCheckedNote,
   accuracyBlockedNote,
+  dim6AllUnmeasurableNote,
   buildSubChecks,
   pickEvidenceQuote,
   pickWrongAnswerQuotes,
@@ -609,6 +610,48 @@ describe("affirmation judge screens the raw answer too", () => {
     const { AI, calls } = fakeAi({ "@cf/meta/llama-3.1-8b-instruct-fp8": "AFFIRM" });
     expect(await judgeAffirmation({ AI }, "https://acme.com", text)).toEqual({ kind: "deny" });
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("affirmation-judge failure (Codex r3 MED)", () => {
+  const FAILED_AFF = "score=0/100; affirmation_failed=true";
+
+  it("a failed affirmation check stays measurable at 0: one 100-point answer plus one failed check gives 50", () => {
+    expect(affirmationFailedCell("acme.com is a bakery.", false)).toEqual({
+      text: "acme.com is a bakery.",
+      score: 0,
+      unmeasurable: false,
+      truncated: false,
+      notes: FAILED_AFF,
+    });
+    const r = aggregateCells([env("openai:gpt-4o", "q1", CORRECT, "acme.com", 100), env("openai:gpt-4o", "q2", FAILED_AFF)], true);
+    expect(r.score).toBe(50);
+    expect(r.unmeasurableCount).toBe(0);
+    expect(buildSubChecks(r, false, "acme.com")[0].notes).toContain("1 could not be checked (scored 0)");
+  });
+
+  it("failed on every received answer (judge outage) → all unmeasurable, not a 0", () => {
+    const unmeasurable = { ...env("openai:gpt-4o", "q3", "x"), result: { text: null, score: 0, unmeasurable: true, truncated: false, notes: "network" } };
+    const r = aggregateCells([env("openai:gpt-4o", "q1", FAILED_AFF), env("anthropic:claude-sonnet", "q1", FAILED_AFF), unmeasurable], true);
+    expect(r.score).toBeNull();
+    expect(r.unmeasurableCount).toBe(3);
+  });
+
+  it("runDim6Paid: judge failing on every answer gives the not-measured note; failures are not cached", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    h.answer = "acme.com is a clinic in Lisbon. See https://acme.com";
+    const { runDim6Paid } = await import("./runDim6");
+    const { AI } = fakeAi({ "@cf/meta/llama-3.1-8b-instruct-fp8": "maybe?", [ACCURACY_MODEL]: "CORRECT" });
+    const store = new Map<string, string>();
+    const cacheKv = { get: async (k: string) => store.get(k) ?? null, put: async (k: string, v: string) => void store.set(k, v) } as unknown as KVNamespace;
+    const questionSetDb = { prepare() { throw new Error("no table"); } } as unknown as D1Database;
+    const siteFetch = async (url: string) =>
+      url.endsWith("/llms.txt") ? new Response("# Acme Clinic\n\n> A clinic in Lisbon treating adults and couples.", { status: 200 }) : new Response("", { status: 404 });
+    const r = await runDim6Paid({ AI, cacheKv, questionSetDb, OPENAI_API_KEY: "k", siteFetch } as never, "https://acme.com/");
+    expect(r.dimension.na).toBe(true);
+    expect(r.dimension.unmeasured).toBe(true);
+    expect(r.dimension.sub_checks[0].notes).toBe(dim6AllUnmeasurableNote(40));
+    expect([...store.keys()].filter((k) => k.startsWith("dim6:v5:"))).toEqual([]);
   });
 });
 
