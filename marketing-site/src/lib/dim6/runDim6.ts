@@ -20,6 +20,10 @@ import {
   type Dim6Result,
 } from "./types";
 import { DIM6_ENGINE_LINE } from "./disclosure";
+import { resolveSiteReference } from "./reference";
+import { canonicalDomain } from "./question-set";
+import type { FetchLike } from "../safe-fetch";
+import { capLength, collapseWhitespace, stripUnsafeChars } from "../llm-safety";
 
 export interface Dim6SubCheck {
   id: string;
@@ -83,6 +87,9 @@ const SUBCHECK_IDS = {
   url_referenced_rate: "citation_url_referenced_rate",
   context_relevant_rate: "citation_context_relevant_rate",
   no_competitor_first_rate: "citation_no_competitor_first_rate",
+  // dim6:v5: informational (na, weight 0), present only when at least one
+  // answer described the site as something it is not.
+  misidentified_answers: "citation_misidentified_answers",
 } as const;
 
 // Compute per-cell breakdown rates by re-parsing the structured notes the
@@ -115,9 +122,67 @@ export function modelLabel(modelId: string): string {
 export const COMPETITOR_FIRST_NA_NOTE =
   "Not measured: this Audit doesn't take a competitor list yet, so there is nothing to compare against. This check is not counted in your score.";
 
-function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6SubCheck[] {
+/** dim6:v5: domain-named note addition when the run had no verifiable description of the site. */
+export const ACCURACY_NOT_CHECKED_NOTE =
+  "We could not check whether these answers describe your site correctly: we could not find or read a clear description of your site on it (we look at your llms.txt file, your structured data, and your homepage title and description).";
+
+const EVIDENCE_MAX_WORDS = 25;
+const EVIDENCE_MAX_CHARS = 200;
+const EVIDENCE_MAX_QUOTES = 3;
+
+/**
+ * dim6:v5: a short, deterministic quote from a provider answer, for the
+ * wrong-description examples. Provider output is hostile: unsafe characters
+ * stripped, markdown and citation markers dropped, double quotes turned into
+ * single quotes, at most EVIDENCE_MAX_WORDS words / EVIDENCE_MAX_CHARS chars.
+ * The report renderer escapes it; it is never sent to an LLM. Starts at the
+ * first sentence that contains the domain or its first label (the brand),
+ * else at the start of the answer, and runs on across sentences up to the
+ * word cap (a lead sentence such as "No, x.com is not a local business." is
+ * then followed by what the answer says it is).
+ */
+export function pickEvidenceQuote(text: string, domain: string): string {
+  const flat = collapseWhitespace(
+    stripUnsafeChars(text.replace(/(^|\n)\s*>\s?/g, "$1").replace(/(^|\n)\s*(?:[-*•]|\d+\.)\s+/g, "$1· "))
+      .replace(/\s*\[\d+\]/g, "")
+      .replace(/[*_`#|]+/g, "")
+      .replace(/["“”]/g, "'")
+  );
+  const label = domain.split(".")[0];
+  const needles = [domain.toLowerCase(), ...(label.length >= 4 ? [label.toLowerCase()] : [])];
+  const sentences = flat.split(/(?<=[.!?])\s+/);
+  const start = Math.max(0, sentences.findIndex((s) => needles.some((n) => s.toLowerCase().includes(n))));
+  const words = sentences.slice(start).join(" ").split(" ").filter(Boolean);
+  const q = capLength(words.slice(0, EVIDENCE_MAX_WORDS).join(" "), EVIDENCE_MAX_CHARS);
+  const cut = words.length > EVIDENCE_MAX_WORDS || q.length < words.slice(0, EVIDENCE_MAX_WORDS).join(" ").length;
+  return cut ? `${q}…` : q;
+}
+
+/**
+ * Up to EVIDENCE_MAX_QUOTES WRONG answers, in cell order, one per model first
+ * (so the examples show which models got it wrong), then filled in order.
+ */
+export function pickWrongAnswerQuotes(cells: CellEnvelope[], domain: string): Array<{ model: string; quote: string }> {
+  const wrong = cells.filter((c) => !c.result.unmeasurable && c.result.text && c.result.notes.includes("misidentified=true"));
+  const chosen: CellEnvelope[] = [];
+  for (const c of wrong) {
+    if (chosen.length < EVIDENCE_MAX_QUOTES && !chosen.some((x) => x.modelId === c.modelId)) chosen.push(c);
+  }
+  for (const c of wrong) {
+    if (chosen.length < EVIDENCE_MAX_QUOTES && !chosen.includes(c)) chosen.push(c);
+  }
+  chosen.sort((a, b) => wrong.indexOf(a) - wrong.indexOf(b));
+  return chosen.map((c) => ({ model: modelLabel(c.modelId), quote: pickEvidenceQuote(c.result.text ?? "", domain) }));
+}
+
+function countFlag(cells: CellEnvelope[], flag: string): number {
+  return cells.filter((c) => !c.result.unmeasurable && c.result.notes.includes(flag)).length;
+}
+
+export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, domain = ""): Dim6SubCheck[] {
   const cells = result.cells;
   const measurableCount = cells.length - result.unmeasurableCount;
+  const checked = result.accuracyChecked === true;
 
   const dnRate = rateOf(cells, "domain_named");
   const urlRate = rateOf(cells, "url_referenced");
@@ -128,14 +193,26 @@ function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6Sub
     (m) => `${modelLabel(m)} ${result.perModelAverage[m] ?? "not measured"}`
   ).join(", ")}.`;
 
-  return [
+  // dim6:v5: counts of the four answer kinds. Rates above count CORRECT
+  // answers only (WRONG / UNCLEAR cells carry no domain_named etc. flags).
+  const correct = countFlag(cells, "accuracy=CORRECT");
+  const wrong = countFlag(cells, "misidentified=true");
+  const unclear = countFlag(cells, "accuracy_unclear=true");
+  const unknown = countFlag(cells, "judge=DENY");
+  const breakdown = `Of the ${measurableCount} scored ${measurableCount === 1 ? "answer" : "answers"}, ${correct} described your site correctly, ${wrong} described it as something it is not, ${unclear} did not say enough to check, and ${unknown} did not show that the model knew your site.`;
+
+  const subChecks: Dim6SubCheck[] = [
     {
       id: SUBCHECK_IDS.domain_named_rate,
       name: "Models name your domain",
       weight: 40,
       score: dnRate,
       passed: dnRate >= 70,
-      notes: `${dnRate}% of scored test answers named your domain. ${summary}`,
+      // Keep "<m> of <t> test answers could be scored ... Average by model:
+      // ..." last: audit-executive-summary.ts citationCoverage parses it.
+      notes: checked
+        ? `${dnRate}% of scored test answers named your domain and described your site correctly. ${breakdown} ${summary}`
+        : `${dnRate}% of scored test answers named your domain. ${ACCURACY_NOT_CHECKED_NOTE} ${summary}`,
     },
     {
       id: SUBCHECK_IDS.url_referenced_rate,
@@ -143,7 +220,9 @@ function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6Sub
       weight: 30,
       score: urlRate,
       passed: urlRate >= 70,
-      notes: `${urlRate}% of scored test answers included at least one link to your site.`,
+      notes: checked
+        ? `${urlRate}% of scored test answers described your site correctly and included at least one link to it.`
+        : `${urlRate}% of scored test answers included at least one link to your site.`,
     },
     {
       id: SUBCHECK_IDS.context_relevant_rate,
@@ -151,7 +230,9 @@ function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6Sub
       weight: 20,
       score: ctxRate,
       passed: ctxRate >= 70,
-      notes: `${ctxRate}% of scored test answers put your domain in the first half of the answer, rather than only mentioning it at the end.`,
+      notes: checked
+        ? `${ctxRate}% of scored test answers described your site correctly and put your domain in the first half of the answer, rather than only mentioning it at the end.`
+        : `${ctxRate}% of scored test answers put your domain in the first half of the answer, rather than only mentioning it at the end.`,
     },
     // dim6:v4: N/A without a competitor list (the cell scores give it no
     // points either, see parser.ts), so it is never a gap. With no list the
@@ -175,6 +256,28 @@ function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6Sub
           na: true,
         },
   ];
+
+  // dim6:v5: wrong-description examples as an informational row (na, weight
+  // 0): no scoring or weight change, never a gap, and the hostile quotes stay
+  // out of the domain-named note the executive summary parses.
+  if (checked && wrong > 0) {
+    const quotes = pickWrongAnswerQuotes(cells, domain);
+    const lead =
+      wrong === 1
+        ? `1 of the ${measurableCount} scored answers described your site as something it is not; it counts as 0 in the checks above.`
+        : `${wrong} of the ${measurableCount} scored answers described your site as something it is not; they count as 0 in the checks above.`;
+    const examples = quotes.length > 0 ? ` ${quotes.length === 1 ? "Example" : "Examples"}: ${quotes.map((q) => `${q.model}: "${q.quote}"`).join("; ")}.` : "";
+    subChecks.push({
+      id: SUBCHECK_IDS.misidentified_answers,
+      name: "Answers that described your site as something it is not",
+      weight: 0,
+      score: 0,
+      passed: false,
+      notes: `${lead}${examples} This row is for information and is not counted again in your score.`,
+      na: true,
+    });
+  }
+  return subChecks;
 }
 
 /** Daily-cap note shown on a report that ships without Citation Visibility. */
@@ -240,6 +343,10 @@ export interface Dim6PaidEnv extends OrchestratorEnv {
   // Same KV used for the Dim 6 cell cache; we also use it for the daily-cap
   // counter. Distinct key prefix `dim6:budget:` so cache eviction never
   // bumps the counter.
+  //
+  // dim6:v5: fetch used for the site's own description (llms.txt + homepage,
+  // reference.ts). Defaults to the global fetch; tests inject a stub.
+  siteFetch?: FetchLike;
 }
 
 /**
@@ -282,10 +389,19 @@ export async function runDim6Paid(
     // KV write failure is non-fatal — we'll just slightly over-spend.
   }
 
+  // dim6:v5: the site's own description, for the accuracy judge. Not
+  // verifiable → AFFIRM answers keep v4 scoring and the report says the
+  // descriptions were not checked.
+  const reference = await resolveSiteReference(scanUrl, env.siteFetch);
+  if (!reference.verifiable) {
+    console.log(`[dim6/runDim6Paid] accuracy not checked: reference ${reference.reason}`);
+  }
+
   const result = await runDim6Orchestrator(env, {
     scanUrl,
     signals,
     competitorHosts,
+    reference: reference.verifiable ? reference.text : null,
   });
 
   // Every cell unmeasurable → na:true.
@@ -316,7 +432,7 @@ export async function runDim6Paid(
     };
   }
 
-  const subChecks = buildSubChecks(result, competitorHosts.length > 0);
+  const subChecks = buildSubChecks(result, competitorHosts.length > 0, canonicalDomain(scanUrl) ?? "");
   const score = result.score; // already aggregated 0-100
 
   return {

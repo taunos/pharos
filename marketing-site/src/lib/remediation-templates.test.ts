@@ -213,7 +213,8 @@ describe("template coverage", () => {
 
   it("every Dim 6 sub-check id built by runDim6 has a template", () => {
     const src = readFileSync(new URL("./dim6/runDim6.ts", import.meta.url), "utf8");
-    const ids = [...src.matchAll(/: "(citation_[a-z_]+)"/g)].map((m) => m[1]);
+    // dim6:v5 citation_misidentified_answers is informational (always na), never a gap.
+    const ids = [...src.matchAll(/: "(citation_[a-z_]+)"/g)].map((m) => m[1]).filter((id) => id !== "citation_misidentified_answers");
     expect(ids).toHaveLength(4);
     for (const id of ids) expect(REMEDIATION_CHECK_IDS).toContain(id);
   });

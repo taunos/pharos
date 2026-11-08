@@ -84,7 +84,7 @@ export function detectJudgeInjection(text: string): string | null {
   return null;
 }
 
-function randomTag(): string {
+export function randomTag(): string {
   const b = new Uint8Array(6);
   crypto.getRandomValues(b);
   return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");

@@ -41,6 +41,9 @@ export interface OrchestratorInput {
     titleTag?: string | null;
   };
   competitorHosts?: string[];
+  // dim6:v5: verifiable reference description of the site (reference.ts).
+  // null/absent → accuracy is not checked on this run.
+  reference?: string | null;
 }
 
 // Defensive fallback synthesis. Per CC-1 + Task 8: handles anything from
@@ -94,6 +97,7 @@ export async function runDim6Orchestrator(
   input: OrchestratorInput
 ): Promise<Dim6Result> {
   const { scanUrl, signals = {}, competitorHosts = [] } = input;
+  const reference = input.reference ?? null;
 
   // Prompt set (Task 7): stored per canonical domain, generated on first use.
   const queries = await resolveQuestionSet(env, scanUrl, signals);
@@ -128,6 +132,7 @@ export async function runDim6Orchestrator(
             prompt: query.text,
             targetUrl,
             competitorHosts,
+            reference,
           }),
       });
     }
@@ -155,10 +160,10 @@ export async function runDim6Orchestrator(
     });
   }
 
-  return aggregateCells(cells);
+  return aggregateCells(cells, reference !== null);
 }
 
-export function aggregateCells(cells: CellEnvelope[]): Dim6Result {
+export function aggregateCells(cells: CellEnvelope[], accuracyChecked = false): Dim6Result {
   // Score formula: average of all cells where unmeasurable === false.
   // Truncated cells ARE INCLUDED (per locked decision 4) — they have a real
   // score even when capped by max_tokens.
@@ -196,6 +201,7 @@ export function aggregateCells(cells: CellEnvelope[]): Dim6Result {
     perModelAverage,
     unmeasurableCount,
     totalCells,
+    accuracyChecked,
   };
 }
 

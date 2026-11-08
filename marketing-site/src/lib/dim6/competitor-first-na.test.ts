@@ -29,7 +29,7 @@ vi.mock("./orchestrator", () => ({
 }));
 
 import { scoreResponse } from "./parser";
-import { runDim6Paid, COMPETITOR_FIRST_NA_NOTE, modelLabel } from "./runDim6";
+import { runDim6Paid as runDim6PaidReal, COMPETITOR_FIRST_NA_NOTE, ACCURACY_NOT_CHECKED_NOTE, modelLabel } from "./runDim6";
 import { citationCoverage } from "../audit-executive-summary";
 import { generatePromptSet } from "./promptset";
 import { buildRemediationGaps } from "../audit-pipeline";
@@ -40,9 +40,15 @@ const kv = () => {
   return { get: async (k: string) => m.get(k) ?? null, put: async (k: string, v: string) => void m.set(k, v) } as unknown as KVNamespace;
 };
 
+// dim6:v5: no network in tests. The site has no description → accuracy not
+// checked (the mocked orchestrator result carries no accuracyChecked either).
+const noSite = async () => new Response("", { status: 404 });
+const runDim6Paid: typeof runDim6PaidReal = (env, ...rest) =>
+  runDim6PaidReal({ siteFetch: noSite, ...(env as object) } as unknown as typeof env, ...rest);
+
 describe("dim6:v4 competitor-first N/A", () => {
   it("engine and question-set versions are bumped", () => {
-    expect(DIM6_ENGINE_VERSION).toBe("dim6:v4");
+    expect(DIM6_ENGINE_VERSION).toBe("dim6:v5");
     expect(DIM6_QUESTION_SET_VERSION).toBe("dim6-qs:v3");
   });
 
@@ -70,7 +76,7 @@ describe("dim6:v4 competitor-first N/A", () => {
     const r = await runDim6Paid({ cacheKv: kv() } as never, "https://acme.com/", {}, ["rival.com"]);
     const notes = Object.fromEntries(r.dimension.sub_checks.map((s) => [s.id, s.notes]));
     expect(notes.citation_domain_named_rate).toBe(
-      "33% of scored test answers named your domain. 3 of 3 test answers could be scored, across 4 AI models. Average by model: ChatGPT 33, Claude 33, Gemini 33, Perplexity 33.",
+      `33% of scored test answers named your domain. ${ACCURACY_NOT_CHECKED_NOTE} 3 of 3 test answers could be scored, across 4 AI models. Average by model: ChatGPT 33, Claude 33, Gemini 33, Perplexity 33.`,
     );
     expect(notes.citation_url_referenced_rate).toBe("33% of scored test answers included at least one link to your site.");
     expect(notes.citation_context_relevant_rate).toBe(
