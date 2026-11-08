@@ -441,6 +441,81 @@ describe("collection limits: none can hide evidence silently (Codex r6)", () => 
     );
   });
 
+  // ── Codex r10 ──
+  const AUTHOR_LLMS = "# Rachel de Queiroz\n\n> The famous Brazilian author and novelist.";
+
+  it("Codex r10 repro 1: decoy title/h1/meta inside a comment are ignored; the real clinic elements are read", () => {
+    const html = `<!-- <title>Famous author tribute</title><h1>Famous author</h1><meta name="description" content="Tribute to the famous author."> --><title>Dental clinic Maceió</title><meta name="description" content="Dentists for families in Maceió."><h1>Dental clinic</h1>`;
+    const r = buildSiteReference({ llmsTxt: AUTHOR_LLMS, homepageHtml: html });
+    expect(r.verifiable).toBe(true);
+    if (!r.verifiable) return;
+    expect(r.text).toContain(`${REFERENCE_LABELS.homepage} Dental clinic Maceió\nDentists for families in Maceió.\nDental clinic`);
+    expect(r.text).not.toContain("tribute");
+  });
+
+  it("comments: a JSON-LD decoy in a comment is ignored; comment syntax inside a JSON string is text; an unclosed comment fails closed", () => {
+    const decoy = `<!-- <script type="application/ld+json">{"@type":"Person","name":"Famous author"}</script> -->`;
+    const real = `<script type="application/ld+json">{"@type":"Dentist","name":"Dental clinic","description":"A <!-- not a comment --> clinic."}</script>`;
+    const h = extractHtmlIdentity(`${decoy}${real}<title>Site</title>`);
+    expect(h.unreadable).toBeNull();
+    expect(h.jsonLdEntities).toEqual([{ name: "Dental clinic", description: "A <!-- not a comment --> clinic." }]);
+    expect(extractHtmlIdentity(`<!--> <h1>Short comment form ends here</h1>`).h1).toBe("Short comment form ends here");
+    expect(buildSiteReference({ llmsTxt: AUTHOR_LLMS, homepageHtml: `<title>Dental clinic</title><!-- open forever <h1>x</h1>` })).toEqual({
+      verifiable: false,
+      reason: "source_unreadable",
+    });
+  });
+
+  it("markup-looking text inside title / textarea / style is not taken for tags", () => {
+    const html = `<title>Acme <h1>Famous author</h1> bakery</title><textarea><script type="application/ld+json">{"@type":"Person","name":"Famous author"}</script></textarea><style>/* <meta name="description" content="decoy"> */</style><meta name="description" content="Bread and cakes in Lisbon."><h1>Acme bakery</h1>`;
+    const h = extractHtmlIdentity(html);
+    expect(h.unreadable).toBeNull();
+    expect(h.jsonLdEntities).toEqual([]);
+    expect(h.title).toBe("Acme <h1>Famous author</h1> bakery");
+    expect(h.metaDescription).toBe("Bread and cakes in Lisbon.");
+    expect(cleanReferencePart(h.h1)).toBe("Acme bakery");
+  });
+
+  it("Codex r10 repro 2: a Dentist type, and a LocalBusiness with an @value name and an array description, are read", () => {
+    const ld = (o: object) => `<script type="application/ld+json">${JSON.stringify(o)}</script>`;
+    const dentist = buildSiteReference({ llmsTxt: AUTHOR_LLMS, homepageHtml: `${ld({ "@type": "Dentist", name: "Dental clinic", description: "Dentists in Maceió." })}<title>Site</title>` });
+    expect(dentist.verifiable && dentist.text).toContain("Dental clinic: Dentists in Maceió.");
+    const valueForms = buildSiteReference({
+      llmsTxt: AUTHOR_LLMS,
+      homepageHtml: `${ld({ "@type": "LocalBusiness", name: { "@value": "Dental clinic", "@language": "pt" }, description: ["Dentists in Maceió.", { "@value": "Open on Saturdays." }] })}<title>Site</title>`,
+    });
+    expect(valueForms.verifiable && valueForms.text).toContain("Dental clinic: Dentists in Maceió.; Open on Saturdays.");
+  });
+
+  it("types as schema.org IRIs or compact IRIs, subtypes, and @included nodes are read", () => {
+    const blocks = [
+      { "@type": "https://schema.org/Dentist", name: "One" },
+      { "@type": "http://schema.org/Restaurant", name: "Two" },
+      { "@type": "schema:LegalService", name: "Three" },
+      { "@context": "https://schema.org", "@type": "WebPage", "@included": [{ "@type": "MedicalClinic", name: "Four" }] },
+    ];
+    const h = extractHtmlIdentity(blocks.map((b) => `<script type="application/ld+json">${JSON.stringify(b)}</script>`).join(""));
+    expect(h.jsonLdEntities.map((e) => e.name)).toEqual(["One", "Two", "Three", "Four"]);
+    for (const t of ["EducationalOrganization", "Corporation", "NGO", "Store", "ProfessionalService", "Physician", "Person", "CustomThingBusiness"]) {
+      expect(extractHtmlIdentity(`<script type="application/ld+json">{"@type":"${t}","name":"X"}</script>`).jsonLdEntities, t).toHaveLength(1);
+    }
+    expect(extractHtmlIdentity(`<script type="application/ld+json">{"@type":"WebSite","name":"X"}</script>`).jsonLdEntities).toHaveLength(0);
+  });
+
+  it("attribute values are decoded before comparing: application/ld&#43;json and name=&quot;description&quot;-style encodings", () => {
+    const h = extractHtmlIdentity(
+      `<script type="application/ld&#43;json">{"@type":"Dentist","name":"Dental clinic"}</script><script type="application&sol;ld&plus;json">{"@type":"Store","name":"Shop"}</script><meta name="&#100;escription" content="Dentists in Maceió.">`
+    );
+    expect(h.jsonLdEntities.map((e) => e.name)).toEqual(["Dental clinic", "Shop"]);
+    expect(h.metaDescription).toBe("Dentists in Maceió.");
+  });
+
+  it("Codex r10 repro 3: '<h1>< invalid Dental clinic</h1>' keeps 'Dental clinic'", () => {
+    const r = buildSiteReference({ llmsTxt: AUTHOR_LLMS, homepageHtml: `<title>Site</title><h1>< invalid Dental clinic</h1>` });
+    expect(r.verifiable && r.text).toContain("< invalid Dental clinic");
+    expect(cleanReferencePart(extractHtmlIdentity("<h1>a < b and 3<4, <b>bold</b> <!x></h1>").h1)).toBe("a < b and 3<4, bold");
+  });
+
   it("JSON-LD depth: within the limit it is read; deeper → not verifiable (structured_data_too_deep)", () => {
     const nest = (n: number, inner: unknown): unknown => (n === 0 ? inner : [nest(n - 1, inner)]);
     const shallow = buildSiteReference({ homepageHtml: ldPage([nest(REFERENCE_JSONLD_MAX_DEPTH - 1, CLINIC)]) });

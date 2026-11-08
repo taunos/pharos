@@ -99,7 +99,7 @@ export interface ReferenceSources {
   failure?: ReferenceFailure;
 }
 
-const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", plus: "+", sol: "/" };
 
 function decodeEntities(s: string): string {
   return s.replace(/&(#x[0-9a-f]{1,6}|#\d{1,7}|[a-z]+);/gi, (m, e: string) => {
@@ -160,11 +160,62 @@ export function extractLlmsTxtIdentity(txt: string): string[] {
   return out.filter(Boolean);
 }
 
-const ENTITY_TYPE = /^(?:Organization|Person|LocalBusiness|Corporation|NGO|ProfessionalService|Store|OnlineStore|[A-Za-z]*(?:Organization|Business))$/;
+// schema.org Organization / LocalBusiness / Person and their subtypes (Codex
+// r10: e.g. "Dentist" was missed). Static list from the schema.org type
+// hierarchy, plus any type name ending in Organization or Business.
+const IDENTITY_TYPES = new Set(
+  `Person Patient
+  Organization Airline Consortium Corporation FundingScheme GovernmentOrganization LibrarySystem NGO
+  NewsMediaOrganization OnlineBusiness OnlineStore PoliticalParty Project FundingAgency ResearchProject
+  ResearchOrganization SearchRescueOrganization WorkersUnion SportsOrganization SportsTeam
+  PerformingGroup DanceGroup MusicGroup TheaterGroup
+  EducationalOrganization CollegeOrUniversity ElementarySchool HighSchool MiddleSchool Preschool School
+  MedicalOrganization DiagnosticLab Hospital MedicalClinic Pharmacy Physician VeterinaryCare Dentist
+  LocalBusiness AnimalShelter ArchiveOrganization ChildCare DryCleaningOrLaundry EmploymentAgency InternetCafe
+  Library ProfessionalService RadioStation RealEstateAgent RecyclingCenter SelfStorage ShoppingCenter
+  TelevisionStation TouristInformationCenter TravelAgency
+  AutomotiveBusiness AutoBodyShop AutoDealer AutoPartsStore AutoRental AutoRepair AutoWash GasStation
+  MotorcycleDealer MotorcycleRepair
+  EmergencyService FireStation PoliceStation
+  EntertainmentBusiness AdultEntertainment AmusementPark ArtGallery Casino ComedyClub MovieTheater NightClub
+  FinancialService AccountingService AutomatedTeller BankOrCreditUnion InsuranceAgency
+  FoodEstablishment Bakery BarOrPub Brewery CafeOrCoffeeShop Distillery FastFoodRestaurant IceCreamShop
+  Restaurant Winery
+  GovernmentOffice PostOffice
+  HealthAndBeautyBusiness BeautySalon DaySpa HairSalon HealthClub NailSalon TattooParlor
+  HomeAndConstructionBusiness Electrician GeneralContractor HVACBusiness HousePainter Locksmith MovingCompany
+  Plumber RoofingContractor
+  LegalService Attorney Notary
+  LodgingBusiness BedAndBreakfast Campground Hostel Hotel Motel Resort VacationRental
+  MedicalBusiness CommunityHealth Dermatology DietNutrition Emergency Geriatric Gynecologic Midwifery Nursing
+  Obstetric Oncologic Optician Optometric Otolaryngologic Pediatric Physiotherapy PlasticSurgery Podiatric
+  PrimaryCare Psychiatric PublicHealth
+  SportsActivityLocation BowlingAlley ExerciseGym GolfCourse PublicSwimmingPool SkiResort SportsClub
+  StadiumOrArena TennisComplex
+  Store BikeStore BookStore ClothingStore ComputerStore ConvenienceStore DepartmentStore ElectronicsStore
+  Florist FurnitureStore GardenStore GroceryStore HardwareStore HobbyShop HomeGoodsStore JewelryStore
+  LiquorStore MensClothingStore MobilePhoneStore MovieRentalStore MusicStore OfficeEquipmentStore OutletStore
+  PawnShop PetStore ShoeStore SportingGoodsStore TireShop ToyStore WholesaleStore`.split(/\s+/)
+);
+const isIdentityType = (t: string) => IDENTITY_TYPES.has(t) || /^[A-Za-z]+(?:Organization|Business)$/.test(t);
 
+// A type as a term ("Dentist"), a schema.org IRI ("https://schema.org/Dentist",
+// "http://schema.org/Dentist") or a compact IRI ("schema:Dentist"): the local name.
 function typesOf(node: Record<string, unknown>): string[] {
   const t = node["@type"];
-  return (Array.isArray(t) ? t : [t]).filter((x): x is string => typeof x === "string").map((x) => x.replace(/^.*[/#]/, ""));
+  return (Array.isArray(t) ? t : [t]).filter((x): x is string => typeof x === "string").map((x) => x.trim().replace(/^.*[/#:]/, ""));
+}
+
+/**
+ * A JSON-LD name / description value as text: a string, an {"@value": ...}
+ * object, or an array of those (joined with "; "). Other shapes give "".
+ */
+function valueText(v: unknown, depth = 0): string {
+  if (typeof v === "string") return v.trim();
+  if (depth > 2 || v === null || typeof v !== "object") return "";
+  if (Array.isArray(v)) return v.map((x) => valueText(x, depth + 1)).filter(Boolean).join("; ");
+  const val = (v as Record<string, unknown>)["@value"];
+  return typeof val === "string" ? val.trim() : "";
 }
 
 class JsonLdTooDeep extends Error {}
@@ -182,15 +233,16 @@ function collectEntities(node: unknown, out: Array<Record<string, unknown>>, dep
     return;
   }
   const obj = node as Record<string, unknown>;
-  if (typesOf(obj).some((t) => ENTITY_TYPE.test(t))) out.push(obj);
+  if (typesOf(obj).some(isIdentityType)) out.push(obj);
   if (obj["@graph"]) collectEntities(obj["@graph"], out, depth + 1);
+  if (obj["@included"]) collectEntities(obj["@included"], out, depth + 1);
 }
 
 /**
  * Homepage HTML (raw): JSON-LD identity entities (name/description, distinct,
  * in document order), <title>, meta description, first <h1>.
  */
-export function extractHtmlIdentity(html: string): {
+export function extractHtmlIdentity(page: string): {
   jsonLdEntities: Array<{ name: string; description: string }>;
   jsonLdTooDeep: boolean;
   // Evidence we found but could not read (Codex r9: fail closed, never skip):
@@ -207,12 +259,20 @@ export function extractHtmlIdentity(html: string): {
   let jsonLdTooDeep = false;
   let unreadable: "structured_data_unreadable" | "source_unreadable" | null = null;
   const empty = { jsonLdEntities, jsonLdTooDeep, title: "", metaDescription: "", h1: "" };
+  // HTML comments are inert: blank them out (same length) so decoy markup in
+  // a comment is never read (Codex r10). An unclosed comment hides the rest
+  // of the page: fail closed.
+  const pass = blankComments(page);
+  if (pass === null) return { ...empty, unreadable: "source_unreadable" };
+  // Tags are found in `markup` (raw-text element contents blanked); element
+  // contents are read from `html`. Same length, same offsets.
+  const { html, markup } = pass;
   // ASCII-only lowercase: same length as html, so offsets found in it apply
   // to html (Codex r8 HIGH: toLowerCase() turns U+0130 into two code units).
-  const lower = asciiLower(html);
+  const lower = asciiLower(markup);
   const blocks: string[] = [];
   for (let from = 0; ; ) {
-    const tag = nextTag(html, lower, "script", from);
+    const tag = nextTag(markup, lower, "script", from);
     if (tag === null) break;
     // An unclosed script hides everything after it: fail closed.
     if (tag === "unclosed") return { ...empty, unreadable: "source_unreadable" };
@@ -239,8 +299,8 @@ export function extractHtmlIdentity(html: string): {
     }
   }
   for (const e of entities) {
-    const name = raw(e.name);
-    const description = raw(e.description);
+    const name = valueText(e.name);
+    const description = valueText(e.description);
     if (!name && !description) continue;
     // The same entity listed twice (identical name and description) is one
     // entity: keeping one copy loses no evidence.
@@ -249,18 +309,18 @@ export function extractHtmlIdentity(html: string): {
     seenEntities.add(k);
     jsonLdEntities.push({ name, description });
   }
-  const titleText = firstElementText(html, lower, "title");
-  const h1Text = firstElementText(html, lower, "h1");
+  const titleText = firstElementText(markup, html, lower, "title");
+  const h1Text = firstElementText(markup, html, lower, "h1");
   let metaDescription = "";
   let metaUnclosed = false;
   for (let from = 0; ; ) {
-    const tag = nextTag(html, lower, "meta", from);
+    const tag = nextTag(markup, lower, "meta", from);
     if (tag === null) break;
     if (tag === "unclosed") {
       metaUnclosed = true;
       break;
     }
-    if ((tag.attrs.name ?? "").trim().toLowerCase() === "description") {
+    if (decodeEntities(tag.attrs.name ?? "").trim().toLowerCase() === "description") {
       metaDescription = raw(tag.attrs.content ?? "");
       break;
     }
@@ -274,8 +334,58 @@ export function extractHtmlIdentity(html: string): {
 
 /** Same rule as the scanner's Dim 4: the media type before any ";" parameter. */
 function isJsonLdType(type: string | undefined): boolean {
-  return (type ?? "").split(";")[0].trim().toLowerCase() === "application/ld+json";
+  // Attribute values are decoded first (Codex r10: type="application/ld&#43;json").
+  return decodeEntities(type ?? "").split(";")[0].trim().toLowerCase() === "application/ld+json";
 }
+
+/**
+ * One forward pass over the page (Codex r10), two same-length outputs:
+ *   - html: HTML comments (<!-- ... -->, including the short <!--> form)
+ *     replaced by spaces, so decoy markup in a comment is never read;
+ *   - markup: the same, with the contents of script, style, textarea and
+ *     title elements also replaced by spaces, so text inside them (e.g. a
+ *     "<script>" in a title or a JSON string) is never taken for a tag.
+ * Tags are found in `markup`; element contents are read from `html`.
+ * Comment syntax inside those elements is text, not a comment.
+ * null when a comment never closes.
+ */
+export function blankComments(page: string): { html: string; markup: string } | null {
+  const lower = asciiLower(page);
+  const html: string[] = [];
+  const markup: string[] = [];
+  let copied = 0;
+  const blank = (from: number, to: number, both: boolean) => {
+    html.push(page.slice(copied, from), both ? " ".repeat(to - from) : page.slice(from, to));
+    markup.push(page.slice(copied, from), " ".repeat(to - from));
+    copied = to;
+  };
+  for (let i = 0; ; ) {
+    const lt = lower.indexOf("<", i);
+    if (lt === -1) break;
+    if (lower.startsWith("<!--", lt)) {
+      const end = lower.indexOf("-->", lt + 2);
+      if (end === -1) return null;
+      blank(lt, end + 3, true);
+      i = end + 3;
+      continue;
+    }
+    const rawEl = RAW_TEXT_ELEMENTS.find((n) => lower.startsWith(`<${n}`, lt) && isNameEnd(lower[lt + n.length + 1]));
+    if (rawEl) {
+      const tag = readTagAttrs(page, lt + rawEl.length + 1);
+      if (!tag) break; // unclosed start tag: the extractor fails closed on it
+      const close = findEndTag(lower, rawEl, tag.end + 1);
+      if (close === -1) break; // unclosed element: likewise
+      blank(tag.end + 1, close, false);
+      i = close + rawEl.length + 2;
+      continue;
+    }
+    i = lt + 1;
+  }
+  html.push(page.slice(copied));
+  markup.push(page.slice(copied));
+  return { html: html.join(""), markup: markup.join("") };
+}
+const RAW_TEXT_ELEMENTS = ["script", "style", "textarea", "title"];
 
 // ── Linear HTML scanning (Codex r7 MED) ─────────────────────────────────
 // Regexes such as /<meta\b[^>]*>/gi go quadratic on many unclosed "<meta "
@@ -373,20 +483,26 @@ function findEndTag(lower: string, name: string, from: number): number {
   return -1;
 }
 
-/** Raw inner HTML of the first <name> element: "" when absent, null when its start or end tag never closes. */
-function firstElementText(html: string, lower: string, name: string): string | null {
-  const tag = nextTag(html, lower, name, 0);
+/** Raw inner HTML (read from `html`) of the first <name> element found in `markup`: "" when absent, null when its start or end tag never closes. */
+function firstElementText(markup: string, html: string, lower: string, name: string): string | null {
+  const tag = nextTag(markup, lower, name, 0);
   if (tag === null) return "";
   if (tag === "unclosed") return null;
   const close = findEndTag(lower, name, tag.end + 1);
   return close === -1 ? null : html.slice(tag.end + 1, close);
 }
 
-/** Every tag replaced by a space, in one pass; an unclosed "<" ends the text. */
+/**
+ * Text content of an element's inner HTML, in one pass: a "<" followed by a
+ * letter, "/" or "!" starts markup, replaced by a space up to its ">"; any
+ * other "<" is text (as in a browser: "< invalid Dental clinic" stays).
+ * Markup that never closes ends the text.
+ */
 function stripTagsLinear(s: string): string {
   let out = "";
   for (let i = 0; ; ) {
-    const lt = s.indexOf("<", i);
+    let lt = s.indexOf("<", i);
+    while (lt !== -1 && !/[A-Za-z/!]/.test(s[lt + 1] ?? "")) lt = s.indexOf("<", lt + 1);
     if (lt === -1) return out + s.slice(i);
     out += `${s.slice(i, lt)} `;
     const gt = s.indexOf(">", lt + 1);
