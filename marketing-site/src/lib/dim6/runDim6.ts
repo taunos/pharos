@@ -20,6 +20,16 @@ import {
   type Dim6Result,
 } from "./types";
 import { DIM6_ENGINE_LINE } from "./disclosure";
+import {
+  REFERENCE_HTML_MAX_BYTES,
+  REFERENCE_JSONLD_MAX_DEPTH,
+  REFERENCE_LLMS_MAX_BYTES,
+  REFERENCE_MAX_ENTITIES,
+  resolveSiteReference,
+} from "./reference";
+import { canonicalDomain } from "./question-set";
+import type { FetchLike } from "../safe-fetch";
+import { capLength, collapseWhitespace, stripUnsafeChars } from "../llm-safety";
 
 export interface Dim6SubCheck {
   id: string;
@@ -83,6 +93,9 @@ const SUBCHECK_IDS = {
   url_referenced_rate: "citation_url_referenced_rate",
   context_relevant_rate: "citation_context_relevant_rate",
   no_competitor_first_rate: "citation_no_competitor_first_rate",
+  // dim6:v5: informational (na, weight 0), present only when at least one
+  // answer described a different person or business than the site says it is.
+  misidentified_answers: "citation_misidentified_answers",
 } as const;
 
 // Compute per-cell breakdown rates by re-parsing the structured notes the
@@ -115,9 +128,115 @@ export function modelLabel(modelId: string): string {
 export const COMPETITOR_FIRST_NA_NOTE =
   "Not measured: this Audit doesn't take a competitor list yet, so there is nothing to compare against. This check is not counted in your score.";
 
-function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6SubCheck[] {
+const knewYourSite = (n: number, plural: string, singular: string) =>
+  n === 1 ? `the 1 answer that said the model knew your site ${singular}` : `the ${n} answers that said the model knew your site ${plural}`;
+
+/**
+ * dim6:v5: domain-named note addition when the run had no usable description
+ * of the site (missing, unreadable or too short). Fail closed: those answers
+ * score 0.
+ */
+const notCheckedClause = (n: number) =>
+  n === 0
+    ? "an answer that said the model knew your site could not have been checked or counted"
+    : `${knewYourSite(n, "could not be checked and were", "could not be checked and was")} not counted (scored 0)`;
+
+export const accuracyNotCheckedNote = (notChecked: number) =>
+  `We could not find or read a clear description of your site on it, so ${notCheckedClause(notChecked)}. To fix this, say who you are and what you do in an llms.txt file, in structured data, or in your homepage title and description.`;
+
+/**
+ * dim6:v5: domain-named note addition when the homepage structured data
+ * describes more than REFERENCE_MAX_ENTITIES people or businesses (fail
+ * closed: we can't tell which one the site is about).
+ */
+export const accuracyTooManyEntitiesNote = (notChecked: number) =>
+  `Your homepage's structured data describes more than ${REFERENCE_MAX_ENTITIES} different people or businesses, so we could not tell which one your site is, and ${notCheckedClause(notChecked)}. To fix this, describe your own business or yourself in your structured data (as an Organization, LocalBusiness or Person), not every person or business you mention.`;
+
+/** dim6:v5: the homepage or llms.txt is larger than we read in full (fail closed). */
+export const accuracySourceTooLargeNote = (notChecked: number) =>
+  `Your homepage or llms.txt file is larger than we read in full (${REFERENCE_HTML_MAX_BYTES / (1024 * 1024)} MB for the homepage, ${REFERENCE_LLMS_MAX_BYTES / 1024} KB for llms.txt), so we could not read all of your site's description of itself, and ${notCheckedClause(notChecked)}. To fix this, bring the file under that size.`;
+
+/** dim6:v5: the homepage structured data is nested too deeply to read in full (fail closed). */
+export const accuracyStructuredDataTooDeepNote = (notChecked: number) =>
+  `Your homepage's structured data is nested more than ${REFERENCE_JSONLD_MAX_DEPTH} levels deep, so we could not read all of it, and ${notCheckedClause(notChecked)}. To fix this, put your Organization, LocalBusiness or Person entry at the top level of your structured data.`;
+
+/**
+ * dim6:v5: a homepage JSON-LD block is not valid JSON (fail closed: it may
+ * hold an identity claim). Fix wording matches the Dim 4 remediation.
+ */
+export const accuracyStructuredDataUnreadableNote = (notChecked: number) =>
+  `Your homepage's structured data has a block that is not valid JSON, so we could not read all of it, and ${notCheckedClause(notChecked)}. To fix this, correct the syntax in that block; Google's Rich Results Test or the Schema Markup Validator shows where it breaks.`;
+
+const NOT_CHECKED_NOTES: Record<NonNullable<Dim6Result["accuracyNotCheckedReason"]>, (n: number) => string> = {
+  too_many_entities: accuracyTooManyEntitiesNote,
+  source_too_large: accuracySourceTooLargeNote,
+  structured_data_too_deep: accuracyStructuredDataTooDeepNote,
+  structured_data_unreadable: accuracyStructuredDataUnreadableNote,
+};
+
+/** dim6:v5: domain-named note addition when the site's description tripped the injection screen. */
+export const accuracyBlockedNote = (blocked: number) =>
+  `We could not check these answers against your site's own description, because that description contains text aimed at automated checkers. So ${
+    blocked === 0 ? "an answer that said the model knew your site would not have been counted" : `${knewYourSite(blocked, "were", "was")} not counted and scored 0`
+  }.`;
+
+const EVIDENCE_MAX_WORDS = 25;
+const EVIDENCE_MAX_CHARS = 200;
+const EVIDENCE_MAX_QUOTES = 3;
+
+/**
+ * dim6:v5: a short, deterministic quote from a provider answer, for the
+ * wrong-description examples. Provider output is hostile: unsafe characters
+ * stripped, markdown and citation markers dropped, double quotes turned into
+ * single quotes, at most EVIDENCE_MAX_WORDS words / EVIDENCE_MAX_CHARS chars.
+ * The report renderer escapes it; it is never sent to an LLM. Starts at the
+ * first sentence that contains the domain or its first label (the brand),
+ * else at the start of the answer, and runs on across sentences up to the
+ * word cap (a lead sentence such as "No, x.com is not a local business." is
+ * then followed by what the answer says it is).
+ */
+export function pickEvidenceQuote(text: string, domain: string): string {
+  const flat = collapseWhitespace(
+    stripUnsafeChars(text.replace(/(^|\n)\s*>\s?/g, "$1").replace(/(^|\n)\s*(?:[-*•]|\d+\.)\s+/g, "$1· "))
+      .replace(/\s*\[\d+\]/g, "")
+      .replace(/[*_`#|]+/g, "")
+      .replace(/["“”]/g, "'")
+  );
+  const label = domain.split(".")[0];
+  const needles = [domain.toLowerCase(), ...(label.length >= 4 ? [label.toLowerCase()] : [])];
+  const sentences = flat.split(/(?<=[.!?])\s+/);
+  const start = Math.max(0, sentences.findIndex((s) => needles.some((n) => s.toLowerCase().includes(n))));
+  const words = sentences.slice(start).join(" ").split(" ").filter(Boolean);
+  const q = capLength(words.slice(0, EVIDENCE_MAX_WORDS).join(" "), EVIDENCE_MAX_CHARS);
+  const cut = words.length > EVIDENCE_MAX_WORDS || q.length < words.slice(0, EVIDENCE_MAX_WORDS).join(" ").length;
+  return cut ? `${q}…` : q;
+}
+
+/**
+ * Up to EVIDENCE_MAX_QUOTES WRONG answers, in cell order, one per model first
+ * (so the examples show which models got it wrong), then filled in order.
+ */
+export function pickWrongAnswerQuotes(cells: CellEnvelope[], domain: string): Array<{ model: string; quote: string }> {
+  const wrong = cells.filter((c) => !c.result.unmeasurable && c.result.text && c.result.notes.includes("misidentified=true"));
+  const chosen: CellEnvelope[] = [];
+  for (const c of wrong) {
+    if (chosen.length < EVIDENCE_MAX_QUOTES && !chosen.some((x) => x.modelId === c.modelId)) chosen.push(c);
+  }
+  for (const c of wrong) {
+    if (chosen.length < EVIDENCE_MAX_QUOTES && !chosen.includes(c)) chosen.push(c);
+  }
+  chosen.sort((a, b) => wrong.indexOf(a) - wrong.indexOf(b));
+  return chosen.map((c) => ({ model: modelLabel(c.modelId), quote: pickEvidenceQuote(c.result.text ?? "", domain) }));
+}
+
+function countFlag(cells: CellEnvelope[], flag: string): number {
+  return cells.filter((c) => !c.result.unmeasurable && c.result.notes.includes(flag)).length;
+}
+
+export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, domain = ""): Dim6SubCheck[] {
   const cells = result.cells;
   const measurableCount = cells.length - result.unmeasurableCount;
+  const checked = result.accuracyChecked === true;
 
   const dnRate = rateOf(cells, "domain_named");
   const urlRate = rateOf(cells, "url_referenced");
@@ -128,22 +247,45 @@ function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6Sub
     (m) => `${modelLabel(m)} ${result.perModelAverage[m] ?? "not measured"}`
   ).join(", ")}.`;
 
-  return [
+  // dim6:v5: counts of the four answer kinds. Rates above count CORRECT
+  // answers only (WRONG / UNCLEAR cells carry no domain_named etc. flags).
+  const correct = countFlag(cells, "accuracy=CORRECT");
+  const wrong = countFlag(cells, "misidentified=true");
+  // "could not be checked": a judge failed twice (affirmation or accuracy),
+  // the answer was too long to read in full, or it carried text aimed at
+  // automated checkers.
+  const accuracyFailed = countFlag(cells, "accuracy_failed=");
+  const failed = accuracyFailed + countFlag(cells, "affirmation_failed=true");
+  const unclear = countFlag(cells, "accuracy_unclear=true") - accuracyFailed;
+  const unknown = countFlag(cells, "judge=DENY");
+  const breakdown = `Of the ${measurableCount} scored ${measurableCount === 1 ? "answer" : "answers"}, ${correct} matched how your site describes itself, ${wrong} described a different person or business than your site says it is, ${unclear} did not say enough to check, ${
+    failed > 0 ? `${failed} could not be checked (scored 0), ` : ""
+  }and ${unknown} did not show that the model knew your site.`;
+
+  const subChecks: Dim6SubCheck[] = [
     {
       id: SUBCHECK_IDS.domain_named_rate,
       name: "Models name your domain",
       weight: 40,
       score: dnRate,
       passed: dnRate >= 70,
-      notes: `${dnRate}% of scored test answers named your domain. ${summary}`,
+      // Keep "<m> of <t> test answers could be scored ... Average by model:
+      // ..." last: audit-executive-summary.ts citationCoverage parses it.
+      notes: checked
+        ? `${dnRate}% of scored test answers named your domain and matched how your site describes itself. ${breakdown} ${summary}`
+        : result.accuracyBlocked === true
+          ? `${dnRate}% of scored test answers named your domain. ${accuracyBlockedNote(countFlag(cells, "accuracy_blocked=true"))} ${summary}`
+          : `${dnRate}% of scored test answers named your domain. ${(result.accuracyNotCheckedReason ? NOT_CHECKED_NOTES[result.accuracyNotCheckedReason] : accuracyNotCheckedNote)(countFlag(cells, "accuracy_not_checked=true"))} ${summary}`,
     },
+    // Only CORRECT answers carry the url/context flags (fail closed), so
+    // these rates always count correctly described answers.
     {
       id: SUBCHECK_IDS.url_referenced_rate,
       name: "Models cite your URL",
       weight: 30,
       score: urlRate,
       passed: urlRate >= 70,
-      notes: `${urlRate}% of scored test answers included at least one link to your site.`,
+      notes: `${urlRate}% of scored test answers matched how your site describes itself and included at least one link to it.`,
     },
     {
       id: SUBCHECK_IDS.context_relevant_rate,
@@ -151,7 +293,7 @@ function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6Sub
       weight: 20,
       score: ctxRate,
       passed: ctxRate >= 70,
-      notes: `${ctxRate}% of scored test answers put your domain in the first half of the answer, rather than only mentioning it at the end.`,
+      notes: `${ctxRate}% of scored test answers matched how your site describes itself and put your domain in the first half of the answer, rather than only mentioning it at the end.`,
     },
     // dim6:v4: N/A without a competitor list (the cell scores give it no
     // points either, see parser.ts), so it is never a gap. With no list the
@@ -175,6 +317,28 @@ function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean): Dim6Sub
           na: true,
         },
   ];
+
+  // dim6:v5: wrong-description examples as an informational row (na, weight
+  // 0): no scoring or weight change, never a gap, and the hostile quotes stay
+  // out of the domain-named note the executive summary parses.
+  if (checked && wrong > 0) {
+    const quotes = pickWrongAnswerQuotes(cells, domain);
+    const lead =
+      wrong === 1
+        ? `1 of the ${measurableCount} scored answers mixed up your site with a different person or business than your site says it is; it counts as 0 in the checks above.`
+        : `${wrong} of the ${measurableCount} scored answers mixed up your site with a different person or business than your site says it is; they count as 0 in the checks above.`;
+    const examples = quotes.length > 0 ? ` ${quotes.length === 1 ? "Example of what the AI said" : "Examples of what the AI said"}: ${quotes.map((q) => `${q.model}: "${q.quote}"`).join("; ")}.` : "";
+    subChecks.push({
+      id: SUBCHECK_IDS.misidentified_answers,
+      name: "Answers that described a different person or business than your site says it is",
+      weight: 0,
+      score: 0,
+      passed: false,
+      notes: `${lead}${examples} Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score.`,
+      na: true,
+    });
+  }
+  return subChecks;
 }
 
 /** Daily-cap note shown on a report that ships without Citation Visibility. */
@@ -240,6 +404,10 @@ export interface Dim6PaidEnv extends OrchestratorEnv {
   // Same KV used for the Dim 6 cell cache; we also use it for the daily-cap
   // counter. Distinct key prefix `dim6:budget:` so cache eviction never
   // bumps the counter.
+  //
+  // dim6:v5: fetch used for the site's own description (llms.txt + homepage,
+  // reference.ts). Defaults to the global fetch; tests inject a stub.
+  siteFetch?: FetchLike;
 }
 
 /**
@@ -282,11 +450,30 @@ export async function runDim6Paid(
     // KV write failure is non-fatal — we'll just slightly over-spend.
   }
 
+  // dim6:v5: the site's own description, for the accuracy judge. Not
+  // verifiable → AFFIRM answers score 0 (fail closed) and the report says
+  // why: no usable description (accuracy_not_checked) or an injected one
+  // (accuracy_blocked).
+  const reference = await resolveSiteReference(scanUrl, env.siteFetch);
+  if (!reference.verifiable) {
+    console.log(`[dim6/runDim6Paid] accuracy not checked: reference ${reference.reason}`);
+  }
+
   const result = await runDim6Orchestrator(env, {
     scanUrl,
     signals,
     competitorHosts,
+    reference: reference.verifiable ? reference.text : null,
+    // Injected description: the site owner is the likely attacker, so the
+    // safe direction is down. Missing/short → not checked (also 0).
+    referenceBlocked: !reference.verifiable && reference.reason === "injection",
   });
+  if (
+    !reference.verifiable &&
+    (reference.reason === "too_many_entities" || reference.reason === "source_too_large" || reference.reason === "structured_data_too_deep" || reference.reason === "structured_data_unreadable")
+  ) {
+    result.accuracyNotCheckedReason = reference.reason;
+  }
 
   // Every cell unmeasurable → na:true.
   if (result.score === null) {
@@ -316,7 +503,7 @@ export async function runDim6Paid(
     };
   }
 
-  const subChecks = buildSubChecks(result, competitorHosts.length > 0);
+  const subChecks = buildSubChecks(result, competitorHosts.length > 0, canonicalDomain(scanUrl) ?? "");
   const score = result.score; // already aggregated 0-100
 
   return {

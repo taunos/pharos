@@ -87,7 +87,7 @@ export default function MethodologyPage() {
           <ul className="mt-4 flex flex-col gap-3 text-sm text-[var(--color-muted)]">
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_domain_named_rate</span>{" "}
-              (weight 40) — what fraction of scored test answers named your domain at all.
+              (weight 40) — what fraction of scored test answers named your domain and matched how your site describes itself. Each answer that says it knows your site is compared with how your site describes itself (your llms.txt file, structured data, and homepage title and description). We check only who the site is and what kind of business it is, against your site&apos;s own description; details such as prices and dates are not checked. An answer that describes your site as a different person or business, says too little to check, or cannot be checked scores 0. If your site has no clear description we can read, those answers cannot be checked and score 0, and the report says so.
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_url_referenced_rate</span>{" "}
@@ -100,6 +100,10 @@ export default function MethodologyPage() {
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_no_competitor_first_rate</span>{" "}
               (weight 10) — what fraction avoided naming a competitor BEFORE your domain. Not measured in the current Audit: no competitor list is supplied, so this check is not counted.
+            </li>
+            <li>
+              <span className="text-[var(--color-fg)] font-semibold">citation_misidentified_answers</span>{" "}
+              (not weighted) — shown only when at least one answer described a different person or business than your site says it is, with up to three short quotes from those answers. For information only; it is not counted again in your score.
             </li>
           </ul>
 

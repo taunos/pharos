@@ -49,7 +49,18 @@
 //     citation_no_competitor_first_rate sub-check is na:true (never a gap).
 //     Bank q_bank_8 is business-type neutral. Bump invalidates the v3
 //     scored-cell cache (scores changed).
-export const DIM6_ENGINE_VERSION = "dim6:v4";
+//   - dim6:v5 (accuracy check, 2026-11-08): AFFIRM answers are compared
+//     with what the site says about itself (reference.ts: llms.txt, JSON-LD,
+//     homepage title/description/h1) by a Workers AI 70B accuracy judge
+//     (accuracy-judge.ts). Only CORRECT answers keep the substring
+//     breakdown; WRONG (misidentified=true) and UNCLEAR
+//     (accuracy_unclear=true; judge failures too) score 0 and stay
+//     measurable. Fail closed: with no usable reference AFFIRM answers score
+//     0 (accuracy_not_checked=true), with an injected one too
+//     (accuracy_blocked=true), and the report says why. First real run
+//     (a clinical psychologist): 8 of 15 AFFIRM answers described a
+//     different person or business. Cache key also covers the reference.
+export const DIM6_ENGINE_VERSION = "dim6:v5";
 
 // Locked at 4 models per locked decision 2. No 5th model in Slice 3b.
 export type ModelId =
@@ -104,4 +115,15 @@ export interface Dim6Result {
   perModelAverage: Record<ModelId, number | null>;  // null when all cells for that model were unmeasurable
   unmeasurableCount: number;
   totalCells: number;
+  // dim6:v5: true when the run had a verifiable reference description of the
+  // site, so AFFIRM answers were checked for accuracy. false → they were not
+  // (cells carry accuracy_not_checked=true) and the report says so.
+  // Optional: results built before v5 (and test fakes) don't carry it.
+  accuracyChecked?: boolean;
+  // dim6:v5: the site's own description tripped the injection screen, so
+  // AFFIRM answers were not counted (score 0, accuracy_blocked=true).
+  accuracyBlocked?: boolean;
+  // dim6:v5: why accuracy was not checked, when the report explains it
+  // differently from "no clear description" (set by runDim6Paid).
+  accuracyNotCheckedReason?: "too_many_entities" | "source_too_large" | "structured_data_too_deep" | "structured_data_unreadable";
 }

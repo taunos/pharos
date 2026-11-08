@@ -41,6 +41,12 @@ export interface OrchestratorInput {
     titleTag?: string | null;
   };
   competitorHosts?: string[];
+  // dim6:v5: verifiable reference description of the site (reference.ts).
+  // null/absent → accuracy is not checked on this run; AFFIRM answers score 0.
+  reference?: string | null;
+  // dim6:v5: the site's description tripped the injection screen → every
+  // AFFIRM answer scores 0 (accuracy_blocked=true).
+  referenceBlocked?: boolean;
 }
 
 // Defensive fallback synthesis. Per CC-1 + Task 8: handles anything from
@@ -94,6 +100,8 @@ export async function runDim6Orchestrator(
   input: OrchestratorInput
 ): Promise<Dim6Result> {
   const { scanUrl, signals = {}, competitorHosts = [] } = input;
+  const reference = input.reference ?? null;
+  const referenceBlocked = input.referenceBlocked === true;
 
   // Prompt set (Task 7): stored per canonical domain, generated on first use.
   const queries = await resolveQuestionSet(env, scanUrl, signals);
@@ -128,6 +136,8 @@ export async function runDim6Orchestrator(
             prompt: query.text,
             targetUrl,
             competitorHosts,
+            reference,
+            referenceBlocked,
           }),
       });
     }
@@ -155,10 +165,25 @@ export async function runDim6Orchestrator(
     });
   }
 
-  return aggregateCells(cells);
+  return aggregateCells(cells, reference !== null && !referenceBlocked, referenceBlocked);
 }
 
-export function aggregateCells(cells: CellEnvelope[]): Dim6Result {
+export function aggregateCells(input: CellEnvelope[], accuracyChecked = false, accuracyBlocked = false): Dim6Result {
+  // dim6:v5: an affirmation-judge failure scores 0 and stays measurable
+  // (ladder.ts affirmationFailedCell). If it failed on EVERY received answer
+  // the judge itself was down (Workers AI outage): those cells become
+  // unmeasurable, so the run takes the all-unmeasurable path instead of a 0.
+  const received = input.filter((c) => !c.result.unmeasurable);
+  const judgeOutage =
+    received.length > 0 && received.every((c) => c.result.notes.includes("affirmation_failed=true"));
+  const cells = judgeOutage
+    ? input.map((c) =>
+        c.result.unmeasurable
+          ? c
+          : { ...c, result: { ...c.result, score: 0, unmeasurable: true, notes: `Affirmation judge unavailable on every answer: ${c.result.notes}` } }
+      )
+    : input;
+
   // Score formula: average of all cells where unmeasurable === false.
   // Truncated cells ARE INCLUDED (per locked decision 4) — they have a real
   // score even when capped by max_tokens.
@@ -196,6 +221,8 @@ export function aggregateCells(cells: CellEnvelope[]): Dim6Result {
     perModelAverage,
     unmeasurableCount,
     totalCells,
+    accuracyChecked,
+    ...(accuracyBlocked ? { accuracyBlocked: true } : {}),
   };
 }
 

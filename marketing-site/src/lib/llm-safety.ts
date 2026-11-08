@@ -70,6 +70,39 @@ export function stripUnsafeChars(input: string): string {
   return out;
 }
 
+/**
+ * Like stripUnsafeChars, but keeps line breaks (CR/CRLF become LF). For
+ * injection screening: line-anchored patterns must still match after
+ * zero-width characters that split a word are removed.
+ */
+export function stripUnsafeCharsKeepLines(input: string): string {
+  const s = String(input ?? "").normalize("NFKC").replace(/\r\n?/g, "\n");
+  let out = "";
+  for (const ch of s) {
+    const cp = ch.codePointAt(0) ?? 0;
+    if (cp === 0x0a) {
+      out += ch;
+      continue;
+    }
+    if (cp === 0x09) {
+      out += " ";
+      continue;
+    }
+    if (isUnsafeCodePoint(cp)) continue;
+    out += ch;
+  }
+  return out;
+}
+
+/**
+ * Run an injection detector on three views of untrusted text: raw, with
+ * unsafe characters stripped but line breaks kept, and fully cleaned (one
+ * line). Each view hides something the others show.
+ */
+export function screenUntrustedText(text: string, detect: (t: string) => string | null): string | null {
+  return detect(text) ?? detect(stripUnsafeCharsKeepLines(text)) ?? detect(collapseWhitespace(stripUnsafeChars(text)));
+}
+
 export function collapseWhitespace(s: string): string {
   return s.replace(/\s+/g, " ").trim();
 }

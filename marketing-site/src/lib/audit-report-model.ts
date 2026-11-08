@@ -143,6 +143,10 @@ export function isUnmeasuredDimension(d: { dimension_id: number; na?: boolean; u
   return !!d.na && (!!d.unmeasured || d.dimension_id === CITATION_DIM_ID);
 }
 
+// dim6:v5: informational rows (na, weight 0) that WERE measured: not "did not
+// apply or could not be measured" in the scope line, and no "· N/A" label.
+const INFORMATIONAL_CHECK_IDS = new Set(["citation_misidentified_answers"]);
+
 function namesList(names: string[]): string {
   if (names.length <= 1) return names.join("");
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
@@ -158,7 +162,7 @@ function scopeNote(scan: AuditResult["scan"]): string {
   let s = C.scopeScored(scored, total);
   if (inapplicable.length > 0) s += C.scopeNotApplicable(namesList(inapplicable));
   if (unmeasured.length > 0) s += C.scopeNotMeasured(namesList(unmeasured));
-  const naChecks = scan.dimensions.filter((d) => !d.na).reduce((n, d) => n + d.sub_checks.filter((sc) => sc.na).length, 0);
+  const naChecks = scan.dimensions.filter((d) => !d.na).reduce((n, d) => n + d.sub_checks.filter((sc) => sc.na && !INFORMATIONAL_CHECK_IDS.has(sc.id)).length, 0);
   if (inapplicable.length + unmeasured.length > 0) {
     s += naChecks > 0 ? `${C.scopeNotCounted.slice(0, -1)}; ${C.scopeChecksNotCounted(naChecks)}` : C.scopeNotCounted;
   } else if (naChecks > 0) {
@@ -200,7 +204,7 @@ export function buildAuditReportModel(
       band: scoreBand(d.score),
       checks: d.sub_checks.map((s) => ({
         id: s.id,
-        name: `${clean(s.name, 120)}${s.na ? ` · ${AUDIT_REPORT_COPY.naLabel}` : ""}`,
+        name: `${clean(s.name, 120)}${s.na && !INFORMATIONAL_CHECK_IDS.has(s.id) ? ` · ${AUDIT_REPORT_COPY.naLabel}` : ""}`,
         scoreLabel: s.na ? "—" : `${s.score}/100`,
         weightLabel: `${s.weight}%`,
         notes: clean(s.notes),
