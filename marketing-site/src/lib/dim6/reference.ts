@@ -62,16 +62,37 @@ export const REFERENCE_MAX_CHARS =
   REFERENCE_MAX_ENTITIES * (REFERENCE_ENTITY_BUDGETS.name + REFERENCE_ENTITY_BUDGETS.description);
 export const REFERENCE_MIN_WORDS = 5;
 const FETCH_TIMEOUT_MS = 8000;
-const LLMS_MAX_BYTES = 64 * 1024;
-const HTML_MAX_BYTES = 1024 * 1024;
+// Collection limits (Codex r6: every limit either cannot hide evidence or
+// fails closed with its own reason):
+//   - homepage body: REFERENCE_HTML_MAX_BYTES; a longer page → "source_too_large"
+//     (panel max 1.26 MB, Linear);
+//   - llms.txt body: REFERENCE_LLMS_MAX_BYTES; longer → "source_too_large";
+//   - homepage unreadable (timeout/network after one retry, non-2xx, off-site
+//     final URL, body read error) → "source_unreadable"; llms.txt the same,
+//     except a clean non-2xx / off-site / empty llms.txt just means "no llms.txt";
+//   - JSON-LD nesting deeper than REFERENCE_JSONLD_MAX_DEPTH → "structured_data_too_deep";
+//   - JSON-LD entities: no raw cap; deduplicated (identical name+description),
+//     more than REFERENCE_MAX_ENTITIES distinct → "too_many_entities";
+//   - script blocks: no limit (all are read); a block that is not valid JSON
+//     is skipped, as every JSON-LD consumer does.
+export const REFERENCE_HTML_MAX_BYTES = 4 * 1024 * 1024;
+export const REFERENCE_LLMS_MAX_BYTES = 512 * 1024;
+export const REFERENCE_JSONLD_MAX_DEPTH = 20;
+
+export type ReferenceFailure = "source_unreadable" | "source_too_large";
 
 export type SiteReference =
   | { verifiable: true; text: string }
-  | { verifiable: false; reason: "missing" | "too_short" | "injection" | "too_many_entities" };
+  | {
+      verifiable: false;
+      reason: "missing" | "too_short" | "injection" | "too_many_entities" | "structured_data_too_deep" | ReferenceFailure;
+    };
 
 export interface ReferenceSources {
   llmsTxt?: string | null;
   homepageHtml?: string | null;
+  // Set by fetchReferenceSources when a source could not be read in full.
+  failure?: ReferenceFailure;
 }
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
@@ -124,9 +145,16 @@ function typesOf(node: Record<string, unknown>): string[] {
   return (Array.isArray(t) ? t : [t]).filter((x): x is string => typeof x === "string").map((x) => x.replace(/^.*[/#]/, ""));
 }
 
+class JsonLdTooDeep extends Error {}
+
+// Walks top-level arrays and @graph (where a page states its own identity;
+// entities nested in properties such as publisher or alumniOf are related
+// entities, not the site's claim about itself). No count cap: the walk is
+// bounded by the body byte cap. Nesting past REFERENCE_JSONLD_MAX_DEPTH
+// throws, so the caller fails closed instead of skipping evidence.
 function collectEntities(node: unknown, out: Array<Record<string, unknown>>, depth = 0): void {
-  // Collect past REFERENCE_MAX_ENTITIES so "too many" is detected, bounded.
-  if (depth > 6 || out.length >= 32 || node === null || typeof node !== "object") return;
+  if (node === null || typeof node !== "object") return;
+  if (depth > REFERENCE_JSONLD_MAX_DEPTH) throw new JsonLdTooDeep();
   if (Array.isArray(node)) {
     for (const n of node) collectEntities(n, out, depth + 1);
     return;
@@ -142,6 +170,7 @@ function collectEntities(node: unknown, out: Array<Record<string, unknown>>, dep
  */
 export function extractHtmlIdentity(html: string): {
   jsonLdEntities: Array<{ name: string; description: string }>;
+  jsonLdTooDeep: boolean;
   title: string;
   metaDescription: string;
   h1: string;
@@ -149,11 +178,20 @@ export function extractHtmlIdentity(html: string): {
   const jsonLdEntities: Array<{ name: string; description: string }> = [];
   const seenEntities = new Set<string>();
   const entities: Array<Record<string, unknown>> = [];
+  let jsonLdTooDeep = false;
   for (const m of html.matchAll(/<script\b[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script>/gi)) {
+    let parsed: unknown;
     try {
-      collectEntities(JSON.parse(m[1]), entities);
+      parsed = JSON.parse(m[1]);
     } catch {
-      // Invalid JSON-LD block: skip it.
+      // Invalid JSON-LD block: unreadable to every JSON-LD consumer; skipped.
+      continue;
+    }
+    try {
+      collectEntities(parsed, entities);
+    } catch (e) {
+      if (e instanceof JsonLdTooDeep) jsonLdTooDeep = true;
+      else throw e;
     }
   }
   for (const e of entities) {
@@ -171,7 +209,7 @@ export function extractHtmlIdentity(html: string): {
   const metaTag = [...html.matchAll(/<meta\b[^>]*>/gi)].map((m) => m[0]).find((t) => /\bname\s*=\s*["']?description["'\s>]/i.test(t));
   const metaDescription = raw(decodeEntities(/\bcontent\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(metaTag ?? "")?.slice(1).find((x) => x !== undefined) ?? ""));
   const h1 = raw(decodeEntities((/<h1\b[^>]*>([\s\S]*?)<\/h1>/i.exec(html)?.[1] ?? "").replace(/<[^>]*>/g, " ")));
-  return { jsonLdEntities, title, metaDescription, h1 };
+  return { jsonLdEntities, jsonLdTooDeep, title, metaDescription, h1 };
 }
 
 export const REFERENCE_LABELS = {
@@ -193,6 +231,7 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
   // non-empty field appears (Codex r3, r5 HIGH).
   const groups: Array<{ label: string; fields: RefField[] }> = [];
   let tooManyEntities = false;
+  let jsonLdTooDeep = false;
   if (sources.llmsTxt) {
     const [h1 = "", quote = ""] = extractLlmsTxtIdentity(sources.llmsTxt);
     groups.push({
@@ -203,6 +242,7 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
   if (sources.homepageHtml) {
     const h = extractHtmlIdentity(sources.homepageHtml);
     tooManyEntities = h.jsonLdEntities.length > REFERENCE_MAX_ENTITIES;
+    jsonLdTooDeep = h.jsonLdTooDeep;
     groups.push({
       label: REFERENCE_LABELS.jsonLd,
       fields: h.jsonLdEntities.map((e) => ({
@@ -229,9 +269,12 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
       for (const p of f.parts) if (p.raw && screenUntrustedText(p.raw, detectAccuracyInjection)) return { verifiable: false, reason: "injection" };
     }
   }
-  // More identity entities than we can show in full: we can't tell which one
-  // the site is about, so fail closed rather than drop any (after the
-  // injection screen, so an injected site is still reported as such).
+  // Every collection limit fails closed (after the injection screen, so an
+  // injected site is still reported as such): a source we could not read in
+  // full, JSON-LD nested too deep to walk, or more identity entities than we
+  // can show in full.
+  if (sources.failure) return { verifiable: false, reason: sources.failure };
+  if (jsonLdTooDeep) return { verifiable: false, reason: "structured_data_too_deep" };
   if (tooManyEntities) return { verifiable: false, reason: "too_many_entities" };
   const blocks: string[] = [];
   const contents: string[] = [];
@@ -272,7 +315,11 @@ export async function fetchReferenceSources(scanUrl: string, fetchImpl?: FetchLi
     return {};
   }
   if (!domain) return {};
-  const getOnce = async (url: string, maxBytes: number, accept: string): Promise<{ text: string | null; retry: boolean }> => {
+  // ok: body read in full. absent: a clean answer that there is nothing
+  // (non-2xx, off-site final URL, empty body). unreadable: timeout / network
+  // / body read error (retried once). too_large: body over the byte cap.
+  type Got = { kind: "ok"; text: string } | { kind: "absent" | "unreadable" | "too_large" };
+  const getOnce = async (url: string, maxBytes: number, accept: string): Promise<Got> => {
     let failure: SafeFetchFailure | null = null;
     try {
       const res = await safeFetch(url, { headers: { accept } }, {
@@ -282,27 +329,38 @@ export async function fetchReferenceSources(scanUrl: string, fetchImpl?: FetchLi
           failure = r;
         },
       });
-      if (!res) return { text: null, retry: failure === "timeout" || failure === "network" };
+      if (!res) return { kind: failure === "unsafe_url" ? "absent" : "unreadable" };
       if (!res.ok || canonicalDomain(res.url) !== domain) {
         res.discard();
-        return { text: null, retry: false };
+        return { kind: "absent" };
       }
       const body = await res.body({ maxBytes });
-      return { text: body.text || null, retry: false };
+      if (body.truncated) return { kind: "too_large" };
+      if (!body.complete) return { kind: "unreadable" };
+      return body.text ? { kind: "ok", text: body.text } : { kind: "absent" };
     } catch {
-      return { text: null, retry: true };
+      return { kind: "unreadable" };
     }
   };
-  const get = async (url: string, maxBytes: number, accept: string): Promise<string | null> => {
+  const get = async (url: string, maxBytes: number, accept: string): Promise<Got> => {
     const first = await getOnce(url, maxBytes, accept);
-    if (first.text !== null || !first.retry) return first.text;
-    return (await getOnce(url, maxBytes, accept)).text;
+    return first.kind === "unreadable" ? getOnce(url, maxBytes, accept) : first;
   };
-  const [llmsTxt, homepageHtml] = await Promise.all([
-    get(`${origin}/llms.txt`, LLMS_MAX_BYTES, "text/plain, text/markdown;q=0.9, */*;q=0.1"),
-    get(`${origin}/`, HTML_MAX_BYTES, "text/html"),
+  const [llms, home] = await Promise.all([
+    get(`${origin}/llms.txt`, REFERENCE_LLMS_MAX_BYTES, "text/plain, text/markdown;q=0.9, */*;q=0.1"),
+    get(`${origin}/`, REFERENCE_HTML_MAX_BYTES, "text/html"),
   ]);
-  return { llmsTxt, homepageHtml };
+  const out: ReferenceSources = {
+    llmsTxt: llms.kind === "ok" ? llms.text : null,
+    homepageHtml: home.kind === "ok" ? home.text : null,
+  };
+  // Fail closed when evidence went unread: a source over its byte cap, an
+  // llms.txt that failed to load, or a homepage that is not a readable 2xx
+  // page on this site (the homepage is the core evidence; a missing
+  // llms.txt is normal).
+  if (llms.kind === "too_large" || home.kind === "too_large") out.failure = "source_too_large";
+  else if (llms.kind === "unreadable" || home.kind !== "ok") out.failure = "source_unreadable";
+  return out;
 }
 
 export async function resolveSiteReference(scanUrl: string, fetchImpl?: FetchLike): Promise<SiteReference> {

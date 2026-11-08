@@ -20,7 +20,13 @@ import {
   type Dim6Result,
 } from "./types";
 import { DIM6_ENGINE_LINE } from "./disclosure";
-import { REFERENCE_MAX_ENTITIES, resolveSiteReference } from "./reference";
+import {
+  REFERENCE_HTML_MAX_BYTES,
+  REFERENCE_JSONLD_MAX_DEPTH,
+  REFERENCE_LLMS_MAX_BYTES,
+  REFERENCE_MAX_ENTITIES,
+  resolveSiteReference,
+} from "./reference";
 import { canonicalDomain } from "./question-set";
 import type { FetchLike } from "../safe-fetch";
 import { capLength, collapseWhitespace, stripUnsafeChars } from "../llm-safety";
@@ -130,12 +136,13 @@ const knewYourSite = (n: number, plural: string, singular: string) =>
  * of the site (missing, unreadable or too short). Fail closed: those answers
  * score 0.
  */
+const notCheckedClause = (n: number) =>
+  n === 0
+    ? "an answer that said the model knew your site could not have been checked or counted"
+    : `${knewYourSite(n, "could not be checked and were", "could not be checked and was")} not counted (scored 0)`;
+
 export const accuracyNotCheckedNote = (notChecked: number) =>
-  `We could not find a clear description of your site on it, so ${
-    notChecked === 0
-      ? "an answer that said the model knew your site could not have been checked or counted"
-      : `${knewYourSite(notChecked, "could not be checked and were", "could not be checked and was")} not counted (scored 0)`
-  }. To fix this, say who you are and what you do in an llms.txt file, in structured data, or in your homepage title and description.`;
+  `We could not find or read a clear description of your site on it, so ${notCheckedClause(notChecked)}. To fix this, say who you are and what you do in an llms.txt file, in structured data, or in your homepage title and description.`;
 
 /**
  * dim6:v5: domain-named note addition when the homepage structured data
@@ -143,11 +150,21 @@ export const accuracyNotCheckedNote = (notChecked: number) =>
  * closed: we can't tell which one the site is about).
  */
 export const accuracyTooManyEntitiesNote = (notChecked: number) =>
-  `Your homepage's structured data describes more than ${REFERENCE_MAX_ENTITIES} different people or businesses, so we could not tell which one your site is, and ${
-    notChecked === 0
-      ? "an answer that said the model knew your site could not have been checked or counted"
-      : `${knewYourSite(notChecked, "could not be checked and were", "could not be checked and was")} not counted (scored 0)`
-  }. To fix this, describe your own business or yourself in your structured data (as an Organization, LocalBusiness or Person), not every person or business you mention.`;
+  `Your homepage's structured data describes more than ${REFERENCE_MAX_ENTITIES} different people or businesses, so we could not tell which one your site is, and ${notCheckedClause(notChecked)}. To fix this, describe your own business or yourself in your structured data (as an Organization, LocalBusiness or Person), not every person or business you mention.`;
+
+/** dim6:v5: the homepage or llms.txt is larger than we read in full (fail closed). */
+export const accuracySourceTooLargeNote = (notChecked: number) =>
+  `Your homepage or llms.txt file is larger than we read in full (${REFERENCE_HTML_MAX_BYTES / (1024 * 1024)} MB for the homepage, ${REFERENCE_LLMS_MAX_BYTES / 1024} KB for llms.txt), so we could not read all of your site's description of itself, and ${notCheckedClause(notChecked)}. To fix this, bring the file under that size.`;
+
+/** dim6:v5: the homepage structured data is nested too deeply to read in full (fail closed). */
+export const accuracyStructuredDataTooDeepNote = (notChecked: number) =>
+  `Your homepage's structured data is nested more than ${REFERENCE_JSONLD_MAX_DEPTH} levels deep, so we could not read all of it, and ${notCheckedClause(notChecked)}. To fix this, put your Organization, LocalBusiness or Person entry at the top level of your structured data.`;
+
+const NOT_CHECKED_NOTES: Record<NonNullable<Dim6Result["accuracyNotCheckedReason"]>, (n: number) => string> = {
+  too_many_entities: accuracyTooManyEntitiesNote,
+  source_too_large: accuracySourceTooLargeNote,
+  structured_data_too_deep: accuracyStructuredDataTooDeepNote,
+};
 
 /** dim6:v5: domain-named note addition when the site's description tripped the injection screen. */
 export const accuracyBlockedNote = (blocked: number) =>
@@ -250,7 +267,7 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
         ? `${dnRate}% of scored test answers named your domain and matched how your site describes itself. ${breakdown} ${summary}`
         : result.accuracyBlocked === true
           ? `${dnRate}% of scored test answers named your domain. ${accuracyBlockedNote(countFlag(cells, "accuracy_blocked=true"))} ${summary}`
-          : `${dnRate}% of scored test answers named your domain. ${(result.accuracyNotCheckedReason === "too_many_entities" ? accuracyTooManyEntitiesNote : accuracyNotCheckedNote)(countFlag(cells, "accuracy_not_checked=true"))} ${summary}`,
+          : `${dnRate}% of scored test answers named your domain. ${(result.accuracyNotCheckedReason ? NOT_CHECKED_NOTES[result.accuracyNotCheckedReason] : accuracyNotCheckedNote)(countFlag(cells, "accuracy_not_checked=true"))} ${summary}`,
     },
     // Only CORRECT answers carry the url/context flags (fail closed), so
     // these rates always count correctly described answers.
@@ -443,8 +460,11 @@ export async function runDim6Paid(
     // safe direction is down. Missing/short → not checked (also 0).
     referenceBlocked: !reference.verifiable && reference.reason === "injection",
   });
-  if (!reference.verifiable && reference.reason === "too_many_entities") {
-    result.accuracyNotCheckedReason = "too_many_entities";
+  if (
+    !reference.verifiable &&
+    (reference.reason === "too_many_entities" || reference.reason === "source_too_large" || reference.reason === "structured_data_too_deep")
+  ) {
+    result.accuracyNotCheckedReason = reference.reason;
   }
 
   // Every cell unmeasurable → na:true.
