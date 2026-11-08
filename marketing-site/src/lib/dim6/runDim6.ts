@@ -88,7 +88,7 @@ const SUBCHECK_IDS = {
   context_relevant_rate: "citation_context_relevant_rate",
   no_competitor_first_rate: "citation_no_competitor_first_rate",
   // dim6:v5: informational (na, weight 0), present only when at least one
-  // answer described the site as something it is not.
+  // answer described a different person or business than the site says it is.
   misidentified_answers: "citation_misidentified_answers",
 } as const;
 
@@ -219,7 +219,7 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
   const failed = countFlag(cells, "accuracy_failed=");
   const unclear = countFlag(cells, "accuracy_unclear=true") - failed;
   const unknown = countFlag(cells, "judge=DENY");
-  const breakdown = `Of the ${measurableCount} scored ${measurableCount === 1 ? "answer" : "answers"}, ${correct} described your site correctly, ${wrong} described it as something it is not, ${unclear} did not say enough to check, ${
+  const breakdown = `Of the ${measurableCount} scored ${measurableCount === 1 ? "answer" : "answers"}, ${correct} matched how your site describes itself, ${wrong} described a different person or business than your site says it is, ${unclear} did not say enough to check, ${
     failed > 0 ? `${failed} could not be checked (scored 0), ` : ""
   }and ${unknown} did not show that the model knew your site.`;
 
@@ -233,7 +233,7 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
       // Keep "<m> of <t> test answers could be scored ... Average by model:
       // ..." last: audit-executive-summary.ts citationCoverage parses it.
       notes: checked
-        ? `${dnRate}% of scored test answers named your domain and described your site correctly. ${breakdown} ${summary}`
+        ? `${dnRate}% of scored test answers named your domain and matched how your site describes itself. ${breakdown} ${summary}`
         : result.accuracyBlocked === true
           ? `${dnRate}% of scored test answers named your domain. ${accuracyBlockedNote(countFlag(cells, "accuracy_blocked=true"))} ${summary}`
           : `${dnRate}% of scored test answers named your domain. ${accuracyNotCheckedNote(countFlag(cells, "accuracy_not_checked=true"))} ${summary}`,
@@ -246,7 +246,7 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
       weight: 30,
       score: urlRate,
       passed: urlRate >= 70,
-      notes: `${urlRate}% of scored test answers described your site correctly and included at least one link to it.`,
+      notes: `${urlRate}% of scored test answers matched how your site describes itself and included at least one link to it.`,
     },
     {
       id: SUBCHECK_IDS.context_relevant_rate,
@@ -254,7 +254,7 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
       weight: 20,
       score: ctxRate,
       passed: ctxRate >= 70,
-      notes: `${ctxRate}% of scored test answers described your site correctly and put your domain in the first half of the answer, rather than only mentioning it at the end.`,
+      notes: `${ctxRate}% of scored test answers matched how your site describes itself and put your domain in the first half of the answer, rather than only mentioning it at the end.`,
     },
     // dim6:v4: N/A without a competitor list (the cell scores give it no
     // points either, see parser.ts), so it is never a gap. With no list the
@@ -286,12 +286,12 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
     const quotes = pickWrongAnswerQuotes(cells, domain);
     const lead =
       wrong === 1
-        ? `1 of the ${measurableCount} scored answers described your site as something it is not; it counts as 0 in the checks above.`
-        : `${wrong} of the ${measurableCount} scored answers described your site as something it is not; they count as 0 in the checks above.`;
+        ? `1 of the ${measurableCount} scored answers described a different person or business than your site says it is; it counts as 0 in the checks above.`
+        : `${wrong} of the ${measurableCount} scored answers described a different person or business than your site says it is; they count as 0 in the checks above.`;
     const examples = quotes.length > 0 ? ` ${quotes.length === 1 ? "Example" : "Examples"}: ${quotes.map((q) => `${q.model}: "${q.quote}"`).join("; ")}.` : "";
     subChecks.push({
       id: SUBCHECK_IDS.misidentified_answers,
-      name: "Answers that described your site as something it is not",
+      name: "Answers that described a different person or business than your site says it is",
       weight: 0,
       score: 0,
       passed: false,

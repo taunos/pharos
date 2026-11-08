@@ -247,16 +247,16 @@ function syntheticDim6() {
     grade: "F",
     sub_checks: [
       { id: "citation_domain_named_rate", name: "Models name your domain", weight: 40, score: 17, passed: false,
-        notes: `17% of scored test answers named your domain and described your site correctly. Of the 36 scored answers, 7 described your site correctly, 5 described it as something it is not, 2 did not say enough to check, and 22 did not show that the model knew your site. ${summary}` },
+        notes: `17% of scored test answers named your domain and matched how your site describes itself. Of the 36 scored answers, 7 matched how your site describes itself, 5 described a different person or business than your site says it is, 2 did not say enough to check, and 22 did not show that the model knew your site. ${summary}` },
       { id: "citation_url_referenced_rate", name: "Models cite your URL", weight: 30, score: 6, passed: false,
-        notes: "6% of scored test answers described your site correctly and included at least one link to it." },
+        notes: "6% of scored test answers matched how your site describes itself and included at least one link to it." },
       { id: "citation_context_relevant_rate", name: "Models treat your domain as the principal answer", weight: 20, score: 8, passed: false,
-        notes: "8% of scored test answers described your site correctly and put your domain in the first half of the answer, rather than only mentioning it at the end." },
+        notes: "8% of scored test answers matched how your site describes itself and put your domain in the first half of the answer, rather than only mentioning it at the end." },
       { id: "citation_no_competitor_first_rate", name: "Competitor-first check (not measured)", weight: 10, score: 0, passed: false, na: true,
         notes: "Not measured: this Audit doesn't take a competitor list yet, so there is nothing to compare against. This check is not counted in your score." },
       // dim6:v5 informational row (shape of runDim6.ts buildSubChecks; quotes invented).
-      { id: "citation_misidentified_answers", name: "Answers that described your site as something it is not", weight: 0, score: 0, passed: false, na: true,
-        notes: "5 of the 36 scored answers described your site as something it is not; they count as 0 in the checks above. Example: Gemini: \"example answer: the site is a different business with a similar name\". This row is for information and is not counted again in your score." },
+      { id: "citation_misidentified_answers", name: "Answers that described a different person or business than your site says it is", weight: 0, score: 0, passed: false, na: true,
+        notes: "5 of the 36 scored answers described a different person or business than your site says it is; they count as 0 in the checks above. Example: Gemini: \"example answer: the site is a different business with a similar name\". This row is for information and is not counted again in your score." },
     ],
   };
 }

@@ -405,16 +405,16 @@ describe("report output", () => {
     expect(by.citation_domain_named_rate.score).toBe(13); // 1 of 8
     expect(by.citation_url_referenced_rate.score).toBe(13);
     expect(by.citation_domain_named_rate.notes).toBe(
-      "13% of scored test answers named your domain and described your site correctly. Of the 8 scored answers, 1 described your site correctly, 4 described it as something it is not, 1 did not say enough to check, and 2 did not show that the model knew your site. 8 of 8 test answers could be scored, across 4 AI models. Average by model: ChatGPT 0, Claude 0, Gemini 0, Perplexity 50."
+      "13% of scored test answers named your domain and matched how your site describes itself. Of the 8 scored answers, 1 matched how your site describes itself, 4 described a different person or business than your site says it is, 1 did not say enough to check, and 2 did not show that the model knew your site. 8 of 8 test answers could be scored, across 4 AI models. Average by model: ChatGPT 0, Claude 0, Gemini 0, Perplexity 50."
     );
-    expect(by.citation_url_referenced_rate.notes).toBe("13% of scored test answers described your site correctly and included at least one link to it.");
+    expect(by.citation_url_referenced_rate.notes).toBe("13% of scored test answers matched how your site describes itself and included at least one link to it.");
   });
 
   it("wrong answers: informational row (na, weight 0) with up to 3 quotes, one per model first", () => {
     const row = buildSubChecks(result, false, "acme.com").find((s) => s.id === "citation_misidentified_answers")!;
     expect(row).toMatchObject({ na: true, weight: 0, score: 0, passed: false });
     expect(row.notes).toBe(
-      `4 of the 8 scored answers described your site as something it is not; they count as 0 in the checks above. Examples: Gemini: "acme.com is the official site of <script>alert(1)</script> 'Acme Corp', a rocket maker. More."; ChatGPT: "Acme.com is a dress shop selling party dresses."; Gemini: "acme.com sells shoes.". This row is for information and is not counted again in your score.`
+      `4 of the 8 scored answers described a different person or business than your site says it is; they count as 0 in the checks above. Examples: Gemini: "acme.com is the official site of <script>alert(1)</script> 'Acme Corp', a rocket maker. More."; ChatGPT: "Acme.com is a dress shop selling party dresses."; Gemini: "acme.com sells shoes.". This row is for information and is not counted again in your score.`
     );
     expect(pickWrongAnswerQuotes(cells, "acme.com").map((q) => q.model)).toEqual(["Gemini", "ChatGPT", "Gemini"]);
   });
@@ -438,7 +438,7 @@ describe("report output", () => {
     const FAILED = "score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true; accuracy_failed=judge_failed";
     const r = aggregateCells([cells[0], cells[5], env("openai:gpt-4o", "q7", FAILED), env("openai:gpt-4o", "q8", DENY)], true);
     expect(buildSubChecks(r, false, "acme.com")[0].notes).toContain(
-      "Of the 4 scored answers, 1 described your site correctly, 0 described it as something it is not, 1 did not say enough to check, 1 could not be checked (scored 0), and 1 did not show that the model knew your site."
+      "Of the 4 scored answers, 1 matched how your site describes itself, 0 described a different person or business than your site says it is, 1 did not say enough to check, 1 could not be checked (scored 0), and 1 did not show that the model knew your site."
     );
   });
 
@@ -467,13 +467,13 @@ describe("report output", () => {
     const html = renderAuditHtml({ scan, gaps, engine_version: "t" } as AuditResult, "session-1234");
     expect(html).not.toContain("<script>alert(1)</script>");
     expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
-    expect(html).toContain("Answers that described your site as something it is not");
+    expect(html).toContain("Answers that described a different person or business than your site says it is");
 
     // The informational row was measured: no "N/A" label, not counted as a
     // check that "did not apply or could not be measured".
     const m = buildAuditReportModel({ scan, gaps, engine_version: "t" } as AuditResult, "session-1234");
     const row = m.dimensions.flatMap((d) => (d.kind === "scored" ? d.checks : [])).find((c) => c.id === "citation_misidentified_answers")!;
-    expect(row.name).toBe("Answers that described your site as something it is not");
+    expect(row.name).toBe("Answers that described a different person or business than your site says it is");
     expect(row.scoreLabel).toBe("—");
     expect(m.scopeNote).toMatch(/1 individual check did not apply/);
   });
