@@ -76,6 +76,10 @@ export interface LadderInput {
   // dim6:v5: the run's verifiable reference description of the site
   // (reference.ts). null/absent → accuracy not checked for this run.
   reference?: string | null;
+  // dim6:v5: the site's description tripped the injection screen. Every AFFIRM
+  // answer scores 0 (measurable, accuracy_blocked=true): the site owner is the
+  // likely attacker, so no v4 credit.
+  referenceBlocked?: boolean;
 }
 
 async function sha256Hex(input: string): Promise<string> {
@@ -98,9 +102,10 @@ export async function cellCacheKey(
   prompt: string,
   targetUrl: string,
   competitorHosts: string[] = [],
-  reference: string | null = null
+  reference: string | null = null,
+  referenceBlocked = false
 ): Promise<string> {
-  const identity = JSON.stringify([targetUrl, [...competitorHosts].sort(), prompt, reference]);
+  const identity = JSON.stringify([targetUrl, [...competitorHosts].sort(), prompt, reference, referenceBlocked]);
   return `${DIM6_ENGINE_VERSION}:${modelId}:${await sha256Hex(identity)}`;
 }
 
@@ -192,24 +197,30 @@ type LadderStep =
  * dim6:v5: the cell for an answer the affirmation judge marked AFFIRM, given
  * the accuracy verdict (null when the run has no verifiable reference).
  * Only CORRECT (or unchecked) answers keep the substring breakdown; WRONG and
- * UNCLEAR score 0 and stay measurable. Pure, so the replay tool
- * (tools/report-panel/replay-dim6-accuracy.mjs) scores exactly like the ladder.
+ * UNCLEAR score 0 and stay measurable. "blocked" (the site's description
+ * tripped the injection screen) scores 0 too, flagged accuracy_blocked=true.
+ * Pure, so the replay tool (tools/report-panel/replay-dim6-accuracy.mjs)
+ * scores exactly like the ladder.
  */
 export function scoreAffirmedCell(
   text: string,
   targetUrl: string,
   competitorHosts: string[],
   truncated: boolean,
-  accuracy: AccuracyVerdict | null
+  accuracy: AccuracyVerdict | { kind: "blocked" } | null
 ): CellResult {
   if (accuracy?.kind === "unmeasurable") {
     return templatedFallback(`accuracy judge: ${accuracy.reason}`);
   }
-  if (accuracy?.kind === "wrong" || accuracy?.kind === "unclear") {
+  if (accuracy?.kind === "wrong" || accuracy?.kind === "unclear" || accuracy?.kind === "blocked") {
     const notes = [
       `score=0/100`,
       `judge=AFFIRM`,
-      accuracy.kind === "wrong" ? "accuracy=WRONG; misidentified=true" : "accuracy=UNCLEAR; accuracy_unclear=true",
+      accuracy.kind === "wrong"
+        ? "accuracy=WRONG; misidentified=true"
+        : accuracy.kind === "unclear"
+          ? "accuracy=UNCLEAR; accuracy_unclear=true"
+          : "accuracy_blocked=true",
       truncated ? "truncated=true" : null,
     ]
       .filter((s): s is string => s !== null)
@@ -241,7 +252,8 @@ async function classifyAdapterResult(
   adapter: AdapterResult,
   targetUrl: string,
   competitorHosts: string[],
-  reference: string | null
+  reference: string | null,
+  referenceBlocked: boolean
 ): Promise<LadderStep> {
   const o = adapter.outcome;
   switch (o.kind) {
@@ -347,9 +359,11 @@ async function classifyAdapterResult(
       // verdict.kind === "affirm" → (dim6:v5) accuracy judge against the
       // site's own description when the run has one, then the substring
       // breakdown for CORRECT (or unchecked) answers only.
-      const accuracy = reference
-        ? await judgeAccuracy(env, safeHost(targetUrl) ?? targetUrl, reference, o.text)
-        : null;
+      const accuracy = referenceBlocked
+        ? ({ kind: "blocked" } as const)
+        : reference
+          ? await judgeAccuracy(env, safeHost(targetUrl) ?? targetUrl, reference, o.text)
+          : null;
       return {
         kind: "result",
         cell: scoreAffirmedCell(o.text, targetUrl, competitorHosts, truncated, accuracy),
@@ -375,9 +389,10 @@ export async function runLadder(
 ): Promise<CellResult> {
   const { modelId, prompt, targetUrl, competitorHosts = [] } = input;
   const reference = input.reference ?? null;
+  const referenceBlocked = input.referenceBlocked === true;
 
   // Cache check (rung 5).
-  const key = await cellCacheKey(modelId, prompt, targetUrl, competitorHosts, reference);
+  const key = await cellCacheKey(modelId, prompt, targetUrl, competitorHosts, reference, referenceBlocked);
   const cellHash = key.slice(key.lastIndexOf(":") + 1);
   const cached = await readCache(env.cacheKv, key);
   if (cached) {
@@ -398,7 +413,7 @@ export async function runLadder(
 
   // Initial call.
   let adapter = await callAdapter(env, modelId, prompt);
-  let step = await classifyAdapterResult(env, adapter, targetUrl, competitorHosts, reference);
+  let step = await classifyAdapterResult(env, adapter, targetUrl, competitorHosts, reference, referenceBlocked);
 
   // 429/5xx retry path: wait Retry-After (capped 30s), retry SAME prompt once.
   if (step.kind === "retry_after") {
@@ -409,7 +424,7 @@ export async function runLadder(
       `[dim6] retry=rate_limit model=${modelId} waited=${step.waitSec}s`
     );
     adapter = await callAdapter(env, modelId, prompt);
-    step = await classifyAdapterResult(env, adapter, targetUrl, competitorHosts, reference);
+    step = await classifyAdapterResult(env, adapter, targetUrl, competitorHosts, reference, referenceBlocked);
     // Second 429/5xx → fallback.
     if (step.kind === "retry_after") {
       const cell = templatedFallback(
@@ -429,7 +444,7 @@ export async function runLadder(
       `[dim6] retry=validator model=${modelId} reason="${step.reason.slice(0, 80)}"`
     );
     const adapter2 = await callAdapter(env, modelId, retryPrompt);
-    const step2 = await classifyAdapterResult(env, adapter2, targetUrl, competitorHosts, reference);
+    const step2 = await classifyAdapterResult(env, adapter2, targetUrl, competitorHosts, reference, referenceBlocked);
     if (step2.kind === "result") {
       step = step2;
     } else if (step2.kind === "validator_fail") {

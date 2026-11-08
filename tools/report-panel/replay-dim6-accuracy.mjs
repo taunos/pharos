@@ -114,6 +114,7 @@ console.log(reference.verifiable ? `reference (${reference.text.length} chars):\
 
 const verdictOf = (notes, unmeasurable) =>
   unmeasurable ? "UNMEASURABLE"
+    : /accuracy_blocked=true/.test(notes) ? "BLOCKED"
     : /accuracy=(CORRECT|WRONG|UNCLEAR)/.exec(notes)?.[1]
       ?? (/judge=(AFFIRM|DENY)/.exec(notes)?.[1] ?? "?");
 
@@ -132,7 +133,9 @@ for (const c of cells) {
     } else if (aff.kind === "deny") {
       result = { text, score: 0, unmeasurable: false, truncated: c.result.truncated, notes: `score=0/100; judge=DENY${c.result.truncated ? "; truncated=true" : ""}` };
     } else {
-      const acc = reference.verifiable ? await M.judgeAccuracy({ AI }, domain, reference.text, text) : null;
+      const acc = reference.verifiable
+        ? await M.judgeAccuracy({ AI }, domain, reference.text, text)
+        : reference.reason === "injection" ? { kind: "blocked" } : null;
       result = M.scoreAffirmedCell(text, targetUrl, [], c.result.truncated, acc);
     }
   }
@@ -153,7 +156,7 @@ console.log(`${pad("model", 11)}${pad("q", 5)}${pad("old", 8)}${pad("new", 22)}$
 for (const r of rows) console.log(`${pad(r.model, 11)}${pad(r.q, 5)}${pad(r.old, 8)}${pad(r.new, 22)}${pad(r.score, 9)}${r.quote}`);
 
 const before = M.aggregateCells(cells, false);
-const after = M.aggregateCells(newCells, reference.verifiable);
+const after = M.aggregateCells(newCells, reference.verifiable, !reference.verifiable && reference.reason === "injection");
 const rate = (r) => Object.fromEntries(M.buildSubChecks(r, false, domain).map((s) => [s.id, s.na ? "na" : s.score]));
 console.log(`\nDim 6 score: ${before.score} -> ${after.score}`);
 console.log("rates before:", rate(before));

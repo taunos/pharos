@@ -126,6 +126,12 @@ export const COMPETITOR_FIRST_NA_NOTE =
 export const ACCURACY_NOT_CHECKED_NOTE =
   "We could not check whether these answers describe your site correctly: we could not find or read a clear description of your site on it (we look at your llms.txt file, your structured data, and your homepage title and description).";
 
+/** dim6:v5: domain-named note addition when the site's description tripped the injection screen. */
+export const accuracyBlockedNote = (blocked: number) =>
+  `We could not check these answers against your site's own description, because that description contains text aimed at automated checkers. So ${
+    blocked === 1 ? "the 1 answer that said the model knew your site was" : `the ${blocked} answers that said the model knew your site were`
+  } not counted and scored 0.`;
+
 const EVIDENCE_MAX_WORDS = 25;
 const EVIDENCE_MAX_CHARS = 200;
 const EVIDENCE_MAX_QUOTES = 3;
@@ -212,7 +218,9 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
       // ..." last: audit-executive-summary.ts citationCoverage parses it.
       notes: checked
         ? `${dnRate}% of scored test answers named your domain and described your site correctly. ${breakdown} ${summary}`
-        : `${dnRate}% of scored test answers named your domain. ${ACCURACY_NOT_CHECKED_NOTE} ${summary}`,
+        : result.accuracyBlocked === true
+          ? `${dnRate}% of scored test answers named your domain. ${accuracyBlockedNote(countFlag(cells, "accuracy_blocked=true"))} ${summary}`
+          : `${dnRate}% of scored test answers named your domain. ${ACCURACY_NOT_CHECKED_NOTE} ${summary}`,
     },
     {
       id: SUBCHECK_IDS.url_referenced_rate,
@@ -402,6 +410,9 @@ export async function runDim6Paid(
     signals,
     competitorHosts,
     reference: reference.verifiable ? reference.text : null,
+    // Injected description: the site owner is the likely attacker, so the
+    // safe direction is down (no v4 credit). Missing/short keeps not-checked.
+    referenceBlocked: !reference.verifiable && reference.reason === "injection",
   });
 
   // Every cell unmeasurable → na:true.

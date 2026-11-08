@@ -119,4 +119,7 @@ export interface Dim6Result {
   // (cells carry accuracy_not_checked=true) and the report says so.
   // Optional: results built before v5 (and test fakes) don't carry it.
   accuracyChecked?: boolean;
+  // dim6:v5: the site's own description tripped the injection screen, so
+  // AFFIRM answers were not counted (score 0, accuracy_blocked=true).
+  accuracyBlocked?: boolean;
 }
