@@ -199,7 +199,9 @@ export function extractHtmlIdentity(html: string): {
   const seenEntities = new Set<string>();
   const entities: Array<Record<string, unknown>> = [];
   let jsonLdTooDeep = false;
-  const lower = html.toLowerCase();
+  // ASCII-only lowercase: same length as html, so offsets found in it apply
+  // to html (Codex r8 HIGH: toLowerCase() turns U+0130 into two code units).
+  const lower = asciiLower(html);
   const blocks: string[] = [];
   for (let from = 0; ; ) {
     const tag = nextTag(html, lower, "script", from);
@@ -257,6 +259,26 @@ export function extractHtmlIdentity(html: string): {
 // scanTags / stripTags). Every search starts after the previous match, and a
 // tag that never closes ends the scan, so each character is visited a
 // bounded number of times.
+
+/**
+ * A-Z -> a-z, every other UTF-16 code unit unchanged, so the result has the
+ * same length and offsets as the input (String.prototype.toLowerCase does
+ * not: U+0130 becomes two code units). Linear; built in chunks.
+ */
+export function asciiLower(s: string): string {
+  const CHUNK = 8192;
+  const buf = new Uint16Array(Math.min(CHUNK, s.length));
+  let out = "";
+  for (let start = 0; start < s.length; start += CHUNK) {
+    const end = Math.min(start + CHUNK, s.length);
+    for (let i = start; i < end; i++) {
+      const c = s.charCodeAt(i);
+      buf[i - start] = c >= 65 && c <= 90 ? c + 32 : c;
+    }
+    out += String.fromCharCode.apply(null, buf.subarray(0, end - start) as unknown as number[]);
+  }
+  return out;
+}
 
 const isTagSpace = (c: string | undefined) => c === " " || c === "\t" || c === "\n" || c === "\r" || c === "\f";
 
