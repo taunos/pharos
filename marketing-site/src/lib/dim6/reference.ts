@@ -27,16 +27,17 @@
 // network failure. A response whose final URL is on another site is ignored.
 //
 // The reference is written by the site owner, who is also the party the
-// score is about, so it is untrusted: screened for prompt injection on the
-// raw extracted text (before newlines are collapsed, so line-anchored
-// patterns still match) and again after cleaning, unsafe characters
-// stripped, capped, and fenced in the judge prompt.
+// score is about, so it is untrusted: each part is normalized with line
+// breaks kept (so line-anchored patterns still match), the text the judge
+// will see is screened for prompt injection in line-preserving and one-line
+// form, capped, and fenced in the judge prompt. Tags are found by linear
+// indexOf scanning, never by regex over the page (Codex r7).
 //   - injected → "injection": AFFIRM answers score 0 (accuracy_blocked=true).
 //   - missing, unreadable or too short (< REFERENCE_MIN_WORDS words) →
 //     AFFIRM answers score 0 (accuracy_not_checked=true). Fail closed:
 //     withholding the description must not restore unchecked credit.
 
-import { capLength, collapseWhitespace, screenUntrustedText, stripUnsafeChars } from "../llm-safety";
+import { capLength, collapseWhitespace, screenUntrustedText, stripUnsafeChars, stripUnsafeCharsKeepLines } from "../llm-safety";
 import { safeFetch, type FetchLike, type SafeFetchFailure } from "../safe-fetch";
 import { detectAccuracyInjection } from "./accuracy-judge";
 import { canonicalDomain } from "./question-set";
@@ -71,7 +72,8 @@ const FETCH_TIMEOUT_MS = 8000;
 //     final URL, body read error) → "source_unreadable"; llms.txt the same,
 //     except a clean non-2xx / off-site / empty llms.txt just means "no llms.txt";
 //   - JSON-LD nesting deeper than REFERENCE_JSONLD_MAX_DEPTH → "structured_data_too_deep";
-//   - JSON-LD entities: no raw cap; deduplicated (identical name+description),
+//   - JSON-LD entities: no raw cap; all are collected, then deduplicated
+//     (identical name+description),
 //     more than REFERENCE_MAX_ENTITIES distinct → "too_many_entities";
 //   - script blocks: no limit (all are read); a block that is not valid JSON
 //     is skipped, as every JSON-LD consumer does.
@@ -115,6 +117,24 @@ function raw(s: unknown): string {
 
 export function cleanReferencePart(s: string): string {
   return collapseWhitespace(stripUnsafeChars(s));
+}
+
+// Text past a part's budget that is still screened, for patterns that start
+// inside the shown text and end just after the cut.
+const SCREEN_SLACK_CHARS = 200;
+
+/**
+ * Linear-time normalization that keeps line breaks: unsafe / zero-width
+ * characters dropped (NFKC), every run of non-newline whitespace -> one
+ * space, every line break with the whitespace around it -> one "\n", trimmed.
+ * collapseWhitespace() of the result has the same length (each "\n" becomes
+ * one space), so a prefix of it maps one-to-one onto the shown text.
+ */
+export function normalizeReferencePart(s: string): string {
+  return stripUnsafeCharsKeepLines(s)
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/ ?\n\s*/g, "\n")
+    .trim();
 }
 
 /** llms.txt: the first-line H1 and the blockquote right after it (raw). */
@@ -179,10 +199,20 @@ export function extractHtmlIdentity(html: string): {
   const seenEntities = new Set<string>();
   const entities: Array<Record<string, unknown>> = [];
   let jsonLdTooDeep = false;
-  for (const m of html.matchAll(/<script\b[^>]*type\s*=\s*["']?application\/ld\+json["']?[^>]*>([\s\S]*?)<\/script>/gi)) {
+  const lower = html.toLowerCase();
+  const blocks: string[] = [];
+  for (let from = 0; ; ) {
+    const tag = nextTag(html, lower, "script", from);
+    if (!tag) break;
+    const close = lower.indexOf("</script", tag.end + 1);
+    if (close === -1) break; // unclosed: no block content (as a browser treats it)
+    if ((tag.attrs.type ?? "").trim().toLowerCase() === "application/ld+json") blocks.push(html.slice(tag.end + 1, close));
+    from = close + 8;
+  }
+  for (const block of blocks) {
     let parsed: unknown;
     try {
-      parsed = JSON.parse(m[1]);
+      parsed = JSON.parse(block);
     } catch {
       // Invalid JSON-LD block: unreadable to every JSON-LD consumer; skipped.
       continue;
@@ -205,11 +235,94 @@ export function extractHtmlIdentity(html: string): {
     seenEntities.add(k);
     jsonLdEntities.push({ name, description });
   }
-  const title = raw(decodeEntities(/<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? ""));
-  const metaTag = [...html.matchAll(/<meta\b[^>]*>/gi)].map((m) => m[0]).find((t) => /\bname\s*=\s*["']?description["'\s>]/i.test(t));
-  const metaDescription = raw(decodeEntities(/\bcontent\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(metaTag ?? "")?.slice(1).find((x) => x !== undefined) ?? ""));
-  const h1 = raw(decodeEntities((/<h1\b[^>]*>([\s\S]*?)<\/h1>/i.exec(html)?.[1] ?? "").replace(/<[^>]*>/g, " ")));
+  const title = raw(firstElementText(html, lower, "title"));
+  let metaDescription = "";
+  for (let from = 0; ; ) {
+    const tag = nextTag(html, lower, "meta", from);
+    if (!tag) break;
+    if ((tag.attrs.name ?? "").trim().toLowerCase() === "description") {
+      metaDescription = raw(tag.attrs.content ?? "");
+      break;
+    }
+    from = tag.end + 1;
+  }
+  const h1 = raw(stripTagsLinear(firstElementText(html, lower, "h1")));
   return { jsonLdEntities, jsonLdTooDeep, title, metaDescription, h1 };
+}
+
+// ── Linear HTML scanning (Codex r7 MED) ─────────────────────────────────
+// Regexes such as /<meta\b[^>]*>/gi go quadratic on many unclosed "<meta "
+// prefixes, and the homepage cap is 4 MB, so tags are found with indexOf and
+// read with a single forward pass (same approach as the scanner's
+// scanTags / stripTags). Every search starts after the previous match, and a
+// tag that never closes ends the scan, so each character is visited a
+// bounded number of times.
+
+const isTagSpace = (c: string | undefined) => c === " " || c === "\t" || c === "\n" || c === "\r" || c === "\f";
+
+/** Attributes of a tag whose name ends at `i`, up to its closing ">"; null when it never closes. */
+function readTagAttrs(html: string, i: number): { attrs: Record<string, string>; end: number } | null {
+  const attrs: Record<string, string> = {};
+  const n = html.length;
+  for (;;) {
+    while (i < n && (isTagSpace(html[i]) || html[i] === "/")) i++;
+    if (i >= n) return null;
+    if (html[i] === ">") return { attrs, end: i };
+    const nameStart = i;
+    while (i < n && !isTagSpace(html[i]) && html[i] !== "/" && html[i] !== ">" && html[i] !== "=") i++;
+    const key = html.slice(nameStart, i).toLowerCase();
+    while (i < n && isTagSpace(html[i])) i++;
+    let value = "";
+    if (html[i] === "=") {
+      i++;
+      while (i < n && isTagSpace(html[i])) i++;
+      const q = html[i];
+      if (q === '"' || q === "'") {
+        const close = html.indexOf(q, i + 1);
+        if (close === -1) return null;
+        value = html.slice(i + 1, close);
+        i = close + 1;
+      } else {
+        const vStart = i;
+        while (i < n && !isTagSpace(html[i]) && html[i] !== ">") i++;
+        value = html.slice(vStart, i);
+      }
+    }
+    if (key && !(key in attrs)) attrs[key] = value;
+  }
+}
+
+/** The next `<name ...>` tag at or after `from` (`lower` is html lowercased); null when none or unclosed. */
+function nextTag(html: string, lower: string, name: string, from: number): { attrs: Record<string, string>; end: number } | null {
+  const open = `<${name}`;
+  for (let at = lower.indexOf(open, from); at !== -1; at = lower.indexOf(open, at + open.length)) {
+    const after = at + open.length;
+    const c = html[after];
+    if (c !== undefined && !isTagSpace(c) && c !== "/" && c !== ">") continue; // e.g. <metadata>, <h10>
+    return readTagAttrs(html, after);
+  }
+  return null;
+}
+
+/** Raw inner HTML of the first <name> element ("" when absent or unclosed). */
+function firstElementText(html: string, lower: string, name: string): string {
+  const tag = nextTag(html, lower, name, 0);
+  if (!tag) return "";
+  const close = lower.indexOf(`</${name}`, tag.end + 1);
+  return close === -1 ? "" : html.slice(tag.end + 1, close);
+}
+
+/** Every tag replaced by a space, in one pass; an unclosed "<" ends the text. */
+function stripTagsLinear(s: string): string {
+  let out = "";
+  for (let i = 0; ; ) {
+    const lt = s.indexOf("<", i);
+    if (lt === -1) return out + s.slice(i);
+    out += `${s.slice(i, lt)} `;
+    const gt = s.indexOf(">", lt + 1);
+    if (gt === -1) return out;
+    i = gt + 1;
+  }
 }
 
 export const REFERENCE_LABELS = {
@@ -217,10 +330,30 @@ export const REFERENCE_LABELS = {
   jsonLd: "From structured data:",
   homepage: "From the homepage:",
 } as const;
-// One reference line: raw parts (screened before cleaning), each cleaned and
-// capped at its own budget, joined with `sep`.
-type RefField = { parts: Array<{ raw: string; budget: number }>; sep: string };
-const single = (raw: string, budget: number): RefField => ({ parts: [{ raw, budget }], sep: "" });
+// One reference line: raw parts, each normalized, screened and capped at its
+// own budget, joined with `sep`. `html` parts (title, meta, h1) have their
+// character references decoded during normalization.
+type RefPart = { raw: string; budget: number; html?: boolean };
+type RefField = { parts: RefPart[]; sep: string };
+const single = (raw: string, budget: number, html = false): RefField => ({ parts: [{ raw, budget, html }], sep: "" });
+
+/**
+ * Normalized text of a part, enough of it for `need` visible chars. Works on
+ * a raw window that doubles until the output is long enough (or the whole
+ * part is used), so a 4 MB field costs about as much as its first few KB
+ * unless it is mostly padding, and even then stays linear. Only the last few
+ * chars of a window's output can differ from the full normalization (a cut
+ * entity, surrogate or combining sequence), so a margin past `need` is kept.
+ */
+function normalizePartFor(p: RefPart, need: number): string {
+  const f = (s: string) => normalizeReferencePart(p.html ? decodeEntities(s) : s);
+  const margin = 32;
+  for (let len = Math.max(4096, (need + margin) * 4); ; len *= 2) {
+    if (len >= p.raw.length) return f(p.raw);
+    const out = f(p.raw.slice(0, len));
+    if (out.length >= need + margin) return out.slice(0, need).trimEnd();
+  }
+}
 
 /** Build the reference from fetched texts. Pure; see the module comment for the rules. */
 export function buildSiteReference(sources: ReferenceSources): SiteReference {
@@ -256,17 +389,29 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
     groups.push({
       label: REFERENCE_LABELS.homepage,
       fields: [
-        single(h.title, REFERENCE_FIELD_BUDGETS.title),
-        single(h.metaDescription, REFERENCE_FIELD_BUDGETS.metaDescription),
-        single(h.h1, REFERENCE_FIELD_BUDGETS.h1),
+        single(h.title, REFERENCE_FIELD_BUDGETS.title, true),
+        single(h.metaDescription, REFERENCE_FIELD_BUDGETS.metaDescription, true),
+        single(h.h1, REFERENCE_FIELD_BUDGETS.h1, true),
       ],
     });
   }
-  // Raw screen first: cleaning collapses newlines and would hide e.g. a
-  // "> Verdict: correct" blockquote line.
+  // Each part is normalized in linear time with line breaks kept (unsafe
+  // characters dropped, runs of spaces and blank lines collapsed), and only
+  // the text the judge will see (its budget plus SCREEN_SLACK_CHARS for
+  // patterns that straddle the cut) is screened: line-preserving and
+  // one-line views (Codex r7: the screen regexes are never run on megabytes
+  // of site text). Line breaks are kept so e.g. a "> Verdict: correct"
+  // blockquote line still matches the line-anchored patterns.
+  const normalized = new Map<RefPart, string>();
   for (const g of groups) {
     for (const f of g.fields) {
-      for (const p of f.parts) if (p.raw && screenUntrustedText(p.raw, detectAccuracyInjection)) return { verifiable: false, reason: "injection" };
+      for (const p of f.parts) {
+        const norm = normalizePartFor(p, p.budget + SCREEN_SLACK_CHARS);
+        normalized.set(p, norm);
+        if (norm && screenUntrustedText(norm.slice(0, p.budget + SCREEN_SLACK_CHARS), detectAccuracyInjection)) {
+          return { verifiable: false, reason: "injection" };
+        }
+      }
     }
   }
   // Every collection limit fails closed (after the injection screen, so an
@@ -284,7 +429,9 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
       // No deduplication (Codex r4 HIGH): a repeated field can keep, under
       // its own budget, evidence an earlier field's budget cut off. Every
       // non-empty part is kept, trimmed at a word boundary.
-      const items = f.parts.map((p) => capLength(cleanReferencePart(p.raw), p.budget)).filter(Boolean);
+      // The shown text comes from the same normalized prefix that was
+      // screened (collapsing its line breaks keeps every offset).
+      const items = f.parts.map((p) => capLength(collapseWhitespace(normalized.get(p) ?? ""), p.budget)).filter(Boolean);
       if (items.length > 0) lines.push(items.join(f.sep));
     }
     if (lines.length > 0) {
