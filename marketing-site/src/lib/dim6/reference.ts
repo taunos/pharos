@@ -51,12 +51,12 @@ export const REFERENCE_FIELD_BUDGETS = {
 } as const;
 /** Per JSON-LD identity entity. */
 export const REFERENCE_ENTITY_BUDGETS = { name: 50, description: 120 } as const;
-export const REFERENCE_MAX_ENTITIES = 4;
+export const REFERENCE_MAX_ENTITIES = 8;
 /**
  * Most content the reference can hold: 540 for the fixed fields plus 170 per
- * entity x 4 = 1220 chars (labels and line breaks come on top). With a 6000-
- * char answer and the instructions the judge prompt stays around 9000 chars
- * (~3000 tokens), well inside the 70B model's context.
+ * entity x 8 = 1900 chars (labels and line breaks come on top). With a 6000-
+ * char answer and the instructions the judge prompt stays around 10,000 chars
+ * (~3,300 tokens), well inside the 70B model's context.
  */
 export const REFERENCE_MAX_CHARS =
   Object.values(REFERENCE_FIELD_BUDGETS).reduce((a, b) => a + b, 0) +
