@@ -247,6 +247,6 @@ export async function POST(req: Request) {
      stored email, IP address, unsubscribe token, opt-in state, and personalized
      report. The submitted URL and technical scan results remain for
      calibration.</p>
-     <p class="muted">Astrant — Agent Discoverability for B2B SaaS.</p>`
+     <p class="muted">Astrant — Agent Discoverability · contact@astrant.io</p>`
   );
 }

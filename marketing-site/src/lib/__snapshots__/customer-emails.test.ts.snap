@@ -57,7 +57,7 @@ exports[`E1 customer emails > #1/#2 gap-report ready (payload builder) > html 1`
     </tr>
     <tr>
       <td style="padding: 24px 8px 0 8px; text-align: center;">
-        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">You requested this report on 2026-10-08.</div><div style="font-size: 12px; color: #71717a; line-height: 1.5;"><a href="https://astrant.io/api/score/unsubscribe?t=unsub-token-FIXED" style="color: #71717a;">Unsubscribe from rescan emails</a> &nbsp;·&nbsp; <a href="https://astrant.io/score/delete-me" style="color: #71717a;">Delete all my data</a></div><div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io</div>
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">You requested this report on 2026-10-08.</div><div style="font-size: 12px; color: #71717a; line-height: 1.5;"><a href="https://astrant.io/api/score/unsubscribe?t=unsub-token-FIXED" style="color: #71717a;">Unsubscribe from rescan emails</a> &nbsp;·&nbsp; <a href="https://astrant.io/score/delete-me" style="color: #71717a;">Delete all my data</a></div><div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability · contact@astrant.io</div>
       </td>
     </tr>
         </table>
@@ -90,7 +90,7 @@ You requested this report on 2026-10-08.
 Unsubscribe from rescan emails: https://astrant.io/api/score/unsubscribe?t=unsub-token-FIXED
 Delete all your data: https://astrant.io/score/delete-me
 
-Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io"
+Astrant — Agent Discoverability · contact@astrant.io"
 `;
 
 exports[`E1 customer emails > #3 gap-report deferred > html 1`] = `
@@ -161,7 +161,7 @@ exports[`E1 customer emails > #3 gap-report deferred > html 1`] = `
     </tr>
     <tr>
       <td style="padding: 24px 8px 0 8px; text-align: center;">
-        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">You requested this report on 2026-10-08.</div><div style="font-size: 12px; color: #71717a; line-height: 1.5;"><a href="https://astrant.io/api/score/unsubscribe?t=unsub-token-FIXED" style="color: #71717a;">Unsubscribe from rescan emails</a> &nbsp;·&nbsp; <a href="https://astrant.io/score/delete-me" style="color: #71717a;">Delete all my data</a></div><div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io</div>
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">You requested this report on 2026-10-08.</div><div style="font-size: 12px; color: #71717a; line-height: 1.5;"><a href="https://astrant.io/api/score/unsubscribe?t=unsub-token-FIXED" style="color: #71717a;">Unsubscribe from rescan emails</a> &nbsp;·&nbsp; <a href="https://astrant.io/score/delete-me" style="color: #71717a;">Delete all my data</a></div><div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability · contact@astrant.io</div>
       </td>
     </tr>
         </table>
@@ -194,7 +194,7 @@ You requested this report on 2026-10-08.
 Unsubscribe from rescan emails: https://astrant.io/api/score/unsubscribe?t=unsub-token-FIXED
 Delete all your data: https://astrant.io/score/delete-me
 
-Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io"
+Astrant — Agent Discoverability · contact@astrant.io"
 `;
 
 exports[`E1 customer emails > #4 deletion confirm > html 1`] = `
@@ -232,7 +232,7 @@ exports[`E1 customer emails > #4 deletion confirm > html 1`] = `
     </tr>
     <tr>
       <td style="padding: 24px 8px 0 8px; text-align: center;">
-        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io</div>
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability · contact@astrant.io</div>
       </td>
     </tr>
         </table>
@@ -255,7 +255,7 @@ https://astrant.io/api/score/delete-me/confirm?t=del-token-FIXED
 If this wasn't you, ignore this email. The link expires in 24 hours and
 nothing will be deleted without confirmation.
 
-Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io"
+Astrant — Agent Discoverability · contact@astrant.io"
 `;
 
 exports[`E1 customer emails > #5 AutoPilot audit-ready (date clause removed, dims list fixed) > html 1`] = `
@@ -315,7 +315,7 @@ exports[`E1 customer emails > #5 AutoPilot audit-ready (date clause removed, dim
     </tr>
     <tr>
       <td style="padding: 24px 8px 0 8px; text-align: center;">
-        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io</div>
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability · contact@astrant.io</div>
       </td>
     </tr>
         </table>
@@ -409,7 +409,7 @@ exports[`E1 customer emails > #6 F2 patch delivery > html 1`] = `
     </tr>
     <tr>
       <td style="padding: 24px 8px 0 8px; text-align: center;">
-        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io</div>
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability · contact@astrant.io</div>
       </td>
     </tr>
         </table>
@@ -505,7 +505,7 @@ exports[`E1 customer emails > #7 F2 Day-30 audit > html 1`] = `
     </tr>
     <tr>
       <td style="padding: 24px 8px 0 8px; text-align: center;">
-        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io</div>
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability · contact@astrant.io</div>
       </td>
     </tr>
         </table>
@@ -592,7 +592,7 @@ exports[`E1 customer emails > #7 F2 Day-60 audit > html 1`] = `
     </tr>
     <tr>
       <td style="padding: 24px 8px 0 8px; text-align: center;">
-        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io</div>
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability · contact@astrant.io</div>
       </td>
     </tr>
         </table>
@@ -690,7 +690,7 @@ exports[`E1 customer emails > #7 F2 Day-90 audit > html 1`] = `
     </tr>
     <tr>
       <td style="padding: 24px 8px 0 8px; text-align: center;">
-        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io</div>
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability · contact@astrant.io</div>
       </td>
     </tr>
         </table>

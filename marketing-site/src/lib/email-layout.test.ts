@@ -65,7 +65,7 @@ describe("Audit-ready email HTML (C5 via renderEmailLayout)", () => {
     expect(html).toContain("Questions or something looks wrong? Reply to this email or write to");
     expect(html).toContain(`href="${args.pdfUrl}"`);
     expect(html).toContain(">Open your Audit (PDF)</a>");
-    expect(html).toContain("Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io");
+    expect(html).toContain("Astrant — Agent Discoverability · contact@astrant.io");
     expect(html).not.toContain("placeholder");
   });
 

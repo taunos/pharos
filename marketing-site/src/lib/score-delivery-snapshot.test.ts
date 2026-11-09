@@ -104,7 +104,11 @@ describe("frozen delivery payload — byte-identical retry (v2.9 acceptance gate
     expect(p.from).toBe(legacy.from);
     expect(p.to).toBe(legacy.to);
     expect(p.subject).toBe(legacy.subject);
-    expect(p.text).toBe(legacy.text);
+    // 2026-11-09: the footer dropped "for B2B SaaS" (approved copy change);
+    // otherwise the text body must still match the pre-E1 payload.
+    expect(p.text).toBe(
+      legacy.text.replace("Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io", "Astrant — Agent Discoverability · contact@astrant.io")
+    );
     expect(p.headers).toEqual(legacy.headers);
     expect(p.html).not.toBe(legacy.html);
     expect(Object.keys(p).sort()).toEqual(Object.keys(legacy).sort());

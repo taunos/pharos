@@ -124,7 +124,7 @@ async function performUnsubscribe(req: Request): Promise<Response> {
      <p>We won't send you rescan emails for this scan anymore.</p>
      <p>Want to remove all your data? <a href="/score/delete-me">Click here
      to delete your account data</a>.</p>
-     <p class="muted">Astrant — Agent Discoverability for B2B SaaS.</p>`
+     <p class="muted">Astrant — Agent Discoverability · contact@astrant.io</p>`
   );
 }
 
