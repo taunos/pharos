@@ -10,7 +10,7 @@ export const SERVER_CARD = {
   name: "Astrant",
   version: "0.0.1",
   description:
-    "Astrant: Agent Discoverability as a Service for B2B SaaS. Tools for AEO posture inspection, capability discovery, and audit booking.",
+    "Astrant: Agent Discoverability as a Service. Tools for inspecting what AI agents can read on a site, and for booking an audit.",
   vendor: { name: "Astrant", url: "https://astrant.io" },
   transports: [
     { type: "streamable-http", url: "https://mcp.astrant.io/mcp" },
@@ -19,7 +19,7 @@ export const SERVER_CARD = {
     {
       name: "get_capabilities",
       description:
-        "Returns the services Astrant offers — Score (free), Audit ($79), Implementation ($1,299), Custom (from $4,999), Standard Subscription ($149/mo), Pro Subscription ($899/mo) — as structured data for agents.",
+        "Returns Astrant's services as structured data for agents: the free Score and the $79 Audit are open; the other tiers are listed as not open yet.",
       inputSchema: { type: "object", properties: {} },
     },
     {

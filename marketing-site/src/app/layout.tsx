@@ -62,7 +62,7 @@ const jsonLd = [
       height: 1254,
     },
     description:
-      "Agent Discoverability as a Service. Astrant checks how AI agents read and describe B2B SaaS sites, and lists what to fix.",
+      "Astrant checks how AI assistants and agents read and describe a website, and lists what to fix.",
     disambiguatingDescription: "Astrant publishes how its citation check is calibrated, including what hasn't been validated yet.",
     // sameAs PLACEHOLDER — fill in after Phase 4.4 social handle claiming.
     // Expected entries (replace with actual claimed handles):
@@ -78,7 +78,7 @@ const jsonLd = [
     provider: { "@type": "Organization", name: "Astrant" },
     name: "Agent Discoverability Implementation",
     description:
-      "Technical implementation of llms.txt, MCP server, OpenAPI specs, structured capability data, and agent-parsable content for B2B SaaS companies.",
+      "Checks what AI assistants and agents can read on a website (llms.txt, structured data, OpenAPI and MCP discovery, rendering) and what four AI models say about it, and lists what to fix.",
     serviceType: "Agent Engine Optimization",
     areaServed: "Worldwide",
     offers: [
@@ -99,56 +99,6 @@ const jsonLd = [
         priceCurrency: "USD",
         description:
           "Automated audit, delivered in a few minutes. Rich PDF with 6-dimension analysis and developer-ready remediation guidance for each gap, plus machine-readable JSON export.",
-      },
-      {
-        "@type": "Offer",
-        name: "AEO Implementation",
-        url: "https://astrant.io/implementation",
-        price: "1299",
-        priceCurrency: "USD",
-        description:
-          "Automated technical build delivered in under 24 hours. llms.txt, MCP server, OpenAPI, JSON-LD schema, baseline monitoring.",
-      },
-      {
-        "@type": "Offer",
-        name: "Custom Implementation",
-        url: "https://astrant.io/custom",
-        price: "4999",
-        priceCurrency: "USD",
-        priceSpecification: {
-          "@type": "PriceSpecification",
-          price: "4999",
-          priceCurrency: "USD",
-          valueAddedTaxIncluded: false,
-        },
-        description:
-          "Bespoke builds for complex APIs, multi-region content, custom MCP tools. From $4,999 — fixed quote after scoping call.",
-      },
-      {
-        "@type": "Offer",
-        name: "Standard Subscription",
-        url: "https://astrant.io/subscriptions",
-        priceSpecification: {
-          "@type": "UnitPriceSpecification",
-          price: "149",
-          priceCurrency: "USD",
-          billingDuration: "P1M",
-        },
-        description:
-          "Stay legible to ChatGPT, Claude, Perplexity, and Gemini — twice-weekly citation probes detecting mentions of your brand and tracked competitors, monthly agent-citation report, monthly Astrant Score recalibration, hosted MCP endpoint.",
-      },
-      {
-        "@type": "Offer",
-        name: "Pro Subscription",
-        url: "https://astrant.io/subscriptions",
-        priceSpecification: {
-          "@type": "UnitPriceSpecification",
-          price: "899",
-          priceCurrency: "USD",
-          billingDuration: "P1M",
-        },
-        description:
-          "Everything in Standard plus daily citation probes and gap intelligence — which tracked competitors get cited in the prompts where your brand is absent — across ChatGPT, Claude, Perplexity, and Gemini, with sub-24-hour competitive change detection.",
       },
     ],
   },

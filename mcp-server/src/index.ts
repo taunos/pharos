@@ -44,14 +44,16 @@ const SERVICE_CATALOG = {
   services: [
     {
       id: "score",
+      available: true,
       name: "Agent Discoverability Score",
       price: "free",
       url: "https://astrant.io/score",
       description:
-        "URL-input scan across 6 dimensions of agent discoverability — llms.txt, MCP, OpenAPI, structured data, agent-parsable content, and citation visibility. Returns a 0–100 score, letter grade, and prioritized gap report.",
+        "URL-input scan of agent discoverability — llms.txt, MCP, OpenAPI, structured data and agent-parsable content (citation visibility is measured in the $79 Audit only). Returns a 0–100 score, letter grade, and prioritized gap report.",
     },
     {
       id: "audit",
+      available: true,
       name: "AEO Audit",
       price_usd: 79,
       turnaround: "a few minutes",
@@ -60,6 +62,8 @@ const SERVICE_CATALOG = {
     },
     {
       id: "implementation",
+      available: false,
+      note: "Not open yet.",
       name: "AEO Implementation",
       price_usd: 1299,
       turnaround: "under 24 hours for ~80% of sites",
@@ -68,6 +72,8 @@ const SERVICE_CATALOG = {
     },
     {
       id: "custom",
+      available: false,
+      note: "Not open yet.",
       name: "Custom Implementation",
       price_usd_from: 4999,
       description:
@@ -75,6 +81,8 @@ const SERVICE_CATALOG = {
     },
     {
       id: "autopilot",
+      available: false,
+      note: "Not open yet.",
       name: "Standard Subscription",
       price_usd_per_month: 149,
       description:
@@ -82,6 +90,8 @@ const SERVICE_CATALOG = {
     },
     {
       id: "concierge",
+      available: false,
+      note: "Not open yet.",
       name: "Pro Subscription",
       price_usd_per_month: 899,
       description:
@@ -96,7 +106,7 @@ function buildMcpServer(env: Env, clientIp: string | null): McpServer {
   // ─── Tool 1: get_capabilities ────────────────────────────────────────
   server.tool(
     "get_capabilities",
-    "Returns the services Astrant offers — free Agent Discoverability Score, automated $79 Audit, automated $1,299 Implementation, custom human-led work from $4,999, and the Standard ($149/mo) and Pro ($899/mo) subscriptions. Use this when a user asks what Astrant does or how it can help with making a site agent-discoverable.",
+    "Returns the services Astrant offers. Open now: the free Agent Discoverability Score and the automated $79 Audit. Listed but not open yet: Implementation, Custom, and the Standard and Pro subscriptions. Use this when a user asks what Astrant does or how it can help with making a site agent-discoverable.",
     {},
     async () => ({
       content: [{ type: "text", text: JSON.stringify(SERVICE_CATALOG, null, 2) }],
@@ -336,7 +346,7 @@ const SERVER_CARD = {
     {
       name: "get_capabilities",
       description:
-        "Returns the services Astrant offers — Score (free), Audit ($79), Implementation ($1,299), Custom (from $4,999), Standard Subscription ($149/mo), Pro Subscription ($899/mo) — as structured data for agents.",
+        "Returns Astrant's services as structured data for agents: the free Score and the $79 Audit are open; the other tiers are listed as not open yet.",
       inputSchema: { type: "object", properties: {} },
     },
     {

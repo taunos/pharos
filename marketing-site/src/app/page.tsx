@@ -137,7 +137,7 @@ const FAQS = [
   },
   {
     q: "Do I need a developer to use Astrant?",
-    a: "No. The free Score tool and the $79 Audit are entirely self-serve — paste your URL, get results. The $1,299 automated Implementation also doesn't require your developer to write any code; we email a Git-applicable patch file that your developer applies with `git am` in about five minutes and reviews via your normal PR workflow. We never need access to your repo or infrastructure. Only Custom builds (from $4,999) involve back-and-forth with your engineering team. Implementation isn't open yet.",
+    a: "No. The free Score and the $79 Audit are self-serve: paste your URL and get results. Implementation and Custom are not open yet.",
   },
   {
     q: "What's the difference between the free Score and the paid Audit?",

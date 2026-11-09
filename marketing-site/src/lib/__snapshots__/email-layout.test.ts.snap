@@ -48,7 +48,7 @@ exports[`Audit-ready email HTML (C5 via renderEmailLayout) > snapshot 1`] = `
     </tr>
     <tr>
       <td style="padding: 24px 8px 0 8px; text-align: center;">
-        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io</div>
+        <div style="font-size: 12px; color: #71717a; line-height: 1.5;">Astrant — Agent Discoverability · contact@astrant.io</div>
       </td>
     </tr>
         </table>

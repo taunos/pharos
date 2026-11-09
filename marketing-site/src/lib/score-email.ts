@@ -33,7 +33,7 @@ import {
 const FROM_ADDRESS = "Astrant Score <reports@astrant.io>";
 const REPLY_TO = "contact@astrant.io";
 export const COMPANY_FOOTER =
-  "Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io";
+  "Astrant — Agent Discoverability · contact@astrant.io";
 
 export type SendEnv = {
   RESEND_API_KEY: string;

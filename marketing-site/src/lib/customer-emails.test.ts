@@ -124,7 +124,7 @@ function lastSent(): Sent {
 }
 
 const sent: Record<string, Sent> = {};
-const BRAND_FOOTER = "Astrant — Agent Discoverability for B2B SaaS · contact@astrant.io";
+const BRAND_FOOTER = "Astrant — Agent Discoverability · contact@astrant.io";
 
 beforeEach(() => {
   sendMock.mockReset();
