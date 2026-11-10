@@ -15,6 +15,30 @@ const git = (repo, ...args) => {
   try { return execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" }).trim(); } catch { return null; }
 };
 
+const hostOf = (u) => { try { return new URL(u).hostname.toLowerCase().replace(/^www\./, ""); } catch { return String(u).toLowerCase().replace(/^www\./, ""); } };
+
+/** Every site host Astrant has already tested: the panel list, every saved run and every logged defect. */
+export function usedHosts(panelSitesFile) {
+  const used = new Set();
+  for (const s of JSON.parse(fs.readFileSync(panelSitesFile, "utf8"))) used.add(hostOf(s.url));
+  const snaps = path.join(HERE, "snapshots");
+  for (const d of fs.existsSync(snaps) ? fs.readdirSync(snaps) : []) {
+    const m = path.join(snaps, d, "manifest.json");
+    if (fs.existsSync(m)) for (const s of Object.values(JSON.parse(fs.readFileSync(m, "utf8")).sites ?? {})) if (s.url) used.add(hostOf(s.url));
+  }
+  for (const l of fs.readFileSync(path.join(HERE, "defects.jsonl"), "utf8").split(/\r?\n/)) {
+    try { const site = JSON.parse(l).site; if (site && site !== "*") used.add(hostOf(site.includes("://") ? site : "https://" + site)); } catch {}
+  }
+  return used;
+}
+
+/** Throws if any of these sites was tested before (a fresh-site run must use sites never seen). */
+export function assertFreshSites(sites, panelSitesFile) {
+  const used = usedHosts(panelSitesFile);
+  const seen = sites.filter((s) => used.has(hostOf(s.url))).map((s) => s.url);
+  if (seen.length) throw new Error(`--fresh: already tested before, pick other sites: ${seen.join(", ")}`);
+}
+
 export function archiveRun(outDir, name, { repo, tier, dim6, only = null, date = new Date().toISOString().slice(0, 10) } = {}) {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) throw new Error("--archive name: lowercase letters, digits and dashes only");
   const dest = path.join(HERE, "snapshots", `${date}-${name}`);

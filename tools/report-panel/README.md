@@ -14,6 +14,17 @@ Run the gate for any change to:
 
 Merging, deploying, or reopening Audit checkout all wait until the latest panel run has **zero HIGH findings**.
 
+## Release check (before outreach, before reopening a paid product)
+
+No outreach and no reopening until a release check passes: **zero blockers** (nothing false, no invented advice, nothing that could lead to a wrong action or conclusion). It has two halves, and both must pass in the same round:
+
+1. **Known sites:** 5 panel sites with real Dim 6 (`run-dim6-real.ps1 -Sites a,b,c,d,e -Archive release-check`).
+2. **Fresh sites:** 5 sites never tested before, in a sites file outside `sites.json` (`run-dim6-real.ps1 -SitesFile <file> -Sites <labels> -Fresh -Archive release-check-fresh`). `--fresh` refuses any site already in `sites.json`, in a saved run or in `defects.jsonl`, so fresh sites can't be reused. Pick a varied mix (different countries, languages and kinds of business, at least one with an API), not sites expected to do well.
+
+Why both halves: fixes get tuned to the sites they were found on. The fresh half shows whether a fix works on sites we have never seen (2026-11-10: the v5 accuracy check passed code review, the panel rules and a real test purchase, and still flagged correct answers on all five sites of the first real release check).
+
+Each report is then read by a fresh reviewer with no context, checked against `dim6-cells.json` and the live site, plus Codex and a Gemini file. Log every finding in `datasets/report-defects/defects.jsonl` and fill `reviews` in the run's `manifest.json`.
+
 ## Steps
 
 From the repo root:

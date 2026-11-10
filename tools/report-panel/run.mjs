@@ -5,7 +5,7 @@
 //
 // Usage (from the repo root):
 //   node tools/report-panel/run.mjs [--repo <checkout>] [--only a,b]
-//        [--sites <file>] [--out <dir>] [--dim6 off|env] [--no-synthetic-dim6] [--archive <name>]
+//        [--sites <file>] [--out <dir>] [--dim6 off|env] [--no-synthetic-dim6] [--archive <name>] [--fresh]
 //        [--no-pdf] [--ai-url http://127.0.0.1:8799] [--chrome <chrome.exe>]
 //   node tools/report-panel/run.mjs --tier free [--checkout-open] [--repo ...] [--only a,b]
 //
@@ -395,6 +395,8 @@ async function runSite(M, site) {
 // ── main ─────────────────────────────────────────────────────────────────
 const sites = JSON.parse(fs.readFileSync(SITES_FILE, "utf8")).filter((s) => !ONLY || ONLY.includes(s.label));
 if (sites.length === 0) throw new Error(`no sites selected from ${SITES_FILE}`);
+// --fresh: the release check's second half must use sites never tested before.
+if (flag("fresh")) (await import("../../datasets/report-defects/archive-run.mjs")).assertFreshSites(sites, path.join(HERE, "sites.json"));
 if (TIER === "free") {
   fs.mkdirSync(OUT, { recursive: true });
   const F = await bundleFree({ REPO, HERE, NODE_PATHS, esbuild: findEsbuild() });

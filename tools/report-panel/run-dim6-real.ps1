@@ -5,7 +5,7 @@
 #
 # Usage, from F:\pharos:
 #   powershell -ExecutionPolicy Bypass -File tools\report-panel\run-dim6-real.ps1 -Sites rachelqueiroz
-param([string]$Sites = "rachelqueiroz", [string]$Archive = "")
+param([string]$Sites = "rachelqueiroz", [string]$Archive = "", [string]$SitesFile = "", [switch]$Fresh)
 
 function Read-Secret([string]$name) {
   $s = Read-Host -AsSecureString "Paste $name (hidden)"
@@ -24,11 +24,14 @@ $env:GOOGLE_AI_API_KEY  = Read-Secret "GOOGLE_AI_API_KEY"
 $env:PERPLEXITY_API_KEY = Read-Secret "PERPLEXITY_API_KEY"
 try {
   $archiveArgs = @(); if ($Archive) { $archiveArgs = @("--archive", $Archive) }
+  if ($SitesFile) { $archiveArgs += @("--sites", $SitesFile) }
+  if ($Fresh) { $archiveArgs += @("--fresh") }
   node tools/report-panel/run.mjs --only $Sites --dim6 env --no-synthetic-dim6 --out tools/report-panel/out/dim6-real @archiveArgs
   if ($LASTEXITCODE -ne 0) {
     Write-Host "The run failed (see above), so the reports were not checked. Old reports in the folder are not from this run."
   } else {
-    node tools/report-panel/check.mjs --out tools/report-panel/out/dim6-real --only $Sites
+    $checkArgs = @(); if ($SitesFile) { $checkArgs = @("--sites", $SitesFile) }
+    node tools/report-panel/check.mjs --out tools/report-panel/out/dim6-real --only $Sites @checkArgs
   }
 } finally {
   Remove-Item Env:OPENAI_API_KEY, Env:ANTHROPIC_API_KEY, Env:GOOGLE_AI_API_KEY, Env:PERPLEXITY_API_KEY -ErrorAction SilentlyContinue
