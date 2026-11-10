@@ -297,7 +297,7 @@ describe("paid report shows plain notes; consumers keep raw notes", () => {
 
 describe("version comparability notice", () => {
   const NOTICE =
-    "Scores are only comparable between reports made with the same version. Astrant Score scoring version 1.5.1 (Nov 7, 2026) and Citation Visibility v5 (Nov 8, 2026) measure more strictly than earlier versions, so a lower score after these dates does not mean your site got worse.";
+    "Scores are only comparable between reports made with the same version. Astrant Score scoring version 1.5.1 (Nov 7, 2026) and Citation Visibility v5 (Nov 8, 2026) measure more strictly than earlier versions, so a lower score after these dates does not by itself mean your site got worse.";
 
   it("is the approved sentence", () => {
     expect(VERSION_COMPARABILITY_NOTICE).toBe(NOTICE);
