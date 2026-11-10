@@ -598,6 +598,14 @@ describe("1.4.0 Dim 4: deep traversal, complete Organization, FAQ answers, ratin
     });
   });
 
+  it("note flags use the score's non-empty-string test: a non-string description is description=false", async () => {
+    const d = await d4({ "@type": "Organization", name: "Acme", url: { "@id": "https://acme.com" }, description: { "@value": "Bakery." } });
+    expect(sub(d, "organization_schema")).toMatchObject({
+      score: 30,
+      notes: "Organization found: name=true, url=false, description=false, sameAs=0; entry=Organization",
+    });
+  });
+
   it("a nested Person (not a top-level entry) or one without a description is not named", async () => {
     const d = await d4(
       { "@type": "Organization", name: "Acme", url: "https://acme.com", founder: { "@type": "Person", name: "Ana", description: "Founder." } },

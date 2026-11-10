@@ -562,12 +562,15 @@ export async function runDim4(
     const hits = fields(o);
     const sameAs = Array.isArray(o.sameAs) ? o.sameAs : typeof o.sameAs === "string" && o.sameAs ? [o.sameAs] : [];
     orgScore = hits === 3 ? 100 : hits * 30;
-    orgNote = `Organization found: name=${!!o.name}, url=${!!o.url}, description=${!!o.description}, sameAs=${sameAs.length}`;
+    // The note's flags use the same non-empty-string test as the score.
+    const str = (v: unknown) => typeof v === "string" && !!v;
+    const hasDescription = str(o.description);
+    orgNote = `Organization found: name=${str(o.name)}, url=${str(o.url)}, description=${hasDescription}, sameAs=${sameAs.length}`;
     // Note-only (scoring unchanged): name the entry that was read, and when it
     // has no description, a top-level Person or other Organization entry that
     // does (with its sameAs links when the read entry has none).
     orgNote += `; entry=${ldEntryLabel(o, ORGANIZATION_TYPES)}`;
-    if (!o.description) {
+    if (!hasDescription) {
       const hasSameAs = (e: Record<string, unknown>) =>
         (Array.isArray(e.sameAs) && e.sameAs.length > 0) || (typeof e.sameAs === "string" && !!e.sameAs);
       const other = topLevelEntries(validBlocks).find(

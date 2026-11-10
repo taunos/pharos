@@ -53,7 +53,7 @@ export const AUDIT_REPORT_COPY = {
     "Dimension did not apply to this site; dropped from composite.",
   // Under the coverage line: which scoring version made this report, and why
   // a lower score after the Nov 2026 releases is not a regression.
-  versionThisReport: (v: string) => `This report was scored with Astrant Score ${v}.`,
+  versionThisReport: (v: string) => `This report was scored with Astrant Score scoring version ${v}.`,
   versionNotice: VERSION_COMPARABILITY_NOTICE,
   checkColumns: ["Check", "Score", "Weight", "Notes"] as const,
   findingLabel: "Finding:",

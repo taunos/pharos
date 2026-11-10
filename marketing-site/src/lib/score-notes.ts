@@ -162,6 +162,56 @@ export function plainScoreNote(sub: Pick<SubCheck, "id" | "notes">): string {
           : `Organization markup found, but it has no ${joinOr(missing)}.`;
       }
       return notes;
+    case "well_known":
+      if ((m = notes.match(/^valid card at (\S+) with name="(.*)", transports=(\d+)$/))) {
+        return `Found a valid MCP server card at ${m[1]}. It names the server "${m[2]}" and lists ${count(m[3], "transport URL", "transport URLs")}.`;
+      }
+      return notes;
+    case "oauth_metadata":
+      if ((m = notes.match(/^auth=([^;]{1,40}); (.+)$/))) {
+        const head = `The MCP server card declares sign-in (${m[1]})`;
+        const rest = m[2];
+        let r: RegExpMatchArray | null;
+        if (rest === "OAuth metadata valid") return `${head}, and its OAuth metadata is valid.`;
+        if (rest === "OAuth metadata missing required endpoints") {
+          return `${head}, but its OAuth metadata is missing a required endpoint (authorization_endpoint or token_endpoint).`;
+        }
+        if (rest === "OAuth metadata invalid JSON") return `${head}, but its OAuth metadata is not valid JSON.`;
+        if ((r = rest.match(/^(\S+) returned (\d{3})$/))) return `${head}, but its OAuth metadata at ${r[1]} did not load (HTTP ${r[2]}).`;
+        if ((r = rest.match(/^(\S+) returned no response$/))) return `${head}, but its OAuth metadata at ${r[1]} did not load (no response).`;
+      }
+      return notes;
+    case "discovery":
+      if ((m = notes.match(/^Found via (well-known|canonical) (\S+) at (\S+) \(content-type=[^)]*\)\.(.*)$/))) {
+        const how = m[1] === "well-known" ? "the standard address" : "the common address";
+        return `Found your API description at ${m[3]}, through ${how} ${m[2]}.${m[4]}`;
+      }
+      if ((m = notes.match(/^Found via homepage link \S+ at (\S+) \(content-type=[^)]*\)\.(.*)$/))) {
+        return `Found your API description at ${m[1]}, through a link on your homepage.${m[2]}`;
+      }
+      return notes;
+    case "info_completeness":
+      if ((m = notes.match(/^info: title=(yes|no), version=(yes|no), description=(yes|<20 chars or missing) \(\d\/3\)$/))) {
+        const parts: Array<[string, string, string]> = [["a title", "title", m[1]], ["a version", "version", m[2]], ["a description", "description (of 20 characters or more)", m[3]]];
+        const has = parts.filter(([, , v]) => yes(v)).map(([k]) => k);
+        const lacks = parts.filter(([, , v]) => !yes(v)).map(([, k]) => k);
+        const head = "The info section of your API description has";
+        if (lacks.length === 0) return `${head} a title, a version and a description.`;
+        if (has.length === 0) return `${head} no title, version or description (of 20 characters or more).`;
+        return `${head} ${joinAnd(has)} but no ${joinOr(lacks)}.`;
+      }
+      return notes;
+    case "operation_coverage":
+      if ((m = notes.match(/^(\d+) operation\(s\); (\d+)\/(\d+) have a summary or description\. \(count=\d+, doc=\d+\)$/))) {
+        return `Your API description defines ${count(m[1], "operation", "operations")}; ${m[2]} of ${m[3]} have a summary or description.`;
+      }
+      return notes;
+    case "markdown_negotiation":
+      if ((m = notes.match(/^Accept: text\/markdown returns .+? \((redirected to \.md variant|directly)\)\.((?: .*)?)$/))) {
+        const how = m[1] === "directly" ? "" : ", by redirecting to a .md page";
+        return `Your homepage returns Markdown when a request asks for it (Accept: text/markdown)${how}.${m[2]}`;
+      }
+      return notes;
     case "live_invocation":
       if ((m = notes.match(/^tools\/list returned (\d+) tools$/))) {
         return `The MCP server answered and listed ${m[1]} tool${m[1] === "1" ? "" : "s"}.`;

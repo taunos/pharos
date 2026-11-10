@@ -166,6 +166,74 @@ describe("plainScoreNote: notes converted for the paid report", () => {
       "Sampled 1 page(s); avg 100/100. https://acme.com/cases/a → 100 (headings: yes, lists: yes, bold text: yes). (A case study linked from the index page https://acme.com/cases.)",
       "We checked one case-study page (https://acme.com/cases/a) and scored it 100/100: it has headings, lists and bold text. (A case study linked from the index page https://acme.com/cases.)",
     ],
+    [
+      "well_known",
+      'valid card at /.well-known/mcp.json with name="Resend", transports=1',
+      'Found a valid MCP server card at /.well-known/mcp.json. It names the server "Resend" and lists 1 transport URL.',
+    ],
+    ["oauth_metadata", "auth=oauth2; OAuth metadata valid", "The MCP server card declares sign-in (oauth2), and its OAuth metadata is valid."],
+    [
+      "oauth_metadata",
+      "auth=oauth2; OAuth metadata missing required endpoints",
+      "The MCP server card declares sign-in (oauth2), but its OAuth metadata is missing a required endpoint (authorization_endpoint or token_endpoint).",
+    ],
+    ["oauth_metadata", "auth=oauth2; OAuth metadata invalid JSON", "The MCP server card declares sign-in (oauth2), but its OAuth metadata is not valid JSON."],
+    [
+      "oauth_metadata",
+      "auth=oauth2; /.well-known/oauth-authorization-server returned 404",
+      "The MCP server card declares sign-in (oauth2), but its OAuth metadata at /.well-known/oauth-authorization-server did not load (HTTP 404).",
+    ],
+    [
+      "oauth_metadata",
+      "auth=bearer; /.well-known/oauth-authorization-server returned no response",
+      "The MCP server card declares sign-in (bearer), but its OAuth metadata at /.well-known/oauth-authorization-server did not load (no response).",
+    ],
+    [
+      "discovery",
+      "Found via well-known /.well-known/api-catalog at https://resend.com/openapi.yaml (content-type=text/yaml; charset=utf-8). Read through the API catalog at https://resend.com/.well-known/api-catalog (its service-desc link).",
+      "Found your API description at https://resend.com/openapi.yaml, through the standard address /.well-known/api-catalog. Read through the API catalog at https://resend.com/.well-known/api-catalog (its service-desc link).",
+    ],
+    [
+      "discovery",
+      "Found via canonical /openapi.json at https://acme.com/openapi.json (content-type=application/json).",
+      "Found your API description at https://acme.com/openapi.json, through the common address /openapi.json.",
+    ],
+    [
+      "discovery",
+      "Found via homepage link https://acme.com/v1/api.yaml at https://acme.com/v1/api.yaml (content-type=unknown).",
+      "Found your API description at https://acme.com/v1/api.yaml, through a link on your homepage.",
+    ],
+    [
+      "markdown_negotiation",
+      "Accept: text/markdown returns text/markdown; charset=utf-8 (directly). Informational only: serving Markdown is an emerging convention most hosts don't support yet, so this is not scored.",
+      "Your homepage returns Markdown when a request asks for it (Accept: text/markdown). Informational only: serving Markdown is an emerging convention most hosts don't support yet, so this is not scored.",
+    ],
+    [
+      "markdown_negotiation",
+      "Accept: text/markdown returns text/markdown (redirected to .md variant).",
+      "Your homepage returns Markdown when a request asks for it (Accept: text/markdown), by redirecting to a .md page.",
+    ],
+    ["info_completeness", "info: title=yes, version=yes, description=yes (3/3)", "The info section of your API description has a title, a version and a description."],
+    [
+      "info_completeness",
+      "info: title=yes, version=no, description=<20 chars or missing (1/3)",
+      "The info section of your API description has a title but no version or description (of 20 characters or more).",
+    ],
+    [
+      "info_completeness",
+      "info: title=no, version=no, description=<20 chars or missing (0/3)",
+      "The info section of your API description has no title, version or description (of 20 characters or more).",
+    ],
+    [
+      "operation_coverage",
+      "83 operation(s); 83/83 have a summary or description. (count=100, doc=100)",
+      "Your API description defines 83 operations; 83 of 83 have a summary or description.",
+    ],
+    [
+      "operation_coverage",
+      "1 operation(s); 0/1 have a summary or description. (count=20, doc=0)",
+      "Your API description defines 1 operation; 0 of 1 have a summary or description.",
+    ],
   ])("%s: %s", (id, raw, plain) => {
     expect(n(id, raw)).toBe(plain);
   });
@@ -179,7 +247,8 @@ describe("plainScoreNote: notes converted for the paid report", () => {
     ["pricing_text_visibility", "Detected pricing path https://acme.com/pricing but it didn't return 200."],
     ["case_study_scannability", "Sampled 2 page(s); avg 50/100."],
     ["citation_domain_named_rate", "6 of 10 scored test answers named your domain."],
-    ["oauth_metadata", "auth=oauth2; OAuth metadata valid"],
+    ["oauth_metadata", "No MCP server card found, so there is no declared authentication to check. This check is not counted in your score."],
+    ["discovery", "Found via something else at https://acme.com/x (content-type=text/yaml)."],
   ])("%s: unknown or already-plain note falls through unchanged (%s)", (id, raw) => {
     expect(n(id, raw)).toBe(raw);
   });
@@ -228,14 +297,14 @@ describe("paid report shows plain notes; consumers keep raw notes", () => {
 
 describe("version comparability notice", () => {
   const NOTICE =
-    "Scores are only comparable between reports made with the same version. Astrant Score 1.5.1 (Nov 7, 2026) and Citation Visibility v5 (Nov 8, 2026) measure more strictly than earlier versions, so a lower score after these dates does not mean your site got worse.";
+    "Scores are only comparable between reports made with the same version. Astrant Score scoring version 1.5.1 (Nov 7, 2026) and Citation Visibility v5 (Nov 8, 2026) measure more strictly than earlier versions, so a lower score after these dates does not mean your site got worse.";
 
   it("is the approved sentence", () => {
     expect(VERSION_COMPARABILITY_NOTICE).toBe(NOTICE);
   });
   it("names this report's scoring version from the scan, under the coverage line", () => {
     const m = buildAuditReportModel(audit(), "sess-0001");
-    expect(m.versionNote).toBe(`This report was scored with Astrant Score 1.5.1. ${NOTICE}`);
+    expect(m.versionNote).toBe(`This report was scored with Astrant Score scoring version 1.5.1. ${NOTICE}`);
     const html = renderAuditHtml(audit(), "sess-0001");
     expect(html.indexOf(m.versionNote)).toBeGreaterThan(html.indexOf(m.scopeNote));
     expect(html.indexOf(m.versionNote)).toBeLessThan(html.indexOf(AUDIT_REPORT_COPY.summaryHeading));
