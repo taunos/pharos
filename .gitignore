@@ -58,3 +58,6 @@ test-audit.json
 # online = code only. NOTE: some legacy reports remain tracked from earlier
 # sessions; they are not force-removed (history left intact).
 reports/
+
+# Report defects from paying customers whose site is not on the panel (datasets/report-defects/README.md)
+datasets/report-defects/customer.local.jsonl

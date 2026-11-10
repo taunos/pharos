@@ -40,7 +40,8 @@ From the repo root:
 4. **Read every report** (`report.md` and the synthetic Dim 6 variant). Read them all; a passing check is not enough. Compare each one against the `expect` notes for its site in `sites.json`.
 5. **Codex review.** Give Codex the reports and ask the same questions as in the Gemini file.
 6. **Gemini review.** Run `node tools/report-panel/make-gemini-file.mjs`. It writes `out/gemini-review-<date>.md`. Send that file to Bruno, who pastes it into Gemini.
-7. **Triage** the findings from all three reads as HIGH, MED or LOW. Fix every HIGH and run the panel again. Ship only when a run has zero HIGH findings.
+7. **Save the run.** Run it with `--archive <name>` (or use `node datasets/report-defects/archive-run.mjs <out dir> <name>` afterwards), and add every finding from steps 4 to 6 to `datasets/report-defects/defects.jsonl`, false alarms included. See that folder's README.
+8. **Triage** the findings from all three reads as HIGH, MED or LOW. Fix every HIGH and run the panel again. Ship only when a run has zero HIGH findings.
 
 ## Free Score
 

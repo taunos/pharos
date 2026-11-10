@@ -5,7 +5,7 @@
 //
 // Usage (from the repo root):
 //   node tools/report-panel/run.mjs [--repo <checkout>] [--only a,b]
-//        [--sites <file>] [--out <dir>] [--dim6 off|env] [--no-synthetic-dim6]
+//        [--sites <file>] [--out <dir>] [--dim6 off|env] [--no-synthetic-dim6] [--archive <name>]
 //        [--no-pdf] [--ai-url http://127.0.0.1:8799] [--chrome <chrome.exe>]
 //   node tools/report-panel/run.mjs --tier free [--checkout-open] [--repo ...] [--only a,b]
 //
@@ -70,6 +70,8 @@ const DIM6_MODE = opt("dim6", "off");
 const SYNTH_DIM6 = !flag("no-synthetic-dim6");
 const PDF = !flag("no-pdf");
 const AI_URL = opt("ai-url", "http://127.0.0.1:8799");
+// --archive <name>: also save the run into datasets/report-defects/snapshots/ (see its README).
+const ARCHIVE = opt("archive", null);
 const CHROME = opt("chrome", process.env.CHROME_PATH || "C:/Program Files/Google/Chrome/Application/chrome.exe");
 if (!["off", "env"].includes(DIM6_MODE)) throw new Error(`--dim6 must be off|env`);
 
@@ -410,6 +412,7 @@ if (TIER === "free") {
     }
   }
   fs.writeFileSync(path.join(OUT, `run-free-${Date.now()}.json`), JSON.stringify({ repo: REPO, tier: "free", results }, null, 2));
+  if (ARCHIVE) console.log(`archived: ${(await import("../../datasets/report-defects/archive-run.mjs")).archiveRun(OUT, ARCHIVE, { repo: REPO, tier: "free", only: sites.map((s) => s.label) })}`);
   if (results.some((r) => r.error)) process.exitCode = 1;
   process.exit();
 }
@@ -433,5 +436,6 @@ for (const s of sites) {
 const usd = (ledger.neurons / 1000) * 0.011;
 const tally = { ...ledger, workers_ai_usd_list_price: Number(usd.toFixed(5)), note: "Workers AI only; Dim 6 provider spend is 0 in --dim6 off mode" };
 fs.writeFileSync(path.join(OUT, `run-${Date.now()}.json`), JSON.stringify({ repo: REPO, dim6: DIM6_MODE, tally, results }, null, 2));
+if (ARCHIVE) console.log(`archived: ${(await import("../../datasets/report-defects/archive-run.mjs")).archiveRun(OUT, ARCHIVE, { repo: REPO, tier: "paid", dim6: DIM6_MODE, only: sites.map((s) => s.label) })}`);
 console.log(`TOTAL ai_calls=${ledger.calls} neurons=${ledger.neurons.toFixed(1)} ≈ $${usd.toFixed(4)} (list price)`);
 if (results.some((r) => r.error)) process.exitCode = 1;
