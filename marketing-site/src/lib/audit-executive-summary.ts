@@ -243,7 +243,9 @@ export function citationCoverage(d: DimensionResult): CitationCoverage | null {
   if (!cells) return null;
   let measuredModels: number | null = null;
   let totalModels: number | null = null;
-  const perModelNew = notes.match(/Average by model: ([^]*?)\.?$/);
+  // "Average answer score by model (0 to 100): ..." since 2026-11-10 (RD-0123);
+  // stored audits carry "Average by model: ...".
+  const perModelNew = notes.match(/Average (?:answer score )?by model(?: \(0 to 100\))?: ([^]*?)\.?$/);
   const perModelOld = notes.match(/Per-model averages: ([^]*?)\.?$/);
   let values: string[] = [];
   if (perModelNew) {

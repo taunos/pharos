@@ -241,7 +241,7 @@ globalThis.fetch = async (input, init) => {
 // ── synthetic Dim 6 (shape = runDim6.ts buildSubChecks) ─────────────────
 function syntheticDim6() {
   const summary =
-    "36 of 40 test answers could be scored, across 4 AI models. Average by model: ChatGPT 12, Claude 4, Gemini 9, Perplexity 31.";
+    "36 of 40 test answers could be scored, across 4 AI models. Average answer score by model (0 to 100): ChatGPT 12, Claude 4, Gemini 9, Perplexity 31.";
   return {
     dimension_id: 6,
     dimension_name: "Citation Visibility",

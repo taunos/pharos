@@ -29,7 +29,7 @@ import {
 } from "./reference";
 import { canonicalDomain } from "./question-set";
 import type { FetchLike } from "../safe-fetch";
-import { capLength, collapseWhitespace, stripUnsafeChars } from "../llm-safety";
+import { capLength, collapseWhitespace, DISPLAY_TEXT_MAX, stripUnsafeChars } from "../llm-safety";
 
 export interface Dim6SubCheck {
   id: string;
@@ -195,7 +195,7 @@ const EVIDENCE_MAX_QUOTES = 3;
  * word cap (a lead sentence such as "No, x.com is not a local business." is
  * then followed by what the answer says it is).
  */
-export function pickEvidenceQuote(text: string, domain: string): string {
+export function pickEvidenceQuote(text: string, domain: string, maxWords = EVIDENCE_MAX_WORDS): string {
   const flat = collapseWhitespace(
     stripUnsafeChars(text.replace(/(^|\n)\s*>\s?/g, "$1").replace(/(^|\n)\s*(?:[-*•]|\d+\.)\s+/g, "$1· "))
       .replace(/\s*\[\d+\]/g, "")
@@ -207,8 +207,8 @@ export function pickEvidenceQuote(text: string, domain: string): string {
   const sentences = flat.split(/(?<=[.!?])\s+/);
   const start = Math.max(0, sentences.findIndex((s) => needles.some((n) => s.toLowerCase().includes(n))));
   const words = sentences.slice(start).join(" ").split(" ").filter(Boolean);
-  const q = capLength(words.slice(0, EVIDENCE_MAX_WORDS).join(" "), EVIDENCE_MAX_CHARS);
-  const cut = words.length > EVIDENCE_MAX_WORDS || q.length < words.slice(0, EVIDENCE_MAX_WORDS).join(" ").length;
+  const q = capLength(words.slice(0, maxWords).join(" "), EVIDENCE_MAX_CHARS);
+  const cut = words.length > maxWords || q.length < words.slice(0, maxWords).join(" ").length;
   return cut ? `${q}…` : q;
 }
 
@@ -218,23 +218,63 @@ const HEDGE_RE = /\b(?:I don't|I do not|don't have|not familiar|no (?:specific |
  * Up to EVIDENCE_MAX_QUOTES WRONG answers, in cell order, one per model first
  * (so the examples show which models got it wrong), then filled in order.
  */
-export function pickWrongAnswerQuotes(cells: CellEnvelope[], domain: string): Array<{ model: string; quote: string }> {
+export function pickWrongAnswerQuotes(
+  cells: CellEnvelope[],
+  domain: string,
+  max = EVIDENCE_MAX_QUOTES,
+  maxWords = EVIDENCE_MAX_WORDS
+): Array<{ model: string; quote: string }> {
   // Prefer answers whose quote states the wrong identity outright over hedged
   // ones ("I don't have specific information… could be…"), whose 25-word
   // quote often ends before the wrong identity appears. Stable: cell order
   // is kept within each group.
-  const hedged = (c: CellEnvelope) => HEDGE_RE.test(pickEvidenceQuote(c.result.text ?? "", domain));
+  const hedged = (c: CellEnvelope) => HEDGE_RE.test(pickEvidenceQuote(c.result.text ?? "", domain, maxWords));
   const flagged = cells.filter((c) => !c.result.unmeasurable && c.result.text && c.result.notes.includes("misidentified=true"));
   const wrong = [...flagged.filter((c) => !hedged(c)), ...flagged.filter(hedged)];
   const chosen: CellEnvelope[] = [];
   for (const c of wrong) {
-    if (chosen.length < EVIDENCE_MAX_QUOTES && !chosen.some((x) => x.modelId === c.modelId)) chosen.push(c);
+    if (chosen.length < max && !chosen.some((x) => x.modelId === c.modelId)) chosen.push(c);
   }
   for (const c of wrong) {
-    if (chosen.length < EVIDENCE_MAX_QUOTES && !chosen.includes(c)) chosen.push(c);
+    if (chosen.length < max && !chosen.includes(c)) chosen.push(c);
   }
   chosen.sort((a, b) => wrong.indexOf(a) - wrong.indexOf(b));
-  return chosen.map((c) => ({ model: modelLabel(c.modelId), quote: pickEvidenceQuote(c.result.text ?? "", domain) }));
+  return chosen.map((c) => ({ model: modelLabel(c.modelId), quote: pickEvidenceQuote(c.result.text ?? "", domain, maxWords) }));
+}
+
+const MIXUP_ROW_TAIL =
+  "Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score.";
+
+/**
+ * The informational mix-up row's note, built to fit the report's
+ * DISPLAY_TEXT_MAX: cleanDisplayText cuts a longer note mid-sentence, and the
+ * 2026-11-10 release check showed "...so results can take time to change.
+ * This row is for" (RD-0122). Quotes are shortened, then dropped, until the
+ * note fits; the lead and the closing sentences are always whole.
+ */
+export function mixupRowNote(cells: CellEnvelope[], domain: string, measurableCount: number, wrong: number): string {
+  const lead =
+    wrong === 1
+      ? `1 of the ${measurableCount} scored answers mixed up your site with a different person or business than your site says it is; it counts as 0 in the checks above.`
+      : `${wrong} of the ${measurableCount} scored answers mixed up your site with a different person or business than your site says it is; they count as 0 in the checks above.`;
+  const build = (maxQuotes: number, maxWords: number) => {
+    const quotes = maxQuotes === 0 ? [] : pickWrongAnswerQuotes(cells, domain, maxQuotes, maxWords);
+    const examples =
+      quotes.length > 0
+        ? ` ${quotes.length === 1 ? "Example of what the AI said" : "Examples of what the AI said"}: ${quotes.map((q) => `${q.model}: "${q.quote}"`).join("; ")}.`
+        : "";
+    return `${lead}${examples} ${MIXUP_ROW_TAIL}`;
+  };
+  for (const [maxQuotes, maxWords] of [
+    [3, EVIDENCE_MAX_WORDS],
+    [3, 15],
+    [2, 15],
+    [1, 15],
+  ] as const) {
+    const note = build(maxQuotes, maxWords);
+    if (note.length <= DISPLAY_TEXT_MAX) return note;
+  }
+  return build(0, 0);
 }
 
 function countFlag(cells: CellEnvelope[], flag: string): number {
@@ -251,7 +291,9 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
   const ctxRate = rateOf(cells, "context_relevant");
   const compRate = rateOf(cells, "no_competitor_first");
 
-  const summary = `${measurableCount} of ${cells.length} test answers could be scored, across ${ALL_MODEL_IDS.length} AI models. Average by model: ${ALL_MODEL_IDS.map(
+  // RD-0123: the average is of per-answer scores (0-100), not a naming rate,
+  // and the label says so.
+  const summary = `${measurableCount} of ${cells.length} test answers could be scored, across ${ALL_MODEL_IDS.length} AI models. Average answer score by model (0 to 100): ${ALL_MODEL_IDS.map(
     (m) => `${modelLabel(m)} ${result.perModelAverage[m] ?? "not measured"}`
   ).join(", ")}.`;
 
@@ -277,7 +319,7 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
       weight: 40,
       score: dnRate,
       passed: dnRate >= 70,
-      // Keep "<m> of <t> test answers could be scored ... Average by model:
+      // Keep "<m> of <t> test answers could be scored ... Average answer score by model:
       // ..." last: audit-executive-summary.ts citationCoverage parses it.
       notes: checked
         ? `${dnRate}% of scored test answers named your domain and matched how your site describes itself. ${breakdown} ${summary}`
@@ -330,19 +372,13 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
   // 0): no scoring or weight change, never a gap, and the hostile quotes stay
   // out of the domain-named note the executive summary parses.
   if (checked && wrong > 0) {
-    const quotes = pickWrongAnswerQuotes(cells, domain);
-    const lead =
-      wrong === 1
-        ? `1 of the ${measurableCount} scored answers mixed up your site with a different person or business than your site says it is; it counts as 0 in the checks above.`
-        : `${wrong} of the ${measurableCount} scored answers mixed up your site with a different person or business than your site says it is; they count as 0 in the checks above.`;
-    const examples = quotes.length > 0 ? ` ${quotes.length === 1 ? "Example of what the AI said" : "Examples of what the AI said"}: ${quotes.map((q) => `${q.model}: "${q.quote}"`).join("; ")}.` : "";
     subChecks.push({
       id: SUBCHECK_IDS.misidentified_answers,
       name: "Answers that described a different person or business than your site says it is",
       weight: 0,
       score: 0,
       passed: false,
-      notes: `${lead}${examples} Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score.`,
+      notes: mixupRowNote(cells, domain, measurableCount, wrong),
       na: true,
     });
   }

@@ -199,7 +199,7 @@ describe("reference description", () => {
     // Extraction is raw; character references are decoded when the reference is built.
     expect(h.title).toBe("Rachel Queiroz &ndash; Psic&oacute;loga &amp; Terapeuta");
     const cafe = buildSiteReference({ homepageHtml: "<title>Caf&#233; &#x26; Bar in central Lisbon since 1990</title>" });
-    expect(cafe.verifiable && cafe.text).toBe("From the homepage: Café & Bar in central Lisbon since 1990");
+    expect(cafe.verifiable && cafe.text).toBe("From the homepage:\nTitle: Café & Bar in central Lisbon since 1990");
     expect(h.metaDescription).toBe("Atendimento para adultos e casais em Maceió.");
     expect(cleanReferencePart(h.h1)).toBe("Bem- vinda");
   });
@@ -210,10 +210,10 @@ describe("reference description", () => {
     if (!r.verifiable) return;
     expect(r.text).toBe(
       [
-        "From llms.txt: Rachel Queiroz\nPsicóloga clínica em Maceió para adultos e casais.",
+        "From llms.txt:\nName: Rachel Queiroz\nSummary: Psicóloga clínica em Maceió para adultos e casais.",
         // The JSON-LD name repeats the llms.txt H1 and is kept (no deduplication).
-        "From structured data: Rachel Queiroz: Psicóloga clínica há 20 anos.\nConsultório: Clínica em Maceió.",
-        "From the homepage: Rachel Queiroz &ndash; Psic&oacute;loga & Terapeuta\nAtendimento para adultos e casais em Maceió.\nBem- vinda",
+        "From structured data:\nRachel Queiroz: Psicóloga clínica há 20 anos.\nConsultório: Clínica em Maceió.",
+        "From the homepage:\nTitle: Rachel Queiroz &ndash; Psic&oacute;loga & Terapeuta\nDescription: Atendimento para adultos e casais em Maceió.\nMain heading: Bem- vinda",
       ].join("\n")
     );
   });
@@ -233,20 +233,25 @@ describe("reference description", () => {
     const r = buildSiteReference({ llmsTxt: `# ${long("big")}\n\n> ${long("word")}`, homepageHtml: html });
     expect(r.verifiable).toBe(true);
     if (!r.verifiable) return;
-    const lines = r.text.split("\n").map((l) => l.replace(/^From (llms\.txt|structured data|the homepage): /, ""));
+    // 2026-11-10: one labelled field per line; group labels on their own
+    // lines; a cut field ends with "…".
+    const lines = r.text
+      .split("\n")
+      .filter((l) => !/^From (llms\.txt|structured data|the homepage):$/.test(l))
+      .map((l) => l.replace(/^(Name|Summary|Title|Description|Main heading): /, ""));
     const B = REFERENCE_FIELD_BUDGETS;
     const E = REFERENCE_ENTITY_BUDGETS;
     // llms H1, llms blockquote, entity "name: description", title, meta, h1: all present.
     const budgets = [B.llmsH1, B.llmsBlockquote, E.name + 2 + E.description, B.title, B.metaDescription, B.h1];
     expect(lines).toHaveLength(budgets.length);
-    lines.forEach((l, i) => expect(l.length).toBeLessThanOrEqual(budgets[i]));
+    lines.forEach((l, i) => expect(l.replace(/\.\.\./g, "").length).toBeLessThanOrEqual(budgets[i]));
     const [entName, entDesc] = lines[2].split(": ");
-    expect(entName.length).toBeLessThanOrEqual(E.name);
-    expect(entDesc.length).toBeLessThanOrEqual(E.description);
+    expect(entName.replace(/\.\.\.$/, "").length).toBeLessThanOrEqual(E.name);
+    expect(entDesc.replace(/\.\.\.$/, "").length).toBeLessThanOrEqual(E.description);
     for (const w of ["big", "word", "name", "desc", "title", "meta", "heading"]) expect(r.text).toContain(w);
-    expect(REFERENCE_MAX_CHARS).toBe(1900);
-    // Trimmed at a word boundary: no part ends in a partial word.
-    for (const l of [...lines, entName]) expect(l).toMatch(/(big|word|name|desc|title|meta|heading)$/);
+    expect(REFERENCE_MAX_CHARS).toBe(1960);
+    // Trimmed at a word boundary and marked as cut: no part ends in a partial word.
+    for (const l of [...lines, entName]) expect(l).toMatch(/(big|word|name|desc|title|meta|heading)\.\.\.$/);
   });
 
   it("Codex r5 regression: each JSON-LD entity keeps its own name share ('Dental clinic' is not pushed out)", () => {
@@ -300,13 +305,15 @@ describe("reference description", () => {
     });
     expect(r.verifiable).toBe(true);
     if (!r.verifiable) return;
-    expect(r.text).toContain("From llms.txt: Rachel de Queiroz");
-    expect(r.text).toContain("From the homepage: Rachel Queiroz – Psicóloga Clínica");
+    expect(r.text).toContain("From llms.txt:\nName: Rachel de Queiroz");
+    expect(r.text).toContain("From the homepage:\nTitle: Rachel Queiroz – Psicóloga Clínica");
     const { AI, calls } = fakeAi({ [ACCURACY_MODEL]: "UNCLEAR" });
     const v = await judgeAccuracy({ AI }, "rachelqueiroz.com", r.text, "rachelqueiroz.com is a clinical psychologist's site in Maceió.");
     expect(v).toEqual({ kind: "unclear" });
     const p = calls[0].prompt;
     for (const l of Object.values(REFERENCE_LABELS)) expect(p).toContain(l);
+    // The reference reaches the judge one field per line (v5 before 2026-11-10 collapsed it to one line).
+    expect(p).toContain("From llms.txt:\nName: Rachel de Queiroz\n");
     expect(p).toContain("If they describe different people or different kinds of business");
     expect(p).toContain("answer UNCLEAR, whatever the answer says");
     expect(p).toContain("CORRECT: the sources agree");
@@ -334,7 +341,7 @@ describe("reference description", () => {
     const zw = String.fromCharCode(0x200b);
     const bidi = String.fromCharCode(0x202e);
     const r = buildSiteReference({ llmsTxt: `# Acme${zw} Clinic\n\n> We treat${bidi} adults and couples in Maceió.` });
-    expect(r).toEqual({ verifiable: true, text: "From llms.txt: Acme Clinic\nWe treat adults and couples in Maceió." });
+    expect(r).toEqual({ verifiable: true, text: "From llms.txt:\nName: Acme Clinic\nSummary: We treat adults and couples in Maceió." });
   });
 
   it("missing or very short → not verifiable", () => {
@@ -449,7 +456,7 @@ describe("collection limits: none can hide evidence silently (Codex r6)", () => 
     const r = buildSiteReference({ llmsTxt: AUTHOR_LLMS, homepageHtml: html });
     expect(r.verifiable).toBe(true);
     if (!r.verifiable) return;
-    expect(r.text).toContain(`${REFERENCE_LABELS.homepage} Dental clinic Maceió\nDentists for families in Maceió.\nDental clinic`);
+    expect(r.text).toContain(`${REFERENCE_LABELS.homepage}\nTitle: Dental clinic Maceió\nDescription: Dentists for families in Maceió.\nMain heading: Dental clinic`);
     expect(r.text).not.toContain("tribute");
   });
 
@@ -761,7 +768,7 @@ describe("report output", () => {
     expect(by.citation_domain_named_rate.score).toBe(13); // 1 of 8
     expect(by.citation_url_referenced_rate.score).toBe(13);
     expect(by.citation_domain_named_rate.notes).toBe(
-      "13% of scored test answers named your domain and matched how your site describes itself. Of the 8 scored answers, 1 matched how your site describes itself, 4 described a different person or business than your site says it is, 1 did not say enough to check, and 2 did not show that the model knew your site. 8 of 8 test answers could be scored, across 4 AI models. Average by model: ChatGPT 0, Claude 0, Gemini 0, Perplexity 50."
+      "13% of scored test answers named your domain and matched how your site describes itself. Of the 8 scored answers, 1 matched how your site describes itself, 4 described a different person or business than your site says it is, 1 did not say enough to check, and 2 did not show that the model knew your site. 8 of 8 test answers could be scored, across 4 AI models. Average answer score by model (0 to 100): ChatGPT 0, Claude 0, Gemini 0, Perplexity 50."
     );
     expect(by.citation_url_referenced_rate.notes).toBe("13% of scored test answers matched how your site describes itself and included at least one link to it.");
   });
@@ -795,7 +802,7 @@ describe("report output", () => {
     expect(subs.map((s) => s.id)).not.toContain("citation_misidentified_answers");
     expect(subs[0].score).toBe(0);
     expect(subs[0].notes).toBe(
-      "0% of scored test answers named your domain. We could not find or read a clear description of your site on it, so the 2 answers that said the model knew your site could not be checked and were not counted (scored 0). To fix this, say who you are and what you do in an llms.txt file, in structured data, or in your homepage title and description. 3 of 3 test answers could be scored, across 4 AI models. Average by model: ChatGPT 0, Claude not measured, Gemini not measured, Perplexity not measured."
+      "0% of scored test answers named your domain. We could not find or read a clear description of your site on it, so the 2 answers that said the model knew your site could not be checked and were not counted (scored 0). To fix this, say who you are and what you do in an llms.txt file, in structured data, or in your homepage title and description. 3 of 3 test answers could be scored, across 4 AI models. Average answer score by model (0 to 100): ChatGPT 0, Claude not measured, Gemini not measured, Perplexity not measured."
     );
     expect(accuracyNotCheckedNote(1)).toContain("the 1 answer that said the model knew your site could not be checked and was not counted (scored 0)");
     expect(accuracyNotCheckedNote(0)).toContain("so an answer that said the model knew your site could not have been checked or counted.");
@@ -907,7 +914,7 @@ describe("injected site description: safe direction is down", () => {
     expect(blocked.calls.some((c) => c.model === ACCURACY_MODEL)).toBe(false);
     const dn = blocked.r.dimension.sub_checks.find((s) => s.id === "citation_domain_named_rate")!;
     expect(dn.notes).toBe(
-      `0% of scored test answers named your domain. ${accuracyBlockedNote(40)} 40 of 40 test answers could be scored, across 4 AI models. Average by model: ChatGPT 0, Claude 0, Gemini 0, Perplexity 0.`
+      `0% of scored test answers named your domain. ${accuracyBlockedNote(40)} 40 of 40 test answers could be scored, across 4 AI models. Average answer score by model (0 to 100): ChatGPT 0, Claude 0, Gemini 0, Perplexity 0.`
     );
     expect(dn.notes).toContain("text aimed at automated checkers");
     expect(blocked.r.dimension.sub_checks.map((s) => s.id)).not.toContain("citation_misidentified_answers");

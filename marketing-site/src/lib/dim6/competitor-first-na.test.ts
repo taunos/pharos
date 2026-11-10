@@ -77,7 +77,7 @@ describe("dim6:v4 competitor-first N/A", () => {
     const r = await runDim6Paid({ cacheKv: kv() } as never, "https://acme.com/", {}, ["rival.com"]);
     const notes = Object.fromEntries(r.dimension.sub_checks.map((s) => [s.id, s.notes]));
     expect(notes.citation_domain_named_rate).toBe(
-      "33% of scored test answers named your domain and matched how your site describes itself. Of the 3 scored answers, 1 matched how your site describes itself, 0 described a different person or business than your site says it is, 0 did not say enough to check, and 2 did not show that the model knew your site. 3 of 3 test answers could be scored, across 4 AI models. Average by model: ChatGPT 33, Claude 33, Gemini 33, Perplexity 33.",
+      "33% of scored test answers named your domain and matched how your site describes itself. Of the 3 scored answers, 1 matched how your site describes itself, 0 described a different person or business than your site says it is, 0 did not say enough to check, and 2 did not show that the model knew your site. 3 of 3 test answers could be scored, across 4 AI models. Average answer score by model (0 to 100): ChatGPT 33, Claude 33, Gemini 33, Perplexity 33.",
     );
     expect(notes.citation_url_referenced_rate).toBe("33% of scored test answers matched how your site describes itself and included at least one link to it.");
     expect(notes.citation_context_relevant_rate).toBe(
