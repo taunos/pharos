@@ -2,7 +2,7 @@
 // 2026-11-08 rachelqueiroz run, with the accuracy judge's raw outputs
 // recorded once through the local Workers AI proxy
 // (tools/report-panel/replay-dim6-accuracy.mjs --record, fixtures in
-// datasets/report-defects/replay/). Each recorded output is fed through the
+// datasets/report-defects/replay-FIXER-LABELS-not-gold/). Each recorded output is fed through the
 // deterministic gates (settleAccuracy) and the cell scoring and report notes,
 // with no model call, and the corrected labels are asserted:
 //   - the false "mixed up with a different person or business" labels of the
@@ -45,7 +45,7 @@ interface Fixture {
 }
 
 function load(name: string): { fx: Fixture; cells: CellEnvelope[] } {
-  const fx = JSON.parse(fs.readFileSync(path.join(ROOT, "replay", name), "utf8")) as Fixture;
+  const fx = JSON.parse(fs.readFileSync(path.join(ROOT, "replay-FIXER-LABELS-not-gold", name), "utf8")) as Fixture;
   const cells = JSON.parse(fs.readFileSync(path.join(ROOT, "..", "..", fx.source, "dim6-cells.json"), "utf8")) as CellEnvelope[];
   return { fx, cells };
 }
