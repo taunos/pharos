@@ -18,6 +18,10 @@ export type SubCheck = {
     parsed?: boolean;
     ld_json_absent_proven?: boolean;
     card_absent_proven?: boolean;
+    /** Dim 2 well_known (scanner 1.5.2): the MCP endpoint found without a card. */
+    mcp_endpoint?: string;
+    /** Dim 2 well_known (scanner 1.5.2): "shopify" when Shopify runs the store's MCP server. */
+    mcp_hosted_by?: string;
   };
 };
 

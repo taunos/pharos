@@ -425,11 +425,15 @@ async function liveProbe(transportUrl: string, base: string, budgetMs = LIVE_BUD
   }
   const list = findJsonRpcResponse((await r.body({ maxBytes: MAX_JSON_BYTES })).text, "scanner-list");
   const tools = (list.msg?.result as { tools?: unknown } | undefined)?.tools;
-  if (Array.isArray(tools)) return { score: 100, note: `tools/list returned ${tools.length} tools`, answered: true };
+  // 1.5.2 (RD-0118): the note names the endpoint that was tested.
+  if (Array.isArray(tools)) return { score: 100, note: liveToolsNote(tools.length, transportUrl), answered: true };
   if (list.exhausted) return { score: 0, note: `tools/list returned ${r.status} but the reply exceeded the scan limit`, answered: true };
   if (list.sawJson) return { score: 0, note: `tools/list returned ${r.status} but no tools[] in body`, answered: true };
   return { score: 0, note: `tools/list returned ${r.status} with non-JSON body`, answered: true };
 }
+
+/** live_invocation note (1.5.2): tools/list answered; names the endpoint tested. */
+export const liveToolsNote = (n: number, url: string) => `tools/list returned ${n} tools (endpoint tested: ${url})`;
 
 /** live_invocation note (1.4.0) for an OAuth-protected MCP endpoint. */
 export const mcpAuthRequiredNote = (url: string) =>
@@ -606,7 +610,10 @@ export async function runDim2(
     [sig, ucp, dns] = await Promise.all([Promise.resolve(signals).catch(() => NO_SIGNALS), ucpP, dnsP]);
     // Endpoints the site declares, on this site or a subdomain.
     const declared: string[] = [];
-    for (const raw of [...sig.mcpUrls, ...(ucp ?? []), ...dns.urls]) {
+    // 1.5.2 (Codex review): the UCP profile (the commerce platform's own
+    // declaration) first, then links, then DNS, so stale links cannot use up
+    // the probes before it.
+    for (const raw of [...(ucp ?? []), ...sig.mcpUrls, ...dns.urls]) {
       try {
         const e = new URL(raw, origin);
         if (isSameSite(e.hostname, base) && !declared.includes(e.toString())) declared.push(e.toString());
@@ -618,18 +625,27 @@ export async function runDim2(
     const take = (r: LiveResult, e: string) => {
       if (r.answered && (!live.answered || r.score > live.score)) [live, liveUrl] = [r, e];
     };
-    if (guessedP) {
+    // 1.5.2 (RD-0118): the endpoints the site advertises are tested first.
+    // The guessed /api/mcp counts only when none of them answered: a store
+    // can keep an old server there (ugmonk.com: /api/mcp listed 1 tool, the
+    // advertised /api/ucp/mcp 14), and the report must describe the one the
+    // site points agents to.
+    for (const e of declared.slice(0, MAX_DECLARED_PROBES)) {
+      if (live.score === 100) break;
+      tried.push(e);
+      let r = e === guessed && guessedP ? await guessedP : await liveProbe(e, base);
+      // An advertised /api/mcp gets the full budget when the shorter guess
+      // budget ran out (a timeout, not a refusal).
+      if (e === guessed && guessedP && !r.answered && /timed out or failed/.test(r.note)) r = await liveProbe(e, base);
+      take(r, e);
+    }
+    if (guessedP && !tried.includes(guessed)) {
       tried.push(guessed);
       const r = await guessedP;
       // A guessed path counts only when a real MCP server answers (a 401 on
-      // /api/* says nothing: many sites guard every /api route), unless the
-      // site itself declares that URL.
-      if (!r.authOnly || declared.includes(guessed)) take(r, guessed);
-    }
-    for (const e of declared.filter((d) => !tried.includes(d)).slice(0, MAX_DECLARED_PROBES)) {
-      if (live.score === 100) break;
-      tried.push(e);
-      take(await liveProbe(e, base), e);
+      // /api/* says nothing: many sites guard every /api route), and only
+      // when no advertised endpoint answered.
+      if (!live.answered && !r.authOnly) take(r, guessed);
     }
     if (!live.answered) {
       live = {
@@ -655,6 +671,14 @@ export async function runDim2(
         : dns.found
           ? "a _mcp DNS TXT record mentions MCP"
           : "";
+  const mcpEndpoint = live.answered ? liveUrl : (ucp?.[0] ?? sig.mcpUrls[0] ?? "");
+  const shopifyHosted = (ucp ?? []).some((e) => {
+    try {
+      return /(^|\.)myshopify\.com$/i.test(new URL(e).hostname);
+    } catch {
+      return false;
+    }
+  });
   if (cardStatus !== 200 && mcpEvidence) {
     wellKnownNote += `; an MCP server was found (${mcpEvidence}) but it is not advertised with a server card`;
   }
@@ -668,7 +692,21 @@ export async function runDim2(
       passed: wellKnownScore >= 70,
       notes: wellKnownNote,
       // 1.5.1: lets a consumer tell "no card" (404 / 410) from "could not read it".
-      ...(cardStatus !== 200 ? { evidence: { status: null, content_type: "", parsed: false, card_absent_proven: cardAbsent } } : {}),
+      // 1.5.2 (RD-0119): the MCP endpoint found without a card, and whether
+      // the store's /.well-known/ucp profile points it at Shopify's own host
+      // (*.myshopify.com), i.e. Shopify runs that server.
+      ...(cardStatus !== 200
+        ? {
+            evidence: {
+              status: null,
+              content_type: "",
+              parsed: false,
+              card_absent_proven: cardAbsent,
+              ...(mcpEndpoint ? { mcp_endpoint: mcpEndpoint } : {}),
+              ...(shopifyHosted ? { mcp_hosted_by: "shopify" as const } : {}),
+            },
+          }
+        : {}),
     },
     {
       id: "tool_coverage",

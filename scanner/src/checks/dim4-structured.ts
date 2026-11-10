@@ -2,7 +2,7 @@ import type { DimensionResult, Env, SubCheck, SubCheckEvidence } from "../types"
 import { dimensionScoreOrThrow, gradeFor } from "../scoring";
 import { cleanSiteText } from "./llm-safety";
 import { MAX_HTML_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
-import { isSameSite, siteBase } from "./site-signals";
+import { isSameSite, productPathKind, siteBase } from "./site-signals";
 import { PRICE_BARE_RE, stripTags } from "./dim5-parsable";
 
 const FETCH_TIMEOUT_MS = 8000;
@@ -363,14 +363,19 @@ function answerText(q: Record<string, unknown>): string | null {
   return null;
 }
 
-/** Same-host product page links (/products/x, /product/x, /p/x) in the homepage HTML. */
-const PRODUCT_PATH = /^\/(?:products?|p)\/[^/]+\/?$/i;
+/**
+ * A same-site product page linked from the homepage HTML. 1.5.2 (RD-0120):
+ * any language (productPathKind); a product page (/produtos/x) is preferred
+ * over a product index or shop page (/produtos), which is taken when the
+ * homepage links no product page.
+ */
 const MAX_HREFS_SCANNED = 5000;
 
 export function findProductLink(html: string, pageUrl: string): string | null {
   const base = siteBase(pageUrl);
   const re = /\bhref\s*=\s*["']([^"'<>\s]{1,2048})["']/gi;
   let m: RegExpExecArray | null;
+  let listing: string | null = null;
   for (let n = 0; (m = re.exec(html)) !== null && n < MAX_HREFS_SCANNED; n++) {
     let u: URL;
     try {
@@ -379,12 +384,14 @@ export function findProductLink(html: string, pageUrl: string): string | null {
       continue;
     }
     if ((u.protocol !== "https:" && u.protocol !== "http:") || !isSameSite(u.hostname, base)) continue;
-    if (!PRODUCT_PATH.test(u.pathname)) continue;
+    const kind = productPathKind(u.pathname);
+    if (!kind) continue;
     u.search = "";
     u.hash = "";
-    return u.toString();
+    if (kind === "detail") return u.toString();
+    listing ??= u.toString();
   }
-  return null;
+  return listing;
 }
 
 // 1.5.0: faq_schema is scored by fixed rules, not an AI rating (the model
@@ -633,9 +640,14 @@ export async function runDim4(
     }
   }
   const services = svcFound.matches.map((m) => m.obj);
+  // 1.5.2 (Codex review): a product index or shop page is named as such,
+  // not as "the sampled product page".
+  const sampleLabel = svcFrom && productPathKind(new URL(svcFrom).pathname) === "listing" ? "sampled product listing page" : "sampled product page";
   let svcScore = 0;
   let svcNote = svcFrom
-    ? `no Service / Product / Offer schema on the homepage or on the sampled product page (${svcFrom})`
+    ? sampleLabel === "sampled product page"
+      ? `no Service / Product / Offer schema on the homepage or on the sampled product page (${svcFrom})`
+      : `no Service / Product / Offer schema on the homepage or on the sampled product listing page (${svcFrom})`
     : "no Service / Product / Offer schema";
   if (services.length > 0) {
     // 1.3.3: price is not required. Quote-based businesses publish no price,
@@ -652,7 +664,7 @@ export async function runDim4(
     }
     svcScore = bestPartial === 3 ? 100 : bestPartial === 2 ? 50 : 0;
     svcNote = `${services.length} Service/Product/Offer block(s); best match has ${bestPartial}/3 required fields`;
-    if (svcFrom) svcNote += ` (on the sampled product page ${svcFrom}; none on the homepage)`;
+    if (svcFrom) svcNote += ` (on the ${sampleLabel} ${svcFrom}; none on the homepage)`;
   }
   // 1.4.1: applicability. No markup, no product page link, no price on the
   // homepage and no pricing page (Dim 5): nothing shows the site sells

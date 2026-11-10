@@ -393,5 +393,5 @@ describe("1.4.1 notes", () => {
     expect(DIM3_NO_API_NA_NOTE).not.toMatch(/composite|penalty|marked N\/A/);
   });
 
-  it("SCORING_VERSION is 1.5.1 (bumped after r6)", () => expect(SCORING_VERSION).toBe("1.5.1"));
+  it("SCORING_VERSION is 1.5.2 (bumped after the 2026-11-10 scanner-input fixes)", () => expect(SCORING_VERSION).toBe("1.5.2"));
 });

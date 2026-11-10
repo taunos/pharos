@@ -137,7 +137,7 @@ function phrasesFor(d: DimensionResult): DimPhrases {
     EXEC_SUMMARY_COPY.dimensionFallback(d.dimension_name);
   // r5: Dim 4 results that include a sampled product page are not "on your
   // homepage".
-  if (d.dimension_id === 4 && d.sub_checks.some((s) => !s.na && /sampled product page/.test(String(s.notes ?? "")))) {
+  if (d.dimension_id === 4 && d.sub_checks.some((s) => !s.na && /sampled product (?:listing )?page/.test(String(s.notes ?? "")))) {
     return { ...p, ...EXEC_SUMMARY_COPY.structuredDataSampled };
   }
   return p;

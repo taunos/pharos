@@ -86,7 +86,7 @@ describe("remediation is fixed text", () => {
   });
 
   it("remediation engine version is bumped to v10", () => {
-    expect(REMEDIATION_ENGINE_VERSION_TAG).toBe("v10");
+    expect(REMEDIATION_ENGINE_VERSION_TAG).toBe("v11");
   });
 });
 
