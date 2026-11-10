@@ -325,6 +325,7 @@ export function renderAuditHtml(audit: AuditResult, sessionId: string): string {
     <span class="composite-grade" style="color:${gradeColor(m.composite.grade)}">${escapeHtml(m.composite.grade)}</span>
   </div>
   <p class="scope">${escapeHtml(m.scopeNote)}</p>
+  <p class="scope">${escapeHtml(m.versionNote)}</p>
 
   <h2>${C.summaryHeading}</h2>
   ${m.executiveSummary.map((s) => `<p class="summary">${escapeHtml(s)}</p>`).join("")}

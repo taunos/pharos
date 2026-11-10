@@ -272,6 +272,7 @@ function toMarkdown(m, C, banner) {
   if (banner) L.push(`> ${banner}`, "");
   L.push(`# ${C.brand}`, "", `${m.generatedLabel}`, "", `**${m.url}**`, "");
   L.push(`## ${m.composite.score} — grade ${m.composite.grade}`, "", `_${m.scopeNote.replace(/<[^>]+>/g, "")}_`, "");
+  if (m.versionNote) L.push(`_${m.versionNote}_`, "");
   L.push(`## ${C.summaryHeading}`, "", ...m.executiveSummary.flatMap((s) => [s, ""]));
   L.push(`## ${C.dimensionsHeading}`, "");
   for (const d of m.dimensions) {

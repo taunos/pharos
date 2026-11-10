@@ -14,6 +14,8 @@ import { cleanDisplayText, escapeUnsafeInJson, REMEDIATION_MAX_CHARS } from "./l
 import type { AuditResult } from "./audit-types";
 import { orderGaps } from "./audit-gaps";
 import { buildExecutiveSummary, EXEC_SUMMARY_COPY } from "./audit-executive-summary";
+import { plainScoreNote } from "./score-notes";
+import { reportScoringVersion, VERSION_COMPARABILITY_NOTICE } from "./version-notice";
 
 // Section headings + fixed copy, verbatim from the PDF. Change here and both
 // surfaces change together.
@@ -49,6 +51,10 @@ export const AUDIT_REPORT_COPY = {
       : `${n} individual checks did not apply or could not be measured and are not counted.`,
   naFallbackNote:
     "Dimension did not apply to this site; dropped from composite.",
+  // Under the coverage line: which scoring version made this report, and why
+  // a lower score after the Nov 2026 releases is not a regression.
+  versionThisReport: (v: string) => `This report was scored with Astrant Score ${v}.`,
+  versionNotice: VERSION_COMPARABILITY_NOTICE,
   checkColumns: ["Check", "Score", "Weight", "Notes"] as const,
   findingLabel: "Finding:",
   remediationLabel: "Remediation:",
@@ -119,6 +125,7 @@ export type AuditReportModel = {
   url: string;
   composite: { score: number; grade: string };
   scopeNote: string;
+  versionNote: string;
   executiveSummary: string[]; // sentences, one paragraph each
   dimensions: ReportDimension[];
   gaps: ReportGap[];
@@ -134,6 +141,11 @@ export function formatReportTimestamp(ms: number): string {
 // paragraph, length-capped. Rendering then escapes it (renderAuditHtml) or
 // React does (AuditReportView). No raw HTML path exists for these fields.
 const clean = (s: string | undefined, max?: number) => cleanDisplayText(s ?? "", max);
+
+// Sub-check notes as the reader sees them: the plain-language version
+// (score-notes.ts). Display only: remediation, the executive summary and the
+// JSON export keep reading the raw scanner note.
+const shownNote = (id: string, notes: string | undefined) => clean(plainScoreNote({ id, notes: notes ?? "" }));
 
 // Citation Visibility (Dim 6) applies to every site: when it is N/A it was
 // not measured (no provider answers, daily cap), never "did not apply".
@@ -171,6 +183,11 @@ function scopeNote(scan: AuditResult["scan"]): string {
   return s;
 }
 
+function versionNote(scoringVersion: unknown): string {
+  const v = reportScoringVersion(scoringVersion);
+  return `${v ? `${AUDIT_REPORT_COPY.versionThisReport(v)} ` : ""}${AUDIT_REPORT_COPY.versionNotice}`;
+}
+
 export function buildAuditReportModel(
   audit: AuditResult,
   sessionId: string,
@@ -188,7 +205,7 @@ export function buildAuditReportModel(
         kind: "na",
         id: d.dimension_id,
         name: clean(d.dimension_name, 120),
-        note: clean(d.sub_checks[0]?.notes ?? AUDIT_REPORT_COPY.naFallbackNote),
+        note: shownNote(d.sub_checks[0]?.id ?? "", d.sub_checks[0]?.notes ?? AUDIT_REPORT_COPY.naFallbackNote),
         // Applies but was not measured this run: graded "not measured", not
         // "not applicable". Key only present when set (old scans unchanged).
         ...(isUnmeasuredDimension(d) ? { unmeasured: true as const } : {}),
@@ -207,7 +224,7 @@ export function buildAuditReportModel(
         name: `${clean(s.name, 120)}${s.na && !INFORMATIONAL_CHECK_IDS.has(s.id) ? ` · ${AUDIT_REPORT_COPY.naLabel}` : ""}`,
         scoreLabel: s.na ? "—" : `${s.score}/100`,
         weightLabel: `${s.weight}%`,
-        notes: clean(s.notes),
+        notes: shownNote(s.id, s.notes),
       })),
     };
   });
@@ -217,6 +234,7 @@ export function buildAuditReportModel(
     url: clean(scan.url, 300),
     composite: { score: scan.composite.score, grade: scan.composite.grade },
     scopeNote: scopeNote(scan),
+    versionNote: versionNote(scan.scoring_version),
     // Deterministic copy, but it interpolates dimension names from the scan.
     executiveSummary: buildExecutiveSummary({ ...audit, gaps }, AUDIT_REPORT_COPY.gapsHeading).map((s) =>
       clean(s, 2000),
@@ -227,7 +245,7 @@ export function buildAuditReportModel(
       checkName: clean(g.check_name, 120),
       dimensionName: clean(g.dimension_name, 120),
       metaLabel: `${g.score}/100 · weight ${g.weight}%`,
-      finding: clean(g.notes),
+      finding: shownNote(g.check_id, g.notes),
       remediation: clean(g.remediation, REMEDIATION_MAX_CHARS),
     })),
     jsonExport: escapeUnsafeInJson(JSON.stringify(audit, null, 2)),
