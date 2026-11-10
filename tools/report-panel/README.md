@@ -51,7 +51,7 @@ The free Score (what every new visitor gets first) has its own run. It needs no 
    - `score-pdf.md`: the text of the Score PDF HTML (`renderScoreReportHTML`). The PDF itself is not printed.
    - `score-email.md`: the "gap report ready" email, text and HTML parts. It is built, never sent.
    - `scan.json` and `score.json` (the scan, for the expect checks), plus the `.html` of each surface.
-2. `node tools/report-panel/check.mjs --out tools/report-panel/out/free` lints the three surfaces. Rules marked `"only": "free"` in `rules.json` run on these files only (for example raw scanner notes, which the paid report explains in its remediation text).
+2. `node tools/report-panel/check.mjs --out tools/report-panel/out/free` lints the three surfaces. Rules marked `"only": "free"` in `rules.json` run on these files only; rules marked `"only": "paid"` skip them.
 3. Read all three files for every site.
 
 ## Real Dim 6 (paid)

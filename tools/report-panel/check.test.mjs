@@ -7,7 +7,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
-  loadRules, checkReportText, checkForbid, checkFabrication, checkExpect, checkSiteDir, siteLacksRatings,
+  loadRules, checkReportText, checkRequired, checkForbid, checkFabrication, checkExpect, checkSiteDir, siteLacksRatings,
 } from "./check.mjs";
 import { isLocalRequest } from "./ai-proxy/src/index.js";
 
@@ -57,7 +57,7 @@ test("every text rule fires on its own example and compiles", () => {
     "promise-rank-higher": "your site will rank higher",
     "dim6-sample-numbers": "GPT-4o cites your domain 6/10 times",
     "competitor-claim": "the dimension Cloudflare's Agent Readiness Score cannot see",
-    "free-raw-note": "Presence — 0/100. status=404",
+    "raw-note": "Organization found: description=false",
     "free-remediation-overclaim": "priority per gap, remediation paths, and your score",
   };
   for (const r of rules.text) {
@@ -67,9 +67,11 @@ test("every text rule fires on its own example and compiles", () => {
 });
 
 test("free-only rules skip the paid report but run on the free Score surfaces", () => {
-  const line = "| Presence | 0/100 | 25% | status=404 |";
+  const line = "priority per gap, remediation paths, and your score";
   assert.deepEqual(ids(checkReportText(line, rules)), []);
-  assert.deepEqual(ids(checkReportText(line, rules, { free: true })), ["free-raw-note"]);
+  assert.deepEqual(ids(checkReportText(line, rules, { free: true })), ["free-remediation-overclaim"]);
+  // Raw scanner notes fail on every surface, paid included (2026-11-10 reader finding).
+  assert.deepEqual(ids(checkReportText("| Presence | 0/100 | 25% | status=404 |", rules)), ["raw-note"]);
   assert.deepEqual(ids(checkReportText("aggregate 47/100 D+.", rules)), ["dim6-sample-numbers"]);
 });
 
@@ -84,7 +86,7 @@ test("checkSiteDir lints the free Score files and runs expect checks once", () =
   fs.writeFileSync(path.join(dir, "score-email.md"), "Sample output: GPT-4o cites your domain 6/10 times\n");
   const r = checkSiteDir(dir, { label: "x", expect: { na: ["9.*"] } }, rules);
   assert.deepEqual(Object.keys(r.files).sort(), ["score-email.md", "score-page.md", "score-pdf.md"]);
-  assert.deepEqual(ids(r.files["score-pdf.md"]), ["free-raw-note"]);
+  assert.deepEqual(ids(r.files["score-pdf.md"]), ["raw-note"]);
   assert.deepEqual(ids(r.files["score-email.md"]), ["dim6-sample-numbers"]);
   // expect (here an unknown check -> one WARN) runs on the page only.
   assert.equal(r.files["score-page.md"].filter((f) => f.class === "expect-na").length, 1);
@@ -145,6 +147,15 @@ test("expect.exists: scored 0 fails; unmeasured N/A only warns; whole-dim N/A fa
 test("expect: unknown check ids warn instead of passing silently", () => {
   const f = checkExpect(audit("good"), { na: ["4.renamed_check"], exists: ["9.*"] });
   assert.deepEqual(f.map((x) => `${x.level} ${x.rule}`), ["WARN unknown-check", "WARN unknown-check"]);
+});
+
+test("required: the paid report must carry the version note; free surfaces are exempt", () => {
+  const note = "_This report was scored with Astrant Score scoring version 1.5.1. Scores are only comparable between reports made with the same version._";
+  assert.deepEqual(ids(checkRequired(["# Report", note, ""].join("\n"), rules)), []);
+  assert.deepEqual(ids(checkRequired(["# Report", "no note here", ""].join("\n"), rules)), ["version-note"]);
+  // The harness banner does not count as the note.
+  assert.deepEqual(ids(checkRequired("> HARNESS NOTE: Scores are only comparable between reports made with the same version", rules)), ["version-note"]);
+  assert.deepEqual(ids(checkRequired("no note here", rules, { free: true })), []);
 });
 
 test("checkSiteDir: bad fixture fails every class, good fixture passes", () => {

@@ -7,3 +7,5 @@
 ## Prioritized gaps + remediation
 
 **Remediation:** Add an Organization block with name, url and description to the existing JSON-LD on your homepage. Estimated effort: under an hour.
+
+_This report was scored with Astrant Score scoring version 1.5.1. Scores are only comparable between reports made with the same version._
