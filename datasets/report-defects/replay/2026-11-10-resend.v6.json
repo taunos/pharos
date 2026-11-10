@@ -1,0 +1,468 @@
+{
+  "engine": "dim6:v6",
+  "recorded_at": "2026-11-10T23:08:57.413Z",
+  "source": "datasets/report-defects/snapshots/2026-11-10-release-check/resend",
+  "url": "https://resend.com/",
+  "domain": "resend.com",
+  "reference": {
+    "verifiable": true,
+    "text": "From llms.txt:\nName: Resend\nSummary: Resend is the email API for developers. Send transactional and marketing emails at scale with a simple, modern API.\nFrom structured data:\nResend: Email API for developers\nFrom the homepage:\nTitle: Resend · Email for developers\nDescription: The best way to reach humans instead of spam folders. Deliver transactional and marketing emails at scale.\nMain heading: Email for developers",
+    "names": [
+      {
+        "text": "Resend",
+        "acronym": false
+      }
+    ],
+    "addresses": {
+      "declared": [
+        {
+          "street": "market",
+          "number": "2261"
+        }
+      ],
+      "accepted": [
+        {
+          "street": "market",
+          "number": "2261"
+        }
+      ]
+    }
+  },
+  "urlQuestionId": "q3",
+  "cells": [
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q1",
+      "judge": "CORRECT: a platform designed to simplify the process of sending transactional emails for developers",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 14
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q1",
+      "judge": "CORRECT: Resend is an email API service designed for developers",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 14
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q1",
+      "judge": "CORRECT: an email API for developers",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 18
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q1",
+      "judge": "CORRECT: an email infrastructure platform for developers",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 14
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q2",
+      "judge": "CORRECT: Resend.com is primarily known for its email infrastructure services",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 77
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q2",
+      "judge": "CORRECT: Email API for Developers",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 143
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q2",
+      "judge": "CORRECT: a powerful and modern email API",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 24
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q2",
+      "judge": "CORRECT: Resend offers services suitable for small businesses, particularly **email delivery and marketing**",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q3",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q3",
+      "judge": "CORRECT: Resend is an email API service for developers",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 66
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q3",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q3",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q4",
+      "judge": "CORRECT: Resend is a software company",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q4",
+      "judge": "CORRECT: a software company, a developer-focused email API platform",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 108
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q4",
+      "judge": "CORRECT: a software company",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 23
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q4",
+      "judge": "CORRECT: Resend is a software company that provides an email platform for developers",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 7
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q5",
+      "judge": "CORRECT: Resend is a service that provides developers with tools to manage and send transactional emails",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 94
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q5",
+      "judge": "CORRECT: Resend.com is an email API platform for developers",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 23
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q5",
+      "judge": "CORRECT: Resend.com primarily sells an **Email API** designed for developers",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 0
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q5",
+      "judge": "CORRECT: Resend sells an email infrastructure platform",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 0
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q6",
+      "judge": "CORRECT: serving businesses by providing email infrastructure services",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 32
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q6",
+      "judge": "CORRECT: Resend.com serves **both individuals and businesses**",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 23
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q6",
+      "judge": "CORRECT: businesses and developers",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 30
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q6",
+      "judge": "CORRECT: a developer-focused email infrastructure service",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 280
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q7",
+      "judge": "CORRECT: a platform that provides developers with APIs and tools to send, receive, and manage emails",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 14
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q7",
+      "judge": "CORRECT: an email API platform for developers",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 10
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q7",
+      "judge": "CORRECT: a modern, developer-friendly email API",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 16
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q7",
+      "judge": "CORRECT: a developer-focused email platform",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 14
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q8",
+      "judge": "CORRECT: a technology company that provides email infrastructure services",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 42
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q8",
+      "judge": "CORRECT: a cloud-based email API service",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 45
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q8",
+      "judge": "CORRECT: an online service that provides an email API for developers and businesses",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 51
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q8",
+      "judge": "CORRECT: an online, global email-delivery software business",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 26
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q9",
+      "judge": "CORRECT: Resend.com offers various types of support to its customers",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 40
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q9",
+      "judge": "CORRECT: Resend Customer Support Based on Resend's",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 2
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q9",
+      "judge": "CORRECT: Resend.com, being a developer-focused email API",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 0
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q9",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q10",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q10",
+      "judge": "CORRECT: Resend is a company in the developer tools space",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 69
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q10",
+      "judge": "CORRECT: Resend is a San Francisco email-delivery company",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 222
+      }
+    }
+  ]
+}

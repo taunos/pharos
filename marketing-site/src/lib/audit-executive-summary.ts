@@ -105,10 +105,13 @@ export const EXEC_SUMMARY_COPY = {
       partial: "your pages passed only some of our readability checks",
       strong: "your pages passed most of our readability checks",
     },
+    // dim6:v6 (RD-0107..0110): chosen from the "Models name your site" rate
+    // (answers that named the site and described it correctly), not from
+    // the dimension score; see weakPhraseByState.
     6: {
-      fail: "in our test questions, AI assistants rarely named your site",
-      partial: "in our test questions, AI assistants named your site only some of the time",
-      strong: "in our test questions, AI assistants usually named your site",
+      fail: "in our test questions, AI assistants rarely named your site and described it correctly",
+      partial: "in our test questions, AI assistants named your site and described it correctly only some of the time",
+      strong: "in our test questions, AI assistants usually named your site and described it correctly",
     },
   } as Record<number, DimPhrases>,
   // Evidence-aware phrases (r4), chosen from the sub-check states so the
@@ -161,6 +164,17 @@ function weakPhraseByState(d: DimensionResult): string {
     const hasCard = !!card && !card.na && card.score > 0;
     if (answered && !hasCard) return C.mcpFoundNoCard;
     if (answered || hasCard) return p.partial;
+  }
+  if (d.dimension_id === CITATION_DIM_ID) {
+    // The phrase is about naming, so it follows the naming rate: a site named
+    // and described correctly in most answers that is weak on links or
+    // placement gets the neutral "<name> needs work".
+    const named = check(CITATION_SUMMARY_CHECK_ID);
+    if (named && !named.na) {
+      if (named.score < FAIL_BELOW) return p.fail;
+      if (named.score < 70) return p.partial;
+      return C.dimensionFallback(d.dimension_name).partial;
+    }
   }
   return band;
 }
@@ -226,9 +240,10 @@ export type CitationCoverage = {
 // Dim 6 records its coverage only inside the domain-named sub-check's notes
 // (the sub-check carries no structured counts), written by buildSubChecks in
 // lib/dim6/runDim6.ts. Current shape:
-//   "<n>% of scored test answers named your domain. <m> of <t> test answers
-//    could be scored, across <k> AI models. Average by model: ChatGPT not
-//    measured, ..., Perplexity 73."
+//   "<n>% of scored test answers named your site ... <m> of <t> test answers
+//    could be scored, across <k> AI models. Average answer score by model
+//    (0 to 100): ChatGPT not measured, ..., Perplexity 73."
+// (dim6:v5 wrote "Average by model: ..."; stored audits still carry it.)
 // Stored audits written before 2026-11-07 carry the old shape, and are
 // re-rendered, so it is still read:
 //   "<n>% of measurable cells named the target domain. <m>/<t> cells
@@ -243,7 +258,7 @@ export function citationCoverage(d: DimensionResult): CitationCoverage | null {
   if (!cells) return null;
   let measuredModels: number | null = null;
   let totalModels: number | null = null;
-  const perModelNew = notes.match(/Average by model: ([^]*?)\.?$/);
+  const perModelNew = notes.match(/Average (?:answer score )?by model(?: \(0 to 100\))?: ([^]*?)\.?$/);
   const perModelOld = notes.match(/Per-model averages: ([^]*?)\.?$/);
   let values: string[] = [];
   if (perModelNew) {

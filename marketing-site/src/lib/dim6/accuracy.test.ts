@@ -1,4 +1,4 @@
-// dim6:v5 accuracy check: reference description, accuracy judge, scoring,
+// dim6:v5/v6 accuracy check: reference description, accuracy judge, scoring,
 // report output, version bump.
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
@@ -85,16 +85,16 @@ beforeEach(() => {
 
 describe("accuracy judge: exact output validator", () => {
   it.each([
-    ["CORRECT", "correct"],
-    ["  wrong. ", "wrong"],
+    ["CORRECT: x.com is a psychology practice", "correct"],
     ['"UNCLEAR"', "unclear"],
-    ["**Correct**", "correct"],
+    ["**Correct**: a psychology practice.", "correct"],
+    ["  correct - x.com is a psychology practice ", "correct"],
   ])("accepts %j", async (out, kind) => {
     const { AI } = fakeAi({ [ACCURACY_MODEL]: out });
     expect((await judgeAccuracy({ AI }, "x.com", REF, "x.com is a psychology practice.")).kind).toBe(kind);
   });
 
-  it.each(["The answer is CORRECT", "CORRECT because it matches", "CORRECT WRONG", "maybe", ""])(
+  it.each(["The answer is CORRECT", "CORRECT because it matches", "CORRECT WRONG", "maybe", "", "UNCLEAR: no idea"])(
     "rejects %j twice → UNCLEAR (judge_failed), never unmeasurable",
     async (out) => {
       const { AI, calls } = fakeAi({ [ACCURACY_MODEL]: out });
@@ -110,7 +110,7 @@ describe("accuracy judge: exact output validator", () => {
   });
 
   it("the judge reads the whole answer up to 6000 chars; a longer one is UNCLEAR (too_long) without a call", async () => {
-    const { AI, calls } = fakeAi({ [ACCURACY_MODEL]: "CORRECT" });
+    const { AI, calls } = fakeAi({ [ACCURACY_MODEL]: "CORRECT: x.com is a clinic" });
     const tail = "TAIL-MARKER is actually a dress shop.";
     const long = `x.com is a clinic. ${"filler ".repeat(700)}${tail}`; // ~4950 chars
     expect(long.length).toBeLessThan(ACCURACY_MAX_ANSWER_CHARS);
@@ -123,9 +123,9 @@ describe("accuracy judge: exact output validator", () => {
   });
 
   it("one retry: a bad first output then a valid one", async () => {
-    const { AI, calls } = fakeAi({ [ACCURACY_MODEL]: ["I think CORRECT", "WRONG"] });
+    const { AI, calls } = fakeAi({ [ACCURACY_MODEL]: ["I think CORRECT", "WRONG: a dress shop", "ASSERTS=YES DIFFERENT=YES NAMED=YES"] });
     expect((await judgeAccuracy({ AI }, "x.com", REF, "x.com is a dress shop.")).kind).toBe("wrong");
-    expect(calls).toHaveLength(2);
+    expect(calls).toHaveLength(3);
     expect(calls[1].prompt).toMatch(/REMINDER: Output ONLY/);
   });
 
@@ -164,7 +164,7 @@ describe("accuracy judge: injection", () => {
     const p = buildAccuracyPrompt("x.com", `ref ${tag} text`, `answer ${tag} text`, tag);
     expect(p).toContain(`<site-description-${tag}>\nref  text\n</site-description-${tag}>`);
     expect(p).toContain(`<untrusted-answer-${tag}>\nanswer  text\n</untrusted-answer-${tag}>`);
-    expect(p.split(tag).length - 1).toBe(8); // only the 4 delimiters x 2 mentions
+    expect(p.split(tag).length - 1).toBe(10); // only the 4 delimiters x 2 mentions, + the answer fence named in the quote rule
   });
 });
 
@@ -199,7 +199,7 @@ describe("reference description", () => {
     // Extraction is raw; character references are decoded when the reference is built.
     expect(h.title).toBe("Rachel Queiroz &ndash; Psic&oacute;loga &amp; Terapeuta");
     const cafe = buildSiteReference({ homepageHtml: "<title>Caf&#233; &#x26; Bar in central Lisbon since 1990</title>" });
-    expect(cafe.verifiable && cafe.text).toBe("From the homepage: Café & Bar in central Lisbon since 1990");
+    expect(cafe.verifiable && cafe.text).toBe("From the homepage:\nTitle: Café & Bar in central Lisbon since 1990");
     expect(h.metaDescription).toBe("Atendimento para adultos e casais em Maceió.");
     expect(cleanReferencePart(h.h1)).toBe("Bem- vinda");
   });
@@ -210,10 +210,10 @@ describe("reference description", () => {
     if (!r.verifiable) return;
     expect(r.text).toBe(
       [
-        "From llms.txt: Rachel Queiroz\nPsicóloga clínica em Maceió para adultos e casais.",
+        "From llms.txt:\nName: Rachel Queiroz\nSummary: Psicóloga clínica em Maceió para adultos e casais.",
         // The JSON-LD name repeats the llms.txt H1 and is kept (no deduplication).
-        "From structured data: Rachel Queiroz: Psicóloga clínica há 20 anos.\nConsultório: Clínica em Maceió.",
-        "From the homepage: Rachel Queiroz &ndash; Psic&oacute;loga & Terapeuta\nAtendimento para adultos e casais em Maceió.\nBem- vinda",
+        "From structured data:\nRachel Queiroz: Psicóloga clínica há 20 anos.\nConsultório: Clínica em Maceió.",
+        "From the homepage:\nTitle: Rachel Queiroz &ndash; Psic&oacute;loga & Terapeuta\nDescription: Atendimento para adultos e casais em Maceió.\nMain heading: Bem- vinda",
       ].join("\n")
     );
   });
@@ -233,20 +233,25 @@ describe("reference description", () => {
     const r = buildSiteReference({ llmsTxt: `# ${long("big")}\n\n> ${long("word")}`, homepageHtml: html });
     expect(r.verifiable).toBe(true);
     if (!r.verifiable) return;
-    const lines = r.text.split("\n").map((l) => l.replace(/^From (llms\.txt|structured data|the homepage): /, ""));
+    // dim6:v6: one labelled field per line; group labels on their own lines;
+    // a cut field ends with "…".
+    const lines = r.text
+      .split("\n")
+      .filter((l) => !/^From (llms\.txt|structured data|the homepage):$/.test(l))
+      .map((l) => l.replace(/^(Name|Summary|Title|Description|Main heading): /, ""));
     const B = REFERENCE_FIELD_BUDGETS;
     const E = REFERENCE_ENTITY_BUDGETS;
     // llms H1, llms blockquote, entity "name: description", title, meta, h1: all present.
     const budgets = [B.llmsH1, B.llmsBlockquote, E.name + 2 + E.description, B.title, B.metaDescription, B.h1];
     expect(lines).toHaveLength(budgets.length);
-    lines.forEach((l, i) => expect(l.length).toBeLessThanOrEqual(budgets[i]));
+    lines.forEach((l, i) => expect(l.replace(/…/g, "").length).toBeLessThanOrEqual(budgets[i]));
     const [entName, entDesc] = lines[2].split(": ");
-    expect(entName.length).toBeLessThanOrEqual(E.name);
-    expect(entDesc.length).toBeLessThanOrEqual(E.description);
+    expect(entName.replace("…", "").length).toBeLessThanOrEqual(E.name);
+    expect(entDesc.replace("…", "").length).toBeLessThanOrEqual(E.description);
     for (const w of ["big", "word", "name", "desc", "title", "meta", "heading"]) expect(r.text).toContain(w);
-    expect(REFERENCE_MAX_CHARS).toBe(1900);
-    // Trimmed at a word boundary: no part ends in a partial word.
-    for (const l of [...lines, entName]) expect(l).toMatch(/(big|word|name|desc|title|meta|heading)$/);
+    expect(REFERENCE_MAX_CHARS).toBe(1960);
+    // Trimmed at a word boundary and marked as cut: no part ends in a partial word.
+    for (const l of [...lines, entName]) expect(l).toMatch(/(big|word|name|desc|title|meta|heading)…$/);
   });
 
   it("Codex r5 regression: each JSON-LD entity keeps its own name share ('Dental clinic' is not pushed out)", () => {
@@ -300,16 +305,16 @@ describe("reference description", () => {
     });
     expect(r.verifiable).toBe(true);
     if (!r.verifiable) return;
-    expect(r.text).toContain("From llms.txt: Rachel de Queiroz");
-    expect(r.text).toContain("From the homepage: Rachel Queiroz – Psicóloga Clínica");
+    expect(r.text).toContain("From llms.txt:\nName: Rachel de Queiroz");
+    expect(r.text).toContain("From the homepage:\nTitle: Rachel Queiroz – Psicóloga Clínica");
     const { AI, calls } = fakeAi({ [ACCURACY_MODEL]: "UNCLEAR" });
     const v = await judgeAccuracy({ AI }, "rachelqueiroz.com", r.text, "rachelqueiroz.com is a clinical psychologist's site in Maceió.");
-    expect(v).toEqual({ kind: "unclear" });
+    expect(v).toEqual({ kind: "unclear", why: "judge", raw: "UNCLEAR" });
     const p = calls[0].prompt;
     for (const l of Object.values(REFERENCE_LABELS)) expect(p).toContain(l);
-    expect(p).toContain("If they describe different people or different kinds of business");
-    expect(p).toContain("answer UNCLEAR, whatever the answer says");
-    expect(p).toContain("CORRECT: the sources agree");
+    expect(p).toContain("If the sources clearly describe different people or businesses from each other, answer UNCLEAR.");
+    // The reference reaches the judge one field per line (v5 collapsed it to one line).
+    expect(p).toContain("From llms.txt:\nName: Rachel de Queiroz\n");
   });
 
   it("a failed fetch (network) is retried once; a 404 is not", async () => {
@@ -334,7 +339,7 @@ describe("reference description", () => {
     const zw = String.fromCharCode(0x200b);
     const bidi = String.fromCharCode(0x202e);
     const r = buildSiteReference({ llmsTxt: `# Acme${zw} Clinic\n\n> We treat${bidi} adults and couples in Maceió.` });
-    expect(r).toEqual({ verifiable: true, text: "From llms.txt: Acme Clinic\nWe treat adults and couples in Maceió." });
+    expect(r).toMatchObject({ verifiable: true, text: "From llms.txt:\nName: Acme Clinic\nSummary: We treat adults and couples in Maceió." });
   });
 
   it("missing or very short → not verifiable", () => {
@@ -361,7 +366,7 @@ describe("reference description", () => {
 
   it("an unsafe target is never fetched", async () => {
     const fetchImpl = vi.fn(async () => new Response("x"));
-    expect(await fetchReferenceSources("https://localhost/", fetchImpl)).toEqual({ llmsTxt: null, homepageHtml: null, failure: "source_unreadable" });
+    expect(await fetchReferenceSources("https://localhost/", fetchImpl)).toEqual({ llmsTxt: null, homepageHtml: null, domain: "localhost", failure: "source_unreadable" });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
@@ -449,7 +454,7 @@ describe("collection limits: none can hide evidence silently (Codex r6)", () => 
     const r = buildSiteReference({ llmsTxt: AUTHOR_LLMS, homepageHtml: html });
     expect(r.verifiable).toBe(true);
     if (!r.verifiable) return;
-    expect(r.text).toContain(`${REFERENCE_LABELS.homepage} Dental clinic Maceió\nDentists for families in Maceió.\nDental clinic`);
+    expect(r.text).toContain(`${REFERENCE_LABELS.homepage}\nTitle: Dental clinic Maceió\nDescription: Dentists for families in Maceió.\nMain heading: Dental clinic`);
     expect(r.text).not.toContain("tribute");
   });
 
@@ -672,17 +677,17 @@ describe("scoring", () => {
   const text = "acme.com is a bakery. See https://acme.com";
 
   it("WRONG and UNCLEAR score 0 and stay measurable", () => {
-    const w = scoreAffirmedCell(text, t, [], false, { kind: "wrong" });
+    const w = scoreAffirmedCell(text, t, [], false, { kind: "wrong", quoteAt: 0 });
     expect(w).toMatchObject({ score: 0, unmeasurable: false });
-    expect(w.notes).toBe("score=0/100; judge=AFFIRM; accuracy=WRONG; misidentified=true");
-    const u = scoreAffirmedCell(text, t, [], true, { kind: "unclear" });
+    expect(w.notes).toBe("score=0/100; judge=AFFIRM; accuracy=WRONG; misidentified=true; wrong_at=0");
+    const u = scoreAffirmedCell(text, t, [], true, { kind: "unclear", why: "judge" });
     expect(u).toMatchObject({ score: 0, unmeasurable: false, truncated: true });
-    expect(u.notes).toBe("score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true; truncated=true");
+    expect(u.notes).toBe("score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true; unclear_why=judge; truncated=true");
     for (const n of [w.notes, u.notes]) expect(n).not.toMatch(/domain_named|url_referenced|context_relevant/);
   });
 
   it("CORRECT keeps the substring breakdown; no reference fails closed (0, measurable, not checked)", () => {
-    const c = scoreAffirmedCell(text, t, [], false, { kind: "correct" });
+    const c = scoreAffirmedCell(text, t, [], false, { kind: "correct", quoteAt: 0 });
     expect(c.score).toBe(100);
     expect(c.notes).toMatch(/accuracy=CORRECT; domain_named=true; url_referenced=true/);
     const n = scoreAffirmedCell(text, t, [], false, null);
@@ -697,7 +702,7 @@ describe("scoring", () => {
   });
 
   it("a judge failure cannot raise the aggregate (Codex r1 example: CORRECT + failed is 50, not 100)", () => {
-    const ok = scoreAffirmedCell(text, t, [], false, { kind: "correct" });
+    const ok = scoreAffirmedCell(text, t, [], false, { kind: "correct", quoteAt: 0 });
     const failedCell = scoreAffirmedCell(text, t, [], false, { kind: "unclear", failed: "judge_failed" });
     const r = aggregateCells([env("openai:gpt-4o", "q1", ok.notes, text, ok.score), env("openai:gpt-4o", "q2", failedCell.notes, text, 0)], true);
     expect(r.score).toBe(50);
@@ -706,7 +711,10 @@ describe("scoring", () => {
 
   it("runLadder: AFFIRM + WRONG → 0, measurable; the accuracy judge sees the reference and the canonical host", async () => {
     h.answer = "acme.com is a famous author's fan site. See https://acme.com";
-    const { AI, calls } = fakeAi({ "@cf/meta/llama-3.1-8b-instruct-fp8": "AFFIRM", [ACCURACY_MODEL]: "WRONG" });
+    const { AI, calls } = fakeAi({
+      "@cf/meta/llama-3.1-8b-instruct-fp8": "AFFIRM",
+      [ACCURACY_MODEL]: ["WRONG: a famous author's fan site", "ASSERTS=YES DIFFERENT=YES NAMED=YES"],
+    });
     const store = new Map<string, string>();
     const cacheKv = { get: async (k: string) => store.get(k) ?? null, put: async (k: string, v: string) => void store.set(k, v) } as unknown as KVNamespace;
     const env = { AI, cacheKv } as unknown as LadderEnv;
@@ -761,9 +769,11 @@ describe("report output", () => {
     expect(by.citation_domain_named_rate.score).toBe(13); // 1 of 8
     expect(by.citation_url_referenced_rate.score).toBe(13);
     expect(by.citation_domain_named_rate.notes).toBe(
-      "13% of scored test answers named your domain and matched how your site describes itself. Of the 8 scored answers, 1 matched how your site describes itself, 4 described a different person or business than your site says it is, 1 did not say enough to check, and 2 did not show that the model knew your site. 8 of 8 test answers could be scored, across 4 AI models. Average by model: ChatGPT 0, Claude 0, Gemini 0, Perplexity 50."
+      "13% of scored test answers named your site (by its domain or the name your site gives itself) and described it as the same person or business your site says it is. Of the 8 scored answers, 1 described your site as the same person or business your site says it is, 4 described a different person or business than your site says it is, 1 could not be confirmed as describing your site, and 2 did not show that the model knew your site. We count your domain and the name your site gives itself; other brand names, nicknames or translations are not counted. 8 of 8 test answers could be scored, across 4 AI models. Average answer score by model (0 to 100): ChatGPT 0, Claude 0, Gemini 0, Perplexity 50."
     );
-    expect(by.citation_url_referenced_rate.notes).toBe("13% of scored test answers matched how your site describes itself and included at least one link to it.");
+    expect(by.citation_url_referenced_rate.notes).toBe(
+      "13% of scored test answers included a link to your site and either described your site as the same person or business your site says it is, or gave your homepage address when asked for it."
+    );
   });
 
   it("wrong answers: informational row (na, weight 0) with up to 3 quotes, one per model first", () => {
@@ -795,7 +805,7 @@ describe("report output", () => {
     expect(subs.map((s) => s.id)).not.toContain("citation_misidentified_answers");
     expect(subs[0].score).toBe(0);
     expect(subs[0].notes).toBe(
-      "0% of scored test answers named your domain. We could not find or read a clear description of your site on it, so the 2 answers that said the model knew your site could not be checked and were not counted (scored 0). To fix this, say who you are and what you do in an llms.txt file, in structured data, or in your homepage title and description. 3 of 3 test answers could be scored, across 4 AI models. Average by model: ChatGPT 0, Claude not measured, Gemini not measured, Perplexity not measured."
+      "0% of scored test answers named your domain. We could not find or read a clear description of your site on it, so the 2 answers that said the model knew your site could not be checked and were not counted (scored 0). To fix this, say who you are and what you do in an llms.txt file, in structured data, or in your homepage title and description. 3 of 3 test answers could be scored, across 4 AI models. Average answer score by model (0 to 100): ChatGPT 0, Claude not measured, Gemini not measured, Perplexity not measured."
     );
     expect(accuracyNotCheckedNote(1)).toContain("the 1 answer that said the model knew your site could not be checked and was not counted (scored 0)");
     expect(accuracyNotCheckedNote(0)).toContain("so an answer that said the model knew your site could not have been checked or counted.");
@@ -805,7 +815,7 @@ describe("report output", () => {
     const FAILED = "score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true; accuracy_failed=judge_failed";
     const r = aggregateCells([cells[0], cells[5], env("openai:gpt-4o", "q7", FAILED), env("openai:gpt-4o", "q8", DENY)], true);
     expect(buildSubChecks(r, false, "acme.com")[0].notes).toContain(
-      "Of the 4 scored answers, 1 matched how your site describes itself, 0 described a different person or business than your site says it is, 1 did not say enough to check, 1 could not be checked (scored 0), and 1 did not show that the model knew your site."
+      "Of the 4 scored answers, 1 described your site as the same person or business your site says it is, 0 described a different person or business than your site says it is, 1 could not be confirmed as describing your site, 1 could not be checked (scored 0), and 1 did not show that the model knew your site."
     );
   });
 
@@ -887,7 +897,7 @@ describe("injected site description: safe direction is down", () => {
     h.answer = "acme.com is a clinic in Lisbon. See https://acme.com";
     const { runDim6Paid } = await import("./runDim6");
     const run = async (llms: string | null) => {
-      const { AI, calls } = fakeAi({ "@cf/meta/llama-3.1-8b-instruct-fp8": "AFFIRM", [ACCURACY_MODEL]: "CORRECT" });
+      const { AI, calls } = fakeAi({ "@cf/meta/llama-3.1-8b-instruct-fp8": "AFFIRM", [ACCURACY_MODEL]: "CORRECT: acme.com is a clinic in Lisbon" });
       const store = new Map<string, string>();
       const cacheKv = { get: async (k: string) => store.get(k) ?? null, put: async (k: string, v: string) => void store.set(k, v) } as unknown as KVNamespace;
       const questionSetDb = { prepare() { throw new Error("no table"); } } as unknown as D1Database;
@@ -907,7 +917,7 @@ describe("injected site description: safe direction is down", () => {
     expect(blocked.calls.some((c) => c.model === ACCURACY_MODEL)).toBe(false);
     const dn = blocked.r.dimension.sub_checks.find((s) => s.id === "citation_domain_named_rate")!;
     expect(dn.notes).toBe(
-      `0% of scored test answers named your domain. ${accuracyBlockedNote(40)} 40 of 40 test answers could be scored, across 4 AI models. Average by model: ChatGPT 0, Claude 0, Gemini 0, Perplexity 0.`
+      `0% of scored test answers named your domain. ${accuracyBlockedNote(40)} 40 of 40 test answers could be scored, across 4 AI models. Average answer score by model (0 to 100): ChatGPT 0, Claude 0, Gemini 0, Perplexity 0.`
     );
     expect(dn.notes).toContain("text aimed at automated checkers");
     expect(blocked.r.dimension.sub_checks.map((s) => s.id)).not.toContain("citation_misidentified_answers");
@@ -1045,10 +1055,10 @@ describe("affirmation-judge failure (Codex r3 MED)", () => {
 });
 
 describe("version", () => {
-  it("engine is dim6:v5 and the customer line says Astrant Citation Visibility v5", async () => {
-    expect(DIM6_ENGINE_VERSION).toBe("dim6:v5");
-    expect(DIM6_ENGINE_LINE).toBe("Astrant Citation Visibility v5 (4 AI models)");
-    expect(await cellCacheKey("openai:gpt-4o", "p", "https://a.com")).toMatch(/^dim6:v5:openai:gpt-4o:[0-9a-f]{64}$/);
+  it("engine is dim6:v6 and the customer line says Astrant Citation Visibility v6", async () => {
+    expect(DIM6_ENGINE_VERSION).toBe("dim6:v6");
+    expect(DIM6_ENGINE_LINE).toBe("Astrant Citation Visibility v6 (4 AI models)");
+    expect(await cellCacheKey("openai:gpt-4o", "p", "https://a.com")).toMatch(/^dim6:v6:openai:gpt-4o:[0-9a-f]{64}$/);
   });
 
   it("detectAccuracyInjection includes the affirmation screen", () => {

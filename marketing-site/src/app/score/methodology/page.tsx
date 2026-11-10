@@ -91,15 +91,15 @@ export default function MethodologyPage() {
           <ul className="mt-4 flex flex-col gap-3 text-sm text-[var(--color-muted)]">
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_domain_named_rate</span>{" "}
-              (weight 40) — what fraction of scored test answers named your domain and matched how your site describes itself. Each answer that says it knows your site is compared with how your site describes itself (your llms.txt file, structured data, and homepage title and description). We check only who the site is and what kind of business it is, against your site&apos;s own description; details such as prices and dates are not checked. An answer that describes your site as a different person or business, says too little to check, or cannot be checked scores 0. If your site has no clear description we can read, those answers cannot be checked and score 0, and the report says so.
+              (weight 40) — what fraction of scored test answers named your site (by its domain or the name your site gives itself) and described it as the same person or business your site says it is. Each answer that says it knows your site is compared with how your site describes itself (your llms.txt file, structured data, and homepage title, description and main heading). We check only who the site belongs to and what field of business it is in, against your site&apos;s own description; products, prices, dates and other details are not checked. If your structured data states street addresses, an answer counts only if every street address it gives is one we could extract from your structured data or your homepage text. An answer is counted as a mix-up only when it says your site belongs to a different person or business and a second check confirms it; an answer that was cut off before the end is never counted as a match or as a confirmed mix-up. Answers that guess, say too little, or cannot be confirmed score 0, as do answers that cannot be checked. If your site has no clear description we can read, those answers cannot be checked and score 0, and the report says so.
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_url_referenced_rate</span>{" "}
-              (weight 30) — what fraction included an actual URL on your host (not just the brand name).
+              (weight 30) — what fraction included an actual URL on your host (not just the brand name), among answers that described your site correctly, plus plain answers that gave your homepage address when asked for it.
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_context_relevant_rate</span>{" "}
-              (weight 20) — what fraction positioned your domain in the first half of the response (vs a footer-style mention).
+              (weight 20) — what fraction named your site (by its domain or its own name) in the first half of the response (vs a footer-style mention), among answers that described your site correctly.
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_no_competitor_first_rate</span>{" "}
@@ -107,7 +107,7 @@ export default function MethodologyPage() {
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_misidentified_answers</span>{" "}
-              (not weighted) — shown only when at least one answer described a different person or business than your site says it is, with up to three short quotes from those answers. For information only; it is not counted again in your score.
+              (not weighted) — shown only when at least one answer described, or (for an answer that was cut off) may have described, a different person or business than your site says it is, with up to three short quotes from those answers. For information only; it is not counted again in your score.
             </li>
           </ul>
 

@@ -45,6 +45,8 @@ import {
   type JudgeEnv,
 } from "./affirmation-judge";
 import { judgeAccuracy, type AccuracyVerdict } from "./accuracy-judge";
+import { isHomepageUrlOnlyAnswer, unlistedAddresses, type SiteName } from "./site-identity";
+import type { SiteAddresses } from "./reference";
 import {
   type CellResult,
   type ModelId,
@@ -81,6 +83,16 @@ export interface LadderInput {
   // answer scores 0 (measurable, accuracy_blocked=true): the site owner is the
   // likely attacker, so no v4 credit.
   referenceBlocked?: boolean;
+  // dim6:v6: the run's one homepage-URL question (orchestrator.ts), and the
+  // site's own names and addresses from the reference (site-identity.ts).
+  urlQuestion?: boolean;
+  siteFacts?: SiteFacts | null;
+}
+
+/** dim6:v6: deterministic facts from the site's own sources, used around the judge. */
+export interface SiteFacts {
+  names: SiteName[];
+  addresses: SiteAddresses;
 }
 
 async function sha256Hex(input: string): Promise<string> {
@@ -104,9 +116,12 @@ export async function cellCacheKey(
   targetUrl: string,
   competitorHosts: string[] = [],
   reference: string | null = null,
-  referenceBlocked = false
+  referenceBlocked = false,
+  urlQuestion = false,
+  siteFacts: SiteFacts | null = null
 ): Promise<string> {
-  const identity = JSON.stringify([targetUrl, [...competitorHosts].sort(), prompt, reference, referenceBlocked]);
+  // dim6:v6: the URL-question flag and the site facts are scoring inputs too.
+  const identity = JSON.stringify([targetUrl, [...competitorHosts].sort(), prompt, reference, referenceBlocked, urlQuestion, siteFacts]);
   return `${DIM6_ENGINE_VERSION}:${modelId}:${await sha256Hex(identity)}`;
 }
 
@@ -194,46 +209,84 @@ type LadderStep =
   | { kind: "validator_fail"; reason: string; truncated: boolean }
   | { kind: "retry_after"; reason: string; waitSec: number };
 
+/** dim6:v6: what scoreAffirmedCell needs besides the verdict. */
+export interface CellContext {
+  /** This is the run's homepage-URL question. */
+  urlQuestion?: boolean;
+  /** Canonical domain (for the URL-only check). */
+  domain?: string;
+  siteFacts?: SiteFacts | null;
+}
+
 /**
- * dim6:v5: the cell for an answer the affirmation judge marked AFFIRM, given
- * the accuracy verdict. Fail closed (Codex r1): only CORRECT answers keep the
+ * The cell for an answer the affirmation judge marked AFFIRM, given the
+ * accuracy verdict. Fail closed (Codex r1): only CORRECT answers keep the
  * substring breakdown. Everything else scores 0 and stays MEASURABLE:
- *   WRONG → misidentified=true; UNCLEAR → accuracy_unclear=true (plus
- *   accuracy_failed=<reason> when the answer could not be checked);
- *   "blocked" (the site's description tripped the injection screen) →
- *   accuracy_blocked=true; null (no usable description of the site) →
- *   accuracy_not_checked=true.
- * Pure, so the replay tool (tools/report-panel/replay-dim6-accuracy.mjs)
- * scores exactly like the ladder.
+ *   WRONG (a confirmed mix-up, accuracy-judge.ts) → misidentified=true, or,
+ *     when the provider cut the answer off at its length limit,
+ *     possible_mixup_cut_off=true (dim6:v6: the unseen rest could take it
+ *     back, so it is never counted as a confirmed mix-up);
+ *   UNCLEAR → accuracy_unclear=true with unclear_why=<reason> (plus
+ *     accuracy_failed=<reason> when the answer could not be checked);
+ *   "blocked" → accuracy_blocked=true; null → accuracy_not_checked=true.
+ * dim6:v6 also lowers to UNCLEAR a CORRECT answer that was cut off
+ * (unclear_why=truncated: the unread tail could contradict it) or that gives
+ * a street address the site does not state (unclear_why=address), and gives
+ * URL-only credit (url_only=true: url_referenced only, never the identity
+ * flags) to a plain homepage-URL answer to the URL question.
+ * Pure, so the replay tool (tools/report-panel/replay-dim6-accuracy.mjs) and
+ * the replay test score exactly like the ladder.
  */
 export function scoreAffirmedCell(
   text: string,
   targetUrl: string,
   competitorHosts: string[],
   truncated: boolean,
-  accuracy: AccuracyVerdict | { kind: "blocked" } | null
+  accuracy: AccuracyVerdict | { kind: "blocked" } | null,
+  ctx: CellContext = {}
 ): CellResult {
-  if (accuracy?.kind !== "correct") {
-    const notes = [
-      `score=0/100`,
-      `judge=AFFIRM`,
-      accuracy === null
-        ? "accuracy_not_checked=true"
-        : accuracy.kind === "wrong"
-          ? "accuracy=WRONG; misidentified=true"
-          : accuracy.kind === "unclear"
-            ? `accuracy=UNCLEAR; accuracy_unclear=true${accuracy.failed ? `; accuracy_failed=${accuracy.failed}` : ""}`
-            : "accuracy_blocked=true",
-      truncated ? "truncated=true" : null,
-    ]
-      .filter((s): s is string => s !== null)
-      .join("; ");
-    return { text, score: 0, unmeasurable: false, truncated, notes };
+  const names = ctx.siteFacts?.names ?? [];
+  const zero = (parts: Array<string | null>): CellResult => ({
+    text,
+    score: 0,
+    unmeasurable: false,
+    truncated,
+    notes: ["score=0/100", "judge=AFFIRM", ...parts, truncated ? "truncated=true" : null]
+      .filter((x): x is string => x !== null)
+      .join("; "),
+  });
+  const unclear = (why: string) => zero(["accuracy=UNCLEAR", "accuracy_unclear=true", `unclear_why=${why}`]);
+  if (accuracy === null) return zero(["accuracy_not_checked=true"]);
+  if (accuracy.kind === "blocked") return zero(["accuracy_blocked=true"]);
+  if (accuracy.kind === "wrong") {
+    return truncated
+      ? zero(["accuracy=WRONG_CUT_OFF", "possible_mixup_cut_off=true", `wrong_at=${accuracy.quoteAt}`])
+      : zero(["accuracy=WRONG", "misidentified=true", `wrong_at=${accuracy.quoteAt}`]);
   }
+  if (accuracy.kind === "unclear") {
+    if (accuracy.failed) return zero(["accuracy=UNCLEAR", "accuracy_unclear=true", `accuracy_failed=${accuracy.failed}`]);
+    // URL-only credit: never after a raw WRONG (even one the gates removed),
+    // never on a cut-off answer, and only for the whitelisted answer forms.
+    if (ctx.urlQuestion && accuracy.raw !== "WRONG" && !truncated && ctx.domain && isHomepageUrlOnlyAnswer(text, ctx.domain, names)) {
+      const score = competitorHosts.length === 0 ? Math.round((30 * 100) / 90) : 30;
+      return {
+        text,
+        score,
+        unmeasurable: false,
+        truncated,
+        notes: [`score=${score}/100`, "judge=AFFIRM", "accuracy=URL_ONLY", "url_only=true", "url_referenced=true"].join("; "),
+      };
+    }
+    return unclear(accuracy.why ?? "judge");
+  }
+  // CORRECT
+  if (truncated) return unclear("truncated");
+  const addresses = ctx.siteFacts?.addresses;
+  if (addresses && addresses.declared.length > 0 && unlistedAddresses(text, addresses.accepted).length > 0) return unclear("address");
   // Substring-counting is appropriate here because the judges have already
   // confirmed the response is affirmative and accurate. Granular sub-checks
   // differentiate "passing mention" from "clean named citation with URL."
-  const breakdown = scoreResponse(text, targetUrl, competitorHosts);
+  const breakdown = scoreResponse(text, targetUrl, competitorHosts, names);
   const notes = [
     `score=${breakdown.score}/100`,
     `judge=AFFIRM`,
@@ -242,10 +295,7 @@ export function scoreAffirmedCell(
     `url_referenced=${breakdown.urlReferenced}`,
     `context_relevant=${breakdown.contextRelevant}`,
     `no_competitor_first=${breakdown.noCompetitorFirst}`,
-    truncated ? "truncated=true" : null,
-  ]
-    .filter((s): s is string => s !== null)
-    .join("; ");
+  ].join("; ");
   return { text, score: breakdown.score, unmeasurable: false, truncated, notes };
 }
 
@@ -268,7 +318,8 @@ async function classifyAdapterResult(
   targetUrl: string,
   competitorHosts: string[],
   reference: string | null,
-  referenceBlocked: boolean
+  referenceBlocked: boolean,
+  ctx: CellContext
 ): Promise<LadderStep> {
   const o = adapter.outcome;
   switch (o.kind) {
@@ -380,11 +431,11 @@ async function classifyAdapterResult(
       const accuracy = referenceBlocked
         ? ({ kind: "blocked" } as const)
         : reference
-          ? await judgeAccuracy(env, safeHost(targetUrl) ?? targetUrl, reference, o.text)
+          ? await judgeAccuracy(env, safeHost(targetUrl) ?? targetUrl, reference, o.text, { names: ctx.siteFacts?.names ?? [] })
           : null;
       return {
         kind: "result",
-        cell: scoreAffirmedCell(o.text, targetUrl, competitorHosts, truncated, accuracy),
+        cell: scoreAffirmedCell(o.text, targetUrl, competitorHosts, truncated, accuracy, ctx),
       };
     }
   }
@@ -408,9 +459,12 @@ export async function runLadder(
   const { modelId, prompt, targetUrl, competitorHosts = [] } = input;
   const reference = input.reference ?? null;
   const referenceBlocked = input.referenceBlocked === true;
+  const urlQuestion = input.urlQuestion === true;
+  const siteFacts = input.siteFacts ?? null;
+  const ctx: CellContext = { urlQuestion, domain: safeHost(targetUrl)?.replace(/^www\./, "") ?? undefined, siteFacts };
 
   // Cache check (rung 5).
-  const key = await cellCacheKey(modelId, prompt, targetUrl, competitorHosts, reference, referenceBlocked);
+  const key = await cellCacheKey(modelId, prompt, targetUrl, competitorHosts, reference, referenceBlocked, urlQuestion, siteFacts);
   const cellHash = key.slice(key.lastIndexOf(":") + 1);
   const cached = await readCache(env.cacheKv, key);
   if (cached) {
@@ -431,7 +485,7 @@ export async function runLadder(
 
   // Initial call.
   let adapter = await callAdapter(env, modelId, prompt);
-  let step = await classifyAdapterResult(env, adapter, targetUrl, competitorHosts, reference, referenceBlocked);
+  let step = await classifyAdapterResult(env, adapter, targetUrl, competitorHosts, reference, referenceBlocked, ctx);
 
   // 429/5xx retry path: wait Retry-After (capped 30s), retry SAME prompt once.
   if (step.kind === "retry_after") {
@@ -442,7 +496,7 @@ export async function runLadder(
       `[dim6] retry=rate_limit model=${modelId} waited=${step.waitSec}s`
     );
     adapter = await callAdapter(env, modelId, prompt);
-    step = await classifyAdapterResult(env, adapter, targetUrl, competitorHosts, reference, referenceBlocked);
+    step = await classifyAdapterResult(env, adapter, targetUrl, competitorHosts, reference, referenceBlocked, ctx);
     // Second 429/5xx → fallback.
     if (step.kind === "retry_after") {
       const cell = templatedFallback(
@@ -462,7 +516,7 @@ export async function runLadder(
       `[dim6] retry=validator model=${modelId} reason="${step.reason.slice(0, 80)}"`
     );
     const adapter2 = await callAdapter(env, modelId, retryPrompt);
-    const step2 = await classifyAdapterResult(env, adapter2, targetUrl, competitorHosts, reference, referenceBlocked);
+    const step2 = await classifyAdapterResult(env, adapter2, targetUrl, competitorHosts, reference, referenceBlocked, ctx);
     if (step2.kind === "result") {
       step = step2;
     } else if (step2.kind === "validator_fail") {

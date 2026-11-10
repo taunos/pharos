@@ -1,0 +1,464 @@
+{
+  "engine": "dim6:v6",
+  "recorded_at": "2026-11-10T23:09:45.031Z",
+  "source": "datasets/report-defects/snapshots/2026-11-10-release-check/tartine",
+  "url": "https://tartinebakery.com/",
+  "domain": "tartinebakery.com",
+  "reference": {
+    "verifiable": true,
+    "text": "From the homepage:\nTitle: Tartine Bakery – Tartine is a thoughtful expression of modern craft through good food and warm experiences. We are a…\nMain heading: Home",
+    "names": [
+      {
+        "text": "Tartine Bakery",
+        "acronym": false
+      },
+      {
+        "text": "Tartine",
+        "acronym": false
+      }
+    ],
+    "addresses": {
+      "declared": [],
+      "accepted": []
+    }
+  },
+  "urlQuestionId": null,
+  "cells": [
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q1",
+      "judge": "CORRECT: Tartine Bakery, a renowned bakery",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 96
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q1",
+      "judge": "CORRECT: Tartine Bakery is a renowned **bakery and café**",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 18
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q1",
+      "judge": "CORRECT: Tartine Bakery, a renowned bakery and cafe",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 44
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q1",
+      "judge": "CORRECT: a bakery and café business",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 18
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q2",
+      "judge": "CORRECT: Tartine Bakery",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=NO NAMED=YES",
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 22
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q2",
+      "judge": "CORRECT: Tartine Bakery",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "guess",
+        "raw": "CORRECT"
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q2",
+      "judge": "CORRECT: Tartine Bakery",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=NO NAMED=YES",
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q2",
+      "judge": "CORRECT: Tartine Bakery",
+      "judgeRetry": "CORRECT: Tartine Bakery",
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "correct_unsupported",
+        "raw": "CORRECT"
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q3",
+      "judge": "CORRECT: Tartine Bakery specializes in artisanal baked goods",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 0
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q3",
+      "judge": "CORRECT: Tartine Bakery specializes in **artisan bread and pastries**",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 27
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q3",
+      "judge": "CORRECT: Tartine Bakery specializes in high-quality **artisan baked goods**",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 0
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q3",
+      "judge": "CORRECT: Tartine Bakery specializes in **artisan bread and pastries**",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 0
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q4",
+      "judge": "CORRECT: Tartine Bakery started as a local business in San Francisco, known for its artisanal bread and pastries.",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 0
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q4",
+      "judge": "CORRECT: a local business",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 48
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q4",
+      "judge": "CORRECT: a very local, highly acclaimed business, a company",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 26
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q4",
+      "judge": "CORRECT: a regional bakery brand",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 36
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q5",
+      "judge": "CORRECT: Tartine Bakery",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=NO NAMED=YES",
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 53
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q5",
+      "judge": "CORRECT: Tartine Bakery is a well-known San Francisco bakery",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 481
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q5",
+      "judge": "CORRECT: Tartine Bakery",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=NO NAMED=YES",
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 55
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q5",
+      "judge": "CORRECT: Tartine Bakery",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=NO NAMED=YES",
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q6",
+      "judge": "CORRECT: Tartine Bakery is known for its artisanal bread and pastries",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 22
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q6",
+      "judge": "CORRECT: Tartine Bakery",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "guess",
+        "raw": "CORRECT"
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q6",
+      "judge": "CORRECT: Tartine offers some options and accommodations",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q7",
+      "judge": "CORRECT: Tartine Bakery is a well-known brand in the food industry",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q7",
+      "judge": "CORRECT: Tartine Bakery is a well-known and highly respected brand in the food industry",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 25
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q7",
+      "judge": "CORRECT: Tartine Bakery",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=NO NAMED=YES",
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 7
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q7",
+      "judge": "CORRECT: Tartine Bakery is a well-known and highly influential specialty-bakery brand",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 7
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q8",
+      "judge": "CORRECT: bakeries and restaurants",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 88
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q8",
+      "judge": "CORRECT: Tartine Bakery",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=NO NAMED=YES",
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 121
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q8",
+      "judge": "CORRECT: Tartine Bakery",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=NO NAMED=YES",
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 17
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q8",
+      "judge": "CORRECT: Tartine Bakery’s website",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q9",
+      "judge": "CORRECT: Tartine Bakery",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=NO NAMED=YES",
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q9",
+      "judge": "CORRECT: Tartine is a well-known San Francisco bakery",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "guess",
+        "raw": "CORRECT"
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q9",
+      "judge": "CORRECT: Tartine Bakery",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=NO NAMED=YES",
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q9",
+      "judge": "CORRECT: Tartine Bakery",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=NO NAMED=YES",
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q10",
+      "judge": "CORRECT: Tartine Bakery, a well-known bakery",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 68
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q10",
+      "judge": "CORRECT: bakery websites",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "guess",
+        "raw": "CORRECT"
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q10",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q10",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    }
+  ]
+}

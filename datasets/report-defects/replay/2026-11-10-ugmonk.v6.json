@@ -1,0 +1,448 @@
+{
+  "engine": "dim6:v6",
+  "recorded_at": "2026-11-10T23:10:18.800Z",
+  "source": "datasets/report-defects/snapshots/2026-11-10-release-check/ugmonk",
+  "url": "https://ugmonk.com/",
+  "domain": "ugmonk.com",
+  "reference": {
+    "verifiable": true,
+    "text": "From llms.txt:\nName: Agent Instructions — Ugmonk\nFrom structured data:\nUgmonk\nFrom the homepage:\nTitle: Ugmonk\nDescription: Ugmonk designs analog tools for focused, intentional work. The best-selling Analog Card System is used by 50,000+…\nMain heading: Ugmonk",
+    "names": [
+      {
+        "text": "Ugmonk",
+        "acronym": false
+      }
+    ],
+    "addresses": {
+      "declared": [],
+      "accepted": []
+    }
+  },
+  "urlQuestionId": "q10",
+  "cells": [
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q1",
+      "judge": "CORRECT: Ugmonk, a brand known for its minimalist and thoughtfully designed products",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 33
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q1",
+      "judge": "CORRECT: Ugmonk is an online store and lifestyle brand",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 16
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q1",
+      "judge": "CORRECT: Ugmonk, a design studio and lifestyle brand",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 45
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q1",
+      "judge": "CORRECT: Ugmonk, a family-run design brand",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 46
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q2",
+      "judge": "WRONG: a lifestyle brand that focuses on creating high-quality, minimalist products",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=YES NAMED=NO",
+      "verdict": {
+        "kind": "wrong",
+        "quoteAt": 14
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q2",
+      "judge": "CORRECT: Ugmonk is an **e-commerce lifestyle brand**",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 10
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q2",
+      "judge": "CORRECT: an **e-commerce business** that operates as a **design studio and lifestyle brand**",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 24
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q2",
+      "judge": "CORRECT: a direct-to-consumer design and lifestyle brand",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 10
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q3",
+      "judge": "CORRECT: Ugmonk is a brand",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q3",
+      "judge": "CORRECT: Ugmonk",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=NO NAMED=YES",
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 125
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q3",
+      "judge": "CORRECT: Ugmonk.com is an active and well-regarded online shop founded by designer Jeff Sheldon",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 20
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q3",
+      "judge": "CORRECT: Ugmonk offers physical productivity and desk-organization products",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q4",
+      "judge": "CORRECT: Ugmonk.com, design enthusiasts, professionals, and consumers",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 117
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q4",
+      "judge": "CORRECT: Ugmonk",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=NO NAMED=YES",
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 2
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q4",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q4",
+      "judge": "CORRECT: Ugmonk.com, Ugmonk, designs analog tools",
+      "judgeRetry": "CORRECT: Ugmonk.com, Ugmonk, designs analog tools",
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "correct_unsupported",
+        "raw": "CORRECT"
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q5",
+      "judge": "CORRECT: an online store that sells a variety of products",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 81
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q5",
+      "judge": "CORRECT: Ugmonk is an online retail brand",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 48
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q5",
+      "judge": "CORRECT: Ugmonk is an **e-commerce brand**",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 147
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q5",
+      "judge": "CORRECT: a small, family-run business",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 48
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q6",
+      "judge": "CORRECT: Ugmonk.com is primarily focused on offering a range of thoughtfully designed products",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 0
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q6",
+      "judge": "CORRECT: an online store that sells **minimalist lifestyle products and apparel**",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 44
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q6",
+      "judge": "CORRECT: an online store offering a range of goods",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 125
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q6",
+      "judge": "CORRECT: an online store for **minimalist, well-designed analog productivity tools**",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 24
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q7",
+      "judge": "CORRECT: Ugmonk is a design-focused brand",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 0
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q7",
+      "judge": "CORRECT: Ugmonk is a design-focused lifestyle brand",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 20
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q7",
+      "judge": "CORRECT: Ugmonk is an online brand",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 0
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q7",
+      "judge": "CORRECT: Ugmonk is a small, family-run design brand",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 0
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q8",
+      "judge": "CORRECT: Ugmonk is a lifestyle brand",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 38
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q8",
+      "judge": "CORRECT: a design and lifestyle brand",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 43
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q8",
+      "judge": "CORRECT: Ugmonk is a design company",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 47
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q9",
+      "judge": "CORRECT: Ugmonk primarily operates as an online store",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 22
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q9",
+      "judge": "CORRECT: Ugmonk is primarily known as an online retailer",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "guess",
+        "raw": "CORRECT"
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q9",
+      "judge": "CORRECT: Ugmonk",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=NO NAMED=YES",
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 6
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q10",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q10",
+      "judge": "CORRECT: Ugmonk is a design studio and lifestyle brand",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 67
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q10",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q10",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    }
+  ]
+}

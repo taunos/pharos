@@ -1,0 +1,471 @@
+{
+  "engine": "dim6:v6",
+  "recorded_at": "2026-11-10T23:07:44.628Z",
+  "source": "datasets/report-defects/snapshots/2026-11-10-release-check/eff",
+  "url": "https://www.eff.org/",
+  "domain": "eff.org",
+  "reference": {
+    "verifiable": true,
+    "text": "From llms.txt:\nName: Electronic Frontier Foundation (EFF)\nSummary: The Electronic Frontier Foundation is the leading nonprofit organization defending civil liberties in the digital world. Founded in 1990 and based in San Francisco, EFF champions user privacy, free expression, and…\nFrom the homepage:\nTitle: Electronic Frontier Foundation | Defending your rights in the digital world",
+    "names": [
+      {
+        "text": "Electronic Frontier Foundation",
+        "acronym": false
+      },
+      {
+        "text": "EFF",
+        "acronym": true
+      }
+    ],
+    "addresses": {
+      "declared": [],
+      "accepted": []
+    }
+  },
+  "urlQuestionId": "q10",
+  "cells": [
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q1",
+      "judge": "CORRECT: the Electronic Frontier Foundation (EFF), a nonprofit organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 30
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q1",
+      "judge": "CORRECT: the website of the Electronic Frontier Foundation (EFF), a leading nonprofit organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 26
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q1",
+      "judge": "CORRECT: the Electronic Frontier Foundation (EFF)",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 47
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q1",
+      "judge": "CORRECT: the official website of the Electronic Frontier Foundation (EFF), a nonprofit organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 15
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q2",
+      "judge": "CORRECT: the Electronic Frontier Foundation (EFF), a nonprofit organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 27
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q2",
+      "judge": "CORRECT: the website of the **Electronic Frontier Foundation (EFF)**, a non-profit digital rights organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 11
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q2",
+      "judge": "CORRECT: the website for the Electronic Frontier Foundation (EFF), which is a non-profit organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 62
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q2",
+      "judge": "CORRECT: the website of the Electronic Frontier Foundation (EFF), a U.S.-based 501(c)(3) nonprofit advocacy organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 11
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q3",
+      "judge": "CORRECT: the Electronic Frontier Foundation (EFF) a nonprofit organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q3",
+      "judge": "CORRECT: nonprofit organization, defending civil liberties in the digital world",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 849
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q3",
+      "judge": "CORRECT: the Electronic Frontier Foundation (EFF)",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q3",
+      "judge": "CORRECT: EFF offers several **free or nonprofit digital-rights services and products**",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q4",
+      "judge": "CORRECT: The Electronic Frontier Foundation (EFF)",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 0
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q4",
+      "judge": "CORRECT: The Electronic Frontier Foundation (EFF)",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 0
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q4",
+      "judge": "CORRECT: the Electronic Frontier Foundation",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 9
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q4",
+      "judge": "CORRECT: The Electronic Frontier Foundation advocates for privacy, free expression, innovation, and consumer rights",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 126
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q5",
+      "judge": "CORRECT: the Electronic Frontier Foundation (EFF), a nonprofit organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 32
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q5",
+      "judge": "CORRECT: a nonprofit organization that focuses on defending civil liberties in the digital world",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 143
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q5",
+      "judge": "CORRECT: the Electronic Frontier Foundation (EFF), a nonprofit organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 36
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q5",
+      "judge": "CORRECT: EFF.org is the website of the Electronic Frontier Foundation (EFF), a U.S. nonprofit organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 7
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q6",
+      "judge": "CORRECT: the Electronic Frontier Foundation (EFF)",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 20
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q6",
+      "judge": "CORRECT: The Electronic Frontier Foundation (EFF) is a nonprofit organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 0
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q6",
+      "judge": "CORRECT: the website of the Electronic Frontier Foundation",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 33
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q6",
+      "judge": "CORRECT: the website of the Electronic Frontier Foundation",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 33
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q7",
+      "judge": "CORRECT: the Electronic Frontier Foundation (EFF)",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q7",
+      "judge": "CORRECT: EFF (Electronic Frontier Foundation)",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q7",
+      "judge": "CORRECT: the Electronic Frontier Foundation (EFF)",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 5
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q7",
+      "judge": "CORRECT: EFF (Electronic Frontier Foundation)",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 7
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q8",
+      "judge": "CORRECT: The Electronic Frontier Foundation (EFF) primarily focuses on digital rights advocacy",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 0
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q8",
+      "judge": "CORRECT: The Electronic Frontier Foundation (EFF) is a nonprofit digital rights organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 77
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q8",
+      "judge": "CORRECT: the Electronic Frontier Foundation (EFF)",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 21
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q8",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q9",
+      "judge": "CORRECT: the Electronic Frontier Foundation (EFF), a nonprofit organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 61
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q9",
+      "judge": "CORRECT: nonprofit digital rights organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 85
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q9",
+      "judge": "CORRECT: non-profit digital rights advocacy organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 91
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q9",
+      "judge": "CORRECT: eff.org is the website of the Electronic Frontier Foundation (EFF), a U.S. 501(c)(3) nonprofit digital-rights organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 6
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q10",
+      "judge": "CORRECT: The Electronic Frontier Foundation's",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 11
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q10",
+      "judge": "CORRECT: EFF stands for the Electronic Frontier Foundation, a nonprofit organization",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 61
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q10",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q10",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    }
+  ]
+}

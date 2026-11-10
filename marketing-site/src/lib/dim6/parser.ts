@@ -21,6 +21,8 @@
 // "named + cited" hits 90+, a passing mention hits ~50, and a no-citation
 // clean response hits 0.
 
+import { firstNameIndex, type SiteName } from "./site-identity";
+
 export interface ScoredCellBreakdown {
   domainNamed: boolean;
   urlReferenced: boolean;
@@ -67,7 +69,12 @@ function strippedHost(host: string): string {
 export function scoreResponse(
   responseText: string,
   targetUrl: string,
-  competitorHosts: string[] = []
+  competitorHosts: string[] = [],
+  // dim6:v6: the site's own names bound to its domain (site-identity.ts). An
+  // answer that names the business ("Resend offers…") names the site, as one
+  // that repeats the domain does (RD-0107..0110). Only ever passed for
+  // answers the accuracy judge found correct (ladder.ts).
+  siteNames: SiteName[] = []
 ): ScoredCellBreakdown {
   const lower = responseText.toLowerCase();
   const targetHost = safeHost(targetUrl);
@@ -80,6 +87,8 @@ export function scoreResponse(
     if (lower.includes(targetHost)) domainNamed = true;
     else if (targetStripped && lower.includes(targetStripped)) domainNamed = true;
   }
+  const nameAt = firstNameIndex(responseText, siteNames);
+  if (nameAt !== -1) domainNamed = true;
 
   // Sub-check 2: url_referenced
   // Find all URLs in the response, check if any host matches the target.
@@ -105,6 +114,10 @@ export function scoreResponse(
     if (firstHalf.includes(targetHost) || (targetStripped && firstHalf.includes(targetStripped))) {
       contextRelevant = true;
     }
+    // firstNameIndex works on the same text with markdown emphasis removed,
+    // so its index is at most the raw one: the first-half test stays strict
+    // enough (an answer opening with the name).
+    if (nameAt !== -1 && nameAt < firstHalfEnd) contextRelevant = true;
   }
 
   // Sub-check 4: no_competitor_first

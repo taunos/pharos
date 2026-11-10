@@ -1,0 +1,213 @@
+{
+  "engine": "dim6:v6",
+  "recorded_at": "2026-11-10T23:06:56.721Z",
+  "source": "datasets/report-defects/snapshots/2026-11-08-panel-dim6-real/rachelqueiroz",
+  "url": "https://www.rachelqueiroz.com/",
+  "domain": "rachelqueiroz.com",
+  "reference": {
+    "verifiable": true,
+    "text": "From llms.txt:\nName: Rachel Queiroz — Psicóloga Clínica\nSummary: Psicóloga clínica (CRP 15/8276) que atende adultos e casais em Maceió (AL) e online para brasileiros no Brasil e no exterior. Psicoterapia individual, de casal e para quem mora fora, com abordagem em Terapia…\nFrom structured data:\nRachel Queiroz: Psicóloga clínica com atuação em desenvolvimento de pessoas há 20 anos. Atende adultos e casais, presencialmente em…\nRachel Queiroz · Psicóloga Clínica\nFrom the homepage:\nTitle: Rachel Queiroz – Psicóloga Clínica\nDescription: Atendimento particular para adultos e casais. Presencial em Maceió ou online para o mundo todo. CRP 15/8276.\nMain heading: “A vida boa” é um processo, não um estado. É uma direção,…",
+    "names": [
+      {
+        "text": "Rachel Queiroz",
+        "acronym": false
+      }
+    ],
+    "addresses": {
+      "declared": [
+        {
+          "street": "drjoseafonsodemelo",
+          "number": "118"
+        }
+      ],
+      "accepted": [
+        {
+          "street": "drjoseafonsodemelo",
+          "number": "118"
+        }
+      ]
+    }
+  },
+  "urlQuestionId": "q5",
+  "cells": [
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q1",
+      "judge": "WRONG: Rachel de Queiroz, a renowned Brazilian writer, journalist",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=YES NAMED=YES",
+      "verdict": {
+        "kind": "wrong",
+        "quoteAt": 73
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q1",
+      "judge": "CORRECT: Rachel Queiroz, a clinical psychologist",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 51
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q2",
+      "judge": "CORRECT: rachelqueiroz.com offers psychological services",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 7
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q3",
+      "judge": "WRONG: Rachel Queiroz, a graphic designer and brand strategist",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=YES NAMED=YES",
+      "verdict": {
+        "kind": "wrong",
+        "quoteAt": 61
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q3",
+      "judge": "CORRECT: rachelqueiroz.com is a **clinical psychology practice** operated by Rachel Queiroz, a licensed psychologist",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 0
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q5",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q5",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q6",
+      "judge": "WRONG: Rachel de Queiroz, a renowned Brazilian author and playwright.",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=YES NAMED=YES",
+      "verdict": {
+        "kind": "wrong",
+        "quoteAt": 156
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q6",
+      "judge": "WRONG: Rachel de Queiroz, Brazilian literature",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=YES NAMED=YES",
+      "verdict": {
+        "kind": "wrong",
+        "quoteAt": 148
+      }
+    },
+    {
+      "modelId": "anthropic:claude-sonnet",
+      "qid": "q7",
+      "judge": "UNCLEAR",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "unclear",
+        "why": "judge",
+        "raw": "UNCLEAR"
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q7",
+      "judge": "CORRECT: a physical psychology clinic",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 33
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q8",
+      "judge": "WRONG: Rachel de Queiroz, a renowned Brazilian author",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=YES NAMED=YES",
+      "verdict": {
+        "kind": "wrong",
+        "quoteAt": 236
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q8",
+      "judge": "WRONG: Rachel de Queiroz, a renowned Brazilian writer, journalist",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=YES NAMED=YES",
+      "verdict": {
+        "kind": "wrong",
+        "quoteAt": 73
+      }
+    },
+    {
+      "modelId": "openai:gpt-4o",
+      "qid": "q10",
+      "judge": "WRONG: Rachel de Queiroz, a renowned Brazilian author and playwright",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=YES NAMED=YES",
+      "verdict": {
+        "kind": "wrong",
+        "quoteAt": 44
+      }
+    },
+    {
+      "modelId": "google:gemini-2.5-flash",
+      "qid": "q10",
+      "judge": "WRONG: Rachel de Queiroz, renowned Brazilian writer",
+      "judgeRetry": null,
+      "confirm": "ASSERTS=YES DIFFERENT=YES NAMED=YES",
+      "verdict": {
+        "kind": "wrong",
+        "quoteAt": 86
+      }
+    },
+    {
+      "modelId": "perplexity:sonar",
+      "qid": "q10",
+      "judge": "CORRECT: Rachel Queiroz, a clinical psychologist",
+      "judgeRetry": null,
+      "confirm": null,
+      "verdict": {
+        "kind": "correct",
+        "quoteAt": 51
+      }
+    }
+  ]
+}

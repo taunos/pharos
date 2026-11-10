@@ -241,24 +241,25 @@ globalThis.fetch = async (input, init) => {
 // ── synthetic Dim 6 (shape = runDim6.ts buildSubChecks) ─────────────────
 function syntheticDim6() {
   const summary =
-    "36 of 40 test answers could be scored, across 4 AI models. Average by model: ChatGPT 12, Claude 4, Gemini 9, Perplexity 31.";
+    "36 of 40 test answers could be scored, across 4 AI models. Average answer score by model (0 to 100): ChatGPT 12, Claude 4, Gemini 9, Perplexity 31.";
+  const same = "described your site as the same person or business your site says it is";
   return {
     dimension_id: 6,
     dimension_name: "Citation Visibility",
     score: 14,
     grade: "F",
     sub_checks: [
-      { id: "citation_domain_named_rate", name: "Models name your domain", weight: 40, score: 17, passed: false,
-        notes: `17% of scored test answers named your domain and matched how your site describes itself. Of the 36 scored answers, 7 matched how your site describes itself, 5 described a different person or business than your site says it is, 2 did not say enough to check, and 22 did not show that the model knew your site. ${summary}` },
+      { id: "citation_domain_named_rate", name: "Models name your site", weight: 40, score: 17, passed: false,
+        notes: `17% of scored test answers named your site (by its domain or the name your site gives itself) and ${same}. Of the 36 scored answers, 7 ${same}, 1 gave your homepage address when asked for it, 5 described a different person or business than your site says it is, 1 could not be confirmed as describing your site, and 22 did not show that the model knew your site. We count your domain and the name your site gives itself; other brand names, nicknames or translations are not counted. ${summary}` },
       { id: "citation_url_referenced_rate", name: "Models cite your URL", weight: 30, score: 6, passed: false,
-        notes: "6% of scored test answers matched how your site describes itself and included at least one link to it." },
+        notes: `6% of scored test answers included a link to your site and either ${same}, or gave your homepage address when asked for it.` },
       { id: "citation_context_relevant_rate", name: "Models treat your domain as the principal answer", weight: 20, score: 8, passed: false,
-        notes: "8% of scored test answers matched how your site describes itself and put your domain in the first half of the answer, rather than only mentioning it at the end." },
+        notes: `8% of scored test answers ${same} and named it (by its domain or its own name) in the first half of the answer, rather than only at the end.` },
       { id: "citation_no_competitor_first_rate", name: "Competitor-first check (not measured)", weight: 10, score: 0, passed: false, na: true,
         notes: "Not measured: this Audit doesn't take a competitor list yet, so there is nothing to compare against. This check is not counted in your score." },
-      // dim6:v5 informational row (shape of runDim6.ts buildSubChecks; quotes invented).
+      // dim6:v6 informational row (shape of runDim6.ts buildSubChecks; quotes invented).
       { id: "citation_misidentified_answers", name: "Answers that described a different person or business than your site says it is", weight: 0, score: 0, passed: false, na: true,
-        notes: "5 of the 36 scored answers described a different person or business than your site says it is; they count as 0 in the checks above. Example: Gemini: \"example answer: the site is a different business with a similar name\". This row is for information and is not counted again in your score." },
+        notes: "5 of the 36 scored answers mixed up your site with a different person or business than your site says it is; they count as 0 in the checks above. Example of what the AI said: Gemini: \"example answer: the site is a different business with a similar name\". Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score." },
     ],
   };
 }

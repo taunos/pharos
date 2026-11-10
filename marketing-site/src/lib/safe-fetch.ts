@@ -148,6 +148,8 @@ export interface CappedBody {
   truncated: boolean;
   /** The WHOLE body was read without error and without truncation. */
   complete: boolean;
+  /** The bytes read (up to maxBytes), when BodyOpts.keepBytes was set. */
+  raw?: Uint8Array;
 }
 
 export interface BodyOpts {
@@ -157,6 +159,8 @@ export interface BodyOpts {
    * many bytes, so a caller can size a body it will not hold in memory.
    */
   countUpTo?: number;
+  /** Also return the bytes read (CappedBody.raw), e.g. to decode a declared charset. */
+  keepBytes?: boolean;
 }
 
 async function readCapped(res: Response, deadline: Deadline, opts: BodyOpts): Promise<CappedBody> {
@@ -169,7 +173,7 @@ async function readCapped(res: Response, deadline: Deadline, opts: BodyOpts): Pr
     try {
       const t = await deadline.race(res.text());
       const enc = new TextEncoder().encode(t);
-      if (enc.byteLength <= maxBytes) return { text: t, bytes: enc.byteLength, truncated: false, complete: true };
+      if (enc.byteLength <= maxBytes) return { text: t, bytes: enc.byteLength, truncated: false, complete: true, ...(opts.keepBytes ? { raw: enc } : {}) };
       return {
         text: new TextDecoder().decode(enc.subarray(0, maxBytes)),
         bytes: Math.min(enc.byteLength, countUpTo),
@@ -226,7 +230,7 @@ async function readCapped(res: Response, deadline: Deadline, opts: BodyOpts): Pr
     all.set(c, off);
     off += c.byteLength;
   }
-  return { text: new TextDecoder().decode(all), bytes: seen, truncated, complete: !truncated };
+  return { text: new TextDecoder().decode(all), bytes: seen, truncated, complete: !truncated, ...(opts.keepBytes ? { raw: all } : {}) };
 }
 
 export interface SafeResponse {
