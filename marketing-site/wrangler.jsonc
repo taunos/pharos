@@ -100,8 +100,10 @@
 		// Pre-launch gate for paid Audit checkout (Test C-A). Fail-closed:
 		// only the exact string "true" enables it. Paused 2026-11-07 for the
 		// report-truthfulness fixes; reopened 2026-11-08 after Citation
-		// Visibility v5 (Bruno's decision).
-		"AUDIT_CHECKOUT_ENABLED": "true",
+		// Visibility v5 (Bruno's decision); paused again 2026-11-10: the release
+		// check found the v5 accuracy judge flags correct answers as mix-ups
+		// (RD-0102..0106).
+		"AUDIT_CHECKOUT_ENABLED": "false",
 		// /api/audit-create per-IP limit per hour.
 		"AUDIT_CHECKOUT_RATE_LIMIT": "5",
 		// Test C-B: canonical public origin for links in the Audit buyer email
