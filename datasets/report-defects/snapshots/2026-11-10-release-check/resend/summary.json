@@ -1,0 +1,75 @@
+{
+  "label": "resend",
+  "url": "https://resend.com/",
+  "type": "dev-tool SaaS with a public API (en)",
+  "repo": "F:\\pharos",
+  "dim6_mode": "env",
+  "synthetic_dim6": false,
+  "composite": {
+    "score": 84,
+    "grade": "A-"
+  },
+  "scanner_composite": {
+    "score": 95,
+    "grade": "A"
+  },
+  "dims": [
+    {
+      "id": 1,
+      "name": "llms.txt Quality",
+      "score": 96,
+      "grade": "A",
+      "na": false
+    },
+    {
+      "id": 2,
+      "name": "MCP Server Discoverability",
+      "score": 86,
+      "grade": "A-",
+      "na": false
+    },
+    {
+      "id": 3,
+      "name": "OpenAPI / API Catalog",
+      "score": 100,
+      "grade": "A",
+      "na": false
+    },
+    {
+      "id": 4,
+      "name": "Structured Capability Data",
+      "score": 100,
+      "grade": "A",
+      "na": false
+    },
+    {
+      "id": 5,
+      "name": "Agent-Parsable Content",
+      "score": 94,
+      "grade": "A",
+      "na": false
+    },
+    {
+      "id": 6,
+      "name": "Citation Visibility",
+      "score": 40,
+      "grade": "D",
+      "na": false
+    }
+  ],
+  "gaps": 4,
+  "ai": {
+    "calls": 81,
+    "neurons": 941.8893012134358,
+    "prompt_tokens": 42112,
+    "completion_tokens": 574
+  },
+  "browser_rendering_substitute": [
+    {
+      "url": "https://resend.com/",
+      "ok": true,
+      "bytes": 680781
+    }
+  ],
+  "seconds": 215
+}

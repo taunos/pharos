@@ -1,0 +1,602 @@
+[
+  {
+    "query": {
+      "id": "q1",
+      "text": "What is resend.com?",
+      "rationale": "Tests if the model can identify the domain and provide a basic description."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Resend.com is a platform designed to simplify the process of sending transactional emails for developers. It provides APIs and tools that allow developers to easily integrate email sending capabilities into their applications. The platform focuses on reliability, scalability, and ease of use, making it a popular choice for developers who need to send emails such as account confirmations, password resets, and other automated communications. Resend.com aims to streamline the email sending process, offering features like email templates, analytics, and support for various programming languages and frameworks.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q1",
+      "text": "What is resend.com?",
+      "rationale": "Tests if the model can identify the domain and provide a basic description."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Resend.com\n\nResend is an email API service designed for developers to send transactional and marketing emails from their applications. Here are the key features:\n\n## Main Features\n- **Developer-focused email API** - Simple integration for sending emails programmatically\n- **Modern infrastructure** - Built with a focus on deliverability and reliability\n- **Easy integration** - SDKs available for popular programming languages (JavaScript/TypeScript, Python, Go, Ruby, etc.)\n- **Email templates** - Support for React-based email templates\n- **Domain authentication** - Tools for setting up SPF, DKIM, and DMARC records\n- **Analytics** - Track email delivery, opens, clicks, and bounces\n\n## Common Use Cases\n- Transactional emails (password resets, confirmations, receipts)\n- Notification emails\n- Marketing campaigns\n- Automated email workflows\n\n## Competition\nResend competes with services like SendGrid, Mailgun, Postmark, and Amazon SES.\n\nThe platform was founded by Zeno Rocha and has gained popularity in the developer community for its clean API design and developer experience. It's particularly popular among startups and developers building modern web applications.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q1",
+      "text": "What is resend.com?",
+      "rationale": "Tests if the model can identify the domain and provide a basic description."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "**Resend.com** is an **email API for developers** that allows applications to send transactional and marketing emails programmatically.\n\nIn essence",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q1",
+      "text": "What is resend.com?",
+      "rationale": "Tests if the model can identify the domain and provide a basic description."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Resend.com is an **email infrastructure platform for developers**. It provides an API, SDKs, SMTP, and tools for sending application emails such as:\n\n- Account verification and password resets\n- Receipts, alerts, and notifications\n- Marketing emails and newsletters\n- Automated lifecycle messages\n\nIt also offers email templates, React-based email development through React Email, delivery analytics, webhooks for events such as bounces and opens, contact management, and inbound email routing.[1][2][4]\n\nIn practice, Resend is similar to SendGrid, Mailgun, or Amazon SES, but emphasizes a simpler developer experience and modern integrations. Its API can send individual, batch, or scheduled emails from an application.[4]",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q2",
+      "text": "Does resend.com offer any services for small businesses?",
+      "rationale": "Probes the model's understanding of the domain's target audience."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Yes, Resend.com offers services that can be beneficial for small businesses. Resend.com is primarily known for its email infrastructure services, which include tools for sending, receiving, and managing emails efficiently. These services can help small businesses with their email communication needs, such as transactional emails, marketing campaigns, and customer engagement. By using Resend.com, small businesses can ensure reliable email delivery, improve their email marketing efforts, and maintain effective communication with their customers.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q2",
+      "text": "Does resend.com offer any services for small businesses?",
+      "rationale": "Probes the model's understanding of the domain's target audience."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Resend Services for Small Businesses\n\nYes, Resend.com offers several services that are well-suited for small businesses:\n\n## Key Services\n\n**Email API for Developers**\n- Simple API for sending transactional emails (receipts, notifications, password resets, etc.)\n- Easy integration with modern web frameworks\n- Built for developers who want a straightforward email solution\n\n## Pricing for Small Businesses\n\n**Free Tier**\n- 3,000 emails per month\n- 100 emails per day\n- Good for startups and small projects just getting started\n\n**Paid Plans**\n- Start at affordable rates as you scale\n- Pay-as-you-grow pricing model\n- No complex enterprise contracts required\n\n## Why Small Businesses Choose Resend\n\n- **Developer-friendly**: Clean, modern API that's easy to implement\n- **Reliable delivery**: Focus on email deliverability\n- **No bloat**: Straightforward service without unnecessary features\n- **Good documentation**: Easy to get started quickly\n\nResend is particularly popular with small tech companies, SaaS startups, and businesses that need reliable transactional email without the complexity of larger enterprise email platforms.\n\nWould you like to know more about any specific aspect of their services?",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q2",
+      "text": "Does resend.com offer any services for small businesses?",
+      "rationale": "Probes the model's understanding of the domain's target audience."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "While **Resend.com** is a powerful and modern email API, it's generally **not designed for direct use by most small businesses** in the",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q2",
+      "text": "Does resend.com offer any services for small businesses?",
+      "rationale": "Probes the model's understanding of the domain's target audience."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Yes. Resend offers services suitable for small businesses, particularly **email delivery and marketing**:\n\n- **Transactional email:** Send password resets, receipts, trial notifications, and other automated messages through an API, SMTP, or SDKs.[3][6]\n- **Marketing email:** Manage contacts and send newsletters or promotional broadcasts using a no-code editor or API.[3][8]\n- **Free plans:** Transactional email includes up to **3,000 emails per month**, limited to 100 per day; marketing email includes up to **1,000 contacts**.[1][2][8]\n- **Scalable paid plans:** Businesses can upgrade as sending volume, contacts, and support requirements grow.[1][2]\n\nResend is especially suitable for a small business with a website, SaaS product, or online store that needs developer-integrated email rather than a traditional all-in-one marketing platform.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q3",
+      "text": "Can you provide the website URL for resend.com?",
+      "rationale": "Tests if the model can provide a factual answer."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "The website URL for Resend is [resend.com](https://resend.com).",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q3",
+      "text": "Can you provide the website URL for resend.com?",
+      "rationale": "Tests if the model can provide a factual answer."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Resend\n\nThe website URL for Resend is:\n\n**https://resend.com**\n\nResend is an email API service for developers that provides a modern approach to sending transactional emails.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q3",
+      "text": "Can you provide the website URL for resend.com?",
+      "rationale": "Tests if the model can provide a factual answer."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "The website URL for Resend is:\n\n**https://resend.com**",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q3",
+      "text": "Can you provide the website URL for resend.com?",
+      "rationale": "Tests if the model can provide a factual answer."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "https://resend.com/ [1]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q4",
+      "text": "Is resend.com a software company?",
+      "rationale": "Asks a specific question about the domain's type."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Yes, Resend is a software company. They focus on providing tools and services for developers, particularly in the area of email infrastructure. Their platform is designed to help developers send and manage emails more efficiently.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q4",
+      "text": "Is resend.com a software company?",
+      "rationale": "Asks a specific question about the domain's type."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Is Resend.com a Software Company?\n\nYes, **Resend** (resend.com) is a software company. Specifically, it's a developer-focused email API platform that helps developers send transactional and marketing emails from their applications.\n\n## What Resend Does\n\n- Provides email infrastructure and APIs for developers\n- Offers tools for sending, tracking, and managing emails programmatically\n- Focuses on developer experience with modern tooling and documentation\n- Competes with services like SendGrid, Mailgun, and Postmark\n\n## Company Background\n\nResend was founded by **Zeno Rocha** and positions itself as a modern alternative to traditional email service providers, with an emphasis on:\n- Clean, developer-friendly APIs\n- Better deliverability\n- Modern development workflows\n- React-based email templates (React Email)\n\nSo yes, it's definitely a software/SaaS company in the email infrastructure space.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q4",
+      "text": "Is resend.com a software company?",
+      "rationale": "Asks a specific question about the domain's type."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Yes, **Resend.com** is a **software company**.\n\nThey provide an API and platform for developers to send transactional emails. Their core product is software (the API, SDKs, and dashboard) that allows other applications to reliably send emails. This falls squarely within the definition of a software company, often operating on a SaaS (Software as a Service) model.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q4",
+      "text": "Is resend.com a software company?",
+      "rationale": "Asks a specific question about the domain's type."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Yes. **Resend is a software company** that provides an email platform for developers, including APIs, SDKs, and infrastructure for sending transactional and marketing emails.[1][7] It was incorporated in January 2023 and describes itself as a communications platform built around email.[1][9]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q5",
+      "text": "What products does resend.com sell?",
+      "rationale": "Tests if the model can identify the domain's offerings."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "As of my last update, Resend.com is not a retail website and does not sell products. Instead, Resend is a service that provides developers with tools to manage and send transactional emails. It focuses on simplifying the process of integrating email capabilities into applications. If you are looking for specific products or services, it would be best to visit their official website for the most current information.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q5",
+      "text": "What products does resend.com sell?",
+      "rationale": "Tests if the model can identify the domain's offerings."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Resend.com Products\n\nResend.com is an email API platform for developers. Their main product offerings include:\n\n## Core Product\n- **Email API** - A developer-focused email sending service that allows applications to send transactional and marketing emails programmatically\n\n## Key Features\n- Simple REST API for sending emails\n- Email templates and customization\n- Domain authentication and verification\n- Delivery tracking and analytics\n- Webhook support for email events\n- SDKs for various programming languages (Node.js, Python, etc.)\n\n## Target Use Cases\n- Transactional emails (receipts, notifications, password resets)\n- Marketing campaigns\n- Application-to-user communications\n\nResend positions itself as a modern alternative to services like SendGrid, Mailgun, and Amazon SES, with a focus on developer experience and ease of integration.\n\n**Note:** For the most current product details and pricing, I'd recommend visiting their website directly, as their offerings may have evolved.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q5",
+      "text": "What products does resend.com sell?",
+      "rationale": "Tests if the model can identify the domain's offerings."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Resend.com primarily sells an **Email API** designed for developers.\n\nTheir core product allows businesses and developers to programmatically send **transaction",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q5",
+      "text": "What products does resend.com sell?",
+      "rationale": "Tests if the model can identify the domain's offerings."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Resend sells an email infrastructure platform with these main products:\n\n- **Email API / Transactional Email** — Send application emails such as password resets, receipts, invoices, notifications, and trial messages through a REST API, SMTP relay, or SDKs.[1][10]\n- **Marketing Emails** — Manage contacts and send newsletters, product updates, promotions, event invitations, and other broadcasts.[8]\n- **Automations** — Trigger onboarding, retention, and lifecycle email sequences based on events from an application.[9]\n- **Inbound Email** — Receive email at a company domain and route it to an application endpoint.[9]\n- **React Email** — Build email templates as React components; it is part of Resend’s developer-focused email tooling.[3][4]\n\nResend offers these products through **Free, Pro, Scale, and Enterprise** plans, with marketing plans priced according to contacts.[6]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q6",
+      "text": "Does resend.com serve individuals or only businesses?",
+      "rationale": "Probes the model's understanding of the domain's target audience."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Resend.com primarily focuses on serving businesses by providing email infrastructure services. However, individuals who require robust email solutions for their projects or startups might also find their services beneficial. It's best to check their website or contact them directly for the most accurate and up-to-date information regarding their service offerings.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q6",
+      "text": "Does resend.com serve individuals or only businesses?",
+      "rationale": "Probes the model's understanding of the domain's target audience."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Resend.com Overview\n\nResend.com serves **both individuals and businesses**, though it's primarily positioned as a developer-focused email API service.\n\n## Who Can Use Resend:\n\n**Individuals/Developers:**\n- Free tier available (100 emails/day, 1 audience, 1 API key)\n- Perfect for personal projects, side projects, or testing\n- No credit card required for the free plan\n\n**Businesses:**\n- Paid plans scale from small startups to enterprises\n- Plans start at $20/month for higher volumes\n- Features like custom domains, team collaboration, and higher sending limits\n\n## Key Characteristics:\n- Developer-first approach (simple API, good documentation)\n- Modern alternative to services like SendGrid or Mailgun\n- Focus on transactional emails (password resets, notifications, receipts, etc.)\n\nSo yes, individuals can absolutely use Resend for personal projects or learning, while businesses use it for production applications.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q6",
+      "text": "Does resend.com serve individuals or only businesses?",
+      "rationale": "Probes the model's understanding of the domain's target audience."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Resend.com primarily serves **businesses and developers** who need to send transactional emails (like password resets, order confirmations, welcome emails, notifications)",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q6",
+      "text": "Does resend.com serve individuals or only businesses?",
+      "rationale": "Probes the model's understanding of the domain's target audience."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Resend serves **both individuals and businesses**, not businesses only. It offers a free plan and self-serve tiers, so an individual developer, freelancer, or hobbyist can use it; its product is also designed to scale for teams and enterprise customers.[1][3][7]\n\nIt is primarily a **developer-focused email infrastructure service** for transactional email and marketing campaigns, so you generally use it to send email for an app, website, newsletter, or project—not as a personal mailbox like Gmail.[3][5] Users must be at least 18, and marketing recipients must have explicitly opted in.[8][10]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q7",
+      "text": "Can you describe resend.com in one sentence?",
+      "rationale": "Tests if the model can provide a concise summary."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Resend.com is a platform that provides developers with APIs and tools to send, receive, and manage emails programmatically.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q7",
+      "text": "Can you describe resend.com in one sentence?",
+      "rationale": "Tests if the model can provide a concise summary."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "Resend is an email API platform for developers that makes it easy to send transactional and marketing emails with a modern developer experience.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q7",
+      "text": "Can you describe resend.com in one sentence?",
+      "rationale": "Tests if the model can provide a concise summary."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "**Resend.com is a modern, developer-friendly email API designed for sending transactional emails with a focus on simplicity and high deliverability.**",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q7",
+      "text": "Can you describe resend.com in one sentence?",
+      "rationale": "Tests if the model can provide a concise summary."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Resend.com is a developer-focused email platform for sending transactional and marketing emails reliably through APIs, SDKs, SMTP, and related tools.[1]",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q8",
+      "text": "Is resend.com a local business?",
+      "rationale": "Asks a specific question about the domain's scope."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Resend.com is not a local business; it is a technology company that provides email infrastructure services. It offers tools and APIs for developers to send and manage emails programmatically. The company is not limited to a specific geographic location and serves clients globally.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q8",
+      "text": "Is resend.com a local business?",
+      "rationale": "Asks a specific question about the domain's scope."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "No, Resend.com is not a local business. It's a cloud-based email API service that operates online and serves customers globally. \n\nResend provides email infrastructure for developers and businesses to send transactional and marketing emails through their platform. Like most SaaS (Software as a Service) companies, they operate digitally without being tied to a specific physical location for customer service.\n\nIf you're looking for information about a specific local business, I'd be happy to help if you can provide more details!",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q8",
+      "text": "Is resend.com a local business?",
+      "rationale": "Asks a specific question about the domain's scope."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "No, **resend.com is not a local business.**\n\nIt is an **online service** that provides an email API for developers and businesses. Its operations are digital and its customer base is global, not confined to a specific geographic location.\n\nLocal businesses typically have a physical presence (like a storefront or office) and primarily serve customers within a defined geographical area. Resend.com, like many software-as-a-service (SaaS) companies, operates remotely and delivers its product over the internet to users worldwide.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q8",
+      "text": "Is resend.com a local business?",
+      "rationale": "Asks a specific question about the domain's scope."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "No. **Resend is primarily an online, global email-delivery software business**, not a local storefront or service limited to a particular community. It is operated by Plus Five Five, Inc., with a listed headquarters in San Francisco, California.[1][3][10]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q9",
+      "text": "What kind of support does resend.com offer to its customers?",
+      "rationale": "Tests if the model can identify the domain's customer support."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "As of the latest information available, Resend.com offers various types of support to its customers, typically including:\n\n1. **Documentation**: Comprehensive guides and documentation to help users understand and utilize the platform effectively.\n\n2. **Email Support**: Customers can reach out via email for assistance with technical issues, account inquiries, or other questions.\n\n3. **Community Forums**: Some platforms offer community forums where users can ask questions and share solutions with each other.\n\n4. **Live Chat**: Some services provide live chat support for real-time assistance, though availability may vary.\n\n5. **Customer Success Team**: Dedicated teams that help businesses optimize their use of the platform and achieve their goals.\n\n6. **API Support**: Technical support specifically for developers using the platform's API.\n\nFor the most accurate and up-to-date information, it's best to visit Resend.com's official website or contact their support directly.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=WRONG; misidentified=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q9",
+      "text": "What kind of support does resend.com offer to its customers?",
+      "rationale": "Tests if the model can identify the domain's customer support."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Resend Customer Support\n\nBased on Resend's typical support offerings, they provide:\n\n## **Documentation & Resources**\n- Comprehensive API documentation\n- Integration guides and code examples\n- Best practices for email delivery\n\n## **Support Channels**\n- **Email support** - Available for technical questions and account issues\n- **Community/Discord** - For developer discussions and community help\n- **GitHub** - For reporting issues and feature requests\n\n## **Support Tiers**\nSupport levels typically vary by plan:\n- Free tier: Community support and documentation\n- Paid plans: Direct email support with faster response times\n- Enterprise: Priority support with dedicated assistance\n\n## **Self-Service Tools**\n- Status page for service monitoring\n- Knowledge base and FAQs\n- API reference and SDKs\n\nFor the most current and specific support options, I'd recommend checking their official website at resend.com/support or their pricing page, as support offerings can change and may vary based on your subscription level.\n\nIs there a specific type of support you're looking for?",
+      "score": 44,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=44/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q9",
+      "text": "What kind of support does resend.com offer to its customers?",
+      "rationale": "Tests if the model can identify the domain's customer support."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Resend.com, being a developer-focused email API, offers support primarily through channels that cater to technical users and efficient problem-solving.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q9",
+      "text": "What kind of support does resend.com offer to its customers?",
+      "rationale": "Tests if the model can identify the domain's customer support."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Resend offers several customer-support options:\n\n- **Email and ticket support**, with first-response and follow-up response SLAs.[1][3]\n- **Dedicated Slack support** for eligible plans, providing direct access to Resend engineers.[1][3]\n- **Knowledge base and in-app documentation** covering common questions, APIs, and troubleshooting.[1][2]\n- **Deliverability expertise**, including help with email-delivery issues, available on paid plans.[3]\n- **AI assistant** and self-service resources for supported plans.[3]\n- **Enterprise support**, including priority support, SLA guarantees, dedicated IP options, and personalized migration assistance.[3][6]\n\nResend says its support team includes product engineers, founders, and email experts, and is available seven days a week.[1]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=WRONG; misidentified=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q10",
+      "text": "Is resend.com a well-known company?",
+      "rationale": "Asks a question that requires the model to recognize the domain's reputation."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "As of my last update, Resend.com is not widely recognized as a major company. It's possible that it could be a smaller business or a startup that hasn't gained significant public attention. However, the status of companies can change rapidly, so it's a good idea to check the latest information online or through business news sources to see if there have been any recent developments regarding Resend.com.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=WRONG; misidentified=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q10",
+      "text": "Is resend.com a well-known company?",
+      "rationale": "Asks a question that requires the model to recognize the domain's reputation."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Resend\n\nResend is a relatively **new but increasingly well-known** company in the developer tools space, founded in 2022 by Zeno Rocha (former Chief Product Officer at WorkOS).\n\n## What they do:\n- Email API for developers\n- Positioned as a modern alternative to services like SendGrid, Mailgun, and Amazon SES\n- Focus on developer experience with clean APIs and React integration\n\n## Recognition:\n- **Growing reputation** in the developer community\n- Backed by Y Combinator (YC W23)\n- Gained significant traction on social media and developer forums\n- Used by various startups and development teams\n\n## Status:\nWhile not as established as legacy players like SendGrid or Mailgun, Resend has quickly built credibility among developers who appreciate its modern approach and developer-friendly design. It's \"well-known\" within certain tech circles (especially among web developers and startups) but not yet a household name in the broader business world.\n\nWould you say it's well-known? **It depends on your context** - among modern web developers and the startup ecosystem, yes. In traditional enterprise IT departments, probably not yet.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q10",
+      "text": "Is resend.com a well-known company?",
+      "rationale": "Asks a question that requires the model to recognize the domain's reputation."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Resend.com is **not a well-known company in the general public sense** (like Google, Amazon, or even Twilio).\n\nHowever",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=0/100; judge=DENY; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q10",
+      "text": "Is resend.com a well-known company?",
+      "rationale": "Asks a question that requires the model to recognize the domain's reputation."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Yes—**Resend is a legitimate and increasingly well-known company in the developer and SaaS community**, though it is not as broadly recognized by the general public as companies such as Mailchimp, SendGrid, or Mailgun.\n\n- Resend is a San Francisco email-delivery company founded in 2023 and backed by Y Combinator.[3][6]\n- It raised an $18 million Series A led by Andreessen Horowitz and reported more than 200,000 developers signed up by late 2024.[8]\n- Its platform is used for transactional and marketing emails by companies including Warner Bros., Decathlon, Braintrust, and Raycast.[8]\n- It grew out of React Email, an open-source project used by developers to build email templates.[6]\n\n**Bottom line:** Resend is a real, venture-backed startup with meaningful adoption, particularly among software developers. It is “well known” within its niche, but still relatively young and specialized rather than a household-name email provider.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  }
+]

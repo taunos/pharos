@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "run": "2026-11-10-release-check",
+  "created_at": "2026-11-10T22:09:11.820Z",
+  "commit": "91d65aa",
+  "uncommitted_changes": true,
+  "tier": "paid",
+  "dim6": "env",
+  "models": [
+    "@cf/meta/llama-3.1-8b-instruct-fp8",
+    "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+  ],
+  "sites": {
+    "drveit": {
+      "url": "https://drveit.com.br/",
+      "scoring_version": "1.5.1"
+    },
+    "eff": {
+      "url": "https://www.eff.org/",
+      "scoring_version": "1.5.1"
+    },
+    "resend": {
+      "url": "https://resend.com/",
+      "scoring_version": "1.5.1"
+    },
+    "tartine": {
+      "url": "https://tartinebakery.com/",
+      "scoring_version": "1.5.1"
+    },
+    "ugmonk": {
+      "url": "https://ugmonk.com/",
+      "scoring_version": "1.5.1"
+    }
+  },
+  "reviews": [
+    {
+      "by": "reviewer_agent",
+      "date": "2026-11-10",
+      "sites": [
+        "*"
+      ],
+      "scope": "full: one fresh reviewer per report, every line, checked against dim6-cells/scan and the live site"
+    },
+    {
+      "by": "codex",
+      "date": "2026-11-10",
+      "sites": [
+        "*"
+      ],
+      "scope": "full: all five reports, verdict FIX"
+    },
+    {
+      "by": "orchestrator",
+      "date": "2026-11-10",
+      "sites": [
+        "eff",
+        "resend",
+        "ugmonk"
+      ],
+      "scope": "partial: confirmed misidentified answers and page-weight measurement in cells and code"
+    }
+  ]
+}

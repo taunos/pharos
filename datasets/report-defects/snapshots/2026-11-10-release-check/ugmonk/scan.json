@@ -1,0 +1,351 @@
+{
+  "id": "0828d9ef-3b04-4c92-b6da-ada88f160500",
+  "url": "https://ugmonk.com/",
+  "composite": {
+    "score": 62,
+    "grade": "C"
+  },
+  "dimensions": [
+    {
+      "dimension_id": 1,
+      "dimension_name": "llms.txt Quality",
+      "score": 69,
+      "grade": "C",
+      "sub_checks": [
+        {
+          "id": "presence",
+          "name": "Presence",
+          "weight": 25,
+          "score": 100,
+          "passed": true,
+          "evidence": {
+            "status": 200,
+            "content_type": "text/markdown; charset=utf-8",
+            "parsed": false,
+            "requested_url": "https://ugmonk.com/llms.txt",
+            "final_url": "https://ugmonk.com/llms.txt",
+            "body_complete": true,
+            "truncated": false
+          },
+          "notes": "status=200, content-type=\"text/markdown; charset=utf-8\""
+        },
+        {
+          "id": "spec_compliance",
+          "name": "Spec compliance (H1 + blockquote)",
+          "weight": 25,
+          "score": 50,
+          "passed": false,
+          "notes": "h1=yes, blockquote=no"
+        },
+        {
+          "id": "linked_pages_quality",
+          "name": "Linked pages return useful markdown",
+          "weight": 20,
+          "score": 80,
+          "passed": true,
+          "notes": "4/5 sampled links return markdown-ish content"
+        },
+        {
+          "id": "curation_quality",
+          "name": "Curation quality",
+          "weight": 15,
+          "score": 100,
+          "passed": true,
+          "notes": "clean link list"
+        },
+        {
+          "id": "blockquote_eval",
+          "name": "Blockquote elevator-pitch quality",
+          "weight": 15,
+          "score": 0,
+          "passed": false,
+          "notes": "no blockquote to evaluate"
+        }
+      ]
+    },
+    {
+      "dimension_id": 2,
+      "dimension_name": "MCP Server Discoverability",
+      "score": 33,
+      "grade": "F",
+      "sub_checks": [
+        {
+          "id": "well_known",
+          "name": "Well-known discovery (mcp.json / server-card.json)",
+          "weight": 30,
+          "score": 0,
+          "passed": false,
+          "notes": "no card at /.well-known/mcp.json or /.well-known/mcp/server-card.json; an MCP server was found (an MCP endpoint answered at https://ugmonk.com/api/mcp) but it is not advertised with a server card",
+          "evidence": {
+            "status": null,
+            "content_type": "",
+            "parsed": false,
+            "card_absent_proven": true
+          }
+        },
+        {
+          "id": "tool_coverage",
+          "name": "Tool coverage and quality",
+          "weight": 20,
+          "score": 0,
+          "passed": false,
+          "notes": "no card or no tools declared"
+        },
+        {
+          "id": "oauth_metadata",
+          "name": "OAuth metadata (when auth declared)",
+          "weight": 15,
+          "score": 0,
+          "passed": false,
+          "notes": "No MCP server card found, so there is no declared authentication to check. This check is not counted in your score.",
+          "na": true
+        },
+        {
+          "id": "live_invocation",
+          "name": "Live MCP tools/list invocation",
+          "weight": 25,
+          "score": 100,
+          "passed": true,
+          "notes": "tools/list returned 1 tools"
+        },
+        {
+          "id": "dns_txt",
+          "name": "DNS TXT discovery (_mcp subdomain)",
+          "weight": 10,
+          "score": 0,
+          "passed": false,
+          "notes": "No TXT record at _mcp.ugmonk.com. Informational only: no ratified standard defines an _mcp DNS record, so this is not scored.",
+          "na": true
+        }
+      ]
+    },
+    {
+      "dimension_id": 3,
+      "dimension_name": "OpenAPI / API Catalog",
+      "score": 0,
+      "grade": "F",
+      "sub_checks": [
+        {
+          "id": "discovery",
+          "name": "discovery",
+          "weight": 1,
+          "score": 0,
+          "passed": false,
+          "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (a link to an MCP endpoint, https://ugmonk.com/api/ucp/mcp), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API.",
+          "na": true
+        },
+        {
+          "id": "spec_validity",
+          "name": "spec_validity",
+          "weight": 1,
+          "score": 0,
+          "passed": false,
+          "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (a link to an MCP endpoint, https://ugmonk.com/api/ucp/mcp), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API.",
+          "na": true
+        },
+        {
+          "id": "info_completeness",
+          "name": "info_completeness",
+          "weight": 1,
+          "score": 0,
+          "passed": false,
+          "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (a link to an MCP endpoint, https://ugmonk.com/api/ucp/mcp), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API.",
+          "na": true
+        },
+        {
+          "id": "security_schemes",
+          "name": "security_schemes",
+          "weight": 1,
+          "score": 0,
+          "passed": false,
+          "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (a link to an MCP endpoint, https://ugmonk.com/api/ucp/mcp), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API.",
+          "na": true
+        },
+        {
+          "id": "operation_coverage",
+          "name": "operation_coverage",
+          "weight": 1,
+          "score": 0,
+          "passed": false,
+          "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (a link to an MCP endpoint, https://ugmonk.com/api/ucp/mcp), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API.",
+          "na": true
+        }
+      ],
+      "na": true
+    },
+    {
+      "dimension_id": 4,
+      "dimension_name": "Structured Capability Data",
+      "score": 57,
+      "grade": "D",
+      "sub_checks": [
+        {
+          "id": "json_ld_present",
+          "name": "JSON-LD present on homepage",
+          "weight": 25,
+          "score": 100,
+          "passed": true,
+          "notes": "1 valid JSON-LD block(s) on homepage",
+          "evidence": {
+            "status": 200,
+            "content_type": "text/html; charset=utf-8",
+            "parsed": true,
+            "requested_url": "https://ugmonk.com/",
+            "final_url": "https://ugmonk.com/en-br",
+            "body_complete": true,
+            "truncated": false,
+            "ld_json_absent_proven": false
+          }
+        },
+        {
+          "id": "organization_schema",
+          "name": "Organization schema completeness",
+          "weight": 20,
+          "score": 60,
+          "passed": false,
+          "notes": "Organization found: name=true, url=true, description=false, sameAs=0; entry=Organization",
+          "evidence": {
+            "status": 200,
+            "content_type": "text/html; charset=utf-8",
+            "parsed": true,
+            "requested_url": "https://ugmonk.com/",
+            "final_url": "https://ugmonk.com/en-br",
+            "body_complete": true,
+            "truncated": false,
+            "ld_json_absent_proven": false
+          }
+        },
+        {
+          "id": "service_offer_schema",
+          "name": "Service / Product / Offer schema",
+          "weight": 20,
+          "score": 0,
+          "passed": false,
+          "notes": "no Service / Product / Offer schema",
+          "evidence": {
+            "status": 200,
+            "content_type": "text/html; charset=utf-8",
+            "parsed": true,
+            "requested_url": "https://ugmonk.com/",
+            "final_url": "https://ugmonk.com/en-br",
+            "body_complete": true,
+            "truncated": false,
+            "ld_json_absent_proven": false
+          }
+        },
+        {
+          "id": "faq_schema",
+          "name": "FAQPage schema",
+          "weight": 20,
+          "score": 0,
+          "passed": false,
+          "notes": "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. This check is not counted in your score.",
+          "na": true,
+          "evidence": {
+            "status": 200,
+            "content_type": "text/html; charset=utf-8",
+            "parsed": true,
+            "requested_url": "https://ugmonk.com/",
+            "final_url": "https://ugmonk.com/en-br",
+            "body_complete": true,
+            "truncated": false,
+            "ld_json_absent_proven": false
+          }
+        },
+        {
+          "id": "review_schema",
+          "name": "Review / AggregateRating schema",
+          "weight": 15,
+          "score": 0,
+          "passed": false,
+          "notes": "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. This check is not counted in your score.",
+          "na": true,
+          "evidence": {
+            "status": 200,
+            "content_type": "text/html; charset=utf-8",
+            "parsed": true,
+            "requested_url": "https://ugmonk.com/",
+            "final_url": "https://ugmonk.com/en-br",
+            "body_complete": true,
+            "truncated": false,
+            "ld_json_absent_proven": false
+          }
+        }
+      ]
+    },
+    {
+      "dimension_id": 5,
+      "dimension_name": "Agent-Parsable Content",
+      "score": 100,
+      "grade": "A",
+      "sub_checks": [
+        {
+          "id": "js_vs_no_js_render_diff",
+          "name": "JS-vs-no-JS render diff",
+          "weight": 30,
+          "score": 100,
+          "passed": true,
+          "notes": "About 99% of the distinct words on your homepage appear in both the HTML your server sends and the page after JavaScript runs."
+        },
+        {
+          "id": "page_weight_lcp",
+          "name": "Page weight",
+          "weight": 15,
+          "score": 100,
+          "passed": true,
+          "notes": "Homepage HTML size: 0.08 MB (83656 bytes). This check looks at page size only; it does not measure loading speed."
+        },
+        {
+          "id": "markdown_negotiation",
+          "name": "Markdown content negotiation",
+          "weight": 25,
+          "score": 0,
+          "passed": false,
+          "notes": "We found no Markdown version at the addresses we checked (https://ugmonk.com/index.md and an Accept: text/markdown request to the homepage). Agents read the HTML instead. Informational only: serving Markdown is an emerging convention most hosts don't support yet, so this is not scored.",
+          "na": true
+        },
+        {
+          "id": "pricing_text_visibility",
+          "name": "Pricing text visibility",
+          "weight": 20,
+          "score": 100,
+          "passed": true,
+          "notes": "No pricing page found, so we checked the prices shown on the homepage (https://ugmonk.com/en-br): 50 text-based price token(s); 0 with a billing period or marked one-time."
+        },
+        {
+          "id": "case_study_scannability",
+          "name": "Case-study scannability",
+          "weight": 10,
+          "score": 0,
+          "passed": false,
+          "notes": "No case-study or portfolio page detected (homepage links such as /case-studies, /customers, /work, /portfolio, /casos or /projetos, and the /case-studies, /customers, /success-stories, /work and /portfolio paths). This check is not counted in your score.",
+          "na": true
+        }
+      ]
+    },
+    {
+      "dimension_id": 6,
+      "dimension_name": "Citation Visibility",
+      "score": 0,
+      "grade": "F",
+      "na": true,
+      "sub_checks": [
+        {
+          "id": "free_tier_dim6_preview",
+          "name": "Citation Visibility (free-tier preview)",
+          "weight": 1,
+          "score": 0,
+          "passed": false,
+          "notes": "Not measured in the free Score. The $79 Audit asks four AI models (OpenAI GPT-4o, Anthropic Claude, Google Gemini and Perplexity Sonar) about 10 questions each about your domain and checks whether each answer names and cites it. This dimension is not counted in your free score.",
+          "na": true
+        }
+      ]
+    }
+  ],
+  "dimensions_scored": 6,
+  "dimensions_total": 6,
+  "dimensions_applicable": 4,
+  "created_at": 1794348016869,
+  "scoring_version": "1.5.1",
+  "tier": "paid"
+}

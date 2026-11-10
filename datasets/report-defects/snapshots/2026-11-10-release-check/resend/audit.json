@@ -1,0 +1,414 @@
+{
+  "scan": {
+    "id": "232751bc-161c-446f-a092-fc2fee52e205",
+    "url": "https://resend.com/",
+    "composite": {
+      "score": 84,
+      "grade": "A-"
+    },
+    "dimensions": [
+      {
+        "dimension_id": 1,
+        "dimension_name": "llms.txt Quality",
+        "score": 96,
+        "grade": "A",
+        "sub_checks": [
+          {
+            "id": "presence",
+            "name": "Presence",
+            "weight": 25,
+            "score": 100,
+            "passed": true,
+            "evidence": {
+              "status": 200,
+              "content_type": "text/plain; charset=utf-8",
+              "parsed": false,
+              "requested_url": "https://resend.com/llms.txt",
+              "final_url": "https://resend.com/llms.txt",
+              "body_complete": true,
+              "truncated": false
+            },
+            "notes": "status=200, content-type=\"text/plain; charset=utf-8\""
+          },
+          {
+            "id": "spec_compliance",
+            "name": "Spec compliance (H1 + blockquote)",
+            "weight": 25,
+            "score": 100,
+            "passed": true,
+            "notes": "h1=yes, blockquote=yes"
+          },
+          {
+            "id": "linked_pages_quality",
+            "name": "Linked pages return useful markdown",
+            "weight": 20,
+            "score": 80,
+            "passed": true,
+            "notes": "4/5 sampled links return markdown-ish content"
+          },
+          {
+            "id": "curation_quality",
+            "name": "Curation quality",
+            "weight": 15,
+            "score": 100,
+            "passed": true,
+            "notes": "clean link list"
+          },
+          {
+            "id": "blockquote_eval",
+            "name": "Blockquote elevator-pitch quality",
+            "weight": 15,
+            "score": 100,
+            "passed": true,
+            "notes": "2 of 2 blockquote rules met: one paragraph (yes); 10 to 100 words (yes, 19 words)."
+          }
+        ]
+      },
+      {
+        "dimension_id": 2,
+        "dimension_name": "MCP Server Discoverability",
+        "score": 86,
+        "grade": "A-",
+        "sub_checks": [
+          {
+            "id": "well_known",
+            "name": "Well-known discovery (mcp.json / server-card.json)",
+            "weight": 30,
+            "score": 100,
+            "passed": true,
+            "notes": "valid card at /.well-known/mcp.json with name=\"Resend\", transports=1"
+          },
+          {
+            "id": "tool_coverage",
+            "name": "Tool coverage and quality",
+            "weight": 20,
+            "score": 70,
+            "passed": true,
+            "notes": "12 tool(s) declared: 12 with a description, 0 with an input schema (inputSchema); 0 have both"
+          },
+          {
+            "id": "oauth_metadata",
+            "name": "OAuth metadata (when auth declared)",
+            "weight": 15,
+            "score": 100,
+            "passed": true,
+            "notes": "auth=oauth2; OAuth metadata valid"
+          },
+          {
+            "id": "live_invocation",
+            "name": "Live MCP tools/list invocation",
+            "weight": 25,
+            "score": 75,
+            "passed": true,
+            "notes": "The MCP endpoint at https://mcp.resend.com/mcp answered and requires OAuth sign-in (HTTP 401 with a Bearer challenge), so its tools could not be listed without an account."
+          },
+          {
+            "id": "dns_txt",
+            "name": "DNS TXT discovery (_mcp subdomain)",
+            "weight": 10,
+            "score": 0,
+            "passed": false,
+            "notes": "No TXT record at _mcp.resend.com. Informational only: no ratified standard defines an _mcp DNS record, so this is not scored.",
+            "na": true
+          }
+        ]
+      },
+      {
+        "dimension_id": 3,
+        "dimension_name": "OpenAPI / API Catalog",
+        "score": 100,
+        "grade": "A",
+        "sub_checks": [
+          {
+            "id": "discovery",
+            "name": "API spec discovery",
+            "weight": 25,
+            "score": 100,
+            "passed": true,
+            "notes": "Found via well-known /.well-known/api-catalog at https://resend.com/openapi.yaml (content-type=text/yaml; charset=utf-8). Read through the API catalog at https://resend.com/.well-known/api-catalog (its service-desc link)."
+          },
+          {
+            "id": "spec_validity",
+            "name": "Spec validity (parses + has version field)",
+            "weight": 25,
+            "score": 100,
+            "passed": true,
+            "notes": "Valid YAML spec, openapi 3.0.3."
+          },
+          {
+            "id": "info_completeness",
+            "name": "Spec info completeness (title + version + description)",
+            "weight": 15,
+            "score": 100,
+            "passed": true,
+            "notes": "info: title=yes, version=yes, description=yes (3/3)"
+          },
+          {
+            "id": "security_schemes",
+            "name": "Security schemes documented",
+            "weight": 15,
+            "score": 100,
+            "passed": true,
+            "notes": "components.securitySchemes declared: bearerAuth."
+          },
+          {
+            "id": "operation_coverage",
+            "name": "Operation coverage + per-operation docs",
+            "weight": 20,
+            "score": 100,
+            "passed": true,
+            "notes": "83 operation(s); 83/83 have a summary or description. (count=100, doc=100)"
+          }
+        ]
+      },
+      {
+        "dimension_id": 4,
+        "dimension_name": "Structured Capability Data",
+        "score": 100,
+        "grade": "A",
+        "sub_checks": [
+          {
+            "id": "json_ld_present",
+            "name": "JSON-LD present on homepage",
+            "weight": 25,
+            "score": 100,
+            "passed": true,
+            "notes": "1 valid JSON-LD block(s) on homepage",
+            "evidence": {
+              "status": 200,
+              "content_type": "text/html; charset=utf-8",
+              "parsed": true,
+              "requested_url": "https://resend.com/",
+              "final_url": "https://resend.com/",
+              "body_complete": true,
+              "truncated": false,
+              "ld_json_absent_proven": false
+            }
+          },
+          {
+            "id": "organization_schema",
+            "name": "Organization schema completeness",
+            "weight": 20,
+            "score": 100,
+            "passed": true,
+            "notes": "Organization found: name=true, url=true, description=true, sameAs=8; entry=Organization #organization",
+            "evidence": {
+              "status": 200,
+              "content_type": "text/html; charset=utf-8",
+              "parsed": true,
+              "requested_url": "https://resend.com/",
+              "final_url": "https://resend.com/",
+              "body_complete": true,
+              "truncated": false,
+              "ld_json_absent_proven": false
+            }
+          },
+          {
+            "id": "service_offer_schema",
+            "name": "Service / Product / Offer schema",
+            "weight": 20,
+            "score": 100,
+            "passed": true,
+            "notes": "2 Service/Product/Offer block(s); best match has 3/3 required fields",
+            "evidence": {
+              "status": 200,
+              "content_type": "text/html; charset=utf-8",
+              "parsed": true,
+              "requested_url": "https://resend.com/",
+              "final_url": "https://resend.com/",
+              "body_complete": true,
+              "truncated": false,
+              "ld_json_absent_proven": false
+            }
+          },
+          {
+            "id": "faq_schema",
+            "name": "FAQPage schema",
+            "weight": 20,
+            "score": 0,
+            "passed": false,
+            "notes": "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. This check is not counted in your score.",
+            "na": true,
+            "evidence": {
+              "status": 200,
+              "content_type": "text/html; charset=utf-8",
+              "parsed": true,
+              "requested_url": "https://resend.com/",
+              "final_url": "https://resend.com/",
+              "body_complete": true,
+              "truncated": false,
+              "ld_json_absent_proven": false
+            }
+          },
+          {
+            "id": "review_schema",
+            "name": "Review / AggregateRating schema",
+            "weight": 15,
+            "score": 0,
+            "passed": false,
+            "notes": "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. This check is not counted in your score.",
+            "na": true,
+            "evidence": {
+              "status": 200,
+              "content_type": "text/html; charset=utf-8",
+              "parsed": true,
+              "requested_url": "https://resend.com/",
+              "final_url": "https://resend.com/",
+              "body_complete": true,
+              "truncated": false,
+              "ld_json_absent_proven": false
+            }
+          }
+        ]
+      },
+      {
+        "dimension_id": 5,
+        "dimension_name": "Agent-Parsable Content",
+        "score": 94,
+        "grade": "A",
+        "sub_checks": [
+          {
+            "id": "js_vs_no_js_render_diff",
+            "name": "JS-vs-no-JS render diff",
+            "weight": 30,
+            "score": 100,
+            "passed": true,
+            "notes": "About 97% of the distinct words on your homepage appear in both the HTML your server sends and the page after JavaScript runs."
+          },
+          {
+            "id": "page_weight_lcp",
+            "name": "Page weight",
+            "weight": 15,
+            "score": 100,
+            "passed": true,
+            "notes": "Homepage HTML size: 0.56 MB (583451 bytes). This check looks at page size only; it does not measure loading speed."
+          },
+          {
+            "id": "markdown_negotiation",
+            "name": "Markdown content negotiation",
+            "weight": 25,
+            "score": 0,
+            "passed": false,
+            "notes": "Accept: text/markdown returns text/markdown; charset=utf-8 (directly). Informational only: serving Markdown is an emerging convention most hosts don't support yet, so this is not scored.",
+            "na": true
+          },
+          {
+            "id": "pricing_text_visibility",
+            "name": "Pricing text visibility",
+            "weight": 20,
+            "score": 100,
+            "passed": true,
+            "notes": "Detected https://resend.com/pricing; 13 text-based price token(s); 7 with a billing period or marked one-time."
+          },
+          {
+            "id": "case_study_scannability",
+            "name": "Case-study scannability",
+            "weight": 10,
+            "score": 57,
+            "passed": false,
+            "notes": "Sampled 1 page(s); avg 57/100. https://resend.com/customers/gumroad → 57 (headings: no, lists: yes, bold text: yes). (A case study linked from the index page https://resend.com/customers.)"
+          }
+        ]
+      },
+      {
+        "dimension_id": 6,
+        "dimension_name": "Citation Visibility",
+        "score": 40,
+        "grade": "D",
+        "sub_checks": [
+          {
+            "id": "citation_domain_named_rate",
+            "name": "Models name your domain",
+            "weight": 40,
+            "score": 60,
+            "passed": false,
+            "notes": "60% of scored test answers named your domain and matched how your site describes itself. Of the 40 scored answers, 33 matched how your site describes itself, 3 described a different person or business than your site says it is, 3 did not say enough to check, and 1 did not show that the model knew your site. 40 of 40 test answers could be scored, across 4 AI models. Average by model: ChatGPT 40, Claude 51, Gemini 54, Perplexity 13."
+          },
+          {
+            "id": "citation_url_referenced_rate",
+            "name": "Models cite your URL",
+            "weight": 30,
+            "score": 0,
+            "passed": false,
+            "notes": "0% of scored test answers matched how your site describes itself and included at least one link to it."
+          },
+          {
+            "id": "citation_context_relevant_rate",
+            "name": "Models treat your domain as the principal answer",
+            "weight": 20,
+            "score": 57,
+            "passed": false,
+            "notes": "57% of scored test answers matched how your site describes itself and put your domain in the first half of the answer, rather than only mentioning it at the end."
+          },
+          {
+            "id": "citation_no_competitor_first_rate",
+            "name": "Competitor-first check (not measured)",
+            "weight": 10,
+            "score": 0,
+            "passed": false,
+            "notes": "Not measured: this Audit doesn't take a competitor list yet, so there is nothing to compare against. This check is not counted in your score.",
+            "na": true
+          },
+          {
+            "id": "citation_misidentified_answers",
+            "name": "Answers that described a different person or business than your site says it is",
+            "weight": 0,
+            "score": 0,
+            "passed": false,
+            "notes": "3 of the 40 scored answers mixed up your site with a different person or business than your site says it is; they count as 0 in the checks above. Examples of what the AI said: ChatGPT: \"As of the latest information available, Resend.com offers various types of support to its customers, typically including: · Documentation: Comprehensive guides and documentation to help…\"; Perplexity: \"Resend offers several customer-support options: · Email and ticket support, with first-response and follow-up response SLAs. · Dedicated Slack support for eligible plans, providing direct…\"; ChatGPT: \"As of my last update, Resend.com is not widely recognized as a major company. It's possible that it could be a smaller business or a…\". Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score.",
+            "na": true
+          }
+        ]
+      }
+    ],
+    "dimensions_scored": 6,
+    "dimensions_total": 6,
+    "dimensions_applicable": 6,
+    "created_at": 1794348258737,
+    "scoring_version": "1.5.1",
+    "tier": "paid"
+  },
+  "gaps": [
+    {
+      "dimension_id": 6,
+      "dimension_name": "Citation Visibility",
+      "check_id": "citation_url_referenced_rate",
+      "check_name": "Models cite your URL",
+      "weight": 30,
+      "score": 0,
+      "notes": "0% of scored test answers matched how your site describes itself and included at least one link to it.",
+      "remediation": "You cannot edit ChatGPT, Claude, Gemini or Perplexity directly, so there is no setting that makes them link to your site. What can help is having pages worth citing: one clear page for each thing you offer, each at a single stable address with a canonical URL, that answers the question in plain text near the top. Links to those pages from independent sources, such as directories, press coverage and industry lists, can also help, because these models draw on what other sites say. Estimated effort: 2 to 4 hours."
+    },
+    {
+      "dimension_id": 6,
+      "dimension_name": "Citation Visibility",
+      "check_id": "citation_domain_named_rate",
+      "check_name": "Models name your domain",
+      "weight": 40,
+      "score": 60,
+      "notes": "60% of scored test answers named your domain and matched how your site describes itself. Of the 40 scored answers, 33 matched how your site describes itself, 3 described a different person or business than your site says it is, 3 did not say enough to check, and 1 did not show that the model knew your site. 40 of 40 test answers could be scored, across 4 AI models. Average by model: ChatGPT 40, Claude 51, Gemini 54, Perplexity 13.",
+      "remediation": "You cannot edit ChatGPT, Claude, Gemini or Perplexity directly, so there is no setting to change here. What can help these models name your business is clear content on your own site that says who you are, what you do and who you serve, using your business name and domain; Organization or LocalBusiness structured data on your homepage; the same business name, address and description everywhere you are listed; and mentions on independent sources these models read, such as directories, press coverage, industry lists and reviews on third-party platforms. Estimated effort: 4+ hours."
+    },
+    {
+      "dimension_id": 6,
+      "dimension_name": "Citation Visibility",
+      "check_id": "citation_context_relevant_rate",
+      "check_name": "Models treat your domain as the principal answer",
+      "weight": 20,
+      "score": 57,
+      "notes": "57% of scored test answers matched how your site describes itself and put your domain in the first half of the answer, rather than only mentioning it at the end.",
+      "remediation": "You cannot edit ChatGPT, Claude, Gemini or Perplexity directly. What can help them present your business as a main answer rather than a passing mention is stating plainly, near the top of your homepage and key pages, who you are, what you do and who you serve, with your business name and domain; structured data (such as Organization or LocalBusiness) that says the same thing; and the same description of your business on the third-party sites that list you. Estimated effort: 2 to 4 hours."
+    },
+    {
+      "dimension_id": 5,
+      "dimension_name": "Agent-Parsable Content",
+      "check_id": "case_study_scannability",
+      "check_name": "Case-study scannability",
+      "weight": 10,
+      "score": 57,
+      "notes": "Sampled 1 page(s); avg 57/100. https://resend.com/customers/gumroad → 57 (headings: no, lists: yes, bold text: yes). (A case study linked from the index page https://resend.com/customers.)",
+      "remediation": "On the 1 case-study page(s) we sampled, we found fewer than three subheadings (h2 or h3). If you edit them, give each story a few clear subheadings (for example the client, the problem, what you did and the result) and put the key facts, only ones the client has agreed to share, in a short list. If the pages we sampled aren't case studies, this check doesn't apply and you can ignore it. Estimated effort: 1 to 2 hours per page."
+    }
+  ],
+  "engine_version": "v10"
+}

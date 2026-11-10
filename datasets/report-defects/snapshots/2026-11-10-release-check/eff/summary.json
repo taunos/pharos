@@ -1,0 +1,75 @@
+{
+  "label": "eff",
+  "url": "https://www.eff.org/",
+  "type": "nonprofit + content site (Deeplinks blog), US (en)",
+  "repo": "F:\\pharos",
+  "dim6_mode": "env",
+  "synthetic_dim6": false,
+  "composite": {
+    "score": 50,
+    "grade": "D"
+  },
+  "scanner_composite": {
+    "score": 53,
+    "grade": "D"
+  },
+  "dims": [
+    {
+      "id": 1,
+      "name": "llms.txt Quality",
+      "score": 77,
+      "grade": "B",
+      "na": false
+    },
+    {
+      "id": 2,
+      "name": "MCP Server Discoverability",
+      "score": 0,
+      "grade": "F",
+      "na": true
+    },
+    {
+      "id": 3,
+      "name": "OpenAPI / API Catalog",
+      "score": 0,
+      "grade": "F",
+      "na": true
+    },
+    {
+      "id": 4,
+      "name": "Structured Capability Data",
+      "score": 0,
+      "grade": "F",
+      "na": false
+    },
+    {
+      "id": 5,
+      "name": "Agent-Parsable Content",
+      "score": 100,
+      "grade": "A",
+      "na": false
+    },
+    {
+      "id": 6,
+      "name": "Citation Visibility",
+      "score": 42,
+      "grade": "D",
+      "na": false
+    }
+  ],
+  "gaps": 6,
+  "ai": {
+    "calls": 81,
+    "neurons": 946.9309318242595,
+    "prompt_tokens": 42309,
+    "completion_tokens": 573
+  },
+  "browser_rendering_substitute": [
+    {
+      "url": "https://www.eff.org/",
+      "ok": true,
+      "bytes": 57292
+    }
+  ],
+  "seconds": 78
+}

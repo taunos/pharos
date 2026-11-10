@@ -1,0 +1,602 @@
+[
+  {
+    "query": {
+      "id": "q1",
+      "text": "What is the domain ugmonk.com?",
+      "rationale": "This probes the model's ability to recognize the domain and provide a factual answer."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "The domain ugmonk.com belongs to Ugmonk, a brand known for its minimalist and thoughtfully designed products, including apparel, accessories, and workspace organization items. Founded by Jeff Sheldon, Ugmonk focuses on high-quality craftsmanship and aesthetic simplicity.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q1",
+      "text": "What is the domain ugmonk.com?",
+      "rationale": "This probes the model's ability to recognize the domain and provide a factual answer."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Ugmonk.com\n\n**Ugmonk** is an online store and lifestyle brand founded by designer Jeff Sheldon. Here's what they offer:\n\n## Main Products\n- **Analog** - A popular productivity system featuring notecards and a wooden card holder for task management\n- **Minimalist apparel** - Premium t-shirts, hoodies, and clothing with clean designs\n- **Workspace tools** - Desk accessories, organizers, and productivity items\n- **Everyday carry items** - Wallets, bags, and other lifestyle accessories\n\n## Brand Identity\nUgmonk is known for its:\n- Minimalist, thoughtful design aesthetic\n- High-quality materials and craftsmanship\n- Focus on simplicity and functionality\n- \"Less but better\" philosophy\n\nThe brand has built a strong following among designers, creatives, and people who appreciate well-designed, purposeful products. Their Analog productivity system in particular has gained significant popularity as an alternative to digital task management.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q1",
+      "text": "What is the domain ugmonk.com?",
+      "rationale": "This probes the model's ability to recognize the domain and provide a factual answer."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "**Ugmonk.com** is the official website for **Ugmonk**, a design studio and lifestyle brand founded by Jeff Sheldon.\n\nThey are known for their minimalist and high-quality products, including:\n\n*   **Apparel:** T-shirts, sweatshirts, hats\n*   **Leather goods:** Wallets, keychains, desk mats\n*   **Stationery:** Notebooks, pens, prints\n*   **Desk accessories:** Organizers, mousepads, coasters\n*   **Analog productivity tools:** Such as their popular \"Analog\" system.\n\nThe brand emphasizes timeless design, functionality, and craftsmanship.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q1",
+      "text": "What is the domain ugmonk.com?",
+      "rationale": "This probes the model's ability to recognize the domain and provide a factual answer."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "ugmonk.com is the official online store for **Ugmonk**, a family-run design brand founded by Jeff Sheldon. It sells minimalist “analog tools” such as journals, card-based productivity systems, desk accessories, apparel, and wood products.[1][4][5]\n\nThe business is based in Downingtown, Pennsylvania, and began as a side project in 2008.[4][5]",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q2",
+      "text": "What type of business is ugmonk.com?",
+      "rationale": "This tests the model's understanding of the business type and its willingness to cite the domain."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Ugmonk.com is a lifestyle brand that focuses on creating high-quality, minimalist products. The company is known for its well-designed apparel, accessories, and home goods. Ugmonk emphasizes simplicity, functionality, and aesthetics in its product offerings, often featuring clean lines and a modern design ethos. The brand has gained a following for its attention to detail and commitment to quality craftsmanship.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=WRONG; misidentified=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q2",
+      "text": "What type of business is ugmonk.com?",
+      "rationale": "This tests the model's understanding of the business type and its willingness to cite the domain."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Ugmonk\n\nUgmonk is an **e-commerce lifestyle brand** that sells minimalist products, primarily focused on:\n\n## Main Product Categories:\n- **Apparel** - Premium t-shirts, hoodies, and clothing with clean, simple designs\n- **Workspace/Productivity Tools** - Most notably their \"Analog\" system (a paper-based productivity tool) and desk accessories\n- **Everyday Carry Items** - Wallets, bags, and other minimalist accessories\n- **Home Goods** - Minimal design items for living spaces\n\n## Business Model:\n- Direct-to-consumer online retail\n- Founded by Jeff Sheldon as a design-focused brand\n- Emphasizes quality, minimalism, and thoughtful design\n- Targets customers who appreciate simple, well-crafted products\n\nThe brand has a strong following among designers, entrepreneurs, and people who value minimalist aesthetics and functional design.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q2",
+      "text": "What type of business is ugmonk.com?",
+      "rationale": "This tests the model's understanding of the business type and its willingness to cite the domain."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Ugmonk.com is primarily an **e-commerce business** that operates as a **design studio and lifestyle brand**.\n\nHere's a breakdown of",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q2",
+      "text": "What type of business is ugmonk.com?",
+      "rationale": "This tests the model's understanding of the business type and its willingness to cite the domain."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Ugmonk is a **direct-to-consumer design and lifestyle brand** that sells minimalist, premium analog tools and desk-organization products—such as journals, note-card systems, stationery, and accessories.[2][4][7]\n\nIt is a small, family-run business founded by designer Jeff Sheldon in 2008 and based in Downingtown, Pennsylvania.[2][4]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q3",
+      "text": "Does ugmonk.com offer any products or services?",
+      "rationale": "This probes the model's ability to provide a factual answer and cite the domain."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Yes, Ugmonk is a brand that offers a variety of products, primarily focusing on high-quality, minimalist design items. Their product range includes apparel such as t-shirts and sweatshirts, as well as accessories like hats and bags. Ugmonk is also known for its well-designed workspace products, including desk organizers and stationery items. The brand emphasizes simplicity, functionality, and aesthetic appeal in its offerings.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q3",
+      "text": "Does ugmonk.com offer any products or services?",
+      "rationale": "This probes the model's ability to provide a factual answer and cite the domain."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Token Usage Report\n- **Input tokens:** 12\n- **Output tokens:** 64\n- **Total tokens:** 76\n- **Cached tokens:** 0\n\n---\n\nYes, Ugmonk offers several products and services:\n\n**Products:**\n- Minimalist apparel (t-shirts, hoodies, etc.)\n- Analog productivity system (physical task management tools)\n- Workspace accessories and desk organizers\n- Everyday carry items\n- Home goods\n\n**Services:**\n- E-commerce/online shopping\n- Design and branding (they're known for clean, minimalist design)\n\nUgmonk is particularly well-known for their Analog system - a physical card-based productivity tool for managing tasks and projects.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q3",
+      "text": "Does ugmonk.com offer any products or services?",
+      "rationale": "This probes the model's ability to provide a factual answer and cite the domain."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Yes, absolutely!\n\n**Ugmonk.com** is an active and well-regarded online shop founded by designer Jeff Sheldon. They offer a range of **design-focused, minimalist, and high-quality products**, primarily in the categories of:\n\n*   **Apparel:** T-shirts, hoodies, hats.\n*   **Desk Accessories & Productivity Tools:** Their most famous product is the **Analog productivity system** (physical cards and trays for task management), as well as desk pads, pen holders, and other organizational items.\n*   **Bags & Wallets:** Designed with a minimalist aesthetic.\n*   **Prints & Art:** Wall art and prints.\n*   **Stationery:** Notebooks, pens.\n\nThey do not typically offer \"services\" in the traditional sense (like design consulting or web development), but they are very much a product-based e-commerce business.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q3",
+      "text": "Does ugmonk.com offer any products or services?",
+      "rationale": "This probes the model's ability to provide a factual answer and cite the domain."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Yes. Ugmonk offers physical productivity and desk-organization products, primarily its **Analog** system, including:\n\n- Task, weekly, lined, grid, blank, and other refill cards\n- Card holders, organizers, and aluminum Card Bars\n- Daily Focus Kits and Starter Kits\n- Journals, including refillable discbound journals\n- Desk accessories such as pen trays\n- Utility totes and gift cards\n\nThe company describes its products as “analog tools” designed to support focus and intentional work.[1] It also accepts custom bulk orders for businesses.[4]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q4",
+      "text": "Who is the target audience of ugmonk.com?",
+      "rationale": "This tests the model's understanding of the business's target audience and its willingness to cite the domain."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Ugmonk.com primarily targets individuals who appreciate minimalist and thoughtfully designed products. This includes design enthusiasts, professionals, and consumers who value high-quality, aesthetically pleasing items. The brand offers a range of products such as apparel, workspace organization tools, and lifestyle accessories, appealing to those who are interested in combining functionality with a clean, modern aesthetic.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q4",
+      "text": "Who is the target audience of ugmonk.com?",
+      "rationale": "This tests the model's understanding of the business's target audience and its willingness to cite the domain."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Ugmonk Target Audience\n\nBased on Ugmonk's product offerings and brand positioning, their target audience includes:\n\n## Primary Demographics\n- **Age**: Primarily 25-45 years old\n- **Gender**: Predominantly male, though products appeal to all genders\n- **Income**: Middle to upper-middle class (products are premium-priced)\n- **Location**: Urban and suburban professionals, primarily in the US\n\n## Psychographic Profile\n- **Minimalist lifestyle enthusiasts** who appreciate clean, simple design\n- **Design-conscious consumers** who value aesthetics and quality craftsmanship\n- **Professionals and creatives** seeking refined, versatile wardrobe staples and workspace tools\n- **Quality-over-quantity buyers** willing to pay more for well-made, timeless pieces\n- **Productivity-focused individuals** interested in their Analog system and workspace accessories\n\n## Key Characteristics\n- Appreciate understated, logo-free designs\n- Value sustainability and ethical production\n- Seek products that work across casual and professional settings\n- Active on social media, particularly Instagram\n- Interested in intentional living and decluttering movements\n\nUgmonk essentially targets **discerning consumers who prioritize thoughtful design, quality materials, and functional minimalism** over fast fashion or trendy products.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q4",
+      "text": "Who is the target audience of ugmonk.com?",
+      "rationale": "This tests the model's understanding of the business's target audience and its willingness to cite the domain."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Based on Ugmonk's product offerings, branding, and messaging, their target audience can be described as:\n\n1.  **Professionals &",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q4",
+      "text": "Who is the target audience of ugmonk.com?",
+      "rationale": "This tests the model's understanding of the business's target audience and its willingness to cite the domain."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Ugmonk.com primarily targets **design-conscious knowledge workers and productivity-focused adults**—especially professionals, entrepreneurs, creatives, software developers, students, and people working from home who want attractive, tactile tools to organize their work and reduce digital distractions.[1][2][7]\n\nIts audience typically values:\n\n- **Minimalist, premium design** and functional desk products.[2][8]\n- **Analog productivity systems**, such as paper cards and journals, to prioritize tasks and stay focused.[1][3]\n- **Deep work and reduced screen time**, particularly among people whose jobs involve computers and constant notifications.[3][7]\n- **Organization and planning**, including busy professionals, students, and people with ADHD or autism who use structured physical tools.[1]\n- **Ages roughly 25–34 as the largest website visitor group**, with the audience skewing male in available traffic data.[5]\n\nIn short, Ugmonk sells to people who want their workspace and productivity tools to feel **calm, intentional, well-designed, and less dependent on digital devices**.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q5",
+      "text": "Is ugmonk.com a website for a local business?",
+      "rationale": "This probes the model's understanding of the business type and its willingness to cite the domain."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Ugmonk.com is not a website for a local business in the traditional sense. It is an online store that sells a variety of products, including clothing, accessories, and home goods, with a focus on minimalist and thoughtfully designed items. Ugmonk was founded by Jeff Sheldon and has gained a global customer base, so while it may have started as a smaller, independent brand, it now operates on a larger scale beyond just a local business.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=WRONG; misidentified=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q5",
+      "text": "Is ugmonk.com a website for a local business?",
+      "rationale": "This probes the model's understanding of the business type and its willingness to cite the domain."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "No, Ugmonk.com is not a local business website. Ugmonk is an online retail brand that sells minimalist products like clothing, accessories, and workspace tools (such as their popular Analog productivity system). While the company may have a physical location or headquarters, it operates primarily as an e-commerce business that ships products nationally and internationally to customers online.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q5",
+      "text": "Is ugmonk.com a website for a local business?",
+      "rationale": "This probes the model's understanding of the business type and its willingness to cite the domain."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "No, ugmonk.com is **not primarily a website for a local business** in the traditional sense of having a physical storefront that customers visit.\n\nUgmonk is an **e-commerce brand** that designs",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q5",
+      "text": "Is ugmonk.com a website for a local business?",
+      "rationale": "This probes the model's understanding of the business type and its willingness to cite the domain."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Yes—**ugmonk.com is an online store operated by a small, family-run business based in Downingtown, Pennsylvania**. It designs and sells analog productivity tools and ships orders from its Pennsylvania headquarters.[1][2][3]\n\nIt is local in origin and operations, but its website serves customers both domestically and internationally, so it is not limited to local customers.[3]",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q6",
+      "text": "What is the main purpose of ugmonk.com?",
+      "rationale": "This tests the model's understanding of the business's purpose and its willingness to cite the domain."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Ugmonk.com is primarily focused on offering a range of thoughtfully designed products that blend aesthetics with functionality. The brand is known for its minimalist and high-quality items, including apparel, workspace organization tools, and lifestyle accessories. Ugmonk emphasizes craftsmanship, simplicity, and intentional design, aiming to enhance everyday experiences through well-made products.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q6",
+      "text": "What is the main purpose of ugmonk.com?",
+      "rationale": "This tests the model's understanding of the business's purpose and its willingness to cite the domain."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Main Purpose of Ugmonk.com\n\nUgmonk.com is an online store that sells **minimalist lifestyle products and apparel**. The main purposes include:\n\n## Primary Focus\n- **Premium everyday carry items** - Including their signature Analog productivity system (a physical task management tool)\n- **Minimalist clothing** - Simple, well-designed t-shirts, hoodies, and apparel\n- **Workspace accessories** - Desk organizers, gathering trays, and other thoughtfully designed products\n\n## Brand Philosophy\nUgmonk emphasizes:\n- Clean, minimalist design\n- Quality craftsmanship\n- Functional simplicity\n- Thoughtful, intentional products for everyday life\n\nThe site serves as both an e-commerce platform and a representation of the founder's design philosophy, catering to people who appreciate simple, well-made products that blend form and function.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q6",
+      "text": "What is the main purpose of ugmonk.com?",
+      "rationale": "This tests the model's understanding of the business's purpose and its willingness to cite the domain."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "The main purpose of ugmonk.com is to **sell thoughtfully designed, high-quality, and minimalist products.**\n\nIt functions as an online store offering a range of goods, including:\n*   **Apparel** (t-shirts, hoodies)\n*   **Accessories** (mugs, prints, pins)\n*   **Stationery and productivity tools** (most notably their \"Analog\" physical productivity system)\n\nThe brand is known for its clean aesthetic, attention to detail, and focus on simplicity and functionality in its designs.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q6",
+      "text": "What is the main purpose of ugmonk.com?",
+      "rationale": "This tests the model's understanding of the business's purpose and its willingness to cite the domain."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Ugmonk.com is primarily an online store for **minimalist, well-designed analog productivity tools**—such as journals, cards, desk organizers, and accessories—that help people reduce digital distractions, organize their work, and focus better.[1][2]",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q7",
+      "text": "Can you provide a brief summary of ugmonk.com?",
+      "rationale": "This probes the model's ability to provide a factual summary and cite the domain."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Ugmonk is a design-focused brand founded by Jeff Sheldon that offers a range of products including apparel, accessories, and home office goods. Known for its minimalist and aesthetically pleasing designs, Ugmonk emphasizes quality craftsmanship and thoughtful design. The brand often features limited edition items and has a strong emphasis on creating products that are both functional and visually appealing. Ugmonk has gained a loyal following for its unique approach to design and its commitment to producing high-quality, timeless pieces.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=WRONG; misidentified=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q7",
+      "text": "Can you provide a brief summary of ugmonk.com?",
+      "rationale": "This probes the model's ability to provide a factual summary and cite the domain."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Ugmonk Summary\n\n**Ugmonk** is a design-focused lifestyle brand founded by Jeff Sheldon that creates minimalist products with an emphasis on quality and thoughtful design.\n\n## Key Offerings:\n- **Apparel** - Premium t-shirts, hoodies, and clothing with clean, simple designs\n- **Workspace & Productivity Tools** - Including their popular Analog system (a card-based productivity method) and desk accessories\n- **Everyday Carry Items** - Wallets, bags, and other minimalist accessories\n\n## Brand Philosophy:\n- Emphasis on simplicity, quality materials, and timeless design\n- Products designed to reduce clutter and enhance daily life\n- Strong focus on craftsmanship and attention to detail\n\nThe brand appeals to people who appreciate minimalist aesthetics and well-made products that blend form and function.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q7",
+      "text": "Can you provide a brief summary of ugmonk.com?",
+      "rationale": "This probes the model's ability to provide a factual summary and cite the domain."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Ugmonk is an online brand founded by designer Jeff Sheldon, known for its collection of **thoughtfully designed, minimalist, and high-quality goods**",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q7",
+      "text": "Can you provide a brief summary of ugmonk.com?",
+      "rationale": "This probes the model's ability to provide a factual summary and cite the domain."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Ugmonk is a small, family-run design brand founded by Jeff Sheldon in 2008 and based in Downingtown, Pennsylvania. It sells minimalist, premium analog tools—especially the **Analog** card-based planning system, journals, pens, and desk accessories—designed to help people reduce digital distractions and focus on paper-based work.[1][2]\n\nThe company emphasizes thoughtful design, durable materials, hands-on fulfillment, and products intended to last rather than follow trends.[2][3]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q8",
+      "text": "Is ugmonk.com a software company?",
+      "rationale": "This tests the model's understanding of the business type and its willingness to cite the domain."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "No, Ugmonk is not a software company. Ugmonk is a lifestyle brand known for its minimalist and thoughtfully designed products, including apparel, accessories, and home goods. The company was founded by Jeff Sheldon and is recognized for its focus on quality, simplicity, and aesthetic design.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=WRONG; misidentified=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q8",
+      "text": "Is ugmonk.com a software company?",
+      "rationale": "This tests the model's understanding of the business type and its willingness to cite the domain."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "No, Ugmonk is not a software company. It's a design and lifestyle brand that primarily sells physical products like:\n\n- Minimalist apparel (t-shirts, hoodies)\n- Workspace accessories and desk organizers\n- Everyday carry items\n- Home goods\n\nThe company is known for its clean, minimalist aesthetic and quality products. While they do have a digital presence and e-commerce platform, their core business is designing and selling physical goods, not software.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q8",
+      "text": "Is ugmonk.com a software company?",
+      "rationale": "This tests the model's understanding of the business type and its willingness to cite the domain."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "No, **Ugmonk.com is not a software company.**\n\nUgmonk is a design company that creates and sells high-quality, minimalist physical products. Their product line primarily includes:\n\n*   **Desk accessories:** Desk pads, organizers, pen holders, mousepads.\n*   **Carry goods:** Wallets, bags, keychains.\n*   ",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q8",
+      "text": "Is ugmonk.com a software company?",
+      "rationale": "This tests the model's understanding of the business type and its willingness to cite the domain."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "No. **Ugmonk is primarily a design and consumer-products company**, not a software company. It creates physical “analog tools,” such as journals, card-based productivity systems, and workspace products; its website is an e-commerce storefront hosted on Shopify.[1][2]\n\nAlthough Ugmonk uses software to operate its store, it does not appear to sell software or operate as a software business.[4]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=DENY"
+    }
+  },
+  {
+    "query": {
+      "id": "q9",
+      "text": "Does ugmonk.com have a physical storefront?",
+      "rationale": "This probes the model's understanding of the business type and its willingness to cite the domain."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "As of my last update, Ugmonk primarily operates as an online store and does not have a permanent physical storefront. However, they have occasionally hosted pop-up shops or events. For the most current information, it's best to check their official website or social media channels.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q9",
+      "text": "Does ugmonk.com have a physical storefront?",
+      "rationale": "This probes the model's understanding of the business type and its willingness to cite the domain."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "I don't have current information about whether Ugmonk has a physical storefront. Ugmonk is primarily known as an online retailer that sells minimalist products, apparel, and workspace tools through their website.\n\nTo find out if they have a physical location you can visit, I'd recommend:\n- Checking their website directly at ugmonk.com\n- Looking for a \"Contact\" or \"About\" page\n- Reaching out to them through their customer service\n\nBusiness details like physical locations can change over time, so their website would have the most up-to-date information.",
+      "score": 44,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=44/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q9",
+      "text": "Does ugmonk.com have a physical storefront?",
+      "rationale": "This probes the model's understanding of the business type and its willingness to cite the domain."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "No, Ugmonk.com **does not have a physical storefront**.\n\nThey operate primarily as an online-only retailer, designing and selling their products directly through their website.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=DENY"
+    }
+  },
+  {
+    "query": {
+      "id": "q9",
+      "text": "Does ugmonk.com have a physical storefront?",
+      "rationale": "This probes the model's understanding of the business type and its willingness to cite the domain."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "No. **Ugmonk does not appear to operate a public physical storefront.** Its Downingtown, Pennsylvania address is the company’s headquarters and warehouse, where orders are shipped—not a retail store.[1][3][4] Ugmonk primarily sells directly through its website, with products also available through select boutiques.[10]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q10",
+      "text": "Can you provide the URL of ugmonk.com?",
+      "rationale": "This tests the model's ability to provide a factual answer and cite the domain."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "The URL for Ugmonk is [https://ugmonk.com](https://ugmonk.com).",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q10",
+      "text": "Can you provide the URL of ugmonk.com?",
+      "rationale": "This tests the model's ability to provide a factual answer and cite the domain."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Ugmonk Website\n\nThe URL for Ugmonk is:\n\n**https://ugmonk.com/**\n\nUgmonk is a design studio and lifestyle brand founded by Jeff Sheldon that offers minimalist products including clothing, workspace accessories, and everyday carry items.",
+      "score": 100,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=100/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=true; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q10",
+      "text": "Can you provide the URL of ugmonk.com?",
+      "rationale": "This tests the model's ability to provide a factual answer and cite the domain."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "The URL for Ugmonk is:\n\n**https://ugmonk.com**",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q10",
+      "text": "Can you provide the URL of ugmonk.com?",
+      "rationale": "This tests the model's ability to provide a factual answer and cite the domain."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "https://ugmonk.com/ [1]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true"
+    }
+  }
+]

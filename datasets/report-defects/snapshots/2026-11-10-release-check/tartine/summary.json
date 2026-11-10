@@ -1,0 +1,75 @@
+{
+  "label": "tartine",
+  "url": "https://tartinebakery.com/",
+  "type": "local bakery / restaurant, San Francisco (en)",
+  "repo": "F:\\pharos",
+  "dim6_mode": "env",
+  "synthetic_dim6": false,
+  "composite": {
+    "score": 21,
+    "grade": "F"
+  },
+  "scanner_composite": {
+    "score": 20,
+    "grade": "F"
+  },
+  "dims": [
+    {
+      "id": 1,
+      "name": "llms.txt Quality",
+      "score": 0,
+      "grade": "F",
+      "na": false
+    },
+    {
+      "id": 2,
+      "name": "MCP Server Discoverability",
+      "score": 0,
+      "grade": "F",
+      "na": true
+    },
+    {
+      "id": 3,
+      "name": "OpenAPI / API Catalog",
+      "score": 0,
+      "grade": "F",
+      "na": true
+    },
+    {
+      "id": 4,
+      "name": "Structured Capability Data",
+      "score": 0,
+      "grade": "F",
+      "na": false
+    },
+    {
+      "id": 5,
+      "name": "Agent-Parsable Content",
+      "score": 67,
+      "grade": "C",
+      "na": false
+    },
+    {
+      "id": 6,
+      "name": "Citation Visibility",
+      "score": 24,
+      "grade": "F",
+      "na": false
+    }
+  ],
+  "gaps": 11,
+  "ai": {
+    "calls": 84,
+    "neurons": 907.2334921779111,
+    "prompt_tokens": 41025,
+    "completion_tokens": 657
+  },
+  "browser_rendering_substitute": [
+    {
+      "url": "https://tartinebakery.com/",
+      "ok": true,
+      "bytes": 190176
+    }
+  ],
+  "seconds": 463
+}

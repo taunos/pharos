@@ -1,0 +1,75 @@
+{
+  "label": "drveit",
+  "url": "https://drveit.com.br/",
+  "type": "dental clinic, Brazil (pt-BR)",
+  "repo": "F:\\pharos",
+  "dim6_mode": "env",
+  "synthetic_dim6": false,
+  "composite": {
+    "score": 63,
+    "grade": "C"
+  },
+  "scanner_composite": {
+    "score": 78,
+    "grade": "B"
+  },
+  "dims": [
+    {
+      "id": 1,
+      "name": "llms.txt Quality",
+      "score": 50,
+      "grade": "D",
+      "na": false
+    },
+    {
+      "id": 2,
+      "name": "MCP Server Discoverability",
+      "score": 0,
+      "grade": "F",
+      "na": true
+    },
+    {
+      "id": 3,
+      "name": "OpenAPI / API Catalog",
+      "score": 0,
+      "grade": "F",
+      "na": true
+    },
+    {
+      "id": 4,
+      "name": "Structured Capability Data",
+      "score": 82,
+      "grade": "A-",
+      "na": false
+    },
+    {
+      "id": 5,
+      "name": "Agent-Parsable Content",
+      "score": 100,
+      "grade": "A",
+      "na": false
+    },
+    {
+      "id": 6,
+      "name": "Citation Visibility",
+      "score": 27,
+      "grade": "F",
+      "na": false
+    }
+  ],
+  "gaps": 7,
+  "ai": {
+    "calls": 71,
+    "neurons": 823.9320937283337,
+    "prompt_tokens": 38067,
+    "completion_tokens": 586
+  },
+  "browser_rendering_substitute": [
+    {
+      "url": "https://drveit.com.br/",
+      "ok": true,
+      "bytes": 270985
+    }
+  ],
+  "seconds": 201
+}

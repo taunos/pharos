@@ -1,0 +1,602 @@
+[
+  {
+    "query": {
+      "id": "q1",
+      "text": "What is the main business of the website tartinebakery.com?",
+      "rationale": "This question tests if the model can identify the domain's purpose."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "The main business of the website tartinebakery.com is to showcase and provide information about Tartine Bakery, a renowned bakery known for its artisanal bread, pastries, and other baked goods. The website typically offers details about their locations, menu items, and may also include options for online ordering, catering services, and information about their cookbooks and classes.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q1",
+      "text": "What is the main business of the website tartinebakery.com?",
+      "rationale": "This question tests if the model can identify the domain's purpose."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Tartine Bakery\n\nTartine Bakery is a renowned **bakery and café** based in San Francisco, California. Their main business includes:\n\n## Primary Offerings:\n- **Artisan bread** - They're particularly famous for their naturally leavened country bread\n- **Pastries** - Including morning buns, croissants, and other French-inspired baked goods\n- **Café items** - Sandwiches, salads, and other prepared foods\n- **Coffee and beverages**\n\n## Additional Business:\n- Multiple bakery locations in San Francisco and Los Angeles\n- **Cookbooks** - They've published several popular baking and cooking books\n- **Manufactured goods** - Some packaged products available for wider distribution\n\nTartine is widely recognized as one of America's most influential bakeries, known for their commitment to traditional baking methods and high-quality ingredients.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q1",
+      "text": "What is the main business of the website tartinebakery.com?",
+      "rationale": "This question tests if the model can identify the domain's purpose."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "The main business of tartinebakery.com is **Tartine Bakery**, a renowned bakery and cafe.\n\nThey specialize in:\n*   **Artisan bread** (especially sourdough)\n*   **Pastries** (croissants, tarts, morning buns, etc.)\n*   **Cakes and other baked goods**\n*   They also typically offer **coffee and light cafe fare**.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q1",
+      "text": "What is the main business of the website tartinebakery.com?",
+      "rationale": "This question tests if the model can identify the domain's purpose."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Tartine Bakery is a **bakery and café business** specializing in artisanal breads, pastries, cakes, sandwiches, coffee, and other prepared foods. Its website also supports services such as online gift-card purchases and pastry preorders.[1][2]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q2",
+      "text": "Does tartinebakery.com offer any online ordering services?",
+      "rationale": "This question probes if the model can identify specific features or services offered by the domain."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "As of my last update, Tartine Bakery's website did not offer direct online ordering services for delivery or pickup. However, they may provide information about their menu, locations, and possibly links to third-party delivery services if available. For the most current information, I recommend visiting their official website or contacting them directly.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q2",
+      "text": "Does tartinebakery.com offer any online ordering services?",
+      "rationale": "This question probes if the model can identify specific features or services offered by the domain."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "I don't have current information about Tartine Bakery's online ordering services. Their offerings may have changed over time.\n\nTo find out if they offer online ordering, I'd recommend:\n\n1. **Visiting their website directly** at tartinebakery.com\n2. **Calling their location** - they have several bakeries in San Francisco and Los Angeles\n3. **Checking third-party delivery apps** like DoorDash, Uber Eats, or Caviar, which sometimes partner with popular bakeries\n\nMany bakeries expanded their online ordering options in recent years, so there's a good chance they have some form of online ordering or pre-ordering available.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q2",
+      "text": "Does tartinebakery.com offer any online ordering services?",
+      "rationale": "This question probes if the model can identify specific features or services offered by the domain."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Yes, Tartine Bakery does offer online ordering services through their website, **tartinebakery.com**.\n\nHere's how it generally works:\n1.  **Visit their website:** Go to tartinebakery.com.\n2.  **Look for 'ORDER ONLINE':** There's usually a prominent button or link, often in the top right corner.\n3.  **Choose Pickup or Delivery:** You'll typically be prompted to select whether you want to pick up your order or have it delivered.\n4.  **Select",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q2",
+      "text": "Does tartinebakery.com offer any online ordering services?",
+      "rationale": "This question probes if the model can identify specific features or services offered by the domain."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Yes. Tartinebakery.com offers several online ordering options:\n\n- **Pickup and delivery** orders at participating bakery locations.[1][2]\n- **Preorders for cakes and tarts**, including special-order cakes for pickup in San Francisco.[1]\n- **Nationwide shipping** through Goldbelly for customers outside San Francisco and Los Angeles.[1]\n- Online ordering is available for locations including San Francisco, Santa Monica, Silver Lake, Pasadena, Sycamore, and West Adams.[3][4][6][7][8][9]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=WRONG; misidentified=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q3",
+      "text": "What type of products does tartinebakery.com specialize in?",
+      "rationale": "This question tests if the model can identify the domain's product category."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Tartine Bakery specializes in artisanal baked goods. Their offerings typically include a variety of breads, pastries, cakes, and other baked treats. They are well-known for their sourdough bread and high-quality, handcrafted pastries.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q3",
+      "text": "What type of products does tartinebakery.com specialize in?",
+      "rationale": "This question tests if the model can identify the domain's product category."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Tartine Bakery Products\n\nTartine Bakery specializes in **artisan bread and pastries**. They are particularly renowned for:\n\n## Signature Items:\n- **Sourdough bread** - their most famous product, made with natural fermentation\n- **Morning buns** - a customer favorite pastry\n- **Croissants** and other French-style viennoiserie\n- **Seasonal tarts and cakes**\n- **Sandwiches** made with their house-baked bread\n- **Cookies and other baked goods**\n\nTartine is known for their commitment to traditional baking methods, high-quality ingredients, and their influential approach to bread-making that has inspired bakeries worldwide. They originated in San Francisco and have become iconic in the artisan bakery movement.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q3",
+      "text": "What type of products does tartinebakery.com specialize in?",
+      "rationale": "This question tests if the model can identify the domain's product category."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Tartine Bakery specializes in high-quality **artisan baked goods**.\n\nTheir core offerings include:\n\n*   **Artisan Breads:** They are particularly famous for their sourdough country loaves.\n*   **Pastries:** A wide variety of French-inspired pastries like croissants, morning buns, tarts, cookies, and cakes.\n*   **Coffee and other beverages.**\n\nWhile they might offer some light breakfast or lunch items (like sandwiches) at their physical locations, their primary specialization and reputation are built on their exceptional breads and pastries.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q3",
+      "text": "What type of products does tartinebakery.com specialize in?",
+      "rationale": "This question tests if the model can identify the domain's product category."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Tartine Bakery specializes in **artisan bread and pastries**, including naturally leavened country loaves, croissants, morning buns, tarts, cakes, and other baked goods. It also offers coffee, savory items, sandwiches, salads, catering, and gift cards.[1][5]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q4",
+      "text": "Is tartinebakery.com a local business or a global company?",
+      "rationale": "This question probes if the model can identify the domain's geographic scope."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Tartine Bakery started as a local business in San Francisco, known for its artisanal bread and pastries. Over time, it has expanded and gained international recognition. While it still maintains its local roots, Tartine has opened additional locations beyond San Francisco, including in Los Angeles and Seoul, South Korea. This expansion indicates that Tartine Bakery has grown beyond a purely local business to have a more global presence, although it is not as widespread as some multinational corporations.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q4",
+      "text": "Is tartinebakery.com a local business or a global company?",
+      "rationale": "This question probes if the model can identify the domain's geographic scope."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Tartine Bakery\n\nTartine Bakery is **primarily a local business** based in San Francisco, California, though it has expanded somewhat beyond its original location.\n\n## Key Points:\n\n- **Origins**: Started as a single neighborhood bakery in San Francisco's Mission District in 2002\n- **Physical presence**: Has a small number of locations, mainly in the San Francisco Bay Area, plus a few in Los Angeles, Seoul, and Tokyo\n- **Scale**: Despite its fame and influence in the baking world, it operates more like a regional/boutique business rather than a global chain\n- **Online presence**: The website serves their local locations rather than operating as a major e-commerce platform\n\nWhile Tartine has gained international recognition through cookbooks and its reputation among bakers worldwide, it remains a **local/regional bakery business** rather than a global company in the traditional sense.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q4",
+      "text": "Is tartinebakery.com a local business or a global company?",
+      "rationale": "This question probes if the model can identify the domain's geographic scope."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Tartine Bakery started as a very local, highly acclaimed business in San Francisco.\n\nHowever, it has expanded significantly beyond its original San Francisco roots. They now have multiple locations in San Francisco, Los Angeles, and internationally in cities like **Seoul, South Korea, and Tokyo, Japan.**\n\nTherefore, while it maintains a strong local identity in its original city, it is no longer just a local business; it is a **company with a significant regional (US) and international presence.** It's not a massive global conglomerate like Starbucks, but it's certainly a multi-city and multi-country operation.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q4",
+      "text": "Is tartinebakery.com a local business or a global company?",
+      "rationale": "This question probes if the model can identify the domain's geographic scope."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Tartine Bakery is best described as a **regional bakery brand with international operations**, not simply a local business or a fully global company.\n\nIt began in San Francisco in 2002 and operates locations across the **San Francisco Bay Area, Los Angeles, and Seoul, South Korea**. Its website also offers nationwide U.S. shipping through Goldbelly.[1][3][5] Thus, it has a global presence, but its physical footprint remains concentrated in a few regions rather than worldwide.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q5",
+      "text": "Can I find a physical location of tartinebakery.com on their website?",
+      "rationale": "This question tests if the model can identify the domain's physical presence."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Yes, you can typically find the physical location of Tartine Bakery on their website. Most bakery websites have a \"Locations\" or \"Contact\" page where they list their addresses. You can visit tartinebakery.com and look for these sections to find the physical location of their bakery. If you have trouble finding it, you might also consider checking their social media profiles or using a search engine for more information.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q5",
+      "text": "Can I find a physical location of tartinebakery.com on their website?",
+      "rationale": "This question tests if the model can identify the domain's physical presence."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "I don't have the ability to browse websites in real-time, so I can't check tartinebakery.com directly for you.\n\nHowever, if you're looking for Tartine Bakery's physical location, you can typically find this information by:\n\n1. **Visiting their website** and looking for pages labeled \"Locations,\" \"Contact,\" \"About,\" or \"Visit Us\"\n2. **Checking the footer** of their homepage, where contact information is often listed\n3. **Looking for a \"Find Us\" or map feature**\n\nFor reference, Tartine Bakery is a well-known San Francisco bakery with multiple locations. Their original location is in the Mission District of San Francisco. If you visit their website directly, you should be able to find current location information, hours, and addresses for all their bakeries.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q5",
+      "text": "Can I find a physical location of tartinebakery.com on their website?",
+      "rationale": "This question tests if the model can identify the domain's physical presence."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Yes, you can absolutely find the physical locations of Tartine Bakery on their website.\n\nHere's how:\n\n1.  Go to **tartinebakery.com**.\n2.  In the main navigation menu (usually at the top), click on **\"Contact\"**.\n3.  On the \"Contact\" page, you'll find a section titled **\"OUR LOCATIONS\"** which lists all their physical bakeries with addresses, phone numbers, and hours of operation.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q5",
+      "text": "Can I find a physical location of tartinebakery.com on their website?",
+      "rationale": "This question tests if the model can identify the domain's physical presence."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Yes. Tartine Bakery’s website has a dedicated **Locations** page listing physical stores in the Bay Area, Los Angeles, and Korea.[1][2]\n\nFor example, it lists:\n\n- **The Bakery:** 600 Guerrero St, San Francisco, CA 94110[2]\n- **Tartine Manufactory:** 595 Alabama St, San Francisco, CA 94110[2]\n- **Santa Monica:** 1925 Arizona Ave, Santa Monica, CA 90404[2]\n- **Pasadena:** 277 W Green St, Pasadena, CA 91105[2]\n\nThe site also provides each location’s hours and phone number.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q6",
+      "text": "Does tartinebakery.com offer any services for individuals with dietary restrictions?",
+      "rationale": "This question probes if the model can identify specific services offered by the domain."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "As of my last update, Tartine Bakery is known for its artisanal bread and pastries, and they often focus on high-quality, locally sourced ingredients. While they may not specifically advertise services for individuals with dietary restrictions, many bakeries like Tartine offer options that could cater to certain dietary needs, such as gluten-free or vegan products. However, it's important to note that cross-contamination can occur in bakeries that handle a lot of flour and other allergens.\n\nFor the most accurate and up-to-date information, I recommend checking their official website or contacting them directly to inquire about specific dietary accommodations they might offer.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q6",
+      "text": "Does tartinebakery.com offer any services for individuals with dietary restrictions?",
+      "rationale": "This question probes if the model can identify specific services offered by the domain."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "I don't have current information about Tartine Bakery's specific services for dietary restrictions. To get accurate details about their offerings for special dietary needs, I'd recommend:\n\n1. **Visiting their website** directly at tartinebakery.com\n2. **Calling their location** to speak with staff about specific dietary requirements\n3. **Checking their menu** for allergen information or special dietary options\n\nMany bakeries do offer gluten-free, vegan, or other specialized options, but availability varies by location and changes over time. If you have specific dietary restrictions, it's always best to contact them directly to ensure they can accommodate your needs safely.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q6",
+      "text": "Does tartinebakery.com offer any services for individuals with dietary restrictions?",
+      "rationale": "This question probes if the model can identify specific services offered by the domain."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Based on the information available on `tartinebakery.com` and general knowledge of Tartine Bakery, they **do not prominently offer or advertise specific",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=0/100; judge=DENY; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q6",
+      "text": "Does tartinebakery.com offer any services for individuals with dietary restrictions?",
+      "rationale": "This question probes if the model can identify specific services offered by the domain."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Yes. Tartine offers some options and accommodations for dietary restrictions:\n\n- **Wheat-free items:** Selected pastries, such as seasonal muffins and cheesecake, are labeled wheat-free, and many menu items can be modified. However, Tartine cannot guarantee items are gluten-free because its facilities use substantial amounts of flour.[1]\n- **Dairy-free items:** Some pastries and breads are dairy-free, including the Country and Oat Porridge loaves. Savory dishes containing dairy can often be modified to remove it.[1]\n- **Other dietary labels:** Menus identify items as dairy-free, egg-free, vegan, vegan-option, wheat-free, and nut-containing.[2]\n- **Allergies:** Customers are asked to notify staff about allergies when ordering, but the available information does not indicate a completely allergen-free preparation environment.[1]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=WRONG; misidentified=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q7",
+      "text": "Is tartinebakery.com a well-known brand in the food industry?",
+      "rationale": "This question tests if the model can identify the domain's reputation or recognition."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Yes, Tartine Bakery is a well-known brand in the food industry. It originated in San Francisco and has gained a strong reputation for its high-quality artisanal bread and pastries. Founded by Chad Robertson and Elisabeth Prueitt, Tartine has become synonymous with exceptional baking and has expanded its presence with additional locations and collaborations. The bakery is celebrated for its commitment to traditional techniques and high-quality ingredients, making it a favorite among food enthusiasts and industry professionals alike.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q7",
+      "text": "Is tartinebakery.com a well-known brand in the food industry?",
+      "rationale": "This question tests if the model can identify the domain's reputation or recognition."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# Tartine Bakery\n\nYes, **Tartine Bakery** is a well-known and highly respected brand in the food industry, particularly in the artisan bread and pastry world.\n\n## Key Points:\n\n- **Location**: Based in San Francisco, California\n- **Founded**: 2002 by Elisabeth Prueitt and Chad Robertson\n- **Reputation**: Considered one of America's premier artisan bakeries\n- **Influence**: Their bread-making techniques and recipes have influenced bakers worldwide\n- **Cookbooks**: They've published several influential cookbooks, including the \"Tartine Bread\" book which became a bible for home bakers\n- **Expansion**: Has expanded to multiple locations and inspired countless bakeries\n\nThe bakery is especially famous for its:\n- Country bread (their signature sourdough)\n- Morning buns\n- Croissants and pastries\n\nTartine has received numerous accolades from food critics and publications, and is often cited as a destination bakery that helped spark the artisan bread movement in the United States.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q7",
+      "text": "Is tartinebakery.com a well-known brand in the food industry?",
+      "rationale": "This question tests if the model can identify the domain's reputation or recognition."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Yes, **Tartine Bakery** (tartinebakery.com) is absolutely a **very well-known and highly respected brand** in the food industry",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q7",
+      "text": "Is tartinebakery.com a well-known brand in the food industry?",
+      "rationale": "This question tests if the model can identify the domain's reputation or recognition."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Yes. **Tartine Bakery is a well-known and highly influential specialty-bakery brand**, particularly in San Francisco and among food enthusiasts internationally.\n\nFounded in San Francisco in 2002, it has earned broad recognition for its sourdough bread, pastries, and morning buns. Its founders won the James Beard Award for Outstanding Pastry Chef in 2008, and the brand has received coverage from major food publications including *Bon Appétit*, *The New Yorker*, *Vogue*, *Food & Wine*, and *The New York Times*.[1][2][10]\n\nIts reputation extends beyond local popularity: Tartine’s bread is credited with helping inspire the modern U.S. sourdough revival, and the business has expanded to locations in the Bay Area, Los Angeles, and Seoul.[4][6][10] It is best characterized as a **prominent, premium bakery brand**, rather than a mass-market food company.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q8",
+      "text": "Can I find a list of menu items on tartinebakery.com?",
+      "rationale": "This question probes if the model can identify specific content on the domain."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Yes, you can find a list of menu items on Tartine Bakery's official website. Typically, bakeries and restaurants provide their menu online for customers to view. You can visit tartinebakery.com and navigate to their menu section to see the items they offer. Keep in mind that menus can vary by location and may change seasonally, so it's a good idea to check for the most current offerings.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q8",
+      "text": "Can I find a list of menu items on tartinebakery.com?",
+      "rationale": "This question probes if the model can identify specific content on the domain."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "I don't have the ability to browse websites in real-time, so I can't check tartinebakery.com directly for you.\n\nHowever, Tartine Bakery typically does have menu information on their website. To find it, you can:\n\n1. Visit **tartinebakery.com**\n2. Look for sections like \"Menu,\" \"Our Food,\" \"Bakery,\" or \"Locations\" (menus sometimes vary by location)\n3. Check if there's a separate section for their different offerings (bread, pastries, café items, etc.)\n\nIf you're having trouble finding the menu on their site, you could also:\n- Call the specific location you're interested in\n- Check their social media pages (Instagram, Facebook)\n- Look at third-party sites like Yelp or Google Maps, which often have menu photos\n\nIs there something specific you're looking for from Tartine?",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q8",
+      "text": "Can I find a list of menu items on tartinebakery.com?",
+      "rationale": "This question probes if the model can identify specific content on the domain."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Yes, you can!**\n\nTartine Bakery's website doesn't have a single page explicitly labeled \"Menu\" in the traditional sense, but",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q8",
+      "text": "Can I find a list of menu items on tartinebakery.com?",
+      "rationale": "This question probes if the model can identify specific content on the domain."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Yes. Tartine Bakery’s website includes menu PDFs for individual locations, with items such as breakfast dishes, salads, tartines, sandwiches, pastries, and sides.[1][2][5]\n\nThe homepage also provides ordering information for cakes and tarts, though the full menu listings appear in location-specific PDF menus.[7]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q9",
+      "text": "Does tartinebakery.com have a physical store in San Francisco?",
+      "rationale": "This question tests if the model can identify specific location information."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Yes, Tartine Bakery has a physical store in San Francisco. It is a well-known bakery located in the Mission District. If you're planning to visit, it's a good idea to check their website or contact them directly for the most current information on their location and hours.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q9",
+      "text": "Does tartinebakery.com have a physical store in San Francisco?",
+      "rationale": "This question tests if the model can identify specific location information."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "I don't have current information about Tartine Bakery's physical locations. However, Tartine is a well-known San Francisco bakery that has historically had physical locations in the city, including their original location in the Mission District.\n\nTo get accurate, up-to-date information about their current physical store locations and hours, I'd recommend:\n1. Visiting their website directly at tartinebakery.com\n2. Calling them\n3. Checking their social media pages\n\nThis will ensure you have the most current information about their locations and operating status.",
+      "score": 44,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=44/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q9",
+      "text": "Does tartinebakery.com have a physical store in San Francisco?",
+      "rationale": "This question tests if the model can identify specific location information."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Yes, Tartine Bakery has several physical locations in San Francisco, including their original and most famous bakery:\n\n*   **Tartine Bakery (Original)**: 600 Guerrero St, San Francisco, CA 94110 (Mission District)\n*   **Tartine Manufactory**: 292 Alabama St, San Francisco, CA 94103 (Mission District)\n*   **Tartine Inner Sunset**: 124 Clement St, San Francisco, CA 94118 (Inner Sunset)\n*   **Tartine at the Francisco Terminal**: Pier 33, San Francisco, CA 94111\n\nSo, if you visit tartinebakery.com, you can definitely find a physical store to visit in San Francisco.",
+      "score": 44,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=44/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q9",
+      "text": "Does tartinebakery.com have a physical store in San Francisco?",
+      "rationale": "This question tests if the model can identify specific location information."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Yes. Tartine Bakery has several physical locations in San Francisco:\n\n- **The Bakery:** 600 Guerrero St, San Francisco, CA 94110[1]\n- **Tartine Manufactory:** 595 Alabama St, San Francisco, CA 94110[1]\n- **Inner Sunset SF:** 1226 9th Ave, San Francisco, CA 94122[1]\n\nThe listed locations are open daily, though hours vary by store.[1]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q10",
+      "text": "Is tartinebakery.com a website that requires a login or registration to access?",
+      "rationale": "This question probes if the model can identify the domain's access requirements."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "As of my last update, tartinebakery.com is the official website for Tartine Bakery, a well-known bakery based in San Francisco. Typically, such websites provide information about their products, locations, and possibly an online store for ordering. Generally, you would not need to log in or register just to access basic information about the bakery or to browse their offerings. However, if you want to place an order online or access certain features like a newsletter subscription, you might need to create an account or provide some personal information. For the most current details, it's best to visit the website directly.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q10",
+      "text": "Is tartinebakery.com a website that requires a login or registration to access?",
+      "rationale": "This question probes if the model can identify the domain's access requirements."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "I don't have the ability to browse websites or check their current access requirements. To find out if tartinebakery.com requires login or registration, you could:\n\n1. **Visit the website directly** - Try accessing it in your browser to see if you can view content without logging in\n2. **Check their homepage** - Most bakery websites allow browsing menus and information publicly, with login only needed for ordering or account management\n3. **Look for a \"Sign In\" or \"Register\" button** - This will show you if accounts are optional or required\n\nTypically, bakery websites allow public browsing of their menus, locations, and hours, only requiring registration if you want to place online orders or join a loyalty program. But I can't confirm the specific requirements for this particular site without checking it directly.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q10",
+      "text": "Is tartinebakery.com a website that requires a login or registration to access?",
+      "rationale": "This question probes if the model can identify the domain's access requirements."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "No, **tartinebakery.com** does not require a login or registration to access.\n\nYou can browse their menus, locations, hours, and even place an online order as a guest without creating an account.\n\nWhile they might offer the *option* to create an account for convenience (like saving your order history or shipping information for future orders), it is not mandatory to simply view or use the website.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q10",
+      "text": "Is tartinebakery.com a website that requires a login or registration to access?",
+      "rationale": "This question probes if the model can identify the domain's access requirements."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "No. **tartinebakery.com does not require login or registration to access its general website content**, such as bakery information, locations, and menus. However, registration may be required for certain site areas or features, including some e-commerce purchases or account-based services.[1][2][3]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=WRONG; misidentified=true"
+    }
+  }
+]

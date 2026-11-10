@@ -1,0 +1,602 @@
+[
+  {
+    "query": {
+      "id": "q1",
+      "text": "What is the domain eff.org?",
+      "rationale": "This probes the model's ability to recognize the domain and provide a factual answer."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "The domain eff.org belongs to the Electronic Frontier Foundation (EFF), a nonprofit organization dedicated to defending civil liberties in the digital world. The EFF focuses on issues such as privacy, free expression, and innovation, advocating for user rights and promoting policies that protect individuals' freedoms online.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q1",
+      "text": "What is the domain eff.org?",
+      "rationale": "This probes the model's ability to recognize the domain and provide a factual answer."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# eff.org\n\n**eff.org** is the website of the **Electronic Frontier Foundation (EFF)**, a leading nonprofit organization defending civil liberties in the digital world.\n\n## What they do:\n\n- **Digital rights advocacy** - Fighting for privacy, free expression, and innovation online\n- **Legal action** - Taking on important court cases involving technology and civil liberties\n- **Policy work** - Lobbying for better laws around surveillance, encryption, and internet freedom\n- **Technology development** - Creating tools like Privacy Badger (tracker blocker) and Certbot (for HTTPS certificates)\n- **Education** - Publishing guides on digital security and online rights\n\n## Key focus areas:\n\n- Privacy and surveillance\n- Free speech online\n- Security and encryption\n- Intellectual property reform\n- Net neutrality\n- Government transparency\n\nFounded in 1990, the EFF is widely respected as a watchdog organization that challenges government overreach, corporate surveillance, and threats to digital freedoms. They're known for their technical expertise combined with legal and policy advocacy.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q1",
+      "text": "What is the domain eff.org?",
+      "rationale": "This probes the model's ability to recognize the domain and provide a factual answer."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "**eff.org** is the official website domain for the **Electronic Frontier Foundation (EFF)**.\n\nThe EFF is a leading international non-profit digital rights group that advocates for civil liberties in the digital world. They work to defend free speech, privacy, innovation, and consumer rights online through litigation, policy analysis, activism, and technology development.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q1",
+      "text": "What is the domain eff.org?",
+      "rationale": "This probes the model's ability to recognize the domain and provide a factual answer."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "**eff.org** is the official website of the **Electronic Frontier Foundation (EFF)**, a nonprofit organization that advocates for digital privacy, free speech, online civil liberties, and innovation.[1][2]\n\nThe site provides legal and policy analysis, educational resources, advocacy campaigns, and information about EFF’s work defending rights in the digital world.[1][2]",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q2",
+      "text": "What kind of business is eff.org?",
+      "rationale": "This tests the model's understanding of the business type."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "EFF.org is the website for the Electronic Frontier Foundation (EFF), a nonprofit organization focused on defending civil liberties in the digital world. The EFF works to protect privacy, free expression, and innovation through litigation, policy analysis, grassroots activism, and technology development. They address issues such as online privacy, free speech, digital surveillance, and intellectual property rights.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q2",
+      "text": "What kind of business is eff.org?",
+      "rationale": "This tests the model's understanding of the business type."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "EFF.org is the website of the **Electronic Frontier Foundation (EFF)**, a non-profit digital rights organization.\n\nThe EFF focuses on:\n\n- **Defending civil liberties** in the digital world\n- **Privacy rights** and fighting surveillance\n- **Free speech** online\n- **Consumer rights** related to technology\n- **Transparency** in government and corporate tech practices\n\nThey engage in activities like:\n- Legal advocacy and litigation\n- Policy analysis and activism\n- Creating privacy tools and guides\n- Educating the public about digital rights\n- Fighting against censorship and overreach\n\nThe EFF is essentially a watchdog organization that advocates for users' rights in the face of government regulation and corporate power in the technology sector. They're funded primarily through donations and are well-respected in the tech and privacy communities.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q2",
+      "text": "What kind of business is eff.org?",
+      "rationale": "This tests the model's understanding of the business type."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "EFF.org is **not a business** in the traditional sense. It is the website for the **Electronic Frontier Foundation (EFF)**, which is a **non-profit organization**.\n\nIts primary purpose is to:\n\n*   **Defend civil liberties in the digital world.**\n*   **Advocate for user privacy, free speech, and innovation online.**\n*   **Engage in litigation, policy analysis, grassroots activism, and technology development.**\n\nAs a non-profit, it relies on donations, grants, and memberships to fund its work, rather than selling products or services for profit.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q2",
+      "text": "What kind of business is eff.org?",
+      "rationale": "This tests the model's understanding of the business type."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "EFF.org is the website of the **Electronic Frontier Foundation (EFF)**, a U.S.-based **501(c)(3) nonprofit advocacy organization**, not a conventional commercial business. It defends digital civil liberties through impact litigation, policy analysis, grassroots activism, public education, and technology development.[1]\n\nIts main focus areas include:\n\n- Online privacy and protection from surveillance\n- Free speech and expression on the internet\n- Digital consumer rights\n- Innovation and technology policy\n- Legal defense for internet users and technology innovators\n\nEFF is primarily funded by individual donors, memberships, grants, and organizational contributions.[1]",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q3",
+      "text": "Does eff.org offer any products or services?",
+      "rationale": "This probes the model's ability to identify offerings."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Yes, the Electronic Frontier Foundation (EFF) offers a variety of services and resources, although they are primarily known as a nonprofit organization focused on defending civil liberties in the digital world. Here are some of the key offerings from EFF:\n\n1. **Legal Advocacy**: EFF provides legal support and advocacy to protect digital rights, including issues related to privacy, free expression, and innovation.\n\n2. **Policy Analysis**: They conduct research and provide analysis on technology-related policies, aiming to influence legislation and public policy in favor of digital rights.\n\n3. **Educational Resources**: EFF offers a range of educational materials, including guides, articles, and tutorials, to help individuals understand and protect their digital rights.\n\n4. **Technology Projects**: EFF develops and supports various technology projects aimed at enhancing privacy and security online. Examples include HTTPS Everywhere, Privacy Badger, and Certbot.\n\n5. **Public Campaigns**: They run public awareness campaigns to inform and mobilize people around key digital rights issues.\n\n6. **Membership and Donations**: While not a product or service in the traditional sense, EFF offers memberships to individuals who wish to support their mission, often providing members with updates and other benefits.\n\nEFF does not sell commercial products or services but focuses on advocacy, education, and technology development to support digital rights.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q3",
+      "text": "Does eff.org offer any products or services?",
+      "rationale": "This probes the model's ability to identify offerings."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "# EFF Products and Services\n\nThe Electronic Frontier Foundation (EFF) primarily offers **free resources and services** rather than commercial products:\n\n## Free Services & Resources\n- **Privacy Badger** - Browser extension that blocks trackers\n- **HTTPS Everywhere** - Browser extension for secure connections\n- **Certbot** - Free tool for enabling HTTPS on websites\n- **Surveillance Self-Defense** - Guides for digital security\n- **Legal assistance** - For cases involving digital rights (select cases)\n- **Action alerts** - To help supporters advocate for digital rights\n\n## Merchandise\nEFF does sell **branded merchandise** through their online shop, including:\n- T-shirts\n- Stickers\n- Accessories\n\nThe proceeds support their advocacy work.\n\n## Primary Mission\nEFF is a **nonprofit organization**, so their main \"offering\" is their advocacy work defending civil liberties in the digital world - privacy, free expression, and innovation. Most of their tools and resources are provided free to the public as part of this mission.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q3",
+      "text": "Does eff.org offer any products or services?",
+      "rationale": "This probes the model's ability to identify offerings."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Yes, the Electronic Frontier Foundation (EFF), which operates eff.org, offers a range of services and some products, though their primary mission is advocacy and",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q3",
+      "text": "Does eff.org offer any products or services?",
+      "rationale": "This probes the model's ability to identify offerings."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Yes. EFF offers several **free or nonprofit digital-rights services and products**, including:\n\n- **Legal services and referrals:** general legal information, intake, and referrals to cooperating attorneys, often pro bono or at reduced cost.[1]\n- **Free privacy and security tools:** including **Privacy Badger**, a browser extension that blocks online tracking, and **Certbot**, which helps enable HTTPS encryption.[2]\n- **Educational resources and training:** guides such as *Surveillance Self-Defense*, public education materials, security trainings, and policy research.[2][3]\n- **Membership and events:** paid membership supports EFF’s work and provides benefits such as member updates, event discounts, and an online-shop discount.[4]\n- **An online shop:** EFF sells items such as shirts, stickers, books, and other merchandise.[5]\n\nEFF generally does **not** operate as a commercial vendor or endorse other companies’ products and services.[6]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q4",
+      "text": "Who does eff.org primarily serve?",
+      "rationale": "This tests the model's understanding of the target audience."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "The Electronic Frontier Foundation (EFF) primarily serves individuals and organizations concerned with digital rights and civil liberties. This includes internet users, activists, journalists, technologists, and anyone interested in issues such as privacy, free expression, and innovation in the digital world. The EFF works to protect these rights through advocacy, litigation, and education.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q4",
+      "text": "Who does eff.org primarily serve?",
+      "rationale": "This tests the model's understanding of the target audience."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "The Electronic Frontier Foundation (EFF) primarily serves:\n\n1. **Internet users and digital rights advocates** - They defend civil liberties in the digital world for everyday people online\n\n2. **Privacy-conscious individuals** - Those concerned about surveillance, data collection, and online privacy\n\n3. **Technology users facing legal/rights issues** - People dealing with issues like free speech online, fair use, and digital security\n\n4. **Developers and security researchers** - They support those working on encryption, security tools, and open-source projects\n\n5. **Activists and journalists** - Those who need digital security and protection from censorship\n\nEFF acts as a public interest organization fighting for digital rights through litigation, policy advocacy, technology development (like Privacy Badger), and public education. They essentially serve anyone who uses the internet and cares about maintaining freedom, privacy, and innovation in the digital space.\n\nTheir work benefits the general public by challenging government surveillance, opposing censorship, fighting for net neutrality, and defending against corporate overreach in technology.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q4",
+      "text": "Who does eff.org primarily serve?",
+      "rationale": "This tests the model's understanding of the target audience."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "EFF.org (the Electronic Frontier Foundation) primarily serves **internet users and the general public** by defending their fundamental rights in the digital world.\n\nSpecifically, they advocate for and protect:\n*   **Digital privacy:** Fighting against government surveillance and corporate data collection.\n*   **Free speech online:** Challenging censorship and promoting open communication.\n*   **Innovation:** Advocating for policies that allow technology to flourish without undue legal restrictions.\n*   **Fair use and open access:** Promoting the free flow of information and creativity.\n\nThey do this through legal action, policy analysis, activism, and public education, all with the goal of ensuring that civil liberties are protected as technology advances.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q4",
+      "text": "Who does eff.org primarily serve?",
+      "rationale": "This tests the model's understanding of the target audience."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "EFF.org primarily serves **internet users and the general public**, especially people whose digital rights may be threatened. The Electronic Frontier Foundation advocates for **privacy, free expression, innovation, and consumer rights** through litigation, policy work, activism, education, and technology development.[1][2]\n\nIts audience also includes journalists, activists, technologists, researchers, policymakers, vulnerable communities, and innovators worldwide.[2][3]",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q5",
+      "text": "Is eff.org a nonprofit organization?",
+      "rationale": "This probes the model's ability to identify the business type."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Yes, eff.org is the website for the Electronic Frontier Foundation (EFF), which is a nonprofit organization. The EFF focuses on defending civil liberties in the digital world, advocating for user privacy, free expression, and innovation through impact litigation, policy analysis, grassroots activism, and technology development.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q5",
+      "text": "Is eff.org a nonprofit organization?",
+      "rationale": "This probes the model's ability to identify the business type."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "Yes, the Electronic Frontier Foundation (EFF) is a nonprofit organization. It's a 501(c)(3) tax-exempt organization based in the United States that focuses on defending civil liberties in the digital world, including issues like free speech, privacy, innovation, and consumer rights online.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q5",
+      "text": "Is eff.org a nonprofit organization?",
+      "rationale": "This probes the model's ability to identify the business type."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Yes, **eff.org** is the website for the **Electronic Frontier Foundation (EFF)**, which is a **nonprofit organization**.\n\nThey are a 501(c)(3) nonprofit organization in the United States, dedicated to defending civil liberties in the digital world.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q5",
+      "text": "Is eff.org a nonprofit organization?",
+      "rationale": "This probes the model's ability to identify the business type."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Yes. **EFF.org is the website of the Electronic Frontier Foundation (EFF), a U.S. 501(c)(3) nonprofit organization** that defends civil liberties in the digital world.[1] Its tax identification number is **04-3091431**.[4]",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q6",
+      "text": "What is the main purpose of eff.org?",
+      "rationale": "This tests the model's understanding of the business's mission."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "The main purpose of the Electronic Frontier Foundation (EFF), which operates the website eff.org, is to defend civil liberties in the digital world. The organization focuses on advocating for user privacy, free expression, and innovation through legal action, policy analysis, grassroots activism, and technology development. EFF works to ensure that rights and freedoms are protected as technology advances, addressing issues such as government surveillance, digital privacy, free speech online, and intellectual property rights.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q6",
+      "text": "What is the main purpose of eff.org?",
+      "rationale": "This tests the model's understanding of the business's mission."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "The Electronic Frontier Foundation (EFF) is a nonprofit organization dedicated to defending civil liberties in the digital world. Its main purposes include:\n\n1. **Protecting digital privacy** - Fighting against mass surveillance and advocating for strong encryption and data protection\n\n2. **Defending free speech online** - Protecting freedom of expression on the internet\n\n3. **Promoting innovation** - Opposing overly restrictive intellectual property laws and supporting fair use\n\n4. **Ensuring security** - Advocating for better cybersecurity practices and the right to security research\n\n5. **Government transparency** - Using litigation and public records requests to expose government overreach\n\nThe EFF works through litigation, policy analysis, grassroots activism, and technology development to ensure that rights and freedoms are protected as technology advances. They're known for taking on cases involving digital rights, often representing individuals against government agencies or large corporations.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q6",
+      "text": "What is the main purpose of eff.org?",
+      "rationale": "This tests the model's understanding of the business's mission."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "The main purpose of **eff.org** (the website of the Electronic Frontier Foundation) is to **defend civil liberties in the digital world.**\n\nMore specifically, it aims to:\n\n*   **Protect online privacy:** Advocating against government surveillance and corporate data collection.\n*   **Defend free speech:** Ensuring individuals can express themselves freely online without undue censorship or legal threats.\n*   **Promote innovation:** Fighting against policies that stifle technological development and creativity.\n*   **Advocate for an open internet:** Working to prevent censorship, net neutrality violations, and other restrictions on internet access and use.\n*   **Educate the public:** Providing resources, analysis, and news on digital rights issues.\n*   **Engage in litigation:** Taking legal action to challenge laws and practices that infringe on digital rights.\n\nIn essence, EFF.org serves as a hub for their work in **advocating for and defending the rights of users, innovators, and speakers in the digital age.**",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q6",
+      "text": "What is the main purpose of eff.org?",
+      "rationale": "This tests the model's understanding of the business's mission."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "The main purpose of **EFF.org**, the website of the Electronic Frontier Foundation, is to defend civil liberties in the digital world—especially **online privacy, free expression, and technological innovation**. EFF pursues this through litigation, policy advocacy, activism, public education, and technology development.[1][6]",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q7",
+      "text": "Does eff.org have a physical location?",
+      "rationale": "This probes the model's ability to identify the business type."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "Yes, the Electronic Frontier Foundation (EFF) has a physical location. Their main office is located in San Francisco, California. However, it's always a good idea to check their official website or contact them directly for the most current information regarding their location or any potential changes.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q7",
+      "text": "Does eff.org have a physical location?",
+      "rationale": "This probes the model's ability to identify the business type."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "Yes, EFF (Electronic Frontier Foundation) has a physical office location in San Francisco, California. Their headquarters is located at:\n\n**815 Eddy Street**\n**San Francisco, CA 94109**\n\nThey've been based in San Francisco since their founding in 1990. This is their main office where staff work on digital rights issues, though like many organizations, they also support remote work.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q7",
+      "text": "Does eff.org have a physical location?",
+      "rationale": "This probes the model's ability to identify the business type."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Yes, the Electronic Frontier Foundation (EFF), which operates eff.org, has a physical headquarters.\n\nTheir main office is located in:\n**San Francisco, California**\n\nSpecifically, their address is:\n815 Eddy Street\nSan Francisco, CA 94109\n\nLike many non-profit organizations, while their work is heavily focused on digital rights and their website (eff.org) is their primary online presence, they maintain a physical office for staff, operations, and administrative functions.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q7",
+      "text": "Does eff.org have a physical location?",
+      "rationale": "This probes the model's ability to identify the business type."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Yes. **EFF (Electronic Frontier Foundation) has a physical headquarters** at:\n\n**815 Eddy Street**  \n**San Francisco, CA 94109, USA**  \nPhone: **+1-415-436-9333**[1]\n\nFor visits or correspondence, contact EFF first using the details on its contact page, since the address may not function as a public walk-in office.[1]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q8",
+      "text": "Can I purchase something from eff.org?",
+      "rationale": "This tests the model's understanding of the business's offerings."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "The Electronic Frontier Foundation (EFF) primarily focuses on digital rights advocacy and does not operate as a traditional online store. However, they do offer merchandise such as T-shirts, stickers, and other items through their online shop to help support their mission. You can visit their website at eff.org and look for a link to their shop if you're interested in purchasing something. Keep in mind that buying merchandise from EFF is a way to support their work in defending civil liberties in the digital world.",
+      "score": 44,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=44/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=false; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q8",
+      "text": "Can I purchase something from eff.org?",
+      "rationale": "This tests the model's understanding of the business's offerings."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "No, you cannot purchase products from eff.org in a traditional retail sense. The Electronic Frontier Foundation (EFF) is a nonprofit digital rights organization, not a store.\n\nHowever, you can:\n\n1. **Make donations** to support their work defending civil liberties in the digital world\n2. **Become a member** through various membership levels\n3. **Buy merchandise** from their shop (t-shirts, stickers, etc.) - proceeds support their mission\n4. **Purchase items from their \"shop\"** section if they have one, which typically features branded goods\n\nIf you're looking to support EFF or get some of their merchandise, visit their website and look for \"Donate,\" \"Join,\" or \"Shop\" sections. But they're primarily focused on advocacy, legal work, and technology projects rather than selling products.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q8",
+      "text": "Can I purchase something from eff.org?",
+      "rationale": "This tests the model's understanding of the business's offerings."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "Yes, you can support the Electronic Frontier Foundation (EFF) through their website, though it's not a traditional retail store.\n\nAs a non",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": true,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=CORRECT; domain_named=false; url_referenced=false; context_relevant=false; no_competitor_first=true; truncated=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q8",
+      "text": "Can I purchase something from eff.org?",
+      "rationale": "This tests the model's understanding of the business's offerings."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "Yes. EFF operates an online shop where you can purchase items such as T-shirts, stickers, accessories, books, mugs, and membership gift certificates.[1][4]\n\nSome products may be sold out, and shipping times vary—up to 2–4 weeks for small U.S. items and up to 8 weeks for international orders.[8]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=WRONG; misidentified=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q9",
+      "text": "Is eff.org a software company?",
+      "rationale": "This probes the model's ability to identify the business type."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "No, eff.org is not a software company. It is the website for the Electronic Frontier Foundation (EFF), which is a nonprofit organization focused on defending civil liberties in the digital world. The EFF works on issues related to privacy, free expression, and innovation through advocacy, litigation, and education. While the EFF does develop some software tools to help protect privacy and security online, its primary mission is advocacy and legal work rather than software development.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q9",
+      "text": "Is eff.org a software company?",
+      "rationale": "This probes the model's ability to identify the business type."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "No, EFF.org (the Electronic Frontier Foundation) is not a software company. It's a **nonprofit digital rights organization** founded in 1990.\n\nThe EFF focuses on:\n- Defending civil liberties in the digital world\n- Fighting for privacy, free speech, and innovation\n- Challenging government surveillance and censorship\n- Advocating for user rights and digital freedoms\n\nWhile they do create some software tools (like Privacy Badger, HTTPS Everywhere, and Certbot) to support their mission, software development is not their primary purpose. These tools are released as free, open-source projects to help protect internet users' privacy and security.\n\nTheir main work involves legal advocacy, policy analysis, activism, and public education around digital rights issues.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q9",
+      "text": "Is eff.org a software company?",
+      "rationale": "This probes the model's ability to identify the business type."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "No, **eff.org (the Electronic Frontier Foundation)** is not a software company.\n\nIt is a **non-profit digital rights advocacy organization**.\n\nWhile the EFF does develop and promote some software tools (like Privacy Badger and previously HTTPS Everywhere) to further its mission of protecting civil liberties in the digital world, its primary purpose is legal advocacy, policy work, public education, and defending digital rights, not the commercial development or sale of software. Their software tools are typically free and open-source, offered as a public service.",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q9",
+      "text": "Is eff.org a software company?",
+      "rationale": "This probes the model's ability to identify the business type."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "No. **eff.org is the website of the Electronic Frontier Foundation (EFF), a U.S. 501(c)(3) nonprofit digital-rights organization**, not a software company.[3][4]\n\nEFF does develop free, open-source tools such as Certbot and Privacy Badger, but software development supports its mission of protecting privacy, free expression, and civil liberties.[2][5]",
+      "score": 67,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=67/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=false; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q10",
+      "text": "What is the URL of eff.org's homepage?",
+      "rationale": "This tests the model's ability to provide a factual answer."
+    },
+    "modelId": "openai:gpt-4o",
+    "result": {
+      "text": "The URL of the Electronic Frontier Foundation's homepage is https://www.eff.org.",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=WRONG; misidentified=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q10",
+      "text": "What is the URL of eff.org's homepage?",
+      "rationale": "This tests the model's ability to provide a factual answer."
+    },
+    "modelId": "anthropic:claude-sonnet",
+    "result": {
+      "text": "The URL of EFF.org's homepage is:\n\n**https://www.eff.org/**\n\nEFF stands for the Electronic Frontier Foundation, a nonprofit organization that defends civil liberties in the digital world.",
+      "score": 100,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=100/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=true; context_relevant=true; no_competitor_first=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q10",
+      "text": "What is the URL of eff.org's homepage?",
+      "rationale": "This tests the model's ability to provide a factual answer."
+    },
+    "modelId": "google:gemini-2.5-flash",
+    "result": {
+      "text": "The URL of eff.org's homepage is simply: **https://www.eff.org**",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true"
+    }
+  },
+  {
+    "query": {
+      "id": "q10",
+      "text": "What is the URL of eff.org's homepage?",
+      "rationale": "This tests the model's ability to provide a factual answer."
+    },
+    "modelId": "perplexity:sonar",
+    "result": {
+      "text": "https://www.eff.org/[1]",
+      "score": 0,
+      "unmeasurable": false,
+      "truncated": false,
+      "notes": "score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true"
+    }
+  }
+]

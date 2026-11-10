@@ -1,0 +1,454 @@
+{
+  "scan": {
+    "id": "bf42d6a0-91c6-4b01-98a8-34eb3950e0ed",
+    "url": "https://www.eff.org/",
+    "composite": {
+      "score": 50,
+      "grade": "D"
+    },
+    "dimensions": [
+      {
+        "dimension_id": 1,
+        "dimension_name": "llms.txt Quality",
+        "score": 77,
+        "grade": "B",
+        "sub_checks": [
+          {
+            "id": "presence",
+            "name": "Presence",
+            "weight": 25,
+            "score": 100,
+            "passed": true,
+            "evidence": {
+              "status": 200,
+              "content_type": "text/plain",
+              "parsed": false,
+              "requested_url": "https://www.eff.org/llms.txt",
+              "final_url": "https://www.eff.org/llms.txt",
+              "body_complete": true,
+              "truncated": false
+            },
+            "notes": "status=200, content-type=\"text/plain\""
+          },
+          {
+            "id": "spec_compliance",
+            "name": "Spec compliance (H1 + blockquote)",
+            "weight": 25,
+            "score": 100,
+            "passed": true,
+            "notes": "h1=yes, blockquote=yes"
+          },
+          {
+            "id": "linked_pages_quality",
+            "name": "Linked pages return useful markdown",
+            "weight": 20,
+            "score": 0,
+            "passed": false,
+            "notes": "0/5 sampled links return markdown-ish content"
+          },
+          {
+            "id": "curation_quality",
+            "name": "Curation quality",
+            "weight": 15,
+            "score": 80,
+            "passed": true,
+            "notes": "links contain query strings"
+          },
+          {
+            "id": "blockquote_eval",
+            "name": "Blockquote elevator-pitch quality",
+            "weight": 15,
+            "score": 100,
+            "passed": true,
+            "notes": "2 of 2 blockquote rules met: one paragraph (yes); 10 to 100 words (yes, 42 words)."
+          }
+        ]
+      },
+      {
+        "dimension_id": 2,
+        "dimension_name": "MCP Server Discoverability",
+        "score": 0,
+        "grade": "F",
+        "sub_checks": [
+          {
+            "id": "well_known",
+            "name": "Well-known discovery (mcp.json / server-card.json)",
+            "weight": 30,
+            "score": 0,
+            "passed": false,
+            "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored.",
+            "evidence": {
+              "status": null,
+              "content_type": "",
+              "parsed": false,
+              "card_absent_proven": true
+            },
+            "na": true
+          },
+          {
+            "id": "tool_coverage",
+            "name": "Tool coverage and quality",
+            "weight": 20,
+            "score": 0,
+            "passed": false,
+            "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored.",
+            "na": true
+          },
+          {
+            "id": "oauth_metadata",
+            "name": "OAuth metadata (when auth declared)",
+            "weight": 15,
+            "score": 0,
+            "passed": false,
+            "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored.",
+            "na": true
+          },
+          {
+            "id": "live_invocation",
+            "name": "Live MCP tools/list invocation",
+            "weight": 25,
+            "score": 0,
+            "passed": false,
+            "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored.",
+            "na": true
+          },
+          {
+            "id": "dns_txt",
+            "name": "DNS TXT discovery (_mcp subdomain)",
+            "weight": 10,
+            "score": 0,
+            "passed": false,
+            "notes": "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored.",
+            "na": true
+          }
+        ],
+        "na": true
+      },
+      {
+        "dimension_id": 3,
+        "dimension_name": "OpenAPI / API Catalog",
+        "score": 0,
+        "grade": "F",
+        "sub_checks": [
+          {
+            "id": "discovery",
+            "name": "discovery",
+            "weight": 1,
+            "score": 0,
+            "passed": false,
+            "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. This dimension is not counted in your score.",
+            "na": true
+          },
+          {
+            "id": "spec_validity",
+            "name": "spec_validity",
+            "weight": 1,
+            "score": 0,
+            "passed": false,
+            "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. This dimension is not counted in your score.",
+            "na": true
+          },
+          {
+            "id": "info_completeness",
+            "name": "info_completeness",
+            "weight": 1,
+            "score": 0,
+            "passed": false,
+            "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. This dimension is not counted in your score.",
+            "na": true
+          },
+          {
+            "id": "security_schemes",
+            "name": "security_schemes",
+            "weight": 1,
+            "score": 0,
+            "passed": false,
+            "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. This dimension is not counted in your score.",
+            "na": true
+          },
+          {
+            "id": "operation_coverage",
+            "name": "operation_coverage",
+            "weight": 1,
+            "score": 0,
+            "passed": false,
+            "notes": "No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link), and no other API evidence was detected. This dimension is not counted in your score.",
+            "na": true
+          }
+        ],
+        "na": true
+      },
+      {
+        "dimension_id": 4,
+        "dimension_name": "Structured Capability Data",
+        "score": 0,
+        "grade": "F",
+        "sub_checks": [
+          {
+            "id": "json_ld_present",
+            "name": "JSON-LD present on homepage",
+            "weight": 25,
+            "score": 0,
+            "passed": false,
+            "notes": "no JSON-LD found on homepage",
+            "evidence": {
+              "status": 200,
+              "content_type": "text/html; charset=utf-8",
+              "parsed": true,
+              "requested_url": "https://www.eff.org/",
+              "final_url": "https://www.eff.org/",
+              "body_complete": true,
+              "truncated": false,
+              "ld_json_absent_proven": true
+            }
+          },
+          {
+            "id": "organization_schema",
+            "name": "Organization schema completeness",
+            "weight": 20,
+            "score": 0,
+            "passed": false,
+            "notes": "no Organization schema",
+            "evidence": {
+              "status": 200,
+              "content_type": "text/html; charset=utf-8",
+              "parsed": true,
+              "requested_url": "https://www.eff.org/",
+              "final_url": "https://www.eff.org/",
+              "body_complete": true,
+              "truncated": false,
+              "ld_json_absent_proven": true
+            }
+          },
+          {
+            "id": "service_offer_schema",
+            "name": "Service / Product / Offer schema",
+            "weight": 20,
+            "score": 0,
+            "passed": false,
+            "notes": "We found no product pages, no prices on the homepage and no pricing page, so this check is not counted in your score.",
+            "na": true,
+            "evidence": {
+              "status": 200,
+              "content_type": "text/html; charset=utf-8",
+              "parsed": true,
+              "requested_url": "https://www.eff.org/",
+              "final_url": "https://www.eff.org/",
+              "body_complete": true,
+              "truncated": false,
+              "ld_json_absent_proven": true
+            }
+          },
+          {
+            "id": "faq_schema",
+            "name": "FAQPage schema",
+            "weight": 20,
+            "score": 0,
+            "passed": false,
+            "notes": "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. This check is not counted in your score.",
+            "na": true,
+            "evidence": {
+              "status": 200,
+              "content_type": "text/html; charset=utf-8",
+              "parsed": true,
+              "requested_url": "https://www.eff.org/",
+              "final_url": "https://www.eff.org/",
+              "body_complete": true,
+              "truncated": false,
+              "ld_json_absent_proven": true
+            }
+          },
+          {
+            "id": "review_schema",
+            "name": "Review / AggregateRating schema",
+            "weight": 15,
+            "score": 0,
+            "passed": false,
+            "notes": "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. This check is not counted in your score.",
+            "na": true,
+            "evidence": {
+              "status": 200,
+              "content_type": "text/html; charset=utf-8",
+              "parsed": true,
+              "requested_url": "https://www.eff.org/",
+              "final_url": "https://www.eff.org/",
+              "body_complete": true,
+              "truncated": false,
+              "ld_json_absent_proven": true
+            }
+          }
+        ]
+      },
+      {
+        "dimension_id": 5,
+        "dimension_name": "Agent-Parsable Content",
+        "score": 100,
+        "grade": "A",
+        "sub_checks": [
+          {
+            "id": "js_vs_no_js_render_diff",
+            "name": "JS-vs-no-JS render diff",
+            "weight": 30,
+            "score": 100,
+            "passed": true,
+            "notes": "About 100% of the distinct words on your homepage appear in both the HTML your server sends and the page after JavaScript runs."
+          },
+          {
+            "id": "page_weight_lcp",
+            "name": "Page weight",
+            "weight": 15,
+            "score": 100,
+            "passed": true,
+            "notes": "Homepage HTML size: 0.01 MB (14421 bytes). This check looks at page size only; it does not measure loading speed."
+          },
+          {
+            "id": "markdown_negotiation",
+            "name": "Markdown content negotiation",
+            "weight": 25,
+            "score": 0,
+            "passed": false,
+            "notes": "We found no Markdown version at the addresses we checked (https://www.eff.org/index.md and an Accept: text/markdown request to the homepage). Agents read the HTML instead. Informational only: serving Markdown is an emerging convention most hosts don't support yet, so this is not scored.",
+            "na": true
+          },
+          {
+            "id": "pricing_text_visibility",
+            "name": "Pricing text visibility",
+            "weight": 20,
+            "score": 0,
+            "passed": false,
+            "notes": "Not measured: we found no pricing page to check, and no prices on the homepage or on the 3 page(s) it links to that we sampled. This check is not counted in your score.",
+            "na": true
+          },
+          {
+            "id": "case_study_scannability",
+            "name": "Case-study scannability",
+            "weight": 10,
+            "score": 0,
+            "passed": false,
+            "notes": "No case-study or portfolio page detected (homepage links such as /case-studies, /customers, /work, /portfolio, /casos or /projetos, and the /case-studies, /customers, /success-stories, /work and /portfolio paths). This check is not counted in your score.",
+            "na": true
+          }
+        ]
+      },
+      {
+        "dimension_id": 6,
+        "dimension_name": "Citation Visibility",
+        "score": 42,
+        "grade": "D",
+        "sub_checks": [
+          {
+            "id": "citation_domain_named_rate",
+            "name": "Models name your domain",
+            "weight": 40,
+            "score": 63,
+            "passed": false,
+            "notes": "63% of scored test answers named your domain and matched how your site describes itself. Of the 40 scored answers, 36 matched how your site describes itself, 2 described a different person or business than your site says it is, 2 did not say enough to check, and 0 did not show that the model knew your site. 40 of 40 test answers could be scored, across 4 AI models. Average by model: ChatGPT 38, Claude 37, Gemini 54, Perplexity 40."
+          },
+          {
+            "id": "citation_url_referenced_rate",
+            "name": "Models cite your URL",
+            "weight": 30,
+            "score": 3,
+            "passed": false,
+            "notes": "3% of scored test answers matched how your site describes itself and included at least one link to it."
+          },
+          {
+            "id": "citation_context_relevant_rate",
+            "name": "Models treat your domain as the principal answer",
+            "weight": 20,
+            "score": 60,
+            "passed": false,
+            "notes": "60% of scored test answers matched how your site describes itself and put your domain in the first half of the answer, rather than only mentioning it at the end."
+          },
+          {
+            "id": "citation_no_competitor_first_rate",
+            "name": "Competitor-first check (not measured)",
+            "weight": 10,
+            "score": 0,
+            "passed": false,
+            "notes": "Not measured: this Audit doesn't take a competitor list yet, so there is nothing to compare against. This check is not counted in your score.",
+            "na": true
+          },
+          {
+            "id": "citation_misidentified_answers",
+            "name": "Answers that described a different person or business than your site says it is",
+            "weight": 0,
+            "score": 0,
+            "passed": false,
+            "notes": "2 of the 40 scored answers mixed up your site with a different person or business than your site says it is; they count as 0 in the checks above. Examples of what the AI said: Perplexity: \"Yes. EFF operates an online shop where you can purchase items such as T-shirts, stickers, accessories, books, mugs, and membership gift certificates. Some products may…\"; ChatGPT: \"The URL of the Electronic Frontier Foundation's homepage is https://www.eff.org.\". Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score.",
+            "na": true
+          }
+        ]
+      }
+    ],
+    "dimensions_scored": 6,
+    "dimensions_total": 6,
+    "dimensions_applicable": 4,
+    "created_at": 1794348473902,
+    "scoring_version": "1.5.1",
+    "tier": "paid"
+  },
+  "gaps": [
+    {
+      "dimension_id": 4,
+      "dimension_name": "Structured Capability Data",
+      "check_id": "json_ld_present",
+      "check_name": "JSON-LD present on homepage",
+      "weight": 25,
+      "score": 0,
+      "notes": "no JSON-LD found on homepage",
+      "remediation": "Your homepage has no JSON-LD structured data. Add a script block of type application/ld+json to the homepage that describes your business with schema.org Organization, or a more specific type such as LocalBusiness, ProfessionalService or Store, giving its name, url and description. Use only facts your site already states. Estimated effort: 1 to 2 hours."
+    },
+    {
+      "dimension_id": 4,
+      "dimension_name": "Structured Capability Data",
+      "check_id": "organization_schema",
+      "check_name": "Organization schema completeness",
+      "weight": 20,
+      "score": 0,
+      "notes": "no Organization schema",
+      "remediation": "Your homepage has no Organization structured data. Add an Organization block (or a more specific type such as LocalBusiness or ProfessionalService) in JSON-LD with your business's name, url and description; it can be the same block suggested under JSON-LD present. Estimated effort: 30 minutes to 1 hour."
+    },
+    {
+      "dimension_id": 6,
+      "dimension_name": "Citation Visibility",
+      "check_id": "citation_url_referenced_rate",
+      "check_name": "Models cite your URL",
+      "weight": 30,
+      "score": 3,
+      "notes": "3% of scored test answers matched how your site describes itself and included at least one link to it.",
+      "remediation": "You cannot edit ChatGPT, Claude, Gemini or Perplexity directly, so there is no setting that makes them link to your site. What can help is having pages worth citing: one clear page for each thing you offer, each at a single stable address with a canonical URL, that answers the question in plain text near the top. Links to those pages from independent sources, such as directories, press coverage and industry lists, can also help, because these models draw on what other sites say. Estimated effort: 2 to 4 hours."
+    },
+    {
+      "dimension_id": 6,
+      "dimension_name": "Citation Visibility",
+      "check_id": "citation_domain_named_rate",
+      "check_name": "Models name your domain",
+      "weight": 40,
+      "score": 63,
+      "notes": "63% of scored test answers named your domain and matched how your site describes itself. Of the 40 scored answers, 36 matched how your site describes itself, 2 described a different person or business than your site says it is, 2 did not say enough to check, and 0 did not show that the model knew your site. 40 of 40 test answers could be scored, across 4 AI models. Average by model: ChatGPT 38, Claude 37, Gemini 54, Perplexity 40.",
+      "remediation": "You cannot edit ChatGPT, Claude, Gemini or Perplexity directly, so there is no setting to change here. What can help these models name your business is clear content on your own site that says who you are, what you do and who you serve, using your business name and domain; Organization or LocalBusiness structured data on your homepage; the same business name, address and description everywhere you are listed; and mentions on independent sources these models read, such as directories, press coverage, industry lists and reviews on third-party platforms. Estimated effort: 4+ hours."
+    },
+    {
+      "dimension_id": 1,
+      "dimension_name": "llms.txt Quality",
+      "check_id": "linked_pages_quality",
+      "check_name": "Linked pages return useful markdown",
+      "weight": 20,
+      "score": 0,
+      "notes": "0/5 sampled links return markdown-ish content",
+      "remediation": "0 of the 5 links we sampled from https://www.eff.org/llms.txt returned Markdown or plain text; the others returned HTML or an error. If your platform can publish a clean Markdown version of each linked page (the llmstxt.org proposal suggests the page address with .md added), point the links at those versions. If it can't, the links still work as normal web pages and this check can stay below passing. Estimated effort: 2 to 8 hours, depending on your platform."
+    },
+    {
+      "dimension_id": 6,
+      "dimension_name": "Citation Visibility",
+      "check_id": "citation_context_relevant_rate",
+      "check_name": "Models treat your domain as the principal answer",
+      "weight": 20,
+      "score": 60,
+      "notes": "60% of scored test answers matched how your site describes itself and put your domain in the first half of the answer, rather than only mentioning it at the end.",
+      "remediation": "You cannot edit ChatGPT, Claude, Gemini or Perplexity directly. What can help them present your business as a main answer rather than a passing mention is stating plainly, near the top of your homepage and key pages, who you are, what you do and who you serve, with your business name and domain; structured data (such as Organization or LocalBusiness) that says the same thing; and the same description of your business on the third-party sites that list you. Estimated effort: 2 to 4 hours."
+    }
+  ],
+  "engine_version": "v10"
+}

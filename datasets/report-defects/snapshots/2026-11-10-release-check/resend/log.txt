@@ -1,0 +1,43 @@
+[error] [dim6/question-set] store_unavailable on read; generating unstored. D1_ERROR: no such table: dim6_question_set (harness stub = prod pre-migration fail-open)
+[log] [dim6/promptset] generated 10/10 valid queries on first attempt
+[log] [dim6] cache=miss model=openai:gpt-4o hash=5e543271fe3c
+[log] [dim6] cache=miss model=anthropic:claude-sonnet hash=5e543271fe3c
+[log] [dim6] cache=miss model=google:gemini-2.5-flash hash=5e543271fe3c
+[log] [dim6] cache=miss model=perplexity:sonar hash=5e543271fe3c
+[log] [dim6] cache=miss model=openai:gpt-4o hash=5a27230a47bf
+[log] [dim6] cache=miss model=anthropic:claude-sonnet hash=5a27230a47bf
+[log] [dim6] cache=miss model=google:gemini-2.5-flash hash=5a27230a47bf
+[log] [dim6] cache=miss model=perplexity:sonar hash=5a27230a47bf
+[log] [dim6] cache=miss model=openai:gpt-4o hash=a5b62c06f6ba
+[log] [dim6] cache=miss model=anthropic:claude-sonnet hash=a5b62c06f6ba
+[log] [dim6] retry=validator model=openai:gpt-4o reason="your response begins with a refusal pattern (e.g. 'I can't help with...' or 'I'm"
+[log] [dim6] cache=miss model=google:gemini-2.5-flash hash=a5b62c06f6ba
+[log] [dim6] cache=miss model=openai:gpt-4o hash=d1c1affd5d8c
+[log] [dim6] cache=miss model=perplexity:sonar hash=a5b62c06f6ba
+[log] [dim6] cache=miss model=anthropic:claude-sonnet hash=d1c1affd5d8c
+[log] [dim6] cache=miss model=google:gemini-2.5-flash hash=d1c1affd5d8c
+[log] [dim6] cache=miss model=perplexity:sonar hash=d1c1affd5d8c
+[log] [dim6] cache=miss model=openai:gpt-4o hash=be423fb7a23a
+[log] [dim6] cache=miss model=anthropic:claude-sonnet hash=be423fb7a23a
+[log] [dim6] cache=miss model=google:gemini-2.5-flash hash=be423fb7a23a
+[log] [dim6] cache=miss model=perplexity:sonar hash=be423fb7a23a
+[log] [dim6] cache=miss model=openai:gpt-4o hash=9b6d3cd9d58c
+[log] [dim6] cache=miss model=anthropic:claude-sonnet hash=9b6d3cd9d58c
+[log] [dim6] cache=miss model=google:gemini-2.5-flash hash=9b6d3cd9d58c
+[log] [dim6] cache=miss model=perplexity:sonar hash=9b6d3cd9d58c
+[log] [dim6] cache=miss model=openai:gpt-4o hash=39462e063f7b
+[log] [dim6] cache=miss model=anthropic:claude-sonnet hash=39462e063f7b
+[log] [dim6] cache=miss model=google:gemini-2.5-flash hash=39462e063f7b
+[log] [dim6] cache=miss model=perplexity:sonar hash=39462e063f7b
+[log] [dim6] cache=miss model=openai:gpt-4o hash=93a8bd2bf20d
+[log] [dim6] cache=miss model=anthropic:claude-sonnet hash=93a8bd2bf20d
+[log] [dim6] cache=miss model=perplexity:sonar hash=93a8bd2bf20d
+[log] [dim6] cache=miss model=google:gemini-2.5-flash hash=93a8bd2bf20d
+[log] [dim6] cache=miss model=openai:gpt-4o hash=2918d510fefa
+[log] [dim6] cache=miss model=google:gemini-2.5-flash hash=2918d510fefa
+[log] [dim6] cache=miss model=anthropic:claude-sonnet hash=2918d510fefa
+[log] [dim6] cache=miss model=perplexity:sonar hash=2918d510fefa
+[log] [dim6] cache=miss model=openai:gpt-4o hash=0567933578f2
+[log] [dim6] cache=miss model=anthropic:claude-sonnet hash=0567933578f2
+[log] [dim6] cache=miss model=google:gemini-2.5-flash hash=0567933578f2
+[log] [dim6] cache=miss model=perplexity:sonar hash=0567933578f2

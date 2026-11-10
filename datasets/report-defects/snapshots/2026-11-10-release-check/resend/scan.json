@@ -1,0 +1,337 @@
+{
+  "id": "232751bc-161c-446f-a092-fc2fee52e205",
+  "url": "https://resend.com/",
+  "composite": {
+    "score": 95,
+    "grade": "A"
+  },
+  "dimensions": [
+    {
+      "dimension_id": 1,
+      "dimension_name": "llms.txt Quality",
+      "score": 96,
+      "grade": "A",
+      "sub_checks": [
+        {
+          "id": "presence",
+          "name": "Presence",
+          "weight": 25,
+          "score": 100,
+          "passed": true,
+          "evidence": {
+            "status": 200,
+            "content_type": "text/plain; charset=utf-8",
+            "parsed": false,
+            "requested_url": "https://resend.com/llms.txt",
+            "final_url": "https://resend.com/llms.txt",
+            "body_complete": true,
+            "truncated": false
+          },
+          "notes": "status=200, content-type=\"text/plain; charset=utf-8\""
+        },
+        {
+          "id": "spec_compliance",
+          "name": "Spec compliance (H1 + blockquote)",
+          "weight": 25,
+          "score": 100,
+          "passed": true,
+          "notes": "h1=yes, blockquote=yes"
+        },
+        {
+          "id": "linked_pages_quality",
+          "name": "Linked pages return useful markdown",
+          "weight": 20,
+          "score": 80,
+          "passed": true,
+          "notes": "4/5 sampled links return markdown-ish content"
+        },
+        {
+          "id": "curation_quality",
+          "name": "Curation quality",
+          "weight": 15,
+          "score": 100,
+          "passed": true,
+          "notes": "clean link list"
+        },
+        {
+          "id": "blockquote_eval",
+          "name": "Blockquote elevator-pitch quality",
+          "weight": 15,
+          "score": 100,
+          "passed": true,
+          "notes": "2 of 2 blockquote rules met: one paragraph (yes); 10 to 100 words (yes, 19 words)."
+        }
+      ]
+    },
+    {
+      "dimension_id": 2,
+      "dimension_name": "MCP Server Discoverability",
+      "score": 86,
+      "grade": "A-",
+      "sub_checks": [
+        {
+          "id": "well_known",
+          "name": "Well-known discovery (mcp.json / server-card.json)",
+          "weight": 30,
+          "score": 100,
+          "passed": true,
+          "notes": "valid card at /.well-known/mcp.json with name=\"Resend\", transports=1"
+        },
+        {
+          "id": "tool_coverage",
+          "name": "Tool coverage and quality",
+          "weight": 20,
+          "score": 70,
+          "passed": true,
+          "notes": "12 tool(s) declared: 12 with a description, 0 with an input schema (inputSchema); 0 have both"
+        },
+        {
+          "id": "oauth_metadata",
+          "name": "OAuth metadata (when auth declared)",
+          "weight": 15,
+          "score": 100,
+          "passed": true,
+          "notes": "auth=oauth2; OAuth metadata valid"
+        },
+        {
+          "id": "live_invocation",
+          "name": "Live MCP tools/list invocation",
+          "weight": 25,
+          "score": 75,
+          "passed": true,
+          "notes": "The MCP endpoint at https://mcp.resend.com/mcp answered and requires OAuth sign-in (HTTP 401 with a Bearer challenge), so its tools could not be listed without an account."
+        },
+        {
+          "id": "dns_txt",
+          "name": "DNS TXT discovery (_mcp subdomain)",
+          "weight": 10,
+          "score": 0,
+          "passed": false,
+          "notes": "No TXT record at _mcp.resend.com. Informational only: no ratified standard defines an _mcp DNS record, so this is not scored.",
+          "na": true
+        }
+      ]
+    },
+    {
+      "dimension_id": 3,
+      "dimension_name": "OpenAPI / API Catalog",
+      "score": 100,
+      "grade": "A",
+      "sub_checks": [
+        {
+          "id": "discovery",
+          "name": "API spec discovery",
+          "weight": 25,
+          "score": 100,
+          "passed": true,
+          "notes": "Found via well-known /.well-known/api-catalog at https://resend.com/openapi.yaml (content-type=text/yaml; charset=utf-8). Read through the API catalog at https://resend.com/.well-known/api-catalog (its service-desc link)."
+        },
+        {
+          "id": "spec_validity",
+          "name": "Spec validity (parses + has version field)",
+          "weight": 25,
+          "score": 100,
+          "passed": true,
+          "notes": "Valid YAML spec, openapi 3.0.3."
+        },
+        {
+          "id": "info_completeness",
+          "name": "Spec info completeness (title + version + description)",
+          "weight": 15,
+          "score": 100,
+          "passed": true,
+          "notes": "info: title=yes, version=yes, description=yes (3/3)"
+        },
+        {
+          "id": "security_schemes",
+          "name": "Security schemes documented",
+          "weight": 15,
+          "score": 100,
+          "passed": true,
+          "notes": "components.securitySchemes declared: bearerAuth."
+        },
+        {
+          "id": "operation_coverage",
+          "name": "Operation coverage + per-operation docs",
+          "weight": 20,
+          "score": 100,
+          "passed": true,
+          "notes": "83 operation(s); 83/83 have a summary or description. (count=100, doc=100)"
+        }
+      ]
+    },
+    {
+      "dimension_id": 4,
+      "dimension_name": "Structured Capability Data",
+      "score": 100,
+      "grade": "A",
+      "sub_checks": [
+        {
+          "id": "json_ld_present",
+          "name": "JSON-LD present on homepage",
+          "weight": 25,
+          "score": 100,
+          "passed": true,
+          "notes": "1 valid JSON-LD block(s) on homepage",
+          "evidence": {
+            "status": 200,
+            "content_type": "text/html; charset=utf-8",
+            "parsed": true,
+            "requested_url": "https://resend.com/",
+            "final_url": "https://resend.com/",
+            "body_complete": true,
+            "truncated": false,
+            "ld_json_absent_proven": false
+          }
+        },
+        {
+          "id": "organization_schema",
+          "name": "Organization schema completeness",
+          "weight": 20,
+          "score": 100,
+          "passed": true,
+          "notes": "Organization found: name=true, url=true, description=true, sameAs=8; entry=Organization #organization",
+          "evidence": {
+            "status": 200,
+            "content_type": "text/html; charset=utf-8",
+            "parsed": true,
+            "requested_url": "https://resend.com/",
+            "final_url": "https://resend.com/",
+            "body_complete": true,
+            "truncated": false,
+            "ld_json_absent_proven": false
+          }
+        },
+        {
+          "id": "service_offer_schema",
+          "name": "Service / Product / Offer schema",
+          "weight": 20,
+          "score": 100,
+          "passed": true,
+          "notes": "2 Service/Product/Offer block(s); best match has 3/3 required fields",
+          "evidence": {
+            "status": 200,
+            "content_type": "text/html; charset=utf-8",
+            "parsed": true,
+            "requested_url": "https://resend.com/",
+            "final_url": "https://resend.com/",
+            "body_complete": true,
+            "truncated": false,
+            "ld_json_absent_proven": false
+          }
+        },
+        {
+          "id": "faq_schema",
+          "name": "FAQPage schema",
+          "weight": 20,
+          "score": 0,
+          "passed": false,
+          "notes": "No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. This check is not counted in your score.",
+          "na": true,
+          "evidence": {
+            "status": 200,
+            "content_type": "text/html; charset=utf-8",
+            "parsed": true,
+            "requested_url": "https://resend.com/",
+            "final_url": "https://resend.com/",
+            "body_complete": true,
+            "truncated": false,
+            "ld_json_absent_proven": false
+          }
+        },
+        {
+          "id": "review_schema",
+          "name": "Review / AggregateRating schema",
+          "weight": 15,
+          "score": 0,
+          "passed": false,
+          "notes": "No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. This check is not counted in your score.",
+          "na": true,
+          "evidence": {
+            "status": 200,
+            "content_type": "text/html; charset=utf-8",
+            "parsed": true,
+            "requested_url": "https://resend.com/",
+            "final_url": "https://resend.com/",
+            "body_complete": true,
+            "truncated": false,
+            "ld_json_absent_proven": false
+          }
+        }
+      ]
+    },
+    {
+      "dimension_id": 5,
+      "dimension_name": "Agent-Parsable Content",
+      "score": 94,
+      "grade": "A",
+      "sub_checks": [
+        {
+          "id": "js_vs_no_js_render_diff",
+          "name": "JS-vs-no-JS render diff",
+          "weight": 30,
+          "score": 100,
+          "passed": true,
+          "notes": "About 97% of the distinct words on your homepage appear in both the HTML your server sends and the page after JavaScript runs."
+        },
+        {
+          "id": "page_weight_lcp",
+          "name": "Page weight",
+          "weight": 15,
+          "score": 100,
+          "passed": true,
+          "notes": "Homepage HTML size: 0.56 MB (583451 bytes). This check looks at page size only; it does not measure loading speed."
+        },
+        {
+          "id": "markdown_negotiation",
+          "name": "Markdown content negotiation",
+          "weight": 25,
+          "score": 0,
+          "passed": false,
+          "notes": "Accept: text/markdown returns text/markdown; charset=utf-8 (directly). Informational only: serving Markdown is an emerging convention most hosts don't support yet, so this is not scored.",
+          "na": true
+        },
+        {
+          "id": "pricing_text_visibility",
+          "name": "Pricing text visibility",
+          "weight": 20,
+          "score": 100,
+          "passed": true,
+          "notes": "Detected https://resend.com/pricing; 13 text-based price token(s); 7 with a billing period or marked one-time."
+        },
+        {
+          "id": "case_study_scannability",
+          "name": "Case-study scannability",
+          "weight": 10,
+          "score": 57,
+          "passed": false,
+          "notes": "Sampled 1 page(s); avg 57/100. https://resend.com/customers/gumroad → 57 (headings: no, lists: yes, bold text: yes). (A case study linked from the index page https://resend.com/customers.)"
+        }
+      ]
+    },
+    {
+      "dimension_id": 6,
+      "dimension_name": "Citation Visibility",
+      "score": 0,
+      "grade": "F",
+      "na": true,
+      "sub_checks": [
+        {
+          "id": "free_tier_dim6_preview",
+          "name": "Citation Visibility (free-tier preview)",
+          "weight": 1,
+          "score": 0,
+          "passed": false,
+          "notes": "Not measured in the free Score. The $79 Audit asks four AI models (OpenAI GPT-4o, Anthropic Claude, Google Gemini and Perplexity Sonar) about 10 questions each about your domain and checks whether each answer names and cites it. This dimension is not counted in your free score.",
+          "na": true
+        }
+      ]
+    }
+  ],
+  "dimensions_scored": 6,
+  "dimensions_total": 6,
+  "dimensions_applicable": 5,
+  "created_at": 1794348258737,
+  "scoring_version": "1.5.1",
+  "tier": "paid"
+}
