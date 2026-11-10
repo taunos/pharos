@@ -247,6 +247,39 @@ function findByType(blocks: unknown[], types: string | ReadonlySet<string>): Fou
   return found;
 }
 
+/**
+ * Note-only: how the Organization note names a JSON-LD entry: its @type (the
+ * first one in `types`, so always a known schema.org name) plus its @id when
+ * the @id is short and plain ("https://site/#clinica" shows as "#clinica").
+ * Site text with spaces, commas or semicolons is left out so the note stays
+ * parseable.
+ */
+export function ldEntryLabel(o: Record<string, unknown>, types: ReadonlySet<string>): string {
+  const type = typeNames(o["@type"]).find((n) => types.has(n)) ?? "Organization";
+  const raw = typeof o["@id"] === "string" ? o["@id"].trim() : "";
+  if (!/^[\p{L}\p{N}#:/._~%-]{1,200}$/u.test(raw)) return type;
+  const hash = raw.indexOf("#");
+  const id = hash >= 0 && hash < raw.length - 1 ? raw.slice(hash) : raw;
+  return id.length <= 80 ? `${type} ${id}` : type;
+}
+
+/** Note-only: the top-level entries of the blocks (each block, its array items and its @graph members). */
+function topLevelEntries(blocks: unknown[]): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = [];
+  const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+  for (const b of blocks) {
+    for (const x of Array.isArray(b) ? b : [b]) {
+      if (!isObj(x)) continue;
+      if (x["@type"] !== undefined) out.push(x);
+      const g = x["@graph"];
+      for (const y of Array.isArray(g) ? g : [g]) if (isObj(y)) out.push(y);
+    }
+  }
+  return out;
+}
+
+const PERSON_TYPES: ReadonlySet<string> = new Set(["Person"]);
+
 /** A number, or a string holding only a number ("4.8", "4,8", "12", "-1"); null otherwise. */
 function numberOf(v: unknown): number | null {
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
@@ -529,7 +562,30 @@ export async function runDim4(
     const hits = fields(o);
     const sameAs = Array.isArray(o.sameAs) ? o.sameAs : typeof o.sameAs === "string" && o.sameAs ? [o.sameAs] : [];
     orgScore = hits === 3 ? 100 : hits * 30;
-    orgNote = `Organization found: name=${!!o.name}, url=${!!o.url}, description=${!!o.description}, sameAs=${sameAs.length}`;
+    // The note's flags use the same non-empty-string test as the score.
+    const str = (v: unknown) => typeof v === "string" && !!v;
+    const hasDescription = str(o.description);
+    orgNote = `Organization found: name=${str(o.name)}, url=${str(o.url)}, description=${hasDescription}, sameAs=${sameAs.length}`;
+    // Note-only (scoring unchanged): name the entry that was read, and when it
+    // has no description, a top-level Person or other Organization entry that
+    // does (with its sameAs links when the read entry has none).
+    orgNote += `; entry=${ldEntryLabel(o, ORGANIZATION_TYPES)}`;
+    if (!hasDescription) {
+      const hasSameAs = (e: Record<string, unknown>) =>
+        (Array.isArray(e.sameAs) && e.sameAs.length > 0) || (typeof e.sameAs === "string" && !!e.sameAs);
+      const other = topLevelEntries(validBlocks).find(
+        (e) =>
+          e !== o &&
+          typeof e.description === "string" &&
+          !!e.description.trim() &&
+          typeNames(e["@type"]).some((n) => ORGANIZATION_TYPES.has(n) || PERSON_TYPES.has(n))
+      );
+      if (other) {
+        const kinds = typeNames(other["@type"]).some((n) => ORGANIZATION_TYPES.has(n)) ? ORGANIZATION_TYPES : PERSON_TYPES;
+        const fields = sameAs.length === 0 && hasSameAs(other) ? "description and sameAs" : "description";
+        orgNote += `; ${fields} present on ${ldEntryLabel(other, kinds)}`;
+      }
+    }
   }
   subs.push({
     id: "organization_schema",

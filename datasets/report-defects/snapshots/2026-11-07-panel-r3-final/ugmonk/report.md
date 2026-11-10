@@ -1,0 +1,134 @@
+> HARNESS NOTE: Dim 6 run with no provider keys (--dim6 off); production would carry a real Citation Visibility score.
+
+# Astrant · AEO Audit
+
+Generated 2026-11-07 21:05:36 UTC · session 50b331f2
+
+**https://ugmonk.com/**
+
+## 65 — grade C
+
+_Scored on 4 of 6 dimensions. Not applicable to this site: OpenAPI / API Catalog. Not measured on this run: Citation Visibility. Dimensions that were not scored are not counted in the score._
+
+## Executive summary
+
+Your site scored 65/100 (grade C) on the 4 of 6 dimensions we could score: some of the checks we ran passed, and several important ones did not.
+
+Citation Visibility, which tests what AI assistants say when asked about your site, was not measured on this run, so this score covers your site's own files and pages only.
+
+The weakest areas: we could not find or use an MCP server for your site (MCP Server Discoverability, 33/100); your llms.txt file passed only some of our checks (llms.txt Quality, 69/100); and your pages passed only some of our readability checks (Agent-Parsable Content, 73/100).
+
+What's working: the structured data (JSON-LD) on your homepage passed most of our checks.
+
+OpenAPI / API Catalog did not apply to this site, so it is not counted in your score.
+
+The "Prioritized gaps + remediation" section below lists each check that did not pass, with a suggested change, starting with the ones that cost the most points.
+
+## Dimension breakdown
+
+### llms.txt Quality — 69 C
+
+| Check | Score | Weight | Notes |
+|---|---|---|---|
+| Presence | 100/100 | 25% | status=200, content-type="text/markdown; charset=utf-8" |
+| Spec compliance (H1 + blockquote) | 50/100 | 25% | h1=yes, blockquote=no |
+| Linked pages return useful markdown | 80/100 | 20% | 4/5 sampled links return markdown-ish content |
+| Curation quality | 100/100 | 15% | clean link list |
+| Blockquote elevator-pitch quality (LLM) | 0/100 | 15% | no blockquote to evaluate |
+
+### MCP Server Discoverability — 33 F
+
+| Check | Score | Weight | Notes |
+|---|---|---|---|
+| Well-known discovery (mcp.json / server-card.json) | 0/100 | 30% | no card at /.well-known/mcp.json or /.well-known/mcp/server-card.json; an MCP server was found (an MCP endpoint answered at https://ugmonk.com/api/mcp) but it is not advertised with a server card |
+| Tool coverage and quality | 0/100 | 20% | no card or no tools declared |
+| OAuth metadata (when auth declared) · N/A | — | 15% | No MCP server card found, so there is no declared authentication to check. This check is not counted in your score. |
+| Live MCP tools/list invocation | 100/100 | 25% | tools/list returned 1 tools |
+| DNS TXT discovery (_mcp subdomain) · N/A | — | 10% | No TXT record at _mcp.ugmonk.com. Informational only: no ratified standard defines an _mcp DNS record, so this is not scored. |
+
+### OpenAPI / API Catalog — N/A (not applicable)
+
+No OpenAPI description or API catalog was found (checked /.well-known/api-catalog, /.well-known/openapi, /openapi.json|.yaml, /swagger.json, and homepage link). The site does show API evidence (a link to an MCP endpoint, https://ugmonk.com/api/ucp/mcp), so it is not a content-only site: this dimension is marked N/A because there is no OpenAPI description to check, not because there is no API.
+
+### Structured Capability Data — 88 A-
+
+| Check | Score | Weight | Notes |
+|---|---|---|---|
+| JSON-LD present on homepage | 100/100 | 25% | 1 valid JSON-LD block(s) on homepage |
+| Organization schema completeness | 60/100 | 20% | Organization found: name=true, url=true, description=false, sameAs=0 |
+| Service / Product / Offer schema | 100/100 | 20% | 9 Service/Product/Offer block(s); best match has 3/3 required fields (on the sampled product page https://ugmonk.com/products/analog-task-cards-small; none on the homepage) |
+| FAQPage schema (count + conversational LLM eval) · N/A | — | 20% | No FAQPage markup found. FAQ markup is optional: add it only for questions the site really answers. This check is not counted in your score. |
+| Review / AggregateRating schema · N/A | — | 15% | No Review or AggregateRating markup found. Ratings markup is optional: add it only for real, verifiable ratings, never invented ones. This check is not counted in your score. |
+
+### Agent-Parsable Content — 73 B
+
+| Check | Score | Weight | Notes |
+|---|---|---|---|
+| JS-vs-no-JS render diff | 100/100 | 30% | Static-vs-rendered token overlap 97%; rendered HTML 1.0x the size of static. |
+| Page weight | 100/100 | 15% | Homepage HTML size: 0.08 MB (79380 bytes). This check looks at page size only; it does not measure loading speed. |
+| Markdown content negotiation | 25/100 | 25% | No markdown variant or content negotiation. Agents must fall back to HTML extraction. |
+| Pricing text visibility · N/A | — | 20% | No /pricing, /plans, or /price path found, and no pricing-link discovered on homepage. This check is not counted in your score. |
+| Case-study scannability · N/A | — | 10% | No case-study or portfolio page detected (homepage links such as /case-studies, /customers, /work, /portfolio, /casos or /projetos, and the /case-studies, /customers, /success-stories, /work and /portfolio paths). This check is not counted in your score. |
+
+### Citation Visibility — N/A (not counted in score)
+
+Citation Visibility was not measured on this run: none of the 40 test answers from the AI assistants could be scored (network or provider failures). It is not counted in your score. Astrant Citation Visibility v4 (4 AI models).
+
+## Prioritized gaps + remediation
+
+Checks that did not pass, ordered by how many points each one costs your overall score. Each comes with a standard fix for that check and what we found; the guidance is not written by hand for your site.
+
+### Well-known discovery (mcp.json / server-card.json)
+
+_MCP Server Discoverability · 0/100 · weight 30%_
+
+**Finding:** no card at /.well-known/mcp.json or /.well-known/mcp/server-card.json; an MCP server was found (an MCP endpoint answered at https://ugmonk.com/api/mcp) but it is not advertised with a server card
+
+**Remediation:** We found no MCP discovery card at https://ugmonk.com/.well-known/mcp.json or https://ugmonk.com/.well-known/mcp/server-card.json. If you run an MCP server, publish a JSON card at one of those addresses with the server's name and a transports list giving its URL (server cards are still a draft proposal, so the format may change). If you don't run one, building an MCP server is a development project, worth it only if you have tools or data you want AI agents to use, such as booking, ordering or account lookups. Estimated effort: 30 minutes to 1 hour for the card; several days to build a new MCP server.
+
+### Tool coverage and quality
+
+_MCP Server Discoverability · 0/100 · weight 20%_
+
+**Finding:** no card or no tools declared
+
+**Remediation:** Depends on Well-known discovery: there is no discovery card to read tools from. If you publish a card, list each tool your MCP server offers in its tools array, with a name, a plain-language description and an inputSchema. Estimated effort: 30 minutes to 1 hour.
+
+### Markdown content negotiation
+
+_Agent-Parsable Content · 25/100 · weight 25%_
+
+**Finding:** No markdown variant or content negotiation. Agents must fall back to HTML extraction.
+
+**Remediation:** When we asked your homepage for Markdown (Accept: text/markdown) it returned HTML, and we found no Markdown version at https://ugmonk.com/index.md. Serving Markdown is an emerging convention, not a standard: if your platform supports it, return a Markdown version of key pages to requests that ask for text/markdown, or publish one at the page address with .md added. Label a response text/markdown only if its body really is Markdown. Estimated effort: 1 to 3 days on a custom site; some hosted platforms can't do this.
+
+### Organization schema completeness
+
+_Structured Capability Data · 60/100 · weight 20%_
+
+**Finding:** Organization found: name=true, url=true, description=false, sameAs=0
+
+**Remediation:** The Organization block on your homepage is missing description. Add the missing fields, using the same name and description your site already shows. Links to social profiles (sameAs) are optional; add them only for profiles you really have. Estimated effort: under 30 minutes.
+
+### Blockquote elevator-pitch quality (LLM)
+
+_llms.txt Quality · 0/100 · weight 15%_
+
+**Finding:** no blockquote to evaluate
+
+**Remediation:** There is no blockquote summary in https://ugmonk.com/llms.txt to rate. Add one directly under the H1: a single paragraph on one line starting with >, saying what your business does and who it serves. Estimated effort: under 30 minutes.
+
+### Spec compliance (H1 + blockquote)
+
+_llms.txt Quality · 50/100 · weight 25%_
+
+**Finding:** h1=yes, blockquote=no
+
+**Remediation:** Add a one-paragraph summary directly under the H1 in https://ugmonk.com/llms.txt, written as a Markdown blockquote (the line starts with >). Say plainly what your business does and who it serves. Estimated effort: under 30 minutes.
+
+## Machine-readable export
+
+The full scan + remediation payload as JSON. The same JSON is also available as a separate download from your audit results page. _(JSON body omitted here; see audit.json)_
+
+Generated by Astrant. Re-scan anytime at astrant.io/score.
+Re-run the full audit at astrant.io/audit.

@@ -11,9 +11,13 @@
 // no code references, no novel methodology insight names, no numbered
 // Pass labels.
 
+import { VERSION_COMPARABILITY_NOTICE } from "./version-notice";
+
 export const METHODOLOGY_CALIBRATION_MD = `# Calibration Methodology
 
 **Astrant Citation Visibility v5 · Last calibrated: 2026-05-02 (on v3; v4 changed the question wording and dropped the competitor check, v5 added a check that each answer matches how the site describes itself, and neither v4 nor v5 has been re-calibrated)**
+
+${VERSION_COMPARABILITY_NOTICE}
 
 ## Why this page exists
 

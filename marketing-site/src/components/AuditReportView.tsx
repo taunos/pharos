@@ -50,6 +50,9 @@ export function AuditReportHeader({ model }: { model: AuditReportModel }) {
       <p className="mt-3 text-sm italic text-[var(--color-muted)]">
         {model.scopeNote}
       </p>
+      <p className="mt-2 text-sm italic text-[var(--color-muted)]">
+        {model.versionNote}
+      </p>
     </div>
   );
 }

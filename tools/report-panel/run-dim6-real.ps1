@@ -5,7 +5,7 @@
 #
 # Usage, from F:\pharos:
 #   powershell -ExecutionPolicy Bypass -File tools\report-panel\run-dim6-real.ps1 -Sites rachelqueiroz
-param([string]$Sites = "rachelqueiroz")
+param([string]$Sites = "rachelqueiroz", [string]$Archive = "")
 
 function Read-Secret([string]$name) {
   $s = Read-Host -AsSecureString "Paste $name (hidden)"
@@ -18,7 +18,8 @@ $env:ANTHROPIC_API_KEY  = Read-Secret "ANTHROPIC_API_KEY"
 $env:GOOGLE_AI_API_KEY  = Read-Secret "GOOGLE_AI_API_KEY"
 $env:PERPLEXITY_API_KEY = Read-Secret "PERPLEXITY_API_KEY"
 try {
-  node tools/report-panel/run.mjs --only $Sites --dim6 env --no-synthetic-dim6 --out tools/report-panel/out/dim6-real
+  $archiveArgs = @(); if ($Archive) { $archiveArgs = @("--archive", $Archive) }
+  node tools/report-panel/run.mjs --only $Sites --dim6 env --no-synthetic-dim6 --out tools/report-panel/out/dim6-real @archiveArgs
   node tools/report-panel/check.mjs --out tools/report-panel/out/dim6-real
 } finally {
   Remove-Item Env:OPENAI_API_KEY, Env:ANTHROPIC_API_KEY, Env:GOOGLE_AI_API_KEY, Env:PERPLEXITY_API_KEY -ErrorAction SilentlyContinue

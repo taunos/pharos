@@ -40,7 +40,8 @@ From the repo root:
 4. **Read every report** (`report.md` and the synthetic Dim 6 variant). Read them all; a passing check is not enough. Compare each one against the `expect` notes for its site in `sites.json`.
 5. **Codex review.** Give Codex the reports and ask the same questions as in the Gemini file.
 6. **Gemini review.** Run `node tools/report-panel/make-gemini-file.mjs`. It writes `out/gemini-review-<date>.md`. Send that file to Bruno, who pastes it into Gemini.
-7. **Triage** the findings from all three reads as HIGH, MED or LOW. Fix every HIGH and run the panel again. Ship only when a run has zero HIGH findings.
+7. **Save the run.** Run it with `--archive <name>` (or use `node datasets/report-defects/archive-run.mjs <out dir> <name>` afterwards), and add every finding from steps 4 to 6 to `datasets/report-defects/defects.jsonl`, false alarms included. See that folder's README.
+8. **Triage** the findings from all three reads as HIGH, MED or LOW. Fix every HIGH and run the panel again. Ship only when a run has zero HIGH findings.
 
 ## Free Score
 
@@ -51,7 +52,7 @@ The free Score (what every new visitor gets first) has its own run. It needs no 
    - `score-pdf.md`: the text of the Score PDF HTML (`renderScoreReportHTML`). The PDF itself is not printed.
    - `score-email.md`: the "gap report ready" email, text and HTML parts. It is built, never sent.
    - `scan.json` and `score.json` (the scan, for the expect checks), plus the `.html` of each surface.
-2. `node tools/report-panel/check.mjs --out tools/report-panel/out/free` lints the three surfaces. Rules marked `"only": "free"` in `rules.json` run on these files only (for example raw scanner notes, which the paid report explains in its remediation text).
+2. `node tools/report-panel/check.mjs --out tools/report-panel/out/free` lints the three surfaces. Rules marked `"only": "free"` in `rules.json` run on these files only; rules marked `"only": "paid"` skip them.
 3. Read all three files for every site.
 
 ## Real Dim 6 (paid)

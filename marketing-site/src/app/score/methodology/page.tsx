@@ -13,6 +13,7 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { DIM6_DISCLOSURE, DIM6_ENGINE_LINE } from "@/lib/dim6/disclosure";
+import { VERSION_COMPARABILITY_NOTICE } from "@/lib/version-notice";
 
 export const metadata: Metadata = {
   title: "Scoring methodology — Astrant",
@@ -45,6 +46,9 @@ export default function MethodologyPage() {
             (e.g. no API surface for the OpenAPI dimension on a content-only
             site). The composite is computed across the dimensions that
             actually applied to your site, not the catalog.
+          </p>
+          <p className="mt-4 text-base text-[var(--color-muted)]">
+            {VERSION_COMPARABILITY_NOTICE}
           </p>
 
           <div className="mt-10 border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">

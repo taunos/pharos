@@ -558,8 +558,60 @@ describe("1.4.0 Dim 4: deep traversal, complete Organization, FAQ answers, ratin
 
   it("Rachel Queiroz: her own MedicalBusiness is picked over nested Organizations (CRP council, university)", async () => {
     const d = await d4(...fxJson<unknown[]>("rachelqueiroz-ld.json"));
-    expect(sub(d, "organization_schema").notes).toBe("Organization found: name=true, url=true, description=false, sameAs=0");
+    expect(sub(d, "organization_schema").notes).toBe(
+      "Organization found: name=true, url=true, description=false, sameAs=0; entry=MedicalBusiness #clinica; description and sameAs present on Person #pessoa"
+    );
     expect(sub(d, "organization_schema").score).toBe(60);
+  });
+
+  // Note-only: the note names the entry it read and an identity entry that has what it lacks.
+  it("MedicalBusiness + Person @graph: the note names both entries; score unchanged", async () => {
+    const d = await d4({
+      "@context": "https://schema.org",
+      "@graph": [
+        { "@type": "Person", "@id": "https://acme.com/#pessoa", name: "Ana", url: "https://acme.com/", description: "Psicologa.", sameAs: ["https://instagram.com/ana"] },
+        { "@type": ["MedicalBusiness", "LocalBusiness"], "@id": "https://acme.com/#clinica", name: "Clinica", url: "https://acme.com/" },
+      ],
+    });
+    expect(sub(d, "organization_schema")).toMatchObject({
+      score: 60,
+      notes: "Organization found: name=true, url=true, description=false, sameAs=0; entry=MedicalBusiness #clinica; description and sameAs present on Person #pessoa",
+    });
+  });
+
+  it.each([
+    ["no @id, complete entry", { "@type": "Organization", name: "Acme", url: "https://acme.com", description: "d" }, "Organization found: name=true, url=true, description=true, sameAs=0; entry=Organization"],
+    ["@id without a fragment", { "@type": "Dentist", "@id": "https://acme.com/org", name: "Acme", url: "https://acme.com", description: "d" }, "Organization found: name=true, url=true, description=true, sameAs=0; entry=Dentist https://acme.com/org"],
+    ["@id with spaces or semicolons is left out", { "@type": "Organization", "@id": "x; description and sameAs present on Person #p", name: "Acme" }, "Organization found: name=true, url=false, description=false, sameAs=0; entry=Organization"],
+  ])("entry label: %s", async (_n, block, notes) => {
+    expect(sub(await d4(block), "organization_schema").notes).toBe(notes);
+  });
+
+  it("another Organization entry with a description is named; sameAs is not mentioned when the read entry has some", async () => {
+    const d = await d4([
+      { "@type": "Organization", "@id": "#a", name: "Acme", url: "https://acme.com", sameAs: "https://x.com/acme" },
+      { "@type": "Corporation", "@id": "#b", name: "Acme Inc", description: "Bakery.", sameAs: ["https://y.com/acme"] },
+    ]);
+    expect(sub(d, "organization_schema")).toMatchObject({
+      score: 60,
+      notes: "Organization found: name=true, url=true, description=false, sameAs=1; entry=Organization #a; description present on Corporation #b",
+    });
+  });
+
+  it("note flags use the score's non-empty-string test: a non-string description is description=false", async () => {
+    const d = await d4({ "@type": "Organization", name: "Acme", url: { "@id": "https://acme.com" }, description: { "@value": "Bakery." } });
+    expect(sub(d, "organization_schema")).toMatchObject({
+      score: 30,
+      notes: "Organization found: name=true, url=false, description=false, sameAs=0; entry=Organization",
+    });
+  });
+
+  it("a nested Person (not a top-level entry) or one without a description is not named", async () => {
+    const d = await d4(
+      { "@type": "Organization", name: "Acme", url: "https://acme.com", founder: { "@type": "Person", name: "Ana", description: "Founder." } },
+      { "@type": "Person", name: "Bo", sameAs: ["https://x.com/bo"] }
+    );
+    expect(sub(d, "organization_schema").notes).toBe("Organization found: name=true, url=true, description=false, sameAs=0; entry=Organization");
   });
 
   it("Organization with name + url + description = 100 without sameAs", async () => {

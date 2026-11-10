@@ -37,7 +37,17 @@ const BANNER = /^> (HARNESS NOTE:|SYNTHETIC DIM 6 INPUT)/;
 export function loadRules(file = path.join(HERE, "rules.json")) {
   const raw = JSON.parse(fs.readFileSync(file, "utf8"));
   const compile = (r) => ({ ...r, re: new RegExp(r.pattern, r.flags ?? "") });
-  return { text: raw.text.map(compile), fabrication: raw.fabrication.map(compile) };
+  return { text: raw.text.map(compile), required: (raw.required ?? []).map(compile), fabrication: raw.fabrication.map(compile) };
+}
+
+/** Required rules: each must match somewhere in the report (banner removed).
+ *  "only": "paid" rules skip the free Score surfaces (opts.free). */
+export function checkRequired(markdown, rules, opts = {}) {
+  const body = markdown.split(/\r?\n/).filter((l) => !BANNER.test(l)).join("\n");
+  return (rules.required ?? [])
+    .filter((r) => !(r.only === "paid" && opts.free) && !(r.only === "free" && !opts.free))
+    .filter((r) => !r.re.test(body))
+    .map((r) => ({ level: "FAIL", class: r.class, rule: r.id, where: "report", detail: `${r.why}: not found` }));
 }
 
 const excerpt = (s, i, len) =>
@@ -151,7 +161,8 @@ export function checkSiteDir(dir, site, rules) {
     if (!fs.existsSync(mdPath)) continue;
     const findings = [];
     const text = fs.readFileSync(mdPath, "utf8");
-    findings.push(...checkReportText(text, rules, { free: md.startsWith("score-") }), ...checkForbid(text, site?.expect));
+    const free = md.startsWith("score-");
+    findings.push(...checkReportText(text, rules, { free }), ...checkRequired(text, rules, { free }), ...checkForbid(text, site?.expect));
     const jsonPath = path.join(dir, json);
     if (fs.existsSync(jsonPath)) {
       const audit = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
