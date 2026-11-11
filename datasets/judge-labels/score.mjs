@@ -126,6 +126,15 @@ function metrics(rows) {
       return [w, { ...ratio(c.filter((r) => r.verdict === w).length, c.length), got: tally(c.map((r) => r.verdict)) }];
     })),
   };
+  // 5. Contradiction recall: answers whose facts conflict with the site (any identity).
+  // flagged = judged MIXUP or WRONG_FACTS; not_passed = anything but CORRECT.
+  const contra = rows.filter((r) => known(r.l, ["facts"]) && r.l.facts === "contradicted");
+  m.contradiction_recall = {
+    flagged: ratio(contra.filter((r) => r.verdict === "MIXUP" || r.verdict === "WRONG_FACTS").length, contra.length),
+    not_passed_as_correct: ratio(contra.filter((r) => r.verdict !== "CORRECT").length, contra.length),
+    got: tally(contra.map((r) => r.verdict)),
+    passed_keys: contra.filter((r) => r.verdict === "CORRECT").map((r) => r.key),
+  };
   m.verdicts = tally(rows.map((r) => r.verdict));
   return m;
 }
@@ -155,6 +164,7 @@ export function formatReport(res) {
     `   recall of truly correct answers: ${f(m.correct_recall_strict)}`,
     `4. Clear cases: coverage (definite verdict) ${f(m.clear_cases.coverage)} · accuracy ${f(m.clear_cases.accuracy)}`,
     ...Object.entries(m.clear_cases.by_expected).map(([w, r]) => `   expected ${w}: ${f(r)} got ${JSON.stringify(r.got)}`),
+    `5. Contradiction recall (facts conflict with the site): flagged as wrong ${f(m.contradiction_recall.flagged)} · not passed as CORRECT ${f(m.contradiction_recall.not_passed_as_correct)} · got ${JSON.stringify(m.contradiction_recall.got)}`,
     ``,
     `Per site (false accusations · different-entity recall · CORRECT precision strict · clear-case accuracy):`,
     ...Object.entries(res.by_site).map(([s, b]) => `   ${s.padEnd(14)} ${f(b.false_mixup_accusations).padEnd(16)} ${f(b.mixup_recall).padEnd(16)} ${f(b.correct_precision.strict).padEnd(16)} ${f(b.clear_cases.accuracy)}`),

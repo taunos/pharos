@@ -16,7 +16,7 @@
 | truncated | 233/240 | 97.1% | 0.84 |
 | names_site | 235/240 | 97.9% | 0.97 |
 
-Status: 92 agreed on every attribute · 140 settled by the guide's rules or Bruno's rule calls · 8 one-off items still wait on Bruno.
+Status (final, 2026-11-11): 92 agreed on every attribute · 140 settled by the guide's rules or Bruno's rule calls · 8 decided by Bruno one by one · 0 pending.
 
 ## Dev split (160 answers, 4 sites: eff, resend, ugmonk, rachelqueiroz)
 
@@ -32,7 +32,7 @@ Status: 92 agreed on every attribute · 140 settled by the guide's rules or Brun
 | truncated | 155/160 | 96.9% | 0.82 |
 | names_site | 159/160 | 99.4% | 0.99 |
 
-Status: 69 agreed · 88 resolved by rule · 3 one-off items wait on Bruno (_tmp/report-truthfulness/label-oneoffs-for-bruno.md in the main checkout).
+Status: 69 agreed · 88 resolved by rule · 3 decided by Bruno one by one · 0 pending.
 
 Label distribution in dev (A / B):
 - identity: A same_entity 118, unidentifiable 31, different_named_entity 11 · B same_entity 124, unidentifiable 25, different_named_entity 11
@@ -41,7 +41,7 @@ Label distribution in dev (A / B):
 
 ## What the disagreements were, and how they were settled
 
-Bruno's rule calls (2026-11-10): R1 = A, R2 = B, R3 = B. Together they settled 51 of the 59 items that went to him (dev 31 of 34).
+Bruno's rule calls (2026-11-10): R1 = A, R2 = B, R3 = B. Together they settled 51 of the 59 items that went to him (dev 31 of 34). He decided the other 8 one by one (dev 3) on 2026-11-11.
 
 
 - **facts (supported vs unsupported)**: the biggest group. B marks an answer "unsupported" whenever any detail the answer gives can't be checked against the evidence; A marks it "supported" when the part that answers the question is backed. R1 = A (Bruno): the main claim is enough → supported.

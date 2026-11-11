@@ -1,6 +1,6 @@
 # Citation Visibility labels: disagreements for Bruno (dev sites)
 
-> **Decided 2026-11-10.** Bruno: R1 = A (main claim is enough), R2 = B (your site), R3 = B (only explicit conflicts). The rules settled 31 of these 34 items. The 3 one-offs below that remain (items 1–3) are restated with recommendations in `_tmp/report-truthfulness/label-oneoffs-for-bruno.md` (main checkout). Kept here as the record of what was asked.
+> **Decided 2026-11-10.** Bruno: R1 = A (main claim is enough), R2 = B (your site), R3 = B (only explicit conflicts). The rules settled 31 of these 34 items. The 3 one-offs below that remain (items 1–3) were decided by Bruno on 2026-11-11: item 1 = A, item 2 = B, item 3 = B. All dev labels are final. Kept here as the record of what was asked.
 
 34 answers where Claude (A) and Codex (B) disagree on who the answer is about, whether its facts hold up, or whether it invents specifics. All other disagreements were settled by the guide's rules (see `resolutions` in the label file).
 

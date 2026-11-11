@@ -11,7 +11,7 @@ An independent labelled set of Citation Visibility answers, so any change to the
 | `evidence/<site>.md` | What the site itself says (URL, short excerpt, fetch date 2026-11-10), dev sites only. Labels are reproducible from these. |
 | `dev.jsonl` | Dev labels, one line per answer: top-level attributes (agreed or resolved; `null` while waiting on Bruno), `labeler_a` (Claude), `labeler_b` (Codex), `final` (`null` until every attribute is resolved), `status` (agreed / resolved_by_rule / needs_bruno), `pending`, `resolutions`, `evidence`. |
 | `agreement.md` | A-vs-B agreement per attribute (counts, %, Cohen's κ). |
-| `disagreements-for-bruno.md` | Every dev answer where A and B disagreed on identity, facts or invented_specifics, plus the three rule questions. Bruno answered the rules on 2026-11-10 (R1 = A, R2 = B, R3 = B); the 3 dev items left over are in `_tmp/report-truthfulness/label-oneoffs-for-bruno.md` in the main checkout. |
+| `disagreements-for-bruno.md` | Every dev answer where A and B disagreed on identity, facts or invented_specifics, plus the three rule questions. Bruno answered the rules on 2026-11-10 (R1 = A, R2 = B, R3 = B); he decided the 3 dev items left over one by one (dev 1 = A, dev 2 = B, dev 3 = B; recorded in each row's `resolutions`). |
 | `score.mjs` | Scores a judge's verdicts against the labels. `score.test.mjs` tests it. |
 | `extract-old-judge.mjs` | Turns the old judge's `result.notes` into a verdict file for `score.mjs`. |
 | `baseline/old-judge-verdicts.jsonl` | The old judge's verdicts on the dev answers (from the 2026-11-10 release check and the 2026-11-08 Rachel Queiroz panel run); regenerate any set with `extract-old-judge.mjs`. |
@@ -38,6 +38,7 @@ It prints, with denominators:
 2. **Recall on real different-entity answers** (definite and hedged separately).
 3. **Precision of CORRECT**: share of CORRECT verdicts that are truly correct (right entity, committed answer, facts backed by the site, nothing invented), and a breakdown of what the rest were (guesses, unsupported, invented...).
 4. **Clear cases**: on answers whose right verdict is unambiguous (truly correct / definite mix-up / plain non-answer), the share given a definite verdict (coverage) and the share given the right one.
+5. **Contradiction recall**: of answers whose facts conflict with the site, the share judged MIXUP or WRONG_FACTS (flagged as wrong), and the share not judged CORRECT.
 
 Answers whose needed labels still wait on Bruno are left out of that metric; the count left out is printed.
 
@@ -45,14 +46,21 @@ Answers whose needed labels still wait on Bruno are left out of that metric; the
 node --test datasets/judge-labels/score.test.mjs
 ```
 
-## Baseline: the old judge (llama-3.3-70b) on dev, 160 answers
+## Baseline: the old judge (llama-3.3-70b) on dev, 160 answers (final labels, 2026-11-11)
 
-| metric | final labels | range across A / B labels |
-|---|---|---|
-| False "different business" accusations | 10/149 (6.7%); 7/106 (6.6%) of answers backed by the site | 10/149 (6.7%) both |
-| MIXUP precision | 7/17 (41.2%) | 7/17 (41.2%) |
-| Recall on real different-entity answers | 7/11 (63.6%): definite 5/7, hedged 2/4 | same |
-| Precision of CORRECT (strict) | 95/103 (92.2%), 1 left out pending Bruno | A 95/104 (91.3%) · B 75/104 (72.1%) |
-| Clear cases: coverage / accuracy | 125/127 (98.4%) / 114/127 (89.8%) | accuracy A 90.6% · B 88.8% |
+All 160 dev labels are final: 69 agreed, 88 settled by the guide's rules or Bruno's rule calls R1–R3, 3 decided by Bruno one by one.
 
-Per dev site, false accusations: eff 2/40, rachelqueiroz 1/29, resend 3/40, ugmonk 4/40. The old judge accuses roughly one in 15 site-backed answers of being a mix-up, and more than half of its mix-up verdicts are false. Final labels apply Bruno's rule calls R1–R3 (2026-11-10, see GUIDE.md); 3 dev answers still wait on one-off calls.
+| metric | old judge | gate | |
+|---|---|---|---|
+| False "different business" accusations | 10/149 (6.7%); 7/106 of answers backed by the site | 0 | fail |
+| Recall on real different-entity answers | 7/11 (63.6%): definite 5/7, hedged 2/4 | all | fail |
+| Precision of CORRECT (strict) | 95/104 (91.3%) | ≥ 95% | fail |
+| Contradiction recall: flagged as wrong (MIXUP or WRONG_FACTS) | 8/13 (61.5%) | ≥ 90% | fail |
+| Contradiction recall: not passed as CORRECT | 13/13 (100%) | | |
+| Clear cases: coverage (definite verdict) | 126/128 (98.4%) | ≥ 80% | pass |
+| Clear cases: accuracy | 115/128 (89.8%) | | |
+| MIXUP precision | 7/17 (41.2%) | | |
+
+The old judge has no WRONG_FACTS verdict, so its "flagged" contradictions are all MIXUP calls; the other 5 were DENY. A fixed judge should say WRONG_FACTS for right-site-wrong-facts answers.
+
+Per dev site, false accusations: eff 2/40, rachelqueiroz 1/29, resend 3/40, ugmonk 4/40. Only 13 dev answers are labelled contradicted and 11 are different-entity mix-ups (all on rachelqueiroz), so the recall gates rest on small numbers.

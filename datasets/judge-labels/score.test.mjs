@@ -45,6 +45,9 @@ test("false accusations, recall, precision and clear-case coverage", () => {
   // clear cases: q1,q2 (CORRECT), q3 (MIXUP), q5 (DENY) = 4; all definite; right: q1 q3 q5 = 3
   assert.deepEqual([m.clear_cases.coverage.num, m.clear_cases.coverage.den], [4, 4]);
   assert.deepEqual([m.clear_cases.accuracy.num, m.clear_cases.accuracy.den], [3, 4]);
+  // contradicted: q3 (MIXUP), q4 (UNCLEAR), q7 (MIXUP) → flagged 2/3, not passed 3/3
+  assert.deepEqual([m.contradiction_recall.flagged.num, m.contradiction_recall.flagged.den], [2, 3]);
+  assert.deepEqual([m.contradiction_recall.not_passed_as_correct.num, m.contradiction_recall.not_passed_as_correct.den], [3, 3]);
 });
 
 test("--as a / b scores against a labeler's raw labels (pending rows included)", () => {
@@ -83,9 +86,11 @@ test("dev.jsonl is well-formed: 40 answers per site, enums valid, final set only
   for (const r of rows) {
     perSite[r.site] = (perSite[r.site] || 0) + 1;
     for (const who of [r.labeler_a, r.labeler_b]) for (const [k, v] of Object.entries(enums)) assert.ok(v.includes(who[k]), `${r.site} ${r.qid} ${k}=${who[k]}`);
-    assert.ok(["agreed", "resolved_by_rule", "needs_bruno"].includes(r.status));
+    assert.ok(["agreed", "resolved_by_rule", "resolved_by_bruno", "needs_bruno"].includes(r.status));
     assert.equal(r.final === null, r.status === "needs_bruno");
     assert.equal(r.pending.length > 0, r.status === "needs_bruno");
   }
   for (const n of Object.values(perSite)) assert.equal(n, 40);
+  // finalized 2026-11-11: nothing waits on Bruno
+  assert.equal(rows.filter((r) => r.status === "needs_bruno").length, 0);
 });
