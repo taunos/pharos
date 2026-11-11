@@ -91,15 +91,15 @@ export default function MethodologyPage() {
           <ul className="mt-4 flex flex-col gap-3 text-sm text-[var(--color-muted)]">
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_domain_named_rate</span>{" "}
-              (weight 40) — what fraction of scored test answers named your domain and matched how your site describes itself. Each answer that says it knows your site is compared with how your site describes itself (your llms.txt file, structured data, and homepage title and description). We check only who the site is and what kind of business it is, against your site&apos;s own description; details such as prices and dates are not checked. An answer that describes your site as a different person or business, says too little to check, or cannot be checked scores 0. If your site has no clear description we can read, those answers cannot be checked and score 0, and the report says so.
+              (weight 40) — what fraction of scored test answers named your site (by its domain or the name your site gives itself) and were backed by your site&apos;s own text. Each answer is compared with how your site describes itself (your llms.txt file, structured data, and homepage title, description and main heading), and the report shows the evidence: what the AI said next to what your site says. An answer counts only when the words that answer the question are backed by your site&apos;s own text; a guess, an answer that says it does not know, or a claim your site does not mention (for example how well known you are) counts as not enough evidence and scores 0. If your structured data states street addresses, an answer counts only if every street address it gives is one we could extract from your structured data or homepage text. If your site has no clear description we can read, those answers cannot be checked and score 0, and the report says so.
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_url_referenced_rate</span>{" "}
-              (weight 30) — what fraction included an actual URL on your host (not just the brand name).
+              (weight 30) — what fraction included an actual URL on your host (not just the brand name), among answers backed by your site&apos;s own text, plus plain answers that gave your homepage address when asked for it.
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_context_relevant_rate</span>{" "}
-              (weight 20) — what fraction positioned your domain in the first half of the response (vs a footer-style mention).
+              (weight 20) — what fraction named your site (by its domain or its own name) in the first half of the response (vs a footer-style mention), among answers backed by your site&apos;s own text.
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_no_competitor_first_rate</span>{" "}
@@ -107,7 +107,11 @@ export default function MethodologyPage() {
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_misidentified_answers</span>{" "}
-              (not weighted) — shown only when at least one answer described a different person or business than your site says it is, with up to three short quotes from those answers. For information only; it is not counted again in your score.
+              (not weighted) — shown only when at least one answer linked your site to a different person or business with its own name (for example someone else with a similar name), as a fact or as a possibility, confirmed by a second check. Up to three quotes from those answers, next to how your site describes itself. An answer cut off by the AI&apos;s length limit is shown separately and not counted as a mix-up. For information only; it is not counted again in your score.
+            </li>
+            <li>
+              <span className="text-[var(--color-fg)] font-semibold">citation_contradicted_answers</span>{" "}
+              (not weighted) — shown only when your site&apos;s own text contradicts something an answer said about your site (for example &ldquo;no physical location&rdquo; when your site lists an office), confirmed by a second check. Up to three examples, each with what the AI said and what your site says. Claims your site simply does not mention are never counted as contradicted. For information only; it is not counted again in your score.
             </li>
           </ul>
 

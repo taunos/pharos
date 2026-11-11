@@ -242,23 +242,26 @@ globalThis.fetch = async (input, init) => {
 function syntheticDim6() {
   const summary =
     "36 of 40 test answers could be scored, across 4 AI models. Average answer score by model (0 to 100): ChatGPT 12, Claude 4, Gemini 9, Perplexity 31.";
+  const backed = "were backed by your site's own text";
   return {
     dimension_id: 6,
     dimension_name: "Citation Visibility",
     score: 14,
     grade: "F",
     sub_checks: [
-      { id: "citation_domain_named_rate", name: "Models name your domain", weight: 40, score: 17, passed: false,
-        notes: `17% of scored test answers named your domain and matched how your site describes itself. Of the 36 scored answers, 7 matched how your site describes itself, 5 described a different person or business than your site says it is, 2 did not say enough to check, and 22 did not show that the model knew your site. ${summary}` },
+      { id: "citation_domain_named_rate", name: "Models name your site", weight: 40, score: 17, passed: false,
+        notes: `17% of scored test answers named your site (by its domain or the name your site gives itself) and ${backed}. Of the 36 scored answers, 7 ${backed}, 1 gave your homepage address when asked for it, 4 linked your site to a different named person or business, 1 was contradicted by your site's own text, 1 did not give enough evidence to check against your site, and 22 did not show that the model knew your site. We count your domain and the name your site gives itself; other brand names, nicknames or translations are not counted. ${summary}` },
       { id: "citation_url_referenced_rate", name: "Models cite your URL", weight: 30, score: 6, passed: false,
-        notes: "6% of scored test answers matched how your site describes itself and included at least one link to it." },
+        notes: `6% of scored test answers included a link to your site and either ${backed}, or gave your homepage address when asked for it.` },
       { id: "citation_context_relevant_rate", name: "Models treat your domain as the principal answer", weight: 20, score: 8, passed: false,
-        notes: "8% of scored test answers matched how your site describes itself and put your domain in the first half of the answer, rather than only mentioning it at the end." },
+        notes: `8% of scored test answers ${backed} and named your site (by its domain or its own name) in the first half of the answer, rather than only at the end.` },
       { id: "citation_no_competitor_first_rate", name: "Competitor-first check (not measured)", weight: 10, score: 0, passed: false, na: true,
         notes: "Not measured: this Audit doesn't take a competitor list yet, so there is nothing to compare against. This check is not counted in your score." },
-      // dim6:v5 informational row (shape of runDim6.ts buildSubChecks; quotes invented).
-      { id: "citation_misidentified_answers", name: "Answers that described a different person or business than your site says it is", weight: 0, score: 0, passed: false, na: true,
-        notes: "5 of the 36 scored answers described a different person or business than your site says it is; they count as 0 in the checks above. Example: Gemini: \"example answer: the site is a different business with a similar name\". This row is for information and is not counted again in your score." },
+      // dim6:v6 informational rows (shape of runDim6.ts buildSubChecks; quotes invented).
+      { id: "citation_misidentified_answers", name: "Answers that linked your site to a different person or business", weight: 0, score: 0, passed: false, na: true,
+        notes: "4 of the 36 scored answers linked your site to a different named person or business; they count as 0 in the checks above. Gemini said: \"example answer: the site belongs to Example Namesake, a different business with a similar name\". Your site describes itself as: \"Example Site – what the site says it is\". Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score." },
+      { id: "citation_contradicted_answers", name: "Answers your site's own text contradicts", weight: 0, score: 0, passed: false, na: true,
+        notes: "1 of the 36 scored answers said something your site's own text contradicts; it counts as 0 in the checks above. Claude said: \"example answer: it has no physical location\"; your site says: \"example site text: Office at Example Street 1\". If your site's text is out of date, updating it is the fix; if it is right, stating these facts clearly on your site (for example in your llms.txt file) gives AI assistants that read it the right details. This row is for information and is not counted again in your score." },
     ],
   };
 }

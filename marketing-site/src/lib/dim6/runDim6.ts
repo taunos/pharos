@@ -29,7 +29,7 @@ import {
 } from "./reference";
 import { canonicalDomain } from "./question-set";
 import type { FetchLike } from "../safe-fetch";
-import { capLength, collapseWhitespace, DISPLAY_TEXT_MAX, stripUnsafeChars } from "../llm-safety";
+import { capLength, collapseWhitespace, DISPLAY_TEXT_MAX, stripUnsafeChars, stripUnsafeCharsKeepLines } from "../llm-safety";
 
 export interface Dim6SubCheck {
   id: string;
@@ -96,6 +96,9 @@ const SUBCHECK_IDS = {
   // dim6:v5: informational (na, weight 0), present only when at least one
   // answer described a different person or business than the site says it is.
   misidentified_answers: "citation_misidentified_answers",
+  // dim6:v6: informational (na, weight 0), present only when the site's own
+  // text contradicts at least one answer.
+  contradicted_answers: "citation_contradicted_answers",
 } as const;
 
 // Compute per-cell breakdown rates by re-parsing the structured notes the
@@ -188,16 +191,18 @@ const EVIDENCE_MAX_QUOTES = 3;
  * dim6:v5: a short, deterministic quote from a provider answer, for the
  * wrong-description examples. Provider output is hostile: unsafe characters
  * stripped, markdown and citation markers dropped, double quotes turned into
- * single quotes, at most EVIDENCE_MAX_WORDS words / EVIDENCE_MAX_CHARS chars.
- * The report renderer escapes it; it is never sent to an LLM. Starts at the
- * first sentence that contains the domain or its first label (the brand),
- * else at the start of the answer, and runs on across sentences up to the
- * word cap (a lead sentence such as "No, x.com is not a local business." is
- * then followed by what the answer says it is).
+ * single quotes, at most `maxWords` words / EVIDENCE_MAX_CHARS chars.
+ * The report renderer escapes it; it is never sent to an LLM. Starts at
+ * `from` when given (dim6:v6: the start of the sentence holding the confirmed
+ * mix-up, see wrongAt), else at the first sentence that contains the domain
+ * or its first label (the brand), else at the start of the answer, and runs
+ * on across sentences up to the word cap (a lead sentence such as "No, x.com
+ * is not a local business." is then followed by what the answer says it is).
  */
-export function pickEvidenceQuote(text: string, domain: string, maxWords = EVIDENCE_MAX_WORDS): string {
+export function pickEvidenceQuote(text: string, domain: string, from?: number, maxWords = EVIDENCE_MAX_WORDS): string {
+  const source = from !== undefined ? text.slice(sentenceStart(text, from)) : text;
   const flat = collapseWhitespace(
-    stripUnsafeChars(text.replace(/(^|\n)\s*>\s?/g, "$1").replace(/(^|\n)\s*(?:[-*•]|\d+\.)\s+/g, "$1· "))
+    stripUnsafeChars(source.replace(/(^|\n)\s*>\s?/g, "$1").replace(/(^|\n)\s*(?:[-*•]|\d+\.)\s+/g, "$1· "))
       .replace(/\s*\[\d+\]/g, "")
       .replace(/[*_`#|]+/g, "")
       .replace(/["“”]/g, "'")
@@ -205,22 +210,41 @@ export function pickEvidenceQuote(text: string, domain: string, maxWords = EVIDE
   const label = domain.split(".")[0];
   const needles = [domain.toLowerCase(), ...(label.length >= 4 ? [label.toLowerCase()] : [])];
   const sentences = flat.split(/(?<=[.!?])\s+/);
-  const start = Math.max(0, sentences.findIndex((s) => needles.some((n) => s.toLowerCase().includes(n))));
+  const start = from !== undefined ? 0 : Math.max(0, sentences.findIndex((s) => needles.some((n) => s.toLowerCase().includes(n))));
   const words = sentences.slice(start).join(" ").split(" ").filter(Boolean);
   const q = capLength(words.slice(0, maxWords).join(" "), EVIDENCE_MAX_CHARS);
   const cut = words.length > maxWords || q.length < words.slice(0, maxWords).join(" ").length;
   return cut ? `${q}…` : q;
 }
 
+/** Start of the sentence (or line / list item) that holds offset `at`. */
+function sentenceStart(text: string, at: number): number {
+  const i = Math.max(0, Math.min(at, text.length));
+  for (let j = i - 1; j >= 0; j--) {
+    const c = text[j];
+    if (c === "\n") return j + 1;
+    if ((c === "." || c === "!" || c === "?") && /\s/.test(text[j + 1] ?? "")) return j + 1;
+  }
+  return 0;
+}
+
+/** dim6:v6: offset of the confirmed mix-up quote in the answer (notes `wrong_at=<n>`), or undefined. */
+function wrongAt(c: CellEnvelope): number | undefined {
+  const m = /(?:^|; )wrong_at=(\d{1,6})(?:;|$)/.exec(c.result.notes);
+  return m ? Number(m[1]) : undefined;
+}
+
 const HEDGE_RE = /\b(?:I don't|I do not|don't have|not familiar|no (?:specific |current )?information|as of my last)\b/i;
 
 /**
- * Up to EVIDENCE_MAX_QUOTES WRONG answers, in cell order, one per model first
- * (so the examples show which models got it wrong), then filled in order.
+ * Up to EVIDENCE_MAX_QUOTES answers carrying `flag`, in cell order, one per
+ * model first (so the examples show which models got it wrong), then filled
+ * in order.
  */
 export function pickWrongAnswerQuotes(
   cells: CellEnvelope[],
   domain: string,
+  flag = "misidentified=true",
   max = EVIDENCE_MAX_QUOTES,
   maxWords = EVIDENCE_MAX_WORDS
 ): Array<{ model: string; quote: string }> {
@@ -228,8 +252,9 @@ export function pickWrongAnswerQuotes(
   // ones ("I don't have specific information… could be…"), whose 25-word
   // quote often ends before the wrong identity appears. Stable: cell order
   // is kept within each group.
-  const hedged = (c: CellEnvelope) => HEDGE_RE.test(pickEvidenceQuote(c.result.text ?? "", domain, maxWords));
-  const flagged = cells.filter((c) => !c.result.unmeasurable && c.result.text && c.result.notes.includes("misidentified=true"));
+  const quoteOf = (c: CellEnvelope) => pickEvidenceQuote(judgedText(c), domain, wrongAt(c), maxWords);
+  const hedged = (c: CellEnvelope) => HEDGE_RE.test(quoteOf(c));
+  const flagged = cells.filter((c) => !c.result.unmeasurable && c.result.text && c.result.notes.includes(flag));
   const wrong = [...flagged.filter((c) => !hedged(c)), ...flagged.filter(hedged)];
   const chosen: CellEnvelope[] = [];
   for (const c of wrong) {
@@ -239,103 +264,198 @@ export function pickWrongAnswerQuotes(
     if (chosen.length < max && !chosen.includes(c)) chosen.push(c);
   }
   chosen.sort((a, b) => wrong.indexOf(a) - wrong.indexOf(b));
-  return chosen.map((c) => ({ model: modelLabel(c.modelId), quote: pickEvidenceQuote(c.result.text ?? "", domain, maxWords) }));
-}
-
-const MIXUP_ROW_TAIL =
-  "Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score.";
-
-/**
- * The informational mix-up row's note, built to fit the report's
- * DISPLAY_TEXT_MAX: cleanDisplayText cuts a longer note mid-sentence, and the
- * 2026-11-10 release check showed "...so results can take time to change.
- * This row is for" (RD-0122). Quotes are shortened, then dropped, until the
- * note fits; the lead and the closing sentences are always whole.
- */
-export function mixupRowNote(cells: CellEnvelope[], domain: string, measurableCount: number, wrong: number): string {
-  const lead =
-    wrong === 1
-      ? `1 of the ${measurableCount} scored answers mixed up your site with a different person or business than your site says it is; it counts as 0 in the checks above.`
-      : `${wrong} of the ${measurableCount} scored answers mixed up your site with a different person or business than your site says it is; they count as 0 in the checks above.`;
-  const build = (maxQuotes: number, maxWords: number) => {
-    const quotes = maxQuotes === 0 ? [] : pickWrongAnswerQuotes(cells, domain, maxQuotes, maxWords);
-    const examples =
-      quotes.length > 0
-        ? ` ${quotes.length === 1 ? "Example of what the AI said" : "Examples of what the AI said"}: ${quotes.map((q) => `${q.model}: "${q.quote}"`).join("; ")}.`
-        : "";
-    return `${lead}${examples} ${MIXUP_ROW_TAIL}`;
-  };
-  for (const [maxQuotes, maxWords] of [
-    [3, EVIDENCE_MAX_WORDS],
-    [3, 15],
-    [2, 15],
-    [1, 15],
-  ] as const) {
-    const note = build(maxQuotes, maxWords);
-    if (note.length <= DISPLAY_TEXT_MAX) return note;
-  }
-  return build(0, 0);
+  return chosen.map((c) => ({ model: modelLabel(c.modelId), quote: quoteOf(c) }));
 }
 
 function countFlag(cells: CellEnvelope[], flag: string): number {
   return cells.filter((c) => !c.result.unmeasurable && c.result.notes.includes(flag)).length;
 }
 
+// dim6:v6 copy: evidence, not verdicts (pending Bruno's approval,
+// _tmp/report-truthfulness/copy-for-approval-dim6-v6-2026-11-11.md). Each
+// flagged answer is shown as what the AI said next to what the site's own
+// text says; counts say what was found, not who is right.
+const BACKED = "were backed by your site's own text";
+const NAMES_DISCLOSURE = "We count your domain and the name your site gives itself; other brand names, nicknames or translations are not counted.";
+const MIXUP_ROW_TAIL =
+  "Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score.";
+const CONTRA_ROW_TAIL =
+  "If your site's text is out of date, updating it is the fix; if it is right, stating these facts clearly on your site (for example in your llms.txt file) gives AI assistants that read it the right details. This row is for information and is not counted again in your score.";
+const SITE_QUOTE_MAX_WORDS = 20;
+
+/** The site's own words on the reference line holding `at`, field label removed, capped. */
+export function siteTextAt(reference: string, at: number, maxWords = SITE_QUOTE_MAX_WORDS): string {
+  if (!reference || at < 0 || at >= reference.length) return "";
+  const start = reference.lastIndexOf("\n", at) + 1;
+  const endNl = reference.indexOf("\n", at);
+  const line = reference.slice(start, endNl === -1 ? reference.length : endNl);
+  // Start at the quoted words, not the line start, when the line is long.
+  const from = Math.max(0, at - start);
+  const body = (from > 40 ? line.slice(from) : line).replace(/^(?:Name|Summary|Details|Title|Description|Main heading):\s*/, "");
+  return pickEvidenceQuote(body, "", undefined, maxWords);
+}
+
+/** The site's first self-description line (llms.txt name, structured data or homepage title), capped. */
+export function siteIdentityText(reference: string, maxWords = SITE_QUOTE_MAX_WORDS): string {
+  const lines = (reference ?? "").split("\n").filter((l) => l && !/^From (?:llms\.txt|structured data|the homepage):$/.test(l));
+  const pick = lines.find((l) => /^(?:Name|Title):/.test(l)) ?? lines[0] ?? "";
+  return pickEvidenceQuote(pick.replace(/^(?:Name|Summary|Details|Title|Description|Main heading):\s*/, ""), "", undefined, maxWords);
+}
+
+/**
+ * The answer text exactly as the accuracy judge saw it (stripUnsafeChars):
+ * the offsets in the notes (wrong_at, claim_at) index into this text, not the
+ * raw answer (Codex review: removed or NFKC-expanded characters would shift
+ * them). site_at likewise indexes stripUnsafeCharsKeepLines(reference).
+ */
+function judgedText(c: CellEnvelope): string {
+  return stripUnsafeChars(c.result.text ?? "");
+}
+
+/** Offsets in a cell's notes ("claim_at=12; site_at=340"). */
+function noteOffset(c: CellEnvelope, key: string): number | undefined {
+  const m = new RegExp(`(?:^|; )${key}=(\\d{1,6})(?:;|$)`).exec(c.result.notes);
+  return m ? Number(m[1]) : undefined;
+}
+
+/** Up to `max` answers carrying `flag`, one per model first, in cell order. */
+function pickFlagged(cells: CellEnvelope[], flag: string, max: number): CellEnvelope[] {
+  const flagged = cells.filter((c) => !c.result.unmeasurable && c.result.text && c.result.notes.includes(flag));
+  const chosen: CellEnvelope[] = [];
+  for (const c of flagged) if (chosen.length < max && !chosen.some((x) => x.modelId === c.modelId)) chosen.push(c);
+  for (const c of flagged) if (chosen.length < max && !chosen.includes(c)) chosen.push(c);
+  return chosen.sort((a, b) => flagged.indexOf(a) - flagged.indexOf(b));
+}
+
+/** Shorten quotes, then drop them, until the note fits the report cell (RD-0122). */
+function fitNote(build: (maxQuotes: number, maxWords: number) => string): string {
+  for (const [q, w] of [
+    [3, 25],
+    [3, 15],
+    [2, 15],
+    [1, 15],
+    [1, 10],
+  ] as const) {
+    const note = build(q, w);
+    if (note.length <= DISPLAY_TEXT_MAX) return note;
+  }
+  return build(0, 0);
+}
+
+/**
+ * The informational mix-up row: answers that linked the site to a different
+ * named person or business, each with what the AI said, plus what the site
+ * says about itself.
+ */
+export function mixupRowNote(cells: CellEnvelope[], domain: string, measurableCount: number, wrong: number, cutOff: number, reference = ""): string {
+  const lead =
+    wrong === 0
+      ? `None of the ${measurableCount} scored answers clearly linked your site to a different named person or business.`
+      : `${wrong} of the ${measurableCount} scored answers linked your site to a different named person or business; ${wrong === 1 ? "it counts" : "they count"} as 0 in the checks above.`;
+  const cutSentence =
+    cutOff === 0
+      ? ""
+      : ` ${cutOff === 1 ? "1 answer was" : `${cutOff} answers were`} cut off by the AI's length limit after starting to describe a different person or business; ${
+          cutOff === 1 ? "it counts" : "they count"
+        } as 0 too, and ${wrong === 0 ? (cutOff === 1 ? "we do not count it" : "we do not count them") : cutOff === 1 ? "it is not included" : "they are not included"} in that number.`;
+  const identity = siteIdentityText(reference);
+  const siteSays = identity ? ` Your site describes itself as: "${identity}".` : "";
+  return fitNote((maxQuotes, maxWords) => {
+    const confirmed = pickFlagged(cells, "misidentified=true", maxQuotes);
+    const cut = pickFlagged(cells, "possible_mixup_cut_off=true", Math.max(0, maxQuotes - confirmed.length));
+    const quote = (c: CellEnvelope, suffix = "") =>
+      `${modelLabel(c.modelId)} said: "${pickEvidenceQuote(judgedText(c), domain, wrongAt(c), maxWords)}${suffix}"`;
+    const quotes = [...confirmed.map((c) => quote(c)), ...cut.map((c) => quote(c, " (cut off)"))];
+    const examples = quotes.length > 0 ? ` ${quotes.join("; ")}.` : "";
+    return `${lead}${cutSentence}${examples}${quotes.length > 0 ? siteSays : ""} ${MIXUP_ROW_TAIL}`;
+  });
+}
+
+/**
+ * dim6:v6: the informational row for answers the site's own text contradicts
+ * (right site, wrong facts): what the AI said and what the site says.
+ */
+export function contradictedRowNote(cells: CellEnvelope[], measurableCount: number, count: number, reference = ""): string {
+  const lead = `${count} of the ${measurableCount} scored answers said something your site's own text contradicts; ${count === 1 ? "it counts" : "they count"} as 0 in the checks above.`;
+  return fitNote((maxQuotes, maxWords) => {
+    const examples = pickFlagged(cells, "facts_contradicted=true", maxQuotes).map((c) => {
+      const claimAt = noteOffset(c, "claim_at");
+      const siteAt = noteOffset(c, "site_at");
+      const said = pickEvidenceQuote(judgedText(c), "", claimAt, maxWords);
+      const site = siteAt !== undefined ? siteTextAt(stripUnsafeCharsKeepLines(reference), siteAt, maxWords) : "";
+      return site ? `${modelLabel(c.modelId)} said: "${said}"; your site says: "${site}"` : `${modelLabel(c.modelId)} said: "${said}"`;
+    });
+    return `${lead}${examples.length > 0 ? ` ${examples.join(". ")}.` : ""} ${CONTRA_ROW_TAIL}`;
+  });
+}
+
 export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, domain = ""): Dim6SubCheck[] {
   const cells = result.cells;
   const measurableCount = cells.length - result.unmeasurableCount;
   const checked = result.accuracyChecked === true;
+  const reference = result.referenceText ?? "";
 
   const dnRate = rateOf(cells, "domain_named");
   const urlRate = rateOf(cells, "url_referenced");
   const ctxRate = rateOf(cells, "context_relevant");
   const compRate = rateOf(cells, "no_competitor_first");
 
-  // RD-0123: the average is of per-answer scores (0-100), not a naming rate,
-  // and the label says so.
+  // RD-0123: the average is of per-answer scores, and says so. Keep "Average
+  // answer score by model" last: audit-executive-summary.ts citationCoverage
+  // parses it.
   const summary = `${measurableCount} of ${cells.length} test answers could be scored, across ${ALL_MODEL_IDS.length} AI models. Average answer score by model (0 to 100): ${ALL_MODEL_IDS.map(
     (m) => `${modelLabel(m)} ${result.perModelAverage[m] ?? "not measured"}`
   ).join(", ")}.`;
 
-  // dim6:v5: counts of the four answer kinds. Rates above count CORRECT
-  // answers only (WRONG / UNCLEAR cells carry no domain_named etc. flags).
+  // Counts of the answer kinds. Rates above count CORRECT answers (and, for
+  // the link rate, URL-only answers) only: no other cell carries the flags.
   const correct = countFlag(cells, "accuracy=CORRECT");
+  const urlOnly = countFlag(cells, "url_only=true");
   const wrong = countFlag(cells, "misidentified=true");
-  // "could not be checked": a judge failed twice (affirmation or accuracy),
-  // the answer was too long to read in full, or it carried text aimed at
-  // automated checkers.
+  const cutOff = countFlag(cells, "possible_mixup_cut_off=true");
+  const contradicted = countFlag(cells, "facts_contradicted=true");
+  // "could not be checked": a judge failed twice, the answer was too long to
+  // read in full, or it carried text aimed at automated checkers.
   const accuracyFailed = countFlag(cells, "accuracy_failed=");
   const failed = accuracyFailed + countFlag(cells, "affirmation_failed=true");
   const unclear = countFlag(cells, "accuracy_unclear=true") - accuracyFailed;
-  const unknown = countFlag(cells, "judge=DENY");
-  const breakdown = `Of the ${measurableCount} scored ${measurableCount === 1 ? "answer" : "answers"}, ${correct} matched how your site describes itself, ${wrong} described a different person or business than your site says it is, ${unclear} did not say enough to check, ${
-    failed > 0 ? `${failed} could not be checked (scored 0), ` : ""
-  }and ${unknown} did not show that the model knew your site.`;
+  // DENY answers that still linked the site to someone else or stated a
+  // contradicted fact are counted there, not here.
+  const unknown = cells.filter(
+    (c) => !c.result.unmeasurable && c.result.notes.includes("judge=DENY") && !/misidentified=true|possible_mixup_cut_off=true|facts_contradicted=true/.test(c.result.notes)
+  ).length;
+  const parts = [
+    `${correct} ${correct === 1 ? "was backed by your site's own text" : BACKED}`,
+    urlOnly > 0 ? `${urlOnly} gave your homepage address when asked for it` : null,
+    `${wrong} linked your site to a different named person or business`,
+    cutOff > 0 ? `${cutOff} ${cutOff === 1 ? "was" : "were"} cut off by the AI's length limit after starting to describe a different person or business` : null,
+    contradicted > 0 ? `${contradicted} ${contradicted === 1 ? "was" : "were"} contradicted by your site's own text` : null,
+    `${unclear} did not give enough evidence to check against your site`,
+    failed > 0 ? `${failed} could not be checked (scored 0)` : null,
+    `${unknown} did not show that the model knew your site`,
+  ].filter((p): p is string => p !== null);
+  const breakdown = `Of the ${measurableCount} scored ${measurableCount === 1 ? "answer" : "answers"}, ${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}.`;
 
   const subChecks: Dim6SubCheck[] = [
     {
       id: SUBCHECK_IDS.domain_named_rate,
-      name: "Models name your domain",
+      name: "Models name your site",
       weight: 40,
       score: dnRate,
       passed: dnRate >= 70,
-      // Keep "<m> of <t> test answers could be scored ... Average answer score by model:
-      // ..." last: audit-executive-summary.ts citationCoverage parses it.
       notes: checked
-        ? `${dnRate}% of scored test answers named your domain and matched how your site describes itself. ${breakdown} ${summary}`
+        ? `${dnRate}% of scored test answers named your site (by its domain or the name your site gives itself) and ${BACKED}. ${breakdown} ${NAMES_DISCLOSURE} ${summary}`
         : result.accuracyBlocked === true
           ? `${dnRate}% of scored test answers named your domain. ${accuracyBlockedNote(countFlag(cells, "accuracy_blocked=true"))} ${summary}`
           : `${dnRate}% of scored test answers named your domain. ${(result.accuracyNotCheckedReason ? NOT_CHECKED_NOTES[result.accuracyNotCheckedReason] : accuracyNotCheckedNote)(countFlag(cells, "accuracy_not_checked=true"))} ${summary}`,
     },
-    // Only CORRECT answers carry the url/context flags (fail closed), so
-    // these rates always count correctly described answers.
     {
       id: SUBCHECK_IDS.url_referenced_rate,
       name: "Models cite your URL",
       weight: 30,
       score: urlRate,
       passed: urlRate >= 70,
-      notes: `${urlRate}% of scored test answers matched how your site describes itself and included at least one link to it.`,
+      notes: `${urlRate}% of scored test answers included a link to your site and either ${BACKED}, or gave your homepage address when asked for it.`,
     },
     {
       id: SUBCHECK_IDS.context_relevant_rate,
@@ -343,11 +463,10 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
       weight: 20,
       score: ctxRate,
       passed: ctxRate >= 70,
-      notes: `${ctxRate}% of scored test answers matched how your site describes itself and put your domain in the first half of the answer, rather than only mentioning it at the end.`,
+      notes: `${ctxRate}% of scored test answers ${BACKED} and named your site (by its domain or its own name) in the first half of the answer, rather than only at the end.`,
     },
     // dim6:v4: N/A without a competitor list (the cell scores give it no
-    // points either, see parser.ts), so it is never a gap. With no list the
-    // old rate was really the AFFIRM rate (DENY cells carry no flag).
+    // points either, see parser.ts), so it is never a gap.
     hasCompetitorList
       ? {
           id: SUBCHECK_IDS.no_competitor_first_rate,
@@ -368,17 +487,31 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
         },
   ];
 
-  // dim6:v5: wrong-description examples as an informational row (na, weight
-  // 0): no scoring or weight change, never a gap, and the hostile quotes stay
-  // out of the domain-named note the executive summary parses.
-  if (checked && wrong > 0) {
+  // Informational rows (na, weight 0): no scoring change, never a gap, and the
+  // hostile quotes stay out of the domain-named note the executive summary
+  // parses.
+  if (checked && (wrong > 0 || cutOff > 0)) {
     subChecks.push({
       id: SUBCHECK_IDS.misidentified_answers,
-      name: "Answers that described a different person or business than your site says it is",
+      name:
+        cutOff > 0
+          ? "Answers that linked, or may have linked, your site to a different person or business"
+          : "Answers that linked your site to a different person or business",
       weight: 0,
       score: 0,
       passed: false,
-      notes: mixupRowNote(cells, domain, measurableCount, wrong),
+      notes: mixupRowNote(cells, domain, measurableCount, wrong, cutOff, reference),
+      na: true,
+    });
+  }
+  if (checked && contradicted > 0) {
+    subChecks.push({
+      id: SUBCHECK_IDS.contradicted_answers,
+      name: "Answers your site's own text contradicts",
+      weight: 0,
+      score: 0,
+      passed: false,
+      notes: contradictedRowNote(cells, measurableCount, contradicted, reference),
       na: true,
     });
   }
@@ -508,10 +641,12 @@ export async function runDim6Paid(
     signals,
     competitorHosts,
     reference: reference.verifiable ? reference.text : null,
+    siteFacts: reference.verifiable ? { names: reference.names, addresses: reference.addresses } : null,
     // Injected description: the site owner is the likely attacker, so the
     // safe direction is down. Missing/short → not checked (also 0).
     referenceBlocked: !reference.verifiable && reference.reason === "injection",
   });
+  if (reference.verifiable) result.referenceText = reference.text;
   if (
     !reference.verifiable &&
     (reference.reason === "too_many_entities" || reference.reason === "source_too_large" || reference.reason === "structured_data_too_deep" || reference.reason === "structured_data_unreadable")

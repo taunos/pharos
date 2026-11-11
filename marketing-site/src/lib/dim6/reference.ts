@@ -41,12 +41,18 @@ import { capLength, collapseWhitespace, screenUntrustedText, stripUnsafeChars, s
 import { safeFetch, type FetchLike, type SafeFetchFailure } from "../safe-fetch";
 import { detectAccuracyInjection } from "./accuracy-judge";
 import { canonicalDomain } from "./question-set";
+import { boundSiteNames, containsNameWords, parseStreetAddresses, siteStreetAddresses, type SiteName, type StreetAddress } from "./site-identity";
 
-// 2026-11-10 (RD-0103): title 60 -> 120. Tartine's title is a sentence; cut at
-// 60 and run on into the h1 it read "Tartine is a thoughtful expression of Home".
+// dim6:v6: title 60 -> 120 (tartine's title is a sentence; cut at 60 and run
+// on into the h1 it read "Tartine is a thoughtful expression of Home", RD-0103).
 export const REFERENCE_FIELD_BUDGETS = {
   llmsH1: 80,
   llmsBlockquote: 220,
+  // 2026-11-11 (gold labels): the body of llms.txt is where most sites state
+  // their services, location and contact details (the gold evidence quotes it
+  // for every dev site); the judge needs it to tell a supported claim from an
+  // unsupported one.
+  llmsBody: 2400,
   title: 120,
   metaDescription: 120,
   h1: 60,
@@ -88,7 +94,14 @@ export const REFERENCE_JSONLD_MAX_DEPTH = 20;
 export type ReferenceFailure = "source_unreadable" | "source_too_large";
 
 export type SiteReference =
-  | { verifiable: true; text: string }
+  | {
+      verifiable: true;
+      text: string;
+      // dim6:v6 (site-identity.ts): the site's own names bound to its domain,
+      // and the street addresses its structured data states for itself.
+      names: SiteName[];
+      addresses: SiteAddresses;
+    }
   | {
       verifiable: false;
       reason: "missing" | "too_short" | "injection" | "too_many_entities" | "structured_data_too_deep" | "structured_data_unreadable" | ReferenceFailure;
@@ -97,6 +110,9 @@ export type SiteReference =
 export interface ReferenceSources {
   llmsTxt?: string | null;
   homepageHtml?: string | null;
+  // dim6:v6: the audited domain, for the bound names and addresses
+  // (site-identity.ts). Absent → no names, no addresses.
+  domain?: string | null;
   // Set by fetchReferenceSources when a source could not be read in full.
   failure?: ReferenceFailure;
 }
@@ -160,6 +176,21 @@ export function extractLlmsTxtIdentity(txt: string): string[] {
   }
   if (quote.length > 0) out.push(raw(quote.join("\n")));
   return out.filter(Boolean);
+}
+
+/**
+ * llms.txt: the text after the H1 and its blockquote (raw lines kept), or ""
+ * when the file has no H1 on its first non-empty line (not an llms.txt).
+ */
+export function extractLlmsTxtBody(txt: string): string {
+  const lines = txt.split(/\r?\n/);
+  let i = 0;
+  while (i < lines.length && lines[i].trim() === "") i++;
+  if (!/^#\s+(.+)$/.test(lines[i]?.trim() ?? "")) return "";
+  i++;
+  while (i < lines.length && lines[i].trim() === "") i++;
+  while (i < lines.length && /^\s*>/.test(lines[i])) i++;
+  return raw(lines.slice(i).join("\n"));
 }
 
 // schema.org Organization / LocalBusiness / Person and their subtypes (Codex
@@ -246,6 +277,10 @@ function collectEntities(node: unknown, out: Array<Record<string, unknown>>, dep
  */
 export function extractHtmlIdentity(page: string): {
   jsonLdEntities: Array<{ name: string; description: string }>;
+  // dim6:v6: every identity entity's name, url / @id and streetAddress values
+  // (before deduplication), for the bound names and addresses.
+  jsonLdFacts: Array<{ name: string; urls: string[]; streets: string[] }>;
+  ogSiteName: string;
   jsonLdTooDeep: boolean;
   // Evidence we found but could not read (Codex r9: fail closed, never skip):
   // an ld+json block that is not valid JSON, or a script / title / h1 / meta
@@ -256,11 +291,12 @@ export function extractHtmlIdentity(page: string): {
   h1: string;
 } {
   const jsonLdEntities: Array<{ name: string; description: string }> = [];
+  const jsonLdFacts: Array<{ name: string; urls: string[]; streets: string[] }> = [];
   const seenEntities = new Set<string>();
   const entities: Array<Record<string, unknown>> = [];
   let jsonLdTooDeep = false;
   let unreadable: "structured_data_unreadable" | "source_unreadable" | null = null;
-  const empty = { jsonLdEntities, jsonLdTooDeep, title: "", metaDescription: "", h1: "" };
+  const empty = { jsonLdEntities, jsonLdFacts, ogSiteName: "", jsonLdTooDeep, title: "", metaDescription: "", h1: "" };
   // HTML comments are inert: blank them out (same length) so decoy markup in
   // a comment is never read (Codex r10). An unclosed comment hides the rest
   // of the page: fail closed.
@@ -303,6 +339,7 @@ export function extractHtmlIdentity(page: string): {
   for (const e of entities) {
     const name = valueText(e.name);
     const description = valueText(e.description);
+    jsonLdFacts.push({ name, urls: [valueText(e.url), valueText(e["@id"])].filter(Boolean), streets: streetValues(e.address) });
     if (!name && !description) continue;
     // The same entity listed twice (identical name and description) is one
     // entity: keeping one copy loses no evidence.
@@ -313,25 +350,42 @@ export function extractHtmlIdentity(page: string): {
   }
   const titleText = firstElementText(markup, html, lower, "title");
   const h1Text = firstElementText(markup, html, lower, "h1");
-  let metaDescription = "";
+  let metaDescription: string | null = null;
+  let ogSiteName: string | null = null;
   let metaUnclosed = false;
-  for (let from = 0; ; ) {
+  for (let from = 0; metaDescription === null || ogSiteName === null; ) {
     const tag = nextTag(markup, lower, "meta", from);
     if (tag === null) break;
     if (tag === "unclosed") {
       metaUnclosed = true;
       break;
     }
-    if (decodeEntities(tag.attrs.name ?? "").trim().toLowerCase() === "description") {
+    if (metaDescription === null && decodeEntities(tag.attrs.name ?? "").trim().toLowerCase() === "description") {
       metaDescription = raw(tag.attrs.content ?? "");
-      break;
+    }
+    if (ogSiteName === null && decodeEntities(tag.attrs.property ?? "").trim().toLowerCase() === "og:site_name") {
+      ogSiteName = raw(decodeEntities(tag.attrs.content ?? ""));
     }
     from = tag.end + 1;
   }
-  if (titleText === null || h1Text === null || metaUnclosed) unreadable = "source_unreadable";
+  // An unclosed meta before the description was found hides it: fail closed
+  // (as in v5). After it, only og:site_name (names, never shown) is lost.
+  if (titleText === null || h1Text === null || (metaUnclosed && metaDescription === null)) unreadable = "source_unreadable";
   const title = raw(titleText ?? "");
   const h1 = raw(stripTagsLinear(h1Text ?? ""));
-  return { jsonLdEntities, jsonLdTooDeep, unreadable, title, metaDescription, h1 };
+  return { jsonLdEntities, jsonLdFacts, ogSiteName: ogSiteName ?? "", jsonLdTooDeep, unreadable, title, metaDescription: metaDescription ?? "", h1 };
+}
+
+/** streetAddress values of a JSON-LD address: a string, a PostalAddress, or an array of those. */
+function streetValues(v: unknown, depth = 0): string[] {
+  if (depth > 2 || v === null || v === undefined) return [];
+  if (typeof v === "string") return v.trim() ? [v.trim()] : [];
+  if (Array.isArray(v)) return v.flatMap((x) => streetValues(x, depth + 1));
+  if (typeof v === "object") {
+    const s = valueText((v as Record<string, unknown>).streetAddress);
+    return s ? [s] : [];
+  }
+  return [];
 }
 
 /** Same rule as the scanner's Dim 4: the media type before any ";" parameter. */
@@ -522,7 +576,7 @@ export const REFERENCE_LABELS = {
 // own budget, joined with `sep`. `html` parts (title, meta, h1) have their
 // character references decoded during normalization.
 type RefPart = { raw: string; budget: number; html?: boolean };
-// 2026-11-10: each field on its own line with its own label ("Title: …"), and a
+// dim6:v6: each field on its own line with its own label ("Title: …"), and a
 // cut field ends with "...", so the judge never reads two fields as one
 // sentence (tartine, RD-0103).
 type RefField = { parts: RefPart[]; sep: string; label?: string };
@@ -530,6 +584,7 @@ const single = (raw: string, budget: number, html = false, label?: string): RefF
 export const REFERENCE_FIELD_LABELS = {
   llmsH1: "Name:",
   llmsBlockquote: "Summary:",
+  llmsBody: "Details:",
   title: "Title:",
   metaDescription: "Description:",
   h1: "Main heading:",
@@ -537,8 +592,8 @@ export const REFERENCE_FIELD_LABELS = {
 // ASCII: the judge input is NFKC-normalized, which turns "…" into "...".
 const CUT_MARK = "...";
 const REPLACEMENT_CHAR = String.fromCharCode(0xfffd);
-
-
+/** Visible homepage text read for the addresses an answer may give (site-identity.ts). */
+export const REFERENCE_VISIBLE_TEXT_MAX = 200_000;
 
 /**
  * Normalized text of a part, enough of it for `need` visible chars. Works on
@@ -569,18 +624,25 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
   let tooManyEntities = false;
   let jsonLdTooDeep = false;
   let htmlUnreadable: "structured_data_unreadable" | "source_unreadable" | null = null;
+  // dim6:v6: raw declared names and addresses (site-identity.ts).
+  const declaredNames: string[] = [];
+  let html: ReturnType<typeof extractHtmlIdentity> | null = null;
   if (sources.llmsTxt) {
     const [h1 = "", quote = ""] = extractLlmsTxtIdentity(sources.llmsTxt);
+    declaredNames.push(h1);
     groups.push({
       label: REFERENCE_LABELS.llmsTxt,
       fields: [
         single(h1, REFERENCE_FIELD_BUDGETS.llmsH1, false, REFERENCE_FIELD_LABELS.llmsH1),
         single(quote, REFERENCE_FIELD_BUDGETS.llmsBlockquote, false, REFERENCE_FIELD_LABELS.llmsBlockquote),
+        single(extractLlmsTxtBody(sources.llmsTxt), REFERENCE_FIELD_BUDGETS.llmsBody, false, REFERENCE_FIELD_LABELS.llmsBody),
       ],
     });
   }
   if (sources.homepageHtml) {
     const h = extractHtmlIdentity(sources.homepageHtml);
+    html = h;
+    declaredNames.push(...h.jsonLdFacts.map((e) => e.name), h.ogSiteName, decodeEntities(h.title));
     tooManyEntities = h.jsonLdEntities.length > REFERENCE_MAX_ENTITIES;
     jsonLdTooDeep = h.jsonLdTooDeep;
     htmlUnreadable = h.unreadable;
@@ -630,7 +692,7 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
   if (htmlUnreadable) return { verifiable: false, reason: htmlUnreadable };
   if (jsonLdTooDeep) return { verifiable: false, reason: "structured_data_too_deep" };
   if (tooManyEntities) return { verifiable: false, reason: "too_many_entities" };
-  // 2026-11-10 (Codex plan review LOW): text that did not decode (a page in a
+  // dim6:v6 (Codex plan review LOW): text that did not decode (a page in a
   // charset we do not read, or broken UTF-8) would show the judge garbled
   // identity fields: fail closed.
   for (const norm of normalized.values()) {
@@ -643,7 +705,7 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
     for (const f of g.fields) {
       // No deduplication (Codex r4 HIGH): a repeated field can keep, under
       // its own budget, evidence an earlier field's budget cut off. Every
-      // non-empty part is kept, trimmed at a word boundary.
+      // non-empty part is kept, trimmed at a word boundary, marked when cut.
       // The shown text comes from the same normalized prefix that was
       // screened (collapsing its line breaks keeps every offset).
       const items = f.parts
@@ -667,7 +729,42 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
     return { verifiable: false, reason: "too_short" };
   }
   if (screenUntrustedText(text, detectAccuracyInjection)) return { verifiable: false, reason: "injection" };
-  return { verifiable: true, text };
+  const domain = sources.domain ?? "";
+  const names = domain ? boundSiteNames(declaredNames, domain) : [];
+  return { verifiable: true, text, names, addresses: domain && html ? siteAddresses(html, domain, names, sources.homepageHtml ?? "") : { declared: [], accepted: [] } };
+}
+
+/**
+ * dim6:v6: the site's street addresses (site-identity.ts). `declared`: from
+ * JSON-LD identity entities bound to the site (url / @id on this domain, or
+ * the site's own name in the entity name); the address check runs only when
+ * there is one. `accepted`: those plus every address in the homepage's
+ * visible text (drveit lists a third clinic only there), the addresses an
+ * answer may give and still count.
+ */
+function siteAddresses(
+  h: ReturnType<typeof extractHtmlIdentity>,
+  domain: string,
+  names: SiteName[],
+  page: string
+): SiteAddresses {
+  const bound = h.jsonLdFacts.filter(
+    (e) => e.urls.some((u) => canonicalDomain(u) === domain) || names.some((n) => containsNameWords(e.name, n))
+  );
+  const declared = siteStreetAddresses(bound.flatMap((e) => e.streets));
+  if (declared.length === 0) return { declared, accepted: [] };
+  const pass = blankComments(page);
+  const visible = pass ? decodeEntities(stripTagsLinear(pass.markup.slice(0, REFERENCE_HTML_MAX_BYTES))).slice(0, REFERENCE_VISIBLE_TEXT_MAX) : "";
+  const accepted = [...declared];
+  for (const a of parseStreetAddresses(visible, REFERENCE_VISIBLE_TEXT_MAX)) {
+    if (!accepted.some((x) => x.street === a.street && x.number === a.number)) accepted.push(a);
+  }
+  return { declared, accepted };
+}
+
+export interface SiteAddresses {
+  declared: StreetAddress[];
+  accepted: StreetAddress[];
 }
 
 /**
@@ -706,9 +803,9 @@ export async function fetchReferenceSources(scanUrl: string, fetchImpl?: FetchLi
       const body = await res.body({ maxBytes, keepBytes: true });
       if (body.truncated) return { kind: "too_large" };
       if (!body.complete) return { kind: "unreadable" };
-      // 2026-11-10 (RD-0103): decode with the declared charset (a windows-1252
-      // page read as UTF-8 would show the judge garbled text). A charset we do
-      // not read fails closed.
+      // dim6:v6: decode with the declared charset (a windows-1252 page read
+      // as UTF-8 would show the judge garbled text). A charset we do not read
+      // fails closed.
       const text = body.raw ? decodeBody(body.raw, res.headers.get("content-type")) : body.text;
       if (text === null) return { kind: "unreadable" };
       return text ? { kind: "ok", text } : { kind: "absent" };
@@ -727,6 +824,7 @@ export async function fetchReferenceSources(scanUrl: string, fetchImpl?: FetchLi
   const out: ReferenceSources = {
     llmsTxt: llms.kind === "ok" ? llms.text : null,
     homepageHtml: home.kind === "ok" ? home.text : null,
+    domain,
   };
   // Fail closed when evidence went unread: a source over its byte cap, an
   // llms.txt that failed to load, or a homepage that is not a readable 2xx
@@ -781,10 +879,10 @@ export function declaredCharset(bytes: Uint8Array, contentType: string | null): 
 /**
  * Body text in its declared charset: UTF-8 (also when none is declared) or
  * windows-1252 / ISO-8859-1 / ASCII (all read as windows-1252, as browsers
- * do). null for any other declared charset (including ISO-8859-15, which
- * differs from windows-1252 in eight letters: a silent letter swap in a name
- * could change a verdict, so it fails closed, Codex review) or bytes
- * undefined in windows-1252.
+ * do). null for any other declared charset or bytes undefined in it.
+ * ISO-8859-15 is not read: it differs from windows-1252 in eight letters,
+ * and a silent letter swap in a name could change a verdict (Codex review),
+ * so it fails closed like any other charset we do not read.
  */
 export function decodeBody(bytes: Uint8Array, contentType: string | null): string | null {
   const cs = declaredCharset(bytes, contentType);

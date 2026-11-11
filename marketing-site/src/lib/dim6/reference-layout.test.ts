@@ -87,11 +87,11 @@ describe("report cells (RD-0122, RD-0123)", () => {
   it("the mix-up row note always fits the report cell and ends with its whole closing sentence", () => {
     const models: ModelId[] = ["openai:gpt-4o", "anthropic:claude-sonnet", "google:gemini-2.5-flash", "perplexity:sonar"];
     const cells = models.flatMap((m, i) => [cell(m, `q${i}`, WRONG, long(`${"W".repeat(9)} acme.com is someone else entirely`)), cell(m, `q${i + 5}`, WRONG, long("acme.com is another business"))]);
-    const note = mixupRowNote(cells, "acme.com", 40, 8);
+    const note = mixupRowNote(cells, "acme.com", 40, 8, 0);
     expect(note.length).toBeLessThanOrEqual(DISPLAY_TEXT_MAX);
-    expect(note.startsWith("8 of the 40 scored answers mixed up your site")).toBe(true);
+    expect(note.startsWith("8 of the 40 scored answers linked your site to a different named person or business")).toBe(true);
     expect(note).toMatch(/This row is for information and is not counted again in your score\.$/);
-    expect(note).toContain("Examples of what the AI said:");
+    expect(note).toContain(" said: \"");
   });
 
   it("the saved 2026-11-10 resend row (1039 chars) now fits", () => {

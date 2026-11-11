@@ -20,7 +20,7 @@
 //     the spec invariant (unmeasurable cells excluded) breaks at the
 //     persistence layer.
 
-import { runLadder, type LadderEnv } from "./ladder";
+import { runLadder, type LadderEnv, type SiteFacts } from "./ladder";
 import { canonicalDomain, resolveQuestionSet, type QuestionSetEnv } from "./question-set";
 import {
   ALL_MODEL_IDS,
@@ -47,6 +47,26 @@ export interface OrchestratorInput {
   // dim6:v5: the site's description tripped the injection screen → every
   // AFFIRM answer scores 0 (accuracy_blocked=true).
   referenceBlocked?: boolean;
+  // dim6:v6: the site's own names and addresses (reference.ts), with the reference.
+  siteFacts?: SiteFacts | null;
+}
+
+const URL_QUESTION_RE = /\b(?:URL|web ?address|website address|home ?page)\b/i;
+const URL_QUESTION_MAX_WORDS = 25;
+
+/**
+ * dim6:v6: the id of the run's homepage-URL question: the FIRST question that
+ * asks for the URL / web address / homepage and names the domain, at most 25
+ * words. At most one per run, so URL-only credit (ladder.ts) can come from
+ * one question of ten at most.
+ */
+export function pickUrlQuestionId(queries: PromptSetQuery[], domain: string | null): string | null {
+  if (!domain) return null;
+  const d = domain.toLowerCase();
+  const q = queries.find(
+    (x) => URL_QUESTION_RE.test(x.text) && x.text.toLowerCase().includes(d) && x.text.trim().split(/\s+/).length <= URL_QUESTION_MAX_WORDS
+  );
+  return q?.id ?? null;
 }
 
 // Defensive fallback synthesis. Per CC-1 + Task 8: handles anything from
@@ -110,6 +130,8 @@ export async function runDim6Orchestrator(
   // must not be scored as a different host from x.com.
   const domain = canonicalDomain(scanUrl);
   const targetUrl = domain ? `https://${domain}` : scanUrl;
+  const urlQuestionId = pickUrlQuestionId(queries, domain);
+  const siteFacts = input.siteFacts ?? null;
 
   // Build the (model × query) task list. Tasks are DEFERRED (function returning
   // a promise) — NOT pre-created promises. This is load-bearing for the
@@ -138,6 +160,8 @@ export async function runDim6Orchestrator(
             competitorHosts,
             reference,
             referenceBlocked,
+            urlQuestion: query.id === urlQuestionId,
+            siteFacts,
           }),
       });
     }
