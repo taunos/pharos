@@ -83,6 +83,14 @@ Does the answer mention the site's domain (case-insensitive) and/or its declared
 - `evidence`: 1–3 short quotes from the answer (`A: "..."`) and the site evidence (`S: "..."`) justifying `identity`, `core_identity`, `facts`, `invented_specifics`.
 - `notes`: ambiguity, which rule decided a borderline call, unverifiable specifics, whether a named other entity is real.
 
+## Rule decisions (Bruno, 2026-11-10)
+
+These settle the patterns the two labelers split on. They override any reading of the sections above.
+
+- **R1: the main claim is enough.** `facts=supported` when the claims that answer the question are backed by the evidence, even if other details can't be checked. Those details set `has_unsupported_claims=true`; they don't make `facts` "unsupported".
+- **R2: an answer about the named site is about your site.** An answer that addresses the site the question names, without saying what it is (a URL, "it isn't well known", "the domain isn't in use"), is `identity=same_entity`. It does not make the answer correct: `core_identity`, `answered` and `facts` still decide that.
+- **R3: conflicts must be explicit.** `facts=contradicted` and `invented_specifics=true` only when the site's text explicitly says something different (another address, year, page name it shows). A detail missing from the site, or one that merely looks unlikely, is unsupported (`has_unsupported_claims=true`), never contradicted or invented. A possibility listed among others ("it may be inactive, private or…") is not a claim.
+
 ## Worked examples (a fictional site, so labelers aren't shown real answers)
 
 Site `anapereira.com.br`. Evidence: "Ana Pereira – Fisioterapeuta", physiotherapy clinic at "Rua das Flores, 20, Recife"; canonical https://www.anapereira.com.br/ (apex redirects there).
