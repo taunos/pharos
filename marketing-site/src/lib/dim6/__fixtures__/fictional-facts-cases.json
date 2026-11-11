@@ -1,0 +1,93 @@
+[
+ {
+  "id": "dentist-specialty",
+  "domain": "marinacosta.com.br",
+  "question": "Does marinacosta.com.br offer services to individuals?",
+  "reference": "From the homepage:\nTitle: Dra. Marina Costa – Cirurgiã-Dentista em Natal\nMain heading: Dra. Marina Costa, Cirurgiã-Dentista\nPage text: Tratamentos: limpeza, clareamento dental, implantes, ortodontia e restaurações. Atendimento a adultos e crianças em Natal.",
+  "answer": "Yes. marinacosta.com.br belongs to Dr. Marina Costa, who offers her services to individuals. She specialises in dermatology and Botox treatments at her practice in Natal.",
+  "expect": "wrong_facts",
+  "recorded": {
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes. marinacosta.com.br belongs to Dr. Marina Costa, who offers her services to individuals\nSITE: Atendimento a adultos e crianças em Natal\nVERDICT: SUPPORTED",
+   "confirm": null,
+   "facts": "FACT: CATEGORY | dermatology | NONE | ABSENT\nFACT: SERVICE | Botox treatments | NONE | ABSENT\nFACT: PERSON | Dr. Marina Costa | Dra. Marina Costa | MATCH\nFACT: LOCATION | Natal | Natal | MATCH\nFACT: CATEGORY | Cirurgiã-Dentista | Cirurgiã-Dentista | CONFLICT",
+   "compats": [
+    "YES"
+   ]
+  }
+ },
+ {
+  "id": "bakery-city",
+  "domain": "padariasol.com.br",
+  "question": "Does padariasol.com.br have physical locations?",
+  "reference": "From the homepage:\nTitle: Padaria Sol – pães artesanais\nMain heading: Padaria Sol\nPage text: Nossas lojas: Curitiba (Rua XV de Novembro, 100), Londrina (Av. Higienópolis, 50) e Maringá (Av. Brasil, 200).",
+  "answer": "Yes, Padaria Sol has several locations, with shops in Curitiba, Londrina and Florianópolis.",
+  "expect": "wrong_facts",
+  "recorded": {
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, Padaria Sol has several locations\nSITE: Nossas lojas: Curitiba, Londrina e Maringá\nVERDICT: CONTRADICTED",
+   "confirm": null,
+   "facts": null,
+   "compats": [
+    "YES"
+   ]
+  }
+ },
+ {
+  "id": "bakery-address",
+  "domain": "padariasol.com.br",
+  "question": "Where is padariasol.com.br located?",
+  "reference": "From the homepage:\nTitle: Padaria Sol – pães artesanais\nMain heading: Padaria Sol\nPage text: Nossas lojas: Curitiba (Rua XV de Novembro, 100), Londrina (Av. Higienópolis, 50) e Maringá (Av. Brasil, 200).",
+  "answer": "Padaria Sol is an artisanal bakery with shops in Curitiba, Londrina and Maringá. Its Curitiba shop is at Rua das Flores, 300.",
+  "expect": "wrong_facts",
+  "recorded": {
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Padaria Sol is an artisanal bakery with shops in Curitiba, Londrina and Maringá\nSITE: Nossas lojas: Curitiba, Londrina e Maringá\nVERDICT: CONTRADICTED",
+   "confirm": null,
+   "facts": "FACT: CATEGORY | artisanal bakery | pães artesanais | MATCH\nFACT: LOCATION | Curitiba | Curitiba | MATCH\nFACT: LOCATION | Londrina | Londrina | MATCH\nFACT: LOCATION | Maringá | Maringá | MATCH\nFACT: ADDRESS | Rua das Flores, 300 | Rua XV de Novembro, 100 | CONFLICT\nFACT: CATEGORY | bakery | Padaria Sol – pães artesanais | MATCH \nFACT: SERVICE | shops | Nossas lojas | MATCH",
+   "compats": [
+    "NO",
+    "YES"
+   ]
+  }
+ },
+ {
+  "id": "howto-page",
+  "domain": "padariasol.com.br",
+  "question": "How do I order a cake from padariasol.com.br?",
+  "reference": "From the homepage:\nTitle: Padaria Sol – pães artesanais\nMain heading: Padaria Sol\nPage text: Encomende bolos e tortas pelo WhatsApp ou na loja.\nNavigation: Início · Cardápio · Encomendas · Lojas · Contato",
+  "answer": "To order a cake from Padaria Sol, open the 'Bolos Personalizados' section of padariasol.com.br and click 'Agendar retirada'.",
+  "expect": "not correct",
+  "recorded": {
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: open the 'Bolos Personalizados' section\nSITE: Encomende bolos e tortas pelo WhatsApp ou na loja.\nVERDICT: UNSUPPORTED",
+   "confirm": null,
+   "facts": "FACT: PAGE | Bolos Personalizados | NONE | ABSENT\nFACT: PAGE | Agendar retirada | NONE | ABSENT \nFACT: CATEGORY | Padaria | pães artesanais | MATCH\nFACT: SERVICE | order a cake | Encomende bolos e tortas | MATCH \nFACTS: NONE",
+   "compats": []
+  }
+ },
+ {
+  "id": "control-correct",
+  "domain": "padariasol.com.br",
+  "question": "What is padariasol.com.br?",
+  "reference": "From the homepage:\nTitle: Padaria Sol – pães artesanais\nMain heading: Padaria Sol\nPage text: Nossas lojas: Curitiba (Rua XV de Novembro, 100), Londrina (Av. Higienópolis, 50) e Maringá (Av. Brasil, 200).",
+  "answer": "padariasol.com.br is the website of Padaria Sol, an artisanal bakery with shops in Curitiba, Londrina and Maringá. It is popular with local families.",
+  "expect": "correct",
+  "recorded": {
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: the website of Padaria Sol, an artisanal bakery\nSITE: Padaria Sol – pães artesanais\nVERDICT: SUPPORTED",
+   "confirm": null,
+   "facts": "FACT: CATEGORY | artisanal bakery | pães artesanais | MATCH\nFACT: LOCATION | Curitiba | Curitiba | MATCH\nFACT: LOCATION | Londrina | Londrina | MATCH\nFACT: LOCATION | Maringá | Maringá | MATCH\nFACT: OTHER | popular with local families | NONE | ABSENT",
+   "compats": []
+  }
+ },
+ {
+  "id": "control-extra-unverifiable",
+  "domain": "marinacosta.com.br",
+  "question": "What kind of business is marinacosta.com.br?",
+  "reference": "From the homepage:\nTitle: Dra. Marina Costa – Cirurgiã-Dentista em Natal\nMain heading: Dra. Marina Costa, Cirurgiã-Dentista\nPage text: Tratamentos: limpeza, clareamento dental, implantes, ortodontia e restaurações. Atendimento a adultos e crianças em Natal.",
+  "answer": "It is the website of Dr. Marina Costa, a dentist in Natal offering cleanings, whitening and implants. She has been practising for many years.",
+  "expect": "correct",
+  "recorded": {
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: the website of Dr. Marina Costa, a dentist\nSITE: Dra. Marina Costa, Cirurgiã-Dentista\nVERDICT: SUPPORTED",
+   "confirm": null,
+   "facts": "FACT: CATEGORY | dentist | Cirurgiã-Dentista | MATCH\nFACT: SERVICE | cleanings, whitening and implants | limpeza, clareamento dental, implantes | MATCH\nFACT: LOCATION | Natal | Natal | MATCH\nFACT: PERSON | Dr. Marina Costa | Dra. Marina Costa | MATCH\nFACT: OTHER | many years | NONE | ABSENT",
+   "compats": []
+  }
+ }
+]

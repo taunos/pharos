@@ -58,6 +58,9 @@ function fakeAi(outputs: string[]) {
   const q = [...outputs];
   const AI = {
     run: async (_model: string, inputs: { messages: Array<{ content: string }> }) => {
+      // The specific-facts call takes the next output only when it is a facts
+      // output; otherwise it answers "FACTS: NONE" (not recorded in calls).
+      if (inputs.messages[0].content.includes("<answer-facts-") && !/^FACTS?s*:/.test(q[0] ?? "")) return { response: "FACTS: NONE" };
       calls.push(inputs.messages[0].content);
       return { response: q.shift() ?? "" };
     },

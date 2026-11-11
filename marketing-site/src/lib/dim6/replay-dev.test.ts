@@ -36,6 +36,10 @@ interface Row {
   judge: string | null;
   confirm: string | null;
   compat: string | null;
+  /** The specific-facts call output (null: not called or failed). */
+  facts?: string | null;
+  /** Every contradiction check, in call order (core first, then facts). */
+  compats?: string[];
   verdict: string;
 }
 const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, "__fixtures__/dev-v6-judge-outputs.json"), "utf8")) as {
@@ -50,10 +54,17 @@ const labels = fs
 
 /** Fake Workers AI that answers each prompt kind with the recorded output. */
 function recordedAi(row: Row) {
+  const compats = [...(row.compats ?? (row.compat ? [row.compat] : []))];
   return {
     run: async (_m: string, inputs: { messages: Array<{ content: string }> }) => {
       const p = inputs.messages[0].content;
-      const out = p.includes("<quoted-words-") ? row.confirm : p.includes("<site-words-") ? row.compat : row.judge;
+      const out = p.includes("<quoted-words-")
+        ? row.confirm
+        : p.includes("<site-words-")
+          ? compats.shift() ?? null
+          : p.includes("<answer-facts-")
+            ? row.facts ?? null
+            : row.judge;
       return { response: out ?? "" };
     },
   } as unknown as Ai;

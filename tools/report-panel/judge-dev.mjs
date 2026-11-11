@@ -163,7 +163,7 @@ for (const site of sites) {
     }
     const verdict = verdictOf(result.notes, result.unmeasurable);
     out.push({ site, qid: l.qid, modelId: l.modelId, verdict });
-    trace.push({ site, qid: l.qid, modelId: l.modelId, verdict, notes: result.notes, judge: t.judge ?? null, confirm: t.confirm ?? null, compat: t.compat ?? null, settled: t.verdict ?? null });
+    trace.push({ site, qid: l.qid, modelId: l.modelId, verdict, notes: result.notes, judge: t.judge ?? null, confirm: t.confirm ?? null, compat: t.compat ?? null, facts: t.facts ?? null, compats: t.compats ?? [], settled: t.verdict ?? null });
   }
 }
 fs.writeFileSync(OUT, out.map((r) => JSON.stringify(r)).join("\n") + "\n");

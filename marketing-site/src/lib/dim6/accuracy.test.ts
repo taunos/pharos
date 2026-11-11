@@ -72,6 +72,12 @@ function fakeAi(byModel: Record<string, string[] | string>) {
   const queues = Object.fromEntries(Object.entries(byModel).map(([k, v]) => [k, Array.isArray(v) ? [...v] : v]));
   const AI = {
     run: async (model: string, inputs: { messages: Array<{ content: string }> }) => {
+      // The specific-facts call answers "FACTS: NONE" unless the test gives
+      // outputs under the "facts" key (not recorded in calls).
+      if (inputs.messages[0].content.includes("<answer-facts-")) {
+        const f = queues.facts;
+        return { response: f === undefined ? "FACTS: NONE" : Array.isArray(f) ? f.shift() ?? "" : f };
+      }
       calls.push({ model, prompt: inputs.messages[0].content });
       const q = queues[model];
       if (q === undefined) throw new Error(`unexpected model ${model}`);
