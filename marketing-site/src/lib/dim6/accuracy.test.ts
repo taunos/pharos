@@ -221,7 +221,7 @@ describe("reference description", () => {
         "From llms.txt:\nName: Rachel Queiroz\nSummary: Psicóloga clínica em Maceió para adultos e casais.",
         // The JSON-LD name repeats the llms.txt H1 and is kept (no deduplication).
         "From structured data:\nRachel Queiroz: Psicóloga clínica há 20 anos.\nConsultório: Clínica em Maceió.",
-        "From the homepage:\nTitle: Rachel Queiroz &ndash; Psic&oacute;loga & Terapeuta\nDescription: Atendimento para adultos e casais em Maceió.\nMain heading: Bem- vinda",
+        "From the homepage:\nTitle: Rachel Queiroz &ndash; Psic&oacute;loga & Terapeuta\nDescription: Atendimento para adultos e casais em Maceió.\nMain heading: Bem- vinda\nPage text: Bem- vinda",
       ].join("\n")
     );
   });
@@ -246,20 +246,20 @@ describe("reference description", () => {
     const lines = r.text
       .split("\n")
       .filter((l) => !/^From (llms\.txt|structured data|the homepage):$/.test(l))
-      .map((l) => l.replace(/^(Name|Summary|Title|Description|Main heading): /, ""));
+      .map((l) => l.replace(/^(Name|Summary|Title|Description|Main heading|Page text): /, ""));
     const B = REFERENCE_FIELD_BUDGETS;
     const E = REFERENCE_ENTITY_BUDGETS;
     // llms H1, llms blockquote, entity "name: description", title, meta, h1: all present.
-    const budgets = [B.llmsH1, B.llmsBlockquote, E.name + 2 + E.description, B.title, B.metaDescription, B.h1];
+    const budgets = [B.llmsH1, B.llmsBlockquote, E.name + 2 + E.description, B.title, B.metaDescription, B.h1, B.pageText];
     expect(lines).toHaveLength(budgets.length);
     lines.forEach((l, i) => expect(l.replace(/.../g, "").length).toBeLessThanOrEqual(budgets[i]));
     const [entName, entDesc] = lines[2].split(": ");
     expect(entName.replace(/...$/, "").length).toBeLessThanOrEqual(E.name);
     expect(entDesc.replace(/...$/, "").length).toBeLessThanOrEqual(E.description);
     for (const w of ["big", "word", "name", "desc", "title", "meta", "heading"]) expect(r.text).toContain(w);
-    expect(REFERENCE_MAX_CHARS).toBe(4360); // + 2400 for the llms.txt body (2026-11-11)
+    expect(REFERENCE_MAX_CHARS).toBe(11440); // + llms.txt body, longer summary, page text, navigation, about and contact pages (2026-11-11)
     // Trimmed at a word boundary and marked as cut: no part ends in a partial word.
-    for (const l of [...lines, entName]) expect(l).toMatch(/(big|word|name|desc|title|meta|heading)...$/);
+    for (const l of [...lines, entName]) expect(l).toMatch(/(big|word|name|desc|title|meta|heading)\.\.\.$/);
   });
 
   it("Codex r5 regression: each JSON-LD entity keeps its own name share ('Dental clinic' is not pushed out)", () => {
@@ -352,7 +352,7 @@ describe("reference description", () => {
 
   it("missing or very short → not verifiable", () => {
     expect(buildSiteReference({})).toEqual({ verifiable: false, reason: "missing" });
-    expect(buildSiteReference({ llmsTxt: "<html>", homepageHtml: "<html><body>hi</body></html>" })).toEqual({ verifiable: false, reason: "missing" });
+    expect(buildSiteReference({ llmsTxt: "<html>", homepageHtml: "<html><body>hi</body></html>" })).toEqual({ verifiable: false, reason: "too_short" }); // the page text "hi" is a field now (2026-11-11)
     expect(buildSiteReference({ llmsTxt: "# Acme" })).toEqual({ verifiable: false, reason: "too_short" });
     expect(buildSiteReference({ homepageHtml: "<title>Acme | Home</title>" })).toEqual({ verifiable: false, reason: "too_short" });
   });

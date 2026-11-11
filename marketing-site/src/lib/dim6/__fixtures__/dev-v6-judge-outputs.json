@@ -1,9 +1,9 @@
 {
- "note": "dim6:v6 judge outputs on the gold dev answers (datasets/judge-labels/dev.jsonl), recorded 2026-11-11 through the local Workers AI proxy by tools/report-panel/judge-dev.mjs. Raw model outputs only (no labels): replay-dev.test.ts feeds them back through the deterministic gates. Dev sites only; the held-out sites are not here.",
+ "note": "dim6:v6 judge outputs on the gold dev answers (datasets/judge-labels/dev.jsonl), recorded 2026-11-11 (re-recorded after the richer site evidence: about/contact pages, page text) through the local Workers AI proxy by tools/report-panel/judge-dev.mjs. Raw model outputs only (no labels): replay-dev.test.ts feeds them back through the deterministic gates. Dev sites only; the held-out sites are not here.",
  "references": {
   "eff": {
    "verifiable": true,
-   "text": "From llms.txt:\nName: Electronic Frontier Foundation (EFF)\nSummary: The Electronic Frontier Foundation is the leading nonprofit organization defending civil liberties in the digital world. Founded in 1990 and based in San Francisco, EFF champions user privacy, free expression, and...\nDetails: EFF's work is organized into issue areas (free speech, privacy, creativity and innovation, transparency, international, security, and artificial intelligence). Most current analysis is published on the Deeplinks blog; press releases, whitepapers, legal case pages, and events are collected under Updates. EFF also builds free privacy and security tools. EFF is a donor-funded, member-supported US 501(c)(3) nonprofit. Donations and memberships: https://supporters.eff.org/donate/join-4--llm Original material on eff.org is licensed under Creative Commons Attribution 4.0 (CC BY) unless otherwise noted; please attribute EFF and link to the source page. Material not created by EFF may require permission from its copyright holder. EFF provides general information, not legal advice. People seeking legal help should use the legal assistance page rather than relying on summaries of EFF content. ## About EFF - [About EFF](https://www.eff.org/about): Mission and overview of the organization - [History](https://www.eff.org/about/history): EFF's history since 1990 - [Victories](https://www.eff.org/victories): Notable legal and policy wins - [Staff](https://www.eff.org/about/staff): Lawyers, technologists, activists, and other staff - [Annual Reports and Financials](https://www.eff.org/about/annual-reports-and-financials): Annual reports, audited financials, and tax filings - [Contact](https://www.eff.org/about/contact): General contact information - [Press Contact](https://www.eff.org/press/contact): Media inquiries ## Issues - [All Issues](https://www.eff.org/work): Index of EFF issue areas and campaigns - [Free Speech](https://www.eff.org/issues/free-speech): Online expression, content moderation, censorship, and Section 230 - [Privacy](https://www.eff.org/issues/privacy): Government and corporate surveillance, data protection, and encryption - [Creativity and Innovation](https://www.eff.org/issues/innovation): Copyright, DMCA, patents, fair use, and right to repair - [Transparency](https://www.eff.org/issues/transparency): FOIA work and government accountability - [International](https://www.eff.org/issues/international): Digital rights work outside the United States - [Security](https://www.eff.org/issues/security): Encryption, security research, and secure technology - [Artificial Intelligence](https://www.eff.org/issues/ai): AI policy, copyright, surveillance, and...\nFrom the homepage:\nTitle: Electronic Frontier Foundation | Defending your rights in the digital world",
+   "text": "From llms.txt:\nName: Electronic Frontier Foundation (EFF)\nSummary: The Electronic Frontier Foundation is the leading nonprofit organization defending civil liberties in the digital world. Founded in 1990 and based in San Francisco, EFF champions user privacy, free expression, and innovation through impact litigation, policy analysis, grassroots activism, and technology development.\nDetails: EFF's work is organized into issue areas (free speech, privacy, creativity and innovation, transparency, international, security, and artificial intelligence). Most current analysis is published on the Deeplinks blog; press releases, whitepapers, legal case pages, and events are collected under Updates. EFF also builds free privacy and security tools. EFF is a donor-funded, member-supported US 501(c)(3) nonprofit. Donations and memberships: https://supporters.eff.org/donate/join-4--llm Original material on eff.org is licensed under Creative Commons Attribution 4.0 (CC BY) unless otherwise noted; please attribute EFF and link to the source page. Material not created by EFF may require permission from its copyright holder. EFF provides general information, not legal advice. People seeking legal help should use the legal assistance page rather than relying on summaries of EFF content. ## About EFF - [About EFF](https://www.eff.org/about): Mission and overview of the organization - [History](https://www.eff.org/about/history): EFF's history since 1990 - [Victories](https://www.eff.org/victories): Notable legal and policy wins - [Staff](https://www.eff.org/about/staff): Lawyers, technologists, activists, and other staff - [Annual Reports and Financials](https://www.eff.org/about/annual-reports-and-financials): Annual reports, audited financials, and tax filings - [Contact](https://www.eff.org/about/contact): General contact information - [Press Contact](https://www.eff.org/press/contact): Media inquiries ## Issues - [All Issues](https://www.eff.org/work): Index of EFF issue areas and campaigns - [Free Speech](https://www.eff.org/issues/free-speech): Online expression, content moderation, censorship, and Section 230 - [Privacy](https://www.eff.org/issues/privacy): Government and corporate surveillance, data protection, and encryption - [Creativity and Innovation](https://www.eff.org/issues/innovation): Copyright, DMCA, patents, fair use, and right to repair - [Transparency](https://www.eff.org/issues/transparency): FOIA work and government accountability - [International](https://www.eff.org/issues/international): Digital rights work outside the United States - [Security](https://www.eff.org/issues/security): Encryption, security research, and secure technology - [Artificial Intelligence](https://www.eff.org/issues/ai): AI policy, copyright, surveillance, and civil liberties ## Updates and Analysis - [Deeplinks Blog](https://www.eff.org/deeplinks): EFF's primary blog of analysis and commentary on current digital rights issues - [All Updates](https://www.eff.org/updates): Blog posts, press releases, whitepapers, and events in one listing - [Press Releases](https://www.eff.org/updates?type=press_release): Official EFF announcements - [Whitepapers](https://www.eff.org/updates?type=whitepaper): Long-form research and policy papers - [Legal Cases](https://www.eff.org/pages/legal-cases): Cases EFF has litigated or filed briefs in, with case documents -...\nFrom the homepage:\nTitle: Electronic Frontier Foundation | Defending your rights in the digital world\nSocial description: Defending your rights in the digital world\nPage text: Email updates on news, actions, and events in your area. If you use technology, this fight is yours. The leading nonprofit defending digital privacy, free speech, and innovation. The leading nonprofit defending digital privacy, free speech, and innovation. FEATURED UPDATE Automated license plate readers are simply not comparable to observing an individual license plate on a passing car. As we’ve explained in many amicus briefs and in our lawsuits directly challenging their use, ALPRs give law enforcement “a virtual time machine to view suspects’, or anyone else’s, past movements (and much more) with just the click of a button.” FEATURED UPDATE Google is rightfully facing blowback for forcing K-12 schools to enable AI if they wanted to keep using Google search. The company quickly backtracked and decoupled and turned off the services by default, but made it clear search will continue to be just another AI chatbot. This mandate forces an ultimatum on educators: accept generative AI or de-google your school. This is a choice that must be made by schools, not Google, and everyone deserves clear set-and-forget controls for the tools they rely on. FEATURED UPDATE The internet is a vast and confusing place no matter your age. Trying to help youth engage with it safely and privately is a complicated topic that touches on many different skillsets and ideas. But just because it’s complicated doesn’t mean it’s impossible. We’ve launched our Online Privacy for Parents and Youth...\nNavigation: Skip to main content · About · Contact · Press · People · Opportunities · Issues · Free Speech · Privacy · Creativity and Innovation · Transparency · International · Security · Artificial Intelligence · Our Work · Deeplinks Blog · Press Releases · Events · Legal Cases · Whitepapers · Podcasts · Annual Reports · Take Action · Action Center · Volunteer · Follow EFF · Tools · Privacy Badger · Surveillance Self-Defense · Certbot · Atlas of Surveillance · Cover Your Tracks · Street Level Surveillance · apkeep · Shop · Donate · Donate to EFF · Giving Societies · Sponsorships · Other Ways to Give · Membership FAQ · Join EFF Lists · Copyright (CC BY) · Trademark · Privacy Policy · Thanks · Electronic Frontier Foundation · Donate today · Google Forcing AI on Students Is BS · Donate Today! ·...\nFrom the about page:\nPage text: About EFF PAGE About EFF The Electronic Frontier Foundation is the leading nonprofit organization defending civil liberties in the digital world. Founded in 1990, EFF champions user privacy, free expression, and innovation through impact litigation, policy analysis, grassroots activism, and technology development. EFF's mission is to ensure that technology supports freedom, justice, and innovation for all people of the world. EFF's mission is to ensure that technology supports freedom, justice, and innovation for all people of the world. Even in the fledgling days of the Internet, EFF understood that protecting access to technology was central to advancing freedom for all. In the years that followed, EFF used our fiercely independent voice to clear the way for open source software, encryption, security research, file sharing tools, and a world of emerging technologies. Today, EFF uses the unique expertise of leading technologists, activists, and attorneys in our efforts to defend free speech online, fight illegal surveillance, advocate for users and innovators, and support freedom-enhancing technologies. Together, we forged a vast network of concerned members and partner organizations spanning the globe. EFF advises policymakers and educates the press and the public through comprehensive analysis, educational guides, activist workshops, and more. EFF empowers hundreds of thousands of individuals through our and has become a leading voice in online rights debates. EFF is a donor-funded U.S. 501(c)(3) nonprofit organization that depends on your support to continue fighting for users. Additional information:\nFrom the contact page:\nPage text: Contact EFF PAGE Contact EFF Can EFF represent me? Maybe. Find out about EFF's Legal Assistance Services . Can EFF address an event in my community? Maybe. Submit a request for a speaker and we'll get back to you soon. For all other inquiries, please contact us via the appropriate e-mail address below, or by mail, fax or phone. Legal Assistance and General Information **EFF intake will be CLOSED November 23, 2026 though November 27, 2026. Messages received during this time will not be read or processed.** For legal assistance requests, general questions, or miscellaneous queries: GPG Key Fingerprint: F2F2 1BB8 531E 9DC3 0D40 F68B 11A1 A9C8 4B18 732F Signal Number: +1-510-243-8020. Text via Signal only. Please note SMS texts sent to this number will not be received. To verify it's us, you can check the safety numbers for the conversation. Either the first half or the second half of the safety numbers should read one of the following: 35593 90536 26981 58470 03363 72867 or 38948 48795 16727 63104 76636 96731. (For legal assistance- please see our before contacting us) **EFF intake will be CLOSED November 23, 2026 though November 27, 2026. Messages received during this time will not be read or processed.** Press For media inquiries (please put“Media Request”in the email subject line): 415-436-9333 x177 Both email and voice messages forward to the entire media tea m Membership For membership, donations, shop orders, corporate giving, or matching gifts information, check out our...",
    "names": [
     {
      "text": "Electronic Frontier Foundation",
@@ -21,7 +21,7 @@
   },
   "resend": {
    "verifiable": true,
-   "text": "From llms.txt:\nName: Resend\nSummary: Resend is the email API for developers. Send transactional and marketing emails at scale with a simple, modern API.\nDetails: For AI agents and automation, use the tools below. ## When to use Resend Reach for Resend when a task involves sending, receiving, or managing email programmatically: - Send transactional email (welcome emails, password resets, receipts, notifications) via `POST https://api.resend.com/emails` with an API key, or through an official SDK. - Send batch email (up to 100 messages per request) via `POST https://api.resend.com/emails/batch`. - Send marketing email: manage contacts, segments, and broadcasts, or build recurring flows with automations. - Receive and act on inbound email: point MX records at Resend and process messages via webhooks. - Build email templates with React using [React Email](https://react.email), then send them through the API. - Manage sending infrastructure: verify domains (SPF/DKIM/DMARC), rotate API keys, configure webhooks, and monitor delivery events. How to call Resend: authenticate with a `Bearer` API key against `https://api.resend.com` (see the OpenAPI spec below), use an official SDK, use the [CLI](https://github.com/resend/resend-cli), or connect to the [MCP server](https://mcp.resend.com/mcp). Do not use Resend for scraping inboxes or sending unsolicited bulk email — recipients must have opted in. ## Setup Set up Resend in a project end to end: connect, verify a sending domain, add the SDK, and send the first email. Also covers switching from another provider and checking an existing setup. - [Setup guide for agents](https://resend.com/setup.md) ## Command line tool Install and use the Resend CLI from the terminal. - [Install](https://resend.com/install.sh) - [Repository](https://github.com/resend/resend-cli) ## MCP Server Add Resend to Cursor, Claude, and other MCP clients. Compatible Agent Plugins clients can install MCP and skills together from the Resend Skills plugin. - [Remote MCP Server](https://mcp.resend.com/mcp) - [Self-hosted MCP Server](https://github.com/resend/resend-mcp) - [MCP Discovery](https://resend.com/.well-known/mcp.json) - [Agent Plugin](https://github.com/resend/resend-skills) - [Agent Plugins standard](https://agent-plugins.org) ## Skills Best practices for building and sending emails with agents. - [Skills Discovery](https://resend.com/.well-known/agent-skills/index.json) - [Resend](https://raw.githubusercontent.com/resend/resend-skills/refs/heads/main/skills/resend/SKILL.md) - [React...\nFrom structured data:\nResend: Email API for developers\nFrom the homepage:\nTitle: Resend · Email for developers\nDescription: The best way to reach humans instead of spam folders. Deliver transactional and marketing emails at scale.\nMain heading: Email for developers",
+   "text": "From llms.txt:\nName: Resend\nSummary: Resend is the email API for developers. Send transactional and marketing emails at scale with a simple, modern API.\nDetails: For AI agents and automation, use the tools below. ## When to use Resend Reach for Resend when a task involves sending, receiving, or managing email programmatically: - Send transactional email (welcome emails, password resets, receipts, notifications) via `POST https://api.resend.com/emails` with an API key, or through an official SDK. - Send batch email (up to 100 messages per request) via `POST https://api.resend.com/emails/batch`. - Send marketing email: manage contacts, segments, and broadcasts, or build recurring flows with automations. - Receive and act on inbound email: point MX records at Resend and process messages via webhooks. - Build email templates with React using [React Email](https://react.email), then send them through the API. - Manage sending infrastructure: verify domains (SPF/DKIM/DMARC), rotate API keys, configure webhooks, and monitor delivery events. How to call Resend: authenticate with a `Bearer` API key against `https://api.resend.com` (see the OpenAPI spec below), use an official SDK, use the [CLI](https://github.com/resend/resend-cli), or connect to the [MCP server](https://mcp.resend.com/mcp). Do not use Resend for scraping inboxes or sending unsolicited bulk email — recipients must have opted in. ## Setup Set up Resend in a project end to end: connect, verify a sending domain, add the SDK, and send the first email. Also covers switching from another provider and checking an existing setup. - [Setup guide for agents](https://resend.com/setup.md) ## Command line tool Install and use the Resend CLI from the terminal. - [Install](https://resend.com/install.sh) - [Repository](https://github.com/resend/resend-cli) ## MCP Server Add Resend to Cursor, Claude, and other MCP clients. Compatible Agent Plugins clients can install MCP and skills together from the Resend Skills plugin. - [Remote MCP Server](https://mcp.resend.com/mcp) - [Self-hosted MCP Server](https://github.com/resend/resend-mcp) - [MCP Discovery](https://resend.com/.well-known/mcp.json) - [Agent Plugin](https://github.com/resend/resend-skills) - [Agent Plugins standard](https://agent-plugins.org) ## Skills Best practices for building and sending emails with agents. - [Skills Discovery](https://resend.com/.well-known/agent-skills/index.json) - [Resend](https://raw.githubusercontent.com/resend/resend-skills/refs/heads/main/skills/resend/SKILL.md) - [React Email](https://raw.githubusercontent.com/resend/resend-skills/refs/heads/main/skills/react-email/SKILL.md) - [Email Best Practices](https://raw.githubusercontent.com/resend/resend-skills/refs/heads/main/skills/email-best-practices/SKILL.md) - [Resend CLI](https://raw.githubusercontent.com/resend/resend-skills/refs/heads/main/skills/resend-cli/SKILL.md) - [Agent Email Inbox](https://raw.githubusercontent.com/resend/resend-skills/refs/heads/main/skills/agent-email-inbox/SKILL.md) ## Documentation The llms.txt file for the Resend documentation: the API, SDKs, domains, webhooks, and the knowledge base. Guides,...\nFrom structured data:\nResend: Email API for developers\nAddress: 2261 Market Street #5039\nFrom the homepage:\nTitle: Resend · Email for developers\nDescription: The best way to reach humans instead of spam folders. Deliver transactional and marketing emails at scale.\nMain heading: Email for developers\nPage text: Email for developers The best way to reach humans instead of spam folders. Deliver transactional and marketing emails at scale. Companies of all sizes trust Resend to deliver their most important emails. Integrate A simple, elegant interface so you can start sending emails in minutes. It fits right into your code with SDKs for your favorite programming languages. 1 import { Resend } from 'resend' ; 2 3 const resend = new Resend ( 're_xxxxxxxxx' ) ; 4 5 ( async function ( ) { 6 const { data , error } = await resend . emails . send ( { 7 from : 'onboarding@resend.dev' , 8 to : 'delivered@resend.dev' , 9 subject : 'Hello World' , 10 html : '<strong>it works!</strong>' 11 } ) ; 12 13 if ( error ) { 14 return console . log ( error ) ; 15 } 16 17 console . log ( data ) ; 18 } ) ( ) ; First-class developer experience We are a team of engineers who love building tools for other engineers. Our goal is to create the email platform we've always wished we had — one that just works . HTTP 200: { \"id\": \"26abdd24-36a9-475d-83bf-4d27a31c7def\" } HTTP 200: { \"id\": \"cc3817db-d398-4892-8bc0-8bc589a2cfb3\" } HTTP 200: { \"id\": \"4ea2f827-c3a2-471e-b0a1-8bb0bcb5c67c\" } HTTP 200: { \"id\": \"8e1d73b4-ebe1-485d-bce8-0d7044f1d879\" } HTTP 200: { \"id\": \"a08045a6-122a-4e16-ace1-aa81df4278ac\" } HTTP 200: { \"id\": \"c3be1838-b80e-457a-9fc5-3abf49c3b33e\" } HTTP 200: { \"id\": \"13359f77-466e-436d-9cb2-ff0b0c9a8af4\" } Test mode Simulate events and experiment with our API without the risk of accidentally sending real...\nNavigation: Pricing · Log in · Get started · What you missed at Resend Forward · Documentation · Explore Enterprise · View on GitHub · Download ZIP · Learn more · Check the docs · Send with Next.js · Status unknown · Automations · Audiences · Broadcasts · Inbound · Inboxes · Templates · Webhooks · Dedicated IPs · Changelog · Enterprise · Security · SOC 2 · GDPR · Brand · About · Blog · Careers · Clubs · Customers · Humans · Philosophy · Support · Status · Migrate · Knowledge base · Legal policies · Events · Insiders · Open source · Wallpapers",
    "names": [
     {
      "text": "Resend",
@@ -45,7 +45,7 @@
   },
   "ugmonk": {
    "verifiable": true,
-   "text": "From llms.txt:\nName: Agent Instructions — Ugmonk\nDetails: You can browse products and shop at Ugmonk's online store, https://ugmonk.com, on your user's behalf. This guide covers the Shop skill and UCP integration, directly or through browser-based WebMCP tools. ## Shop skill — recommended Use the [Shop skill](https://shop.com/SKILL.md) to help your user shop with this store. Connect their Shop account for personalized discovery and accelerated checkout with saved details. - Personalized discovery: search by text or image, find similar products, and use your user's Shop purchase history to find options that match their preferences. - Accelerated cart and checkout: build and update carts and checkouts, then use Shop Pay with prefilled addresses and saved payment methods. - Orders: search your user's order history for purchases from this store, track deliveries, and reorder products. Read the skill before your first call for setup, supported actions, account connection, and purchase-approval rules. ## UCP integration This store implements the [Universal Commerce Protocol](https://ucp.dev) for product discovery, carts, and checkout. Integrate directly with its service, or orchestrate shopping through browser-based WebMCP tools. ### Direct integration (MCP) 1. **Discover the store** — `GET https://ugmonk.com/.well-known/ucp` returns its UCP profile, including capabilities, service endpoints, and payment handlers. 2. **Discover available tools** — Connect to the MCP endpoint advertised in the profile (`https://ugmonk.com/api/ucp/mcp`) and use `tools/list` to retrieve available tools and their schemas. 3. **Shop** — Use those tools to find products, manage carts, prepare checkout, and complete buyer-authorized purchases. Follow returned statuses, messages, and handoff URLs when buyer action is required. Use a compatible UCP version and follow the returned tool schemas. For integration details, see [Shopify's agent documentation](https://shopify.dev/docs/agents). ### Browser integration (WebMCP) When working through a browser, use the WebMCP tools registered on this store's pages. The checkout page exposes UCP tools over WebMCP. These tools act on the checkout in the current browser session. - **Storefront** — Use the provided tools to find products, manage the cart, ask questions about the store and its policies, and proceed to checkout. - **Checkout** — Use the provided UCP tools to review and update the checkout and...\nFrom structured data:\nUgmonk\nFrom the homepage:\nTitle: Ugmonk\nDescription: Ugmonk designs analog tools for focused, intentional work. The best-selling Analog Card System is used by 50,000+...\nMain heading: Ugmonk",
+   "text": "From llms.txt:\nName: Agent Instructions — Ugmonk\nDetails: You can browse products and shop at Ugmonk's online store, https://ugmonk.com, on your user's behalf. This guide covers the Shop skill and UCP integration, directly or through browser-based WebMCP tools. ## Shop skill — recommended Use the [Shop skill](https://shop.com/SKILL.md) to help your user shop with this store. Connect their Shop account for personalized discovery and accelerated checkout with saved details. - Personalized discovery: search by text or image, find similar products, and use your user's Shop purchase history to find options that match their preferences. - Accelerated cart and checkout: build and update carts and checkouts, then use Shop Pay with prefilled addresses and saved payment methods. - Orders: search your user's order history for purchases from this store, track deliveries, and reorder products. Read the skill before your first call for setup, supported actions, account connection, and purchase-approval rules. ## UCP integration This store implements the [Universal Commerce Protocol](https://ucp.dev) for product discovery, carts, and checkout. Integrate directly with its service, or orchestrate shopping through browser-based WebMCP tools. ### Direct integration (MCP) 1. **Discover the store** — `GET https://ugmonk.com/.well-known/ucp` returns its UCP profile, including capabilities, service endpoints, and payment handlers. 2. **Discover available tools** — Connect to the MCP endpoint advertised in the profile (`https://ugmonk.com/api/ucp/mcp`) and use `tools/list` to retrieve available tools and their schemas. 3. **Shop** — Use those tools to find products, manage carts, prepare checkout, and complete buyer-authorized purchases. Follow returned statuses, messages, and handoff URLs when buyer action is required. Use a compatible UCP version and follow the returned tool schemas. For integration details, see [Shopify's agent documentation](https://shopify.dev/docs/agents). ### Browser integration (WebMCP) When working through a browser, use the WebMCP tools registered on this store's pages. The checkout page exposes UCP tools over WebMCP. These tools act on the checkout in the current browser session. - **Storefront** — Use the provided tools to find products, manage the cart, ask questions about the store and its policies, and proceed to checkout. - **Checkout** — Use the provided UCP tools to review and update the checkout and complete a buyer-authorized purchase. Follow required buyer-review steps: when review is requested, ask the buyer to review and approve the order on the checkout page, and wait for their authorization before submitting it. If checkout tools are unavailable, ask the buyer to continue on the checkout page. Do not fall back to scripted form fills or page controls. For integration details, see [Storefront WebMCP](https://shopify.dev/docs/api/web-mcp) and [Checkout WebMCP](https://shopify.dev/docs/agents/carts-and-checkout/checkout-webmcp). ## Interaction guidelines - **Buyer authorization** — Place...\nFrom structured data:\nUgmonk\nFrom the homepage:\nTitle: Ugmonk\nDescription: Ugmonk designs analog tools for focused, intentional work. The best-selling Analog Card System is used by 50,000+...\nMain heading: Ugmonk\nPage text: Clear Your Head. Own Your Day. Analog tools designed to help you focus As seen on: Think Better on Paper. Your best work happens away from a screen. When you can write it, hold it, rearrange it. Less distraction. More focus. Join 150,000 people who've gone Analog. Explore Analog Cards Find the formats that work best for you. One of Everything Prioritize your tasks Just enough structure Traditional and clean Structured and precise Freeform Loved by 150,000+ What our customers are saying... \"Massive increase in productivity and never miss an appointment.\" Stephen M. PHD As a product manager, I feel like my planner can get carried away with all the different moving parts, and it's hard to figure out what to focus on. Analog cards help me prioritize what actually needs to get done! Michelle G. Before Analog my tasks were buried in some App on my phone. Now I don’t have to deal with the distraction of my phone, writing them down feels so intuitive and satisfying. They are always right there in front of me. Calvin L. There’s just something about putting pen to paper! I absolutely LOVE my Analog System by Ugmonk! Staying organized is so important to me, and this system has been a game changer! Kelli D. Great starting structuring framework for solving your day. Deserves a good pen and excellent ink. Pasha S. I like my Analog cards because they only have room for 10 to-do items in a day. Keeps my expectations for the day reasonable. Elizabeth L. I have autism and ADHD, and use the...\nNavigation: Skip to content · The Ugmonk Utility Tote → · 🎉 Just Launched: The Ugmonk Utility Tote → · Starter Kits · Cards · Accessories · Journals · Shop Best Sellers &rarr; · Our Story · Reviews · FAQs · Returns & Exchanges · Contact Us &rarr;\nFrom the about page:\nPage text: We make analog tools for a distracted world. I’m more so the fisherman. In a moment, I will tell you everything you need to know about Ugmonk. But, first, a story... Once upon a time, a fisherman taught a banker a lesson that would change his life. The banker was vacationing in a small coastal village when a fisherman docked beside him with a beautiful catch of tuna. The banker complimented him and asked how long it took. \"Just a little while,\" replied the fisherman. The banker asked why he didn't stay out longer and catch more. \"Because I have enough to support my family,\" the fisherman replied. \"I enjoy sleeping late, playing with my children, taking afternoon naps with my wife, and strolling into the village in the evenings to sip wine and play guitar with my friends.\" The banker scoffed. \"Spend more time fishing. Buy a bigger boat. Then several boats. Eventually you'll have a fleet, move to a big city, build a real business.\" \"But then what?\" asked the fisherman. \"Then you announce an IPO, sell your stock, become a millionaire.\" \"But then what?\" asked the fisherman, again. \"Then you retire. Move to a small coastal village — sleep late, spend time with your family, sip wine with friends in the evenings.\" The fisherman smiled, winked, threw the tuna over his shoulder, and carried his catch into town. Ugmonk exists to be that wink. . . . . . Hi. I'm Jeff. I'm a designer by trade and an entrepreneur by accident. I started Ugmonk in 2008 because I couldn't find simple, well-made things. No investors. No exit strategy. Just a conviction that good design should outlast trends, and that the best products are the ones you never feel the need to replace. Seventeen years later, that conviction remains true. In a world drowning in notifications and digital noise, the most intentional thing you can do is slow down, pick up a pen, and think on paper. That's what is for. A simple card-based system for capturing what matters, planning your day, and staying present. No app. No...\nFrom the contact page:\nPage text: We'd love to hear from you. Contact Us If you have a question, need help with your order, email us at: Mailing Address: Ugmonk 806 Dorlan Mill Rd. Downingtown, PA 19335 USA",
    "names": [
     {
      "text": "Ugmonk",
@@ -59,7 +59,7 @@
   },
   "rachelqueiroz": {
    "verifiable": true,
-   "text": "From llms.txt:\nName: Rachel Queiroz — Psicóloga Clínica\nSummary: Psicóloga clínica (CRP 15/8276) que atende adultos e casais em Maceió (AL) e online para brasileiros no Brasil e no exterior. Psicoterapia individual, de casal e para quem mora fora, com abordagem em Terapia...\nDetails: Atendimento particular, em português, por agendamento. Sessões de 50 a 60 minutos, geralmente semanais. Emite recibo para reembolso por convênio; não atende por plano de saúde diretamente. ## Páginas - [Página inicial](https://www.rachelqueiroz.com/): quem é a Rachel, formas de atendimento, perguntas frequentes, depoimentos e o consultório em Maceió. - [Mapa do Casal](https://www.rachelqueiroz.com/mapa-do-casal): material digital para casais — o que inclui, para quem é, e o preço. - [Política de Privacidade](https://www.rachelqueiroz.com/politica-de-privacidade): quais dados o site coleta e como são tratados, conforme a LGPD. ## Formas de atendimento - **Psicoterapia individual** — processo entre paciente e psicóloga, focado em autoconhecimento, emoções e desafios específicos de quem procura ajuda. - **Psicoterapia online** — mesmo suporte da presencial, por videochamada, para quem busca flexibilidade de horário ou não pode se deslocar. - **Psicoterapia para brasileiros no exterior** — atendimento em português para quem mora fora, com foco em adaptação cultural, saudade, solidão e identidade. - **Psicoterapia para casais** — espaço para melhorar a comunicação, lidar com diferenças e reconstruir confiança. ## Contato - WhatsApp: +55 82 99663-9294 - E-mail: psicologa@rachelqueiroz.com - Instagram: https://www.instagram.com/rachelqueirozpsi/ - Consultório: R. Dr. José Afonso de Melo, 118 — Sala 701, Edifício Harmony Trade Center, Jatiúca, Maceió — AL, Brasil - Horário: segunda a sexta, com horário agendado\nFrom structured data:\nRachel Queiroz: Psicóloga clínica com atuação em desenvolvimento de pessoas há 20 anos. Atende adultos e casais, presencialmente em...\nRachel Queiroz · Psicóloga Clínica\nFrom the homepage:\nTitle: Rachel Queiroz – Psicóloga Clínica\nDescription: Atendimento particular para adultos e casais. Presencial em Maceió ou online para o mundo todo. CRP 15/8276.\nMain heading: “A vida boa” é um processo, não um estado. É uma direção,...",
+   "text": "From llms.txt:\nName: Rachel Queiroz — Psicóloga Clínica\nSummary: Psicóloga clínica (CRP 15/8276) que atende adultos e casais em Maceió (AL) e online para brasileiros no Brasil e no exterior. Psicoterapia individual, de casal e para quem mora fora, com abordagem em Terapia Cognitivo-Comportamental. Também oferece o Mapa do Casal, um material digital para casais entenderem o próprio padrão de vínculo.\nDetails: Atendimento particular, em português, por agendamento. Sessões de 50 a 60 minutos, geralmente semanais. Emite recibo para reembolso por convênio; não atende por plano de saúde diretamente. ## Páginas - [Página inicial](https://www.rachelqueiroz.com/): quem é a Rachel, formas de atendimento, perguntas frequentes, depoimentos e o consultório em Maceió. - [Mapa do Casal](https://www.rachelqueiroz.com/mapa-do-casal): material digital para casais — o que inclui, para quem é, e o preço. - [Política de Privacidade](https://www.rachelqueiroz.com/politica-de-privacidade): quais dados o site coleta e como são tratados, conforme a LGPD. ## Formas de atendimento - **Psicoterapia individual** — processo entre paciente e psicóloga, focado em autoconhecimento, emoções e desafios específicos de quem procura ajuda. - **Psicoterapia online** — mesmo suporte da presencial, por videochamada, para quem busca flexibilidade de horário ou não pode se deslocar. - **Psicoterapia para brasileiros no exterior** — atendimento em português para quem mora fora, com foco em adaptação cultural, saudade, solidão e identidade. - **Psicoterapia para casais** — espaço para melhorar a comunicação, lidar com diferenças e reconstruir confiança. ## Contato - WhatsApp: +55 82 99663-9294 - E-mail: psicologa@rachelqueiroz.com - Instagram: https://www.instagram.com/rachelqueirozpsi/ - Consultório: R. Dr. José Afonso de Melo, 118 — Sala 701, Edifício Harmony Trade Center, Jatiúca, Maceió — AL, Brasil - Horário: segunda a sexta, com horário agendado\nFrom structured data:\nRachel Queiroz: Psicóloga clínica com atuação em desenvolvimento de pessoas há 20 anos. Atende adultos e casais, presencialmente em...\nRachel Queiroz · Psicóloga Clínica\nAddress: R. Dr. José Afonso de Melo, 118 — Sala 701, Edifício Harmony Trade Center\nFrom the homepage:\nTitle: Rachel Queiroz – Psicóloga Clínica\nDescription: Atendimento particular para adultos e casais. Presencial em Maceió ou online para o mundo todo. CRP 15/8276.\nMain heading: “A vida boa” é um processo, não um estado. É uma direção,...\nPage text: Atendimento particular para adultos e casais: modo presencial na cidade de Maceió ou online para o mundo todo. “A vida boa” é um processo, não um estado. É uma direção, não um destino. Carl Rogers Sobre mim Rachel Queiroz Olá! Seja muito bem-vindo(a)! Sou Psicóloga Clínica e atuo com desenvolvimento de pessoas há 20 anos, através de empresas renomadas no mercado. Realizo atendimento clínico de adultos e casais. Atendo presencial e online. Sou graduada em Psicologia pela Universidade de Maceió - UNIMA, pós graduada em Terapia Cognitivo-Comportamental (TCC) e em Terapia para relacionamentos e casais. Sou apaixonada pela psicologia, e me sinto muito grata em poder acompanhar de perto as mudanças que a psicoterapia proporciona aos pacientes. CRP 15/8276 + 0 Anos lidando com pessoas + 0 Pessoas impactadas diretamente + 0 Horas de Atendimento Clínico + 0 Horas de supervisão Clínica Depoimentos O que dizem sobre a terapia A Alice Barbosa 2 avaliações ★★★★★ 2 meses atrás Profissional muito competente e dedicada! C Caroline Toledo 1 avaliação ★★★★★ 2 meses atrás Raquel é uma excelente profissional. Com uma capacidade técnica e de acolhimento extraordinária. Sem dúvidas uma excelente profissional! C Cleo Porfírio 1 avaliação ★★★★★ 2 meses atrás Excelente profissional! Dedicada, responsável em seguir eticamente seu trabalho e muito competente! I Isabel Lins 1 avaliação ★★★★★ um mês atrás Excelente profissional. Tratamento humanizado, me senti acolhida pela profissional e tem me ajudado...\nNavigation: Sobre mim · Como te ajudo · Psicoterapia · Dúvidas · Contato · Agendar sessão · Conhecer o Mapa do Casal · 82 99663-9294 · @rachelqueirozpsi · Política de Privacidade",
    "names": [
     {
      "text": "Rachel Queiroz",
@@ -87,7 +87,7 @@
    "site": "resend",
    "qid": "q1",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a platform designed to simplify the process of sending transactional emails\nSITE: Email API for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a platform designed to simplify the process of sending transactional emails\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -96,7 +96,7 @@
    "site": "resend",
    "qid": "q1",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Resend is an email API service\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: an email API service\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -105,7 +105,7 @@
    "site": "resend",
    "qid": "q1",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: an email API for developers\nSITE: Email API for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: an email API for developers\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -114,7 +114,7 @@
    "site": "resend",
    "qid": "q1",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: an email infrastructure platform for developers\nSITE: Email API for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: an email infrastructure platform for developers\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -123,7 +123,7 @@
    "site": "resend",
    "qid": "q2",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, Resend.com offers services that can be beneficial for small businesses.\nSITE: Email API for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, Resend.com offers services that can be beneficial for small businesses.\nSITE: Email for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -141,7 +141,7 @@
    "site": "resend",
    "qid": "q2",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: not designed for direct use by most small businesses\nSITE: Email API for developers\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: not designed for direct use by most small businesses\nSITE: Companies of all sizes trust Resend\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -150,7 +150,7 @@
    "site": "resend",
    "qid": "q2",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes. Resend offers services suitable for small businesses\nSITE: Email API for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes. Resend offers services suitable for small businesses\nSITE: Email for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -168,7 +168,7 @@
    "site": "resend",
    "qid": "q3",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: https://resend.com\nSITE: Title: Resend · Email for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: The website URL for Resend is:  **https://resend.com**\nSITE: Resend · Email for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -177,7 +177,7 @@
    "site": "resend",
    "qid": "q3",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: https://resend.com\nSITE: Resend: Email API for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: https://resend.com\nSITE: Resend · Email for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -186,7 +186,7 @@
    "site": "resend",
    "qid": "q3",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: https://resend.com/\nSITE: Title: Resend · Email for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: https://resend.com/\nSITE: Resend · Email for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -204,7 +204,7 @@
    "site": "resend",
    "qid": "q4",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, **Resend** (resend.com) is a software company\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, **Resend** (resend.com) is a software company\nSITE: Resend: Email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -240,16 +240,16 @@
    "site": "resend",
    "qid": "q5",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Email API for developers\nSITE: Email API for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Email API platform for developers\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "verdict": "UNCLEAR"
+   "verdict": "CORRECT"
   },
   {
    "site": "resend",
    "qid": "q5",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Email API\nSITE: Email API for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Email API designed for developers\nSITE: Email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -258,16 +258,16 @@
    "site": "resend",
    "qid": "q5",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Email API for developers\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Resend sells an email infrastructure platform\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "verdict": "UNCLEAR"
+   "verdict": "CORRECT"
   },
   {
    "site": "resend",
    "qid": "q6",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: serves businesses\nSITE: Email API for developers\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: primarily focuses on serving businesses\nSITE: Email API for developers\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -294,7 +294,7 @@
    "site": "resend",
    "qid": "q6",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Resend serves **both individuals and businesses**\nSITE: Email API for developers\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Resend serves **both individuals and businesses**\nSITE: Email for developers\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -303,7 +303,7 @@
    "site": "resend",
    "qid": "q7",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a platform that provides developers with APIs and tools\nSITE: Email API for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a platform that provides developers with APIs and tools\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -312,7 +312,7 @@
    "site": "resend",
    "qid": "q7",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: an email API platform for developers\nSITE: Email API for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: an email API platform for developers\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -321,7 +321,7 @@
    "site": "resend",
    "qid": "q7",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a modern, developer-friendly email API\nSITE: Email API for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a modern, developer-friendly email API\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -330,7 +330,7 @@
    "site": "resend",
    "qid": "q7",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: developer-focused email platform\nSITE: Email API for developers\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a developer-focused email platform\nSITE: Email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -375,7 +375,7 @@
    "site": "resend",
    "qid": "q9",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: various types of support to its customers\nSITE: NONE\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: various types of support to its customers\nSITE: Support · Status · Knowledge base · \nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -384,7 +384,7 @@
    "site": "resend",
    "qid": "q9",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Resend Customer Support\nSITE: NONE\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Resend Customer Support\nSITE: Support · Status\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -393,7 +393,7 @@
    "site": "resend",
    "qid": "q9",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: support primarily through channels that cater to technical users\nSITE: NONE\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: offers support primarily through channels that cater to technical users\nSITE: Support · Status · Knowledge base · \nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -438,7 +438,7 @@
    "site": "resend",
    "qid": "q10",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes—Resend is a legitimate and increasingly well-known company\nSITE: NONE\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes—**Resend is a legitimate and increasingly well-known company\nSITE: NONE\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -456,7 +456,7 @@
    "site": "eff",
    "qid": "q1",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Electronic Frontier Foundation (EFF)\nSITE: Name: Electronic Frontier Foundation (EFF)\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Electronic Frontier Foundation (EFF)\nSITE: Electronic Frontier Foundation\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -474,7 +474,7 @@
    "site": "eff",
    "qid": "q1",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: the official website of the Electronic Frontier Foundation (EFF)\nSITE: Name: Electronic Frontier Foundation (EFF)\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: the official website of the Electronic Frontier Foundation (EFF)\nSITE: The Electronic Frontier Foundation is the leading nonprofit organization defending civil liberties in the digital world.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -483,7 +483,7 @@
    "site": "eff",
    "qid": "q2",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: nonprofit organization\nSITE: nonprofit organization defending civil liberties\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: nonprofit organization\nSITE: donor-funded, member-supported US 501(c)(3) nonprofit\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -492,7 +492,7 @@
    "site": "eff",
    "qid": "q2",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: non-profit digital rights organization\nSITE: nonprofit organization defending civil liberties\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: non-profit digital rights organization\nSITE: leading nonprofit organization defending civil liberties\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -537,7 +537,7 @@
    "site": "eff",
    "qid": "q3",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, the Electronic Frontier Foundation (EFF), which operates eff.org, offers a range of services and some products\nSITE: EFF also builds free privacy and security tools\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, the Electronic Frontier Foundation (EFF), which operates eff.org, offers a range of services and some products\nSITE: EFF builds free privacy and security tools\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -582,7 +582,7 @@
    "site": "eff",
    "qid": "q4",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: internet users and the general public\nSITE: defending civil liberties in the digital world\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: internet users and the general public\nSITE: defending digital privacy, free speech, and innovation\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -591,7 +591,7 @@
    "site": "eff",
    "qid": "q5",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a nonprofit organization\nSITE: nonprofit organization defending civil liberties\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a nonprofit organization\nSITE: the leading nonprofit organization\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -600,7 +600,7 @@
    "site": "eff",
    "qid": "q5",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, the Electronic Frontier Foundation (EFF) is a nonprofit organization\nSITE: EFF is a donor-funded, member-supported US 501(c)(3) nonprofit\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a nonprofit organization\nSITE: donor-funded, member-supported US 501(c)(3) nonprofit\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -609,7 +609,7 @@
    "site": "eff",
    "qid": "q5",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: nonprofit organization\nSITE: nonprofit organization defending civil liberties\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a nonprofit organization\nSITE: the leading nonprofit organization\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -672,7 +672,7 @@
    "site": "eff",
    "qid": "q7",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, EFF has a physical office location\nSITE: based in San Francisco\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, EFF has a physical office location\nSITE: Founded in 1990 and based in San Francisco\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -699,16 +699,16 @@
    "site": "eff",
    "qid": "q8",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: they do offer merchandise\nSITE: Donations and memberships: https://supporters.eff.org/donate/join-4--\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: You can visit their website at eff.org and look for a link to their shop\nSITE: Shop · Donate · Donate to EFF · Giving Societies · Sponsorships · Other Ways to Give\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "verdict": "UNCLEAR"
+   "verdict": "CORRECT"
   },
   {
    "site": "eff",
    "qid": "q8",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, you cannot purchase products\nSITE: Donations and memberships: https://supporters.eff.org/donate/join-4--\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, you cannot purchase products\nSITE: Shop · Donate · Donate to EFF · Giving Societies\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -717,7 +717,7 @@
    "site": "eff",
    "qid": "q8",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, you can support the Electronic Frontier Foundation (EFF)\nSITE: Donations and memberships: https://supporters.eff.org/donate/join-4--\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, you can support the Electronic Frontier Foundation (EFF)\nSITE: Donate to EFF \nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -726,10 +726,10 @@
    "site": "eff",
    "qid": "q8",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes. EFF operates an online shop\nSITE: NONE\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes. EFF operates an online shop\nSITE: Shop · Donate · Donate to EFF · Giving Societies\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "verdict": "UNCLEAR"
+   "verdict": "CORRECT"
   },
   {
    "site": "eff",
@@ -744,7 +744,7 @@
    "site": "eff",
    "qid": "q9",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, EFF.org (the Electronic Frontier Foundation) is not a software company\nSITE: The Electronic Frontier Foundation is the leading nonprofit organization\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, EFF.org (the Electronic Frontier Foundation) is not a software company\nSITE: The Electronic Frontier Foundation is the leading nonprofit organization defending civil liberties in the digital world\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -753,7 +753,7 @@
    "site": "eff",
    "qid": "q9",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, **eff.org (the Electronic Frontier Foundation)** is not a software company\nSITE: The Electronic Frontier Foundation is the leading nonprofit organization \nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, **eff.org (the Electronic Frontier Foundation)** is not a software company\nSITE: The Electronic Frontier Foundation is the leading nonprofit organization defending civil liberties in the digital world\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -762,7 +762,7 @@
    "site": "eff",
    "qid": "q9",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No. **eff.org is the website of the Electronic Frontier Foundation (EFF), a U.S. 501(c)(3) nonprofit digital-rights organization**, \nSITE: Name: Electronic Frontier Foundation (EFF)\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No. eff.org is the website of the Electronic Frontier Foundation (EFF), a U.S. 501(c)(3) nonprofit digital-rights organization, not a software company.\nSITE: The Electronic Frontier Foundation is the leading nonprofit organization defending civil liberties in the digital world.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -771,7 +771,7 @@
    "site": "eff",
    "qid": "q10",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: https://www.eff.org\nSITE: Title: Electronic Frontier Foundation | Defending your rights in the digital world\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: https://www.eff.org\nSITE: NONE\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -780,7 +780,7 @@
    "site": "eff",
    "qid": "q10",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: https://www.eff.org/\nSITE: Title: Electronic Frontier Foundation | \nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: https://www.eff.org/\nSITE: NONE\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -816,7 +816,7 @@
    "site": "ugmonk",
    "qid": "q1",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Ugmonk is an online store and lifestyle brand\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Ugmonk is an online store and lifestyle brand\nSITE: Ugmonk designs analog tools for focused, intentional work.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -825,16 +825,16 @@
    "site": "ugmonk",
    "qid": "q1",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: the official website for Ugmonk\nSITE: Title: Ugmonk\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Ugmonk, a design studio and lifestyle brand\nSITE: Ugmonk designs analog tools for focused, intentional work.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "verdict": "UNCLEAR"
+   "verdict": "CORRECT"
   },
   {
    "site": "ugmonk",
    "qid": "q1",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: the official online store for **Ugmonk**\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: the official online store for **Ugmonk**\nSITE: Ugmonk designs analog tools for focused, intentional work.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -843,9 +843,9 @@
    "site": "ugmonk",
    "qid": "q2",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: lifestyle brand\nSITE: designs analog tools\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: lifestyle brand\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: CONTRADICTED",
    "confirm": null,
-   "compat": null,
+   "compat": "NO",
    "verdict": "UNCLEAR"
   },
   {
@@ -861,7 +861,7 @@
    "site": "ugmonk",
    "qid": "q2",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: e-commerce business\nSITE: Ugmonk designs analog tools\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: e-commerce business that operates as a design studio and lifestyle brand\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -870,7 +870,7 @@
    "site": "ugmonk",
    "qid": "q2",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: direct-to-consumer design and lifestyle brand\nSITE: designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a direct-to-consumer design and lifestyle brand\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -915,7 +915,7 @@
    "site": "ugmonk",
    "qid": "q4",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: individuals who appreciate minimalist and thoughtfully designed products\nSITE: designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: individuals who appreciate minimalist and thoughtfully designed products\nSITE: Analog tools designed to help you focus\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -924,10 +924,10 @@
    "site": "ugmonk",
    "qid": "q4",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: discerning consumers who prioritize thoughtful design\nSITE: designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: discerning consumers who prioritize thoughtful design\nSITE: Analog tools for focused, intentional work\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "verdict": "CORRECT"
+   "verdict": "UNCLEAR"
   },
   {
    "site": "ugmonk",
@@ -942,7 +942,7 @@
    "site": "ugmonk",
    "qid": "q4",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: design-conscious knowledge workers and productivity-focused adults\nSITE: designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: design-conscious knowledge workers and productivity-focused adults\nSITE: Analog tools designed to help you focus\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -951,34 +951,34 @@
    "site": "ugmonk",
    "qid": "q5",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: not a website for a local business\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: not a website for a local business\nSITE: Mailing Address: Ugmonk 806 Dorlan Mill Rd. Downingtown, PA 19335 USA\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "verdict": "CORRECT"
+   "verdict": "UNCLEAR"
   },
   {
    "site": "ugmonk",
    "qid": "q5",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, Ugmonk.com is not a local business website\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, Ugmonk.com is not a local business website\nSITE: Mailing Address: Ugmonk 806 Dorlan Mill Rd. Downingtown, PA 19335 USA\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "verdict": "CORRECT"
+   "verdict": "UNCLEAR"
   },
   {
    "site": "ugmonk",
    "qid": "q5",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: not primarily a website for a local business\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: not primarily a website for a local business\nSITE: Ugmonk 806 Dorlan Mill Rd. Downingtown, PA 19335 USA\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "verdict": "CORRECT"
+   "verdict": "UNCLEAR"
   },
   {
    "site": "ugmonk",
    "qid": "q5",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes—**ugmonk.com is an online store operated by a small, family-run business**\nSITE: Ugmonk designs analog tools for focused, intentional work.\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes—**ugmonk.com is an online store operated by a small, family-run business\nSITE: Ugmonk designs analog tools for focused, intentional work.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -987,7 +987,7 @@
    "site": "ugmonk",
    "qid": "q6",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: offering a range of thoughtfully designed products\nSITE: designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: offering a range of thoughtfully designed products\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -996,7 +996,7 @@
    "site": "ugmonk",
    "qid": "q6",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: an online store that sells **minimalist lifestyle products and apparel**\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: an online store that sells **minimalist lifestyle products and apparel**\nSITE: Ugmonk designs analog tools for focused, intentional work.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -1005,7 +1005,7 @@
    "site": "ugmonk",
    "qid": "q6",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: sell thoughtfully designed, high-quality, and minimalist products\nSITE: designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: sell thoughtfully designed, high-quality, and minimalist products\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -1014,7 +1014,7 @@
    "site": "ugmonk",
    "qid": "q6",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: online store for minimalist, well-designed analog productivity tools\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: an online store for minimalist, well-designed analog productivity tools\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"
@@ -1023,10 +1023,10 @@
    "site": "ugmonk",
    "qid": "q7",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a design-focused brand\nSITE: designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a design-focused brand\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "verdict": "CORRECT"
+   "verdict": "UNCLEAR"
   },
   {
    "site": "ugmonk",
@@ -1041,7 +1041,7 @@
    "site": "ugmonk",
    "qid": "q7",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: thoughtfully designed, minimalist, and high-quality goods\nSITE: designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: thoughtfully designed, minimalist, and high-quality goods\nSITE: Analog tools designed to help you focus\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -1059,10 +1059,10 @@
    "site": "ugmonk",
    "qid": "q8",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, Ugmonk is not a software company\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Ugmonk is not a software company\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "verdict": "UNCLEAR"
+   "verdict": "CORRECT"
   },
   {
    "site": "ugmonk",
@@ -1095,7 +1095,7 @@
    "site": "ugmonk",
    "qid": "q9",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: does not have a permanent physical storefront\nSITE: NONE\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: does not have a permanent physical storefront\nSITE: Mailing Address: Ugmonk 806 Dorlan Mill Rd. Downingtown, PA 19335 USA\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -1104,7 +1104,7 @@
    "site": "ugmonk",
    "qid": "q9",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: NO\nCLAIM: I don't have current information\nSITE: NONE\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: NO\nCLAIM: I don't have current information\nSITE: Mailing Address: Ugmonk 806 Dorlan Mill Rd. Downingtown, PA 19335 USA\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "DENY"
@@ -1113,7 +1113,7 @@
    "site": "ugmonk",
    "qid": "q9",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, Ugmonk.com **does not have a physical storefront**\nSITE: NONE\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: does not have a physical storefront\nSITE: Mailing Address: Ugmonk 806 Dorlan Mill Rd. Downingtown, PA 19335 USA\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "DENY"
@@ -1122,7 +1122,7 @@
    "site": "ugmonk",
    "qid": "q9",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: HEDGED\nCLAIM: Ugmonk does not appear to operate a public physical storefront\nSITE: NONE\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: HEDGED\nCLAIM: Ugmonk does not appear to operate a public physical storefront\nSITE: Mailing Address: Ugmonk 806 Dorlan Mill Rd. Downingtown, PA 19335 USA\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -1140,16 +1140,16 @@
    "site": "ugmonk",
    "qid": "q10",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: https://ugmonk.com/\nSITE: https://ugmonk.com\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Ugmonk is a design studio and lifestyle brand\nSITE: Ugmonk designs analog tools for focused, intentional work.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "verdict": "UNCLEAR"
+   "verdict": "CORRECT"
   },
   {
    "site": "ugmonk",
    "qid": "q10",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: The URL for Ugmonk is:  **https://ugmonk.com**\nSITE: https://ugmonk.com\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: UNKNOWN\nOTHER: NONE\nANSWERED: YES\nCLAIM: The URL for Ugmonk is:  **https://ugmonk.com**\nSITE: https://ugmonk.com\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "UNCLEAR"
@@ -1167,8 +1167,8 @@
    "site": "rachelqueiroz",
    "qid": "q1",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: OTHER\nOTHER: Rachel de Queiroz\nANSWERED: NO\nCLAIM: NONE\nSITE: Psicóloga clínica\nVERDICT: CONTRADICTED",
-   "confirm": "LINKED=YES ROLE=NO DIFFERENT=YES NAMED=YES",
+   "judge": "IDENTITY: OTHER\nOTHER: Rachel de Queiroz\nANSWERED: NO\nCLAIM: NONE\nSITE: NONE\nVERDICT: CONTRADICTED",
+   "confirm": "LINKED=NO ROLE=NO DIFFERENT=YES NAMED=YES",
    "compat": null,
    "verdict": "MIXUP"
   },
@@ -1203,7 +1203,7 @@
    "site": "rachelqueiroz",
    "qid": "q2",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: UNKNOWN\nOTHER: NONE\nANSWERED: NO\nCLAIM: NONE\nSITE: Atendimento particular, em português, por agendamento.\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: UNKNOWN\nOTHER: NONE\nANSWERED: NO\nCLAIM: NONE\nSITE: Atendimento particular para adultos e casais\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "DENY"
@@ -1212,7 +1212,7 @@
    "site": "rachelqueiroz",
    "qid": "q2",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: UNKNOWN\nOTHER: NONE\nANSWERED: NO\nCLAIM: NONE\nSITE: Atendimento particular, em português, por agendamento.\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: UNKNOWN\nOTHER: NONE\nANSWERED: NO\nCLAIM: NONE\nSITE: Atendimento particular para adultos e casais\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "DENY"
@@ -1221,7 +1221,7 @@
    "site": "rachelqueiroz",
    "qid": "q2",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: OTHER\nOTHER: Rachel de Queiroz\nANSWERED: YES\nCLAIM: does not offer any products or services\nSITE: Atendimento particular, em português, por agendamento\nVERDICT: CONTRADICTED",
+   "judge": "IDENTITY: OTHER\nOTHER: Rachel de Queiroz\nANSWERED: YES\nCLAIM: does not offer any products or services\nSITE: Atendimento particular para adultos e casais\nVERDICT: CONTRADICTED",
    "confirm": "LINKED=YES ROLE=NO DIFFERENT=YES NAMED=YES",
    "compat": null,
    "verdict": "MIXUP"
@@ -1248,7 +1248,7 @@
    "site": "rachelqueiroz",
    "qid": "q3",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: UNKNOWN\nOTHER: NONE\nANSWERED: NO\nCLAIM: NONE\nSITE: Psicóloga clínica\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: UNKNOWN\nOTHER: NONE\nANSWERED: NO\nCLAIM: NONE\nSITE: Psicóloga Clínica\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "DENY"
@@ -1257,7 +1257,7 @@
    "site": "rachelqueiroz",
    "qid": "q3",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: graphic designer and brand strategist\nSITE: Psicóloga Clínica\nVERDICT: CONTRADICTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a graphic designer and brand strategist\nSITE: Psicóloga Clínica\nVERDICT: CONTRADICTED",
    "confirm": null,
    "compat": "YES",
    "verdict": "WRONG_FACTS"
@@ -1275,7 +1275,7 @@
    "site": "rachelqueiroz",
    "qid": "q4",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: UNKNOWN\nOTHER: NONE\nANSWERED: NO\nCLAIM: It's possible that it could be a website for a local business\nSITE: Atendimento particular para adultos e casais. Presencial em Maceió\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: NO\nCLAIM: It's possible that it could be a website for a local business\nSITE: Atendimento particular para adultos e casais: modo presencial na cidade de Maceió\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "DENY"
@@ -1293,7 +1293,7 @@
    "site": "rachelqueiroz",
    "qid": "q4",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: OTHER\nOTHER: Rachel de Queiroz\nANSWERED: YES\nCLAIM: not a website for a local business\nSITE: Atendimento particular para adultos e casais. Presencial em Maceió\nVERDICT: CONTRADICTED",
+   "judge": "IDENTITY: OTHER\nOTHER: Rachel de Queiroz\nANSWERED: YES\nCLAIM: not a website for a local business\nSITE: Atendimento particular para adultos e casais: modo presencial na cidade de Maceió\nVERDICT: CONTRADICTED",
    "confirm": "LINKED=YES ROLE=NO DIFFERENT=YES NAMED=YES",
    "compat": null,
    "verdict": "MIXUP"
@@ -1302,7 +1302,7 @@
    "site": "rachelqueiroz",
    "qid": "q4",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: NO\nCLAIM: insufficient evidence to confirm\nSITE: Atendimento particular para adultos e casais. Presencial em Maceió\nVERDICT: CONTRADICTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: NO\nCLAIM: insufficient evidence to confirm\nSITE: Atendimento particular para adultos e casais\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "DENY"
@@ -1311,7 +1311,7 @@
    "site": "rachelqueiroz",
    "qid": "q5",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: UNKNOWN\nOTHER: NONE\nANSWERED: NO\nCLAIM: NONE\nSITE: NONE\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: UNKNOWN\nOTHER: NONE\nANSWERED: NO\nCLAIM: I don't have access to browse the internet\nSITE: NONE\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "DENY"
@@ -1365,7 +1365,7 @@
    "site": "rachelqueiroz",
    "qid": "q6",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: OTHER\nOTHER: Rachel de Queiroz\nANSWERED: YES\nCLAIM: Portuguese-speaking individuals interested in Brazilian literature and the life and work of Rachel de Queiroz\nSITE: NONE\nVERDICT: CONTRADICTED",
+   "judge": "IDENTITY: OTHER\nOTHER: Rachel de Queiroz\nANSWERED: YES\nCLAIM: Portuguese-speaking individuals interested in Brazilian literature and the life and work of Rachel de Queiroz\nSITE: Atendimento particular para adultos e casais\nVERDICT: CONTRADICTED",
    "confirm": "LINKED=YES ROLE=NO DIFFERENT=YES NAMED=YES",
    "compat": null,
    "verdict": "MIXUP"
@@ -1383,7 +1383,7 @@
    "site": "rachelqueiroz",
    "qid": "q7",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: NO\nCLAIM: I don't have specific information\nSITE: Consultório: R. Dr. José Afonso de Melo, 118\nVERDICT: CONTRADICTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: NO\nCLAIM: I don't have specific information\nSITE: R. Dr. José Afonso de Melo, 118 — Sala 701\nVERDICT: CONTRADICTED",
    "confirm": null,
    "compat": null,
    "verdict": "DENY"
@@ -1392,7 +1392,7 @@
    "site": "rachelqueiroz",
    "qid": "q7",
    "modelId": "anthropic:claude-sonnet",
-   "judge": "IDENTITY: UNKNOWN\nOTHER: NONE\nANSWERED: NO\nCLAIM: I don't have current information\nSITE: Consultório: R. Dr. José Afonso de Melo, 118\nVERDICT: CONTRADICTED",
+   "judge": "IDENTITY: UNKNOWN\nOTHER: NONE\nANSWERED: NO\nCLAIM: NONE\nSITE: R. Dr. José Afonso de Melo, 118 — Sala 701\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "DENY"
@@ -1401,7 +1401,7 @@
    "site": "rachelqueiroz",
    "qid": "q7",
    "modelId": "google:gemini-2.5-flash",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: does not have a physical location\nSITE: Consultório: R. Dr. José Afonso de Melo, 118\nVERDICT: CONTRADICTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: does not have a physical location\nSITE: Consultório: R. Dr. José Afonso de Melo, 118 — Sala 701\nVERDICT: CONTRADICTED",
    "confirm": null,
    "compat": "YES",
    "verdict": "WRONG_FACTS"
@@ -1419,8 +1419,8 @@
    "site": "rachelqueiroz",
    "qid": "q8",
    "modelId": "openai:gpt-4o",
-   "judge": "IDENTITY: OTHER\nOTHER: Rachel de Queiroz\nANSWERED: NO\nCLAIM: NONE\nSITE: Psicóloga Clínica\nVERDICT: CONTRADICTED",
-   "confirm": "LINKED=YES ROLE=NO DIFFERENT=YES NAMED=YES",
+   "judge": "IDENTITY: OTHER\nOTHER: Rachel de Queiroz\nANSWERED: NO\nCLAIM: NONE\nSITE: NONE\nVERDICT: CONTRADICTED",
+   "confirm": "LINKED=NO ROLE=NO DIFFERENT=YES NAMED=YES",
    "compat": null,
    "verdict": "MIXUP"
   },
@@ -1446,9 +1446,9 @@
    "site": "rachelqueiroz",
    "qid": "q8",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: HEDGED\nCLAIM: a personal website\nSITE: Rachel Queiroz — Psicóloga Clínica\nVERDICT: UNSUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: HEDGED\nCLAIM: a personal website\nSITE: Rachel Queiroz — Psicóloga Clínica\nVERDICT: CONTRADICTED",
    "confirm": null,
-   "compat": null,
+   "compat": "NO",
    "verdict": "DENY"
   },
   {
@@ -1518,7 +1518,7 @@
    "site": "rachelqueiroz",
    "qid": "q10",
    "modelId": "perplexity:sonar",
-   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: the professional website of **Rachel Queiroz, a clinical psychologist**\nSITE: Name: Rachel Queiroz — Psicóloga Clínica\nVERDICT: SUPPORTED",
+   "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Rachel Queiroz, a clinical psychologist\nSITE: Rachel Queiroz — Psicóloga Clínica\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
    "verdict": "CORRECT"

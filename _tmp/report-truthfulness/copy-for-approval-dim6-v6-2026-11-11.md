@@ -74,3 +74,15 @@ These are exactly what the new code renders for two gold dev sites. Quotes are t
 2. The site quote in the contradicted row can be long (an address line with opening hours, cut at 20 words with "…"). OK, or cut tighter?
 3. Rows 11–12: keep "described it correctly" or switch to "and your site's own text backed what they said"?
 4. The "Average answer score by model (0 to 100)" label (also pending from Stage 0): OK?
+
+## Decision for you: how "not enough evidence" answers are scored (not decided, not implemented)
+
+Today an answer we could not check against your site ("did not give enough evidence to check against your site") scores **0**, the same as an answer that linked you to a different business or that your site contradicts. On the 2026-11-11 dev set (4 sites, 160 answers), 38 answers end up there; 19 of them are answers the gold labels call correct, so they are not wrong, just not provable from what your site says about itself. On sites with thin self-descriptions, that share is larger (held-out: half the answers). Three options:
+
+**A. Leave them out of the score (excluded from the denominator).** Score = average over the answers we could check. Report text: "Of the 40 answers, 6 did not give enough evidence to check against your site; they are not counted in this score." Trade-off: most faithful to "we only score what we can verify". But a site where most answers can't be checked gets a score from a handful of answers, so we'd need a minimum (e.g. no score shown below 10 checkable answers: "not enough evidence to score").
+
+**B. Partial credit (e.g. half the points of a backed answer).** Report text: "…6 did not give enough evidence to check against your site; they count for half." Trade-off: keeps every answer in the score and separates "unverifiable" from "wrong". But the half is a number we pick, not evidence, and a wrong answer we failed to catch would get points.
+
+**C. Keep 0 in the score, show them as their own line.** Report text: "…6 did not give enough evidence to check against your site; they count as 0 here, because we could not confirm them, not because they were wrong." Plus the advice that a fuller self-description (about page, contact page, llms.txt) lets us check more. Trade-off: no change to the scoring and no invented credit. But the score stays harsh on thin sites, and that's the problem the held-out check showed.
+
+Mix-ups and contradicted answers stay 0 under all three. Any option changes scores, the methodology page and the report text, so it needs its own wording pass before it ships.

@@ -47,24 +47,36 @@ import { boundSiteNames, containsNameWords, parseStreetAddresses, siteStreetAddr
 // on into the h1 it read "Tartine is a thoughtful expression of Home", RD-0103).
 export const REFERENCE_FIELD_BUDGETS = {
   llmsH1: 80,
-  llmsBlockquote: 220,
+  llmsBlockquote: 500,
   // 2026-11-11 (gold labels): the body of llms.txt is where most sites state
   // their services, location and contact details (the gold evidence quotes it
   // for every dev site); the judge needs it to tell a supported claim from an
   // unsupported one.
-  llmsBody: 2400,
+  llmsBody: 3000,
   title: 120,
   metaDescription: 120,
+  // 2026-11-11 (held-out patterns, thin homepages): og:description, the
+  // structured-data addresses, the homepage's visible text (navigation
+  // included: it lists what the site offers) and one about-type and one
+  // contact-type page the homepage links to. Each bounded; a page that
+  // cannot be read is left out (less evidence can only lower credit).
+  ogDescription: 160,
   h1: 60,
+  pageText: 1500,
+  navText: 800,
+  jsonLdAddresses: 240,
+  aboutText: 2000,
+  contactText: 1500,
 } as const;
 /** Per JSON-LD identity entity. */
 export const REFERENCE_ENTITY_BUDGETS = { name: 50, description: 120 } as const;
 export const REFERENCE_MAX_ENTITIES = 8;
 /**
- * Most content the reference can hold: 540 for the fixed fields plus 170 per
- * entity x 8 = 1900 chars (labels and line breaks come on top). With a 6000-
- * char answer and the instructions the judge prompt stays around 10,000 chars
- * (~3,300 tokens), well inside the 70B model's context.
+ * Most content the reference can hold: 10080 for the fixed fields (since
+ * 2026-11-11: llms.txt body, longer summary, page text, navigation, about and
+ * contact pages) plus 170 per entity x 8 = 11440 chars (labels and line breaks come on top). With a 6000-
+ * char answer and the instructions the judge prompt stays around 19,000 chars
+ * (~6,000 tokens), well inside the 70B model's 24k-token context.
  */
 export const REFERENCE_MAX_CHARS =
   Object.values(REFERENCE_FIELD_BUDGETS).reduce((a, b) => a + b, 0) +
@@ -88,6 +100,8 @@ const FETCH_TIMEOUT_MS = 8000;
 //   - end tags need a real name boundary (</scripture> is not </script>); a
 //     script, title, h1 or meta tag that never closes → "source_unreadable".
 export const REFERENCE_HTML_MAX_BYTES = 4 * 1024 * 1024;
+/** About / contact page byte cap; a longer page is left out (not read in part). */
+export const SECONDARY_PAGE_MAX_BYTES = 2 * 1024 * 1024;
 export const REFERENCE_LLMS_MAX_BYTES = 512 * 1024;
 export const REFERENCE_JSONLD_MAX_DEPTH = 20;
 
@@ -115,6 +129,10 @@ export interface ReferenceSources {
   domain?: string | null;
   // Set by fetchReferenceSources when a source could not be read in full.
   failure?: ReferenceFailure;
+  // 2026-11-11: one about-type and one contact-type page the homepage links
+  // to on the same site (HTML), when they could be read; otherwise absent.
+  aboutHtml?: string | null;
+  contactHtml?: string | null;
 }
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", plus: "+", sol: "/" };
@@ -281,6 +299,12 @@ export function extractHtmlIdentity(page: string): {
   // (before deduplication), for the bound names and addresses.
   jsonLdFacts: Array<{ name: string; urls: string[]; streets: string[] }>;
   ogSiteName: string;
+  /** 2026-11-11: og:description, the page's visible text, and same-site about / contact links. */
+  ogDescription: string;
+  visibleText: string;
+  navText: string;
+  aboutHref: string | null;
+  contactHref: string | null;
   jsonLdTooDeep: boolean;
   // Evidence we found but could not read (Codex r9: fail closed, never skip):
   // an ld+json block that is not valid JSON, or a script / title / h1 / meta
@@ -296,7 +320,7 @@ export function extractHtmlIdentity(page: string): {
   const entities: Array<Record<string, unknown>> = [];
   let jsonLdTooDeep = false;
   let unreadable: "structured_data_unreadable" | "source_unreadable" | null = null;
-  const empty = { jsonLdEntities, jsonLdFacts, ogSiteName: "", jsonLdTooDeep, title: "", metaDescription: "", h1: "" };
+  const empty = { jsonLdEntities, jsonLdFacts, ogSiteName: "", ogDescription: "", visibleText: "", navText: "", aboutHref: null, contactHref: null, jsonLdTooDeep, title: "", metaDescription: "", h1: "" };
   // HTML comments are inert: blank them out (same length) so decoy markup in
   // a comment is never read (Codex r10). An unclosed comment hides the rest
   // of the page: fail closed.
@@ -352,8 +376,9 @@ export function extractHtmlIdentity(page: string): {
   const h1Text = firstElementText(markup, html, lower, "h1");
   let metaDescription: string | null = null;
   let ogSiteName: string | null = null;
+  let ogDescription: string | null = null;
   let metaUnclosed = false;
-  for (let from = 0; metaDescription === null || ogSiteName === null; ) {
+  for (let from = 0; metaDescription === null || ogSiteName === null || ogDescription === null; ) {
     const tag = nextTag(markup, lower, "meta", from);
     if (tag === null) break;
     if (tag === "unclosed") {
@@ -366,6 +391,9 @@ export function extractHtmlIdentity(page: string): {
     if (ogSiteName === null && decodeEntities(tag.attrs.property ?? "").trim().toLowerCase() === "og:site_name") {
       ogSiteName = raw(decodeEntities(tag.attrs.content ?? ""));
     }
+    if (ogDescription === null && decodeEntities(tag.attrs.property ?? "").trim().toLowerCase() === "og:description") {
+      ogDescription = raw(tag.attrs.content ?? "");
+    }
     from = tag.end + 1;
   }
   // An unclosed meta before the description was found hides it: fail closed
@@ -373,7 +401,166 @@ export function extractHtmlIdentity(page: string): {
   if (titleText === null || h1Text === null || (metaUnclosed && metaDescription === null)) unreadable = "source_unreadable";
   const title = raw(titleText ?? "");
   const h1 = raw(stripTagsLinear(h1Text ?? ""));
-  return { jsonLdEntities, jsonLdFacts, ogSiteName: ogSiteName ?? "", jsonLdTooDeep, unreadable, title, metaDescription: metaDescription ?? "", h1 };
+  const links = pageLinks(markup, lower);
+  const texts = pageTextsOf(markup, lower);
+  return {
+    jsonLdEntities,
+    jsonLdFacts,
+    ogSiteName: ogSiteName ?? "",
+    ogDescription: ogDescription ?? "",
+    visibleText: texts.main,
+    navText: texts.nav,
+    aboutHref: links.about,
+    contactHref: links.contact,
+    jsonLdTooDeep,
+    unreadable,
+    title,
+    metaDescription: metaDescription ?? "",
+    h1,
+  };
+}
+
+/** Raw characters of visible text read from a page (before normalization and the field budget). */
+export const VISIBLE_TEXT_SCAN_CHARS = 400_000;
+
+/**
+ * The contents of the first <name> element of `markup` ("" when none), and
+ * `markup` with every <name> element's contents blanked (same length).
+ * Linear (indexOf scanning, see nextTag / findEndTag).
+ */
+function splitElements(markup: string, lower: string, name: string): { first: string; rest: string; restLower: string } {
+  let first = "";
+  let out = "";
+  let copied = 0;
+  for (let from = 0, n = 0; n < 200; n++) {
+    const tag = nextTag(markup, lower, name, from);
+    if (tag === null || tag === "unclosed") break;
+    const close = findEndTag(lower, name, tag.end + 1);
+    if (close === -1) break;
+    if (!first) first = markup.slice(tag.end + 1, close);
+    out += markup.slice(copied, tag.end + 1) + " ".repeat(close - tag.end - 1);
+    copied = close;
+    from = close + name.length + 2;
+  }
+  const rest = out + markup.slice(copied);
+  return { first, rest, restLower: asciiLower(rest) };
+}
+
+/**
+ * The page's main visible text and its navigation text (raw, line breaks at
+ * block tags kept), from `markup` (script, style, textarea and title contents
+ * already blanked, see blankComments): the <main> element when there is one,
+ * else the body without <nav>, <header> and <footer> (site menus repeated on
+ * every page would use up the budget, 2026-11-11 dev check). Linear; at most
+ * VISIBLE_TEXT_SCAN_CHARS characters of markup are read.
+ */
+function pageTextsOf(markup: string, lower: string): { main: string; nav: string } {
+  const b = lower.indexOf("<body");
+  const from = b === -1 ? 0 : b;
+  const body0 = markup.slice(from, from + VISIBLE_TEXT_SCAN_CHARS);
+  const nav = linkTexts(body0, asciiLower(body0)).join(" · ");
+  // The main content starts at the page's <main> element when it has one,
+  // wherever it is (a store page had 760 KB of markup before it, 2026-11-11).
+  const mainTag = nextTag(markup, lower, "main", 0);
+  const m = mainTag && mainTag !== "unclosed" ? mainTag.end + 1 : -1;
+  const body = m === -1 ? body0 : markup.slice(m, m + VISIBLE_TEXT_SCAN_CHARS);
+  const bodyLower = asciiLower(body);
+  const navs = splitElements(body, bodyLower, "nav");
+  const headers = splitElements(navs.rest, navs.restLower, "header");
+  const footers0 = splitElements(headers.rest, headers.restLower, "footer");
+  // Widgets are not page text: country / language selectors, forms, icons,
+  // dialogs and buttons (a store's country list filled the budget, 2026-11-11).
+  let footers = footers0;
+  for (const el of ["select", "form", "svg", "dialog", "button"]) {
+    const next = splitElements(footers.rest, footers.restLower, el);
+    footers = { ...footers, rest: next.rest, restLower: next.restLower };
+  }
+  // From a <main> start the window runs to its end (or the scan cap); without
+  // one, the body minus menus and widgets.
+  const mainEnd = m === -1 ? -1 : findEndTag(footers.restLower, "main", 0);
+  const mainEl = m === -1 ? footers.rest : mainEnd === -1 ? footers.rest : footers.rest.slice(0, mainEnd);
+  const text = (h: string) => raw(decodeEntities(stripTagsLinear(withBreaks(h))));
+  // Link text is menus (section and sidebar menus sit inside the content
+  // area too, 2026-11-11 dev check): the main text leaves it out, and the
+  // navigation field is the page's distinct link texts.
+  const noLinks = splitElements(mainEl, asciiLower(mainEl), "a").rest;
+  return { main: text(noLinks), nav };
+}
+
+/** The distinct texts of the page's links, in order (at most 300 links). Linear. */
+function linkTexts(markup: string, lower: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (let from = 0, n = 0; n < 300; n++) {
+    const tag = nextTag(markup, lower, "a", from);
+    if (tag === null || tag === "unclosed") break;
+    const close = findEndTag(lower, "a", tag.end + 1);
+    if (close === -1) break;
+    const t = collapseWhitespace(decodeEntities(stripTagsLinear(markup.slice(tag.end + 1, close))));
+    if (t && t.length <= 60 && !seen.has(t.toLowerCase())) {
+      seen.add(t.toLowerCase());
+      out.push(t);
+    }
+    from = close + 3;
+  }
+  return out;
+}
+
+function withBreaks(chunk: string): string {
+  return chunk.replace(/<(?:br|\/p|\/div|\/li|\/h[1-6]|\/tr|\/section|\/header|\/footer|\/nav)\b[^>]{0,200}>/gi, (m) => `${m}\n`);
+}
+
+/** Words of a common prefix / suffix shorter than this are kept (not a shared header). */
+const SHARED_EDGE_MIN_WORDS = 5;
+
+/**
+ * `text` without the words it shares with `home` at its start and at its
+ * end (at least SHARED_EDGE_MIN_WORDS words each): a site-wide header and
+ * footer. Linear in the word counts.
+ */
+export function withoutSharedEdges(text: string, home: string): string {
+  // Words compared, the text's own whitespace kept: line breaks matter to the
+  // line-anchored injection screen (Codex review 2026-11-11 MED).
+  const parts = text.split(/(\s+)/);
+  const t: number[] = [];
+  for (let i = 0; i < parts.length; i++) if (parts[i] && !/^\s+$/.test(parts[i])) t.push(i);
+  const h = home.split(/\s+/).filter(Boolean);
+  let pre = 0;
+  while (pre < t.length && pre < h.length && parts[t[pre]] === h[pre]) pre++;
+  if (pre < SHARED_EDGE_MIN_WORDS) pre = 0;
+  let suf = 0;
+  while (suf < t.length - pre && suf < h.length && parts[t[t.length - 1 - suf]] === h[h.length - 1 - suf]) suf++;
+  if (suf < SHARED_EDGE_MIN_WORDS) suf = 0;
+  if (pre + suf >= t.length) return "";
+  return parts.slice(t[pre], t[t.length - 1 - suf] + 1).join("");
+}
+
+/** The page's visible text (main content first, see pageTextsOf). */
+function visibleTextOf(markup: string, lower: string): string {
+  return pageTextsOf(markup, lower).main;
+}
+
+
+// Paths of an about-type and a contact-type page, in the languages of the
+// panel and the usual small-business wordings.
+const ABOUT_PATH = /(?:^|\/)(?:about(?:-us)?|our-story|story|company|who-we-are|sobre(?:-nos|-mi)?|quem-somos|nosotros|acerca(?:-de)?|ueber-uns|uber-uns|a-propos|qui-sommes-nous|chi-siamo)(?:\/|$|\.html?$)/i;
+const CONTACT_PATH = /(?:^|\/)(?:contact(?:-us)?|contato|contacto|kontakt|fale-conosco|contatti|nous-contacter)(?:\/|$|\.html?$)/i;
+
+/** The first about-type and contact-type link of the page (raw href values). Linear over the a tags. */
+function pageLinks(markup: string, lower: string): { about: string | null; contact: string | null } {
+  let about: string | null = null;
+  let contact: string | null = null;
+  for (let from = 0, n = 0; (about === null || contact === null) && n < 2000; n++) {
+    const tag = nextTag(markup, lower, "a", from);
+    if (tag === null || tag === "unclosed") break;
+    from = tag.end + 1;
+    const href = decodeEntities(tag.attrs.href ?? "").trim();
+    if (!href || href.startsWith("#") || /^(?:mailto|tel|javascript):/i.test(href)) continue;
+    const path = href.replace(/^[a-z][a-z0-9+.-]*:\/\/[^/]+/i, "").split(/[?#]/)[0];
+    if (about === null && ABOUT_PATH.test(path)) about = href;
+    else if (contact === null && CONTACT_PATH.test(path)) contact = href;
+  }
+  return { about, contact };
 }
 
 /** streetAddress values of a JSON-LD address: a string, a PostalAddress, or an array of those. */
@@ -405,11 +592,14 @@ function isJsonLdType(type: string | undefined): boolean {
  * Comment syntax inside those elements is text, not a comment.
  * null when a comment never closes.
  */
-export function blankComments(page: string): { html: string; markup: string } | null {
+export function blankComments(page: string): { html: string; markup: string; complete: boolean } | null {
   const lower = asciiLower(page);
   const html: string[] = [];
   const markup: string[] = [];
   let copied = 0;
+  // false when a raw-text element (script, style, textarea, title) never
+  // closes: a browser shows nothing after it.
+  let complete = true;
   const blank = (from: number, to: number, both: boolean) => {
     html.push(page.slice(copied, from), both ? " ".repeat(to - from) : page.slice(from, to));
     markup.push(page.slice(copied, from), " ".repeat(to - from));
@@ -428,9 +618,15 @@ export function blankComments(page: string): { html: string; markup: string } | 
     const rawEl = RAW_TEXT_ELEMENTS.find((n) => lower.startsWith(`<${n}`, lt) && isNameEnd(lower[lt + n.length + 1]));
     if (rawEl) {
       const tag = readTagAttrs(page, lt + rawEl.length + 1);
-      if (!tag) break; // unclosed start tag: the extractor fails closed on it
+      if (!tag) {
+        complete = false;
+        break; // unclosed start tag: the extractor fails closed on it
+      }
       const close = findEndTag(lower, rawEl, tag.end + 1);
-      if (close === -1) break; // unclosed element: likewise
+      if (close === -1) {
+        complete = false;
+        break; // unclosed element: likewise
+      }
       blank(tag.end + 1, close, false);
       i = close + rawEl.length + 2;
       continue;
@@ -439,7 +635,7 @@ export function blankComments(page: string): { html: string; markup: string } | 
   }
   html.push(page.slice(copied));
   markup.push(page.slice(copied));
-  return { html: html.join(""), markup: markup.join("") };
+  return { html: html.join(""), markup: markup.join(""), complete };
 }
 const RAW_TEXT_ELEMENTS = ["script", "style", "textarea", "title"];
 
@@ -571,6 +767,8 @@ export const REFERENCE_LABELS = {
   llmsTxt: "From llms.txt:",
   jsonLd: "From structured data:",
   homepage: "From the homepage:",
+  about: "From the about page:",
+  contact: "From the contact page:",
 } as const;
 // One reference line: raw parts, each normalized, screened and capped at its
 // own budget, joined with `sep`. `html` parts (title, meta, h1) have their
@@ -585,6 +783,10 @@ export const REFERENCE_FIELD_LABELS = {
   llmsH1: "Name:",
   llmsBlockquote: "Summary:",
   llmsBody: "Details:",
+  ogDescription: "Social description:",
+  pageText: "Page text:",
+  navText: "Navigation:",
+  jsonLdAddresses: "Address:",
   title: "Title:",
   metaDescription: "Description:",
   h1: "Main heading:",
@@ -646,24 +848,60 @@ export function buildSiteReference(sources: ReferenceSources): SiteReference {
     tooManyEntities = h.jsonLdEntities.length > REFERENCE_MAX_ENTITIES;
     jsonLdTooDeep = h.jsonLdTooDeep;
     htmlUnreadable = h.unreadable;
+    // Only the addresses of entities bound to this site (same rule as
+    // siteAddresses: a URL on the domain or a bound site name). A graph can
+    // list other businesses; their address unlabelled would back a wrong
+    // answer (Codex review 2026-11-11 HIGH).
+    const dom = sources.domain ?? "";
+    const boundNow = dom ? boundSiteNames(declaredNames, dom) : [];
+    const streets = dom
+      ? [...new Set(h.jsonLdFacts.filter((e) => e.urls.some((u) => canonicalDomain(u) === dom) || boundNow.some((n) => containsNameWords(e.name, n))).flatMap((e) => e.streets))]
+      : [];
     groups.push({
       label: REFERENCE_LABELS.jsonLd,
-      fields: h.jsonLdEntities.map((e) => ({
-        parts: [
-          { raw: e.name, budget: REFERENCE_ENTITY_BUDGETS.name },
-          { raw: e.description, budget: REFERENCE_ENTITY_BUDGETS.description },
-        ],
-        sep: ": ",
-      })),
+      fields: [
+        ...h.jsonLdEntities.map((e) => ({
+          parts: [
+            { raw: e.name, budget: REFERENCE_ENTITY_BUDGETS.name },
+            { raw: e.description, budget: REFERENCE_ENTITY_BUDGETS.description },
+          ],
+          sep: ": ",
+        })),
+        ...(streets.length > 0 ? [single(streets.join("; "), REFERENCE_FIELD_BUDGETS.jsonLdAddresses, false, REFERENCE_FIELD_LABELS.jsonLdAddresses)] : []),
+      ],
     });
     groups.push({
       label: REFERENCE_LABELS.homepage,
       fields: [
         single(h.title, REFERENCE_FIELD_BUDGETS.title, true, REFERENCE_FIELD_LABELS.title),
         single(h.metaDescription, REFERENCE_FIELD_BUDGETS.metaDescription, true, REFERENCE_FIELD_LABELS.metaDescription),
+        ...(h.ogDescription && h.ogDescription !== h.metaDescription
+          ? [single(h.ogDescription, REFERENCE_FIELD_BUDGETS.ogDescription, true, REFERENCE_FIELD_LABELS.ogDescription)]
+          : []),
         single(h.h1, REFERENCE_FIELD_BUDGETS.h1, true, REFERENCE_FIELD_LABELS.h1),
+        single(h.visibleText, REFERENCE_FIELD_BUDGETS.pageText, false, REFERENCE_FIELD_LABELS.pageText),
+        single(h.navText, REFERENCE_FIELD_BUDGETS.navText, false, REFERENCE_FIELD_LABELS.navText),
       ],
     });
+  }
+  // Secondary pages: their visible text only (their own structured data and
+  // titles are not identity claims about the site as a whole).
+  for (const [html2, label, budget] of [
+    [sources.aboutHtml, REFERENCE_LABELS.about, REFERENCE_FIELD_BUDGETS.aboutText],
+    [sources.contactHtml, REFERENCE_LABELS.contact, REFERENCE_FIELD_BUDGETS.contactText],
+  ] as const) {
+    if (!html2) continue;
+    const pass2 = blankComments(html2);
+    // An unclosed comment, script, style, textarea or title hides the rest of
+    // the page from a browser: the page is dropped (Codex review 2026-11-11
+    // MED, rounds 1-2).
+    if (!pass2 || !pass2.complete) continue;
+    // Drop what the page shares with the homepage at its start and end: the
+    // site-wide header and footer (menus not marked up as <nav>/<header>/
+    // <footer> would otherwise fill the budget, 2026-11-11 dev check).
+    const text2 = withoutSharedEdges(visibleTextOf(pass2.markup, asciiLower(pass2.markup)), html?.visibleText ?? "");
+    // Text that did not decode drops only this page (the homepage stays the core evidence).
+    if (text2 && !text2.includes(REPLACEMENT_CHAR)) groups.push({ label, fields: [single(text2, budget, false, REFERENCE_FIELD_LABELS.pageText)] });
   }
   // Each part is normalized in linear time with line breaks kept (unsafe
   // characters dropped, runs of spaces and blank lines collapsed), and only
@@ -784,7 +1022,7 @@ export async function fetchReferenceSources(scanUrl: string, fetchImpl?: FetchLi
   // ok: body read in full. absent: a clean answer that there is nothing
   // (non-2xx, off-site final URL, empty body). unreadable: timeout / network
   // / body read error (retried once). too_large: body over the byte cap.
-  type Got = { kind: "ok"; text: string } | { kind: "absent" | "unreadable" | "too_large" };
+  type Got = { kind: "ok"; text: string; url: string } | { kind: "absent" | "unreadable" | "too_large" };
   const getOnce = async (url: string, maxBytes: number, accept: string): Promise<Got> => {
     let failure: SafeFetchFailure | null = null;
     try {
@@ -808,7 +1046,7 @@ export async function fetchReferenceSources(scanUrl: string, fetchImpl?: FetchLi
       // fails closed.
       const text = body.raw ? decodeBody(body.raw, res.headers.get("content-type")) : body.text;
       if (text === null) return { kind: "unreadable" };
-      return text ? { kind: "ok", text } : { kind: "absent" };
+      return text ? { kind: "ok", text, url: res.url || url } : { kind: "absent" };
     } catch {
       return { kind: "unreadable" };
     }
@@ -826,6 +1064,47 @@ export async function fetchReferenceSources(scanUrl: string, fetchImpl?: FetchLi
     homepageHtml: home.kind === "ok" ? home.text : null,
     domain,
   };
+  // One about-type and one contact-type page the homepage links to, same site
+  // only (the final URL is checked like the homepage's). A page that cannot be
+  // read is left out: it can only remove evidence, never add credit.
+  if (home.kind === "ok") {
+    const pass = blankComments(home.text);
+    const links = pass ? pageLinks(pass.markup, asciiLower(pass.markup)) : { about: null, contact: null };
+    // A <base href> changes what relative links point to (Codex review round 2).
+    let base = home.url;
+    // The first <base> that has an href counts, as in a browser (Codex round 3).
+    if (pass) {
+      const lower = asciiLower(pass.markup);
+      for (let from = 0, n = 0; n < 50; n++) {
+        const tag = nextTag(pass.markup, lower, "base", from);
+        if (tag === null || tag === "unclosed") break;
+        from = tag.end + 1;
+        if (tag.attrs.href === undefined) continue;
+        try {
+          base = new URL(decodeEntities(tag.attrs.href).trim(), home.url).href;
+        } catch {
+          // an unparseable base: keep the page URL
+        }
+        break;
+      }
+    }
+    const resolve = (href: string | null): string | null => {
+      if (!href) return null;
+      try {
+        // Relative to the page the homepage really is (after redirects), not the
+        // origin root (Codex review 2026-11-11 MED).
+        const u = new URL(href, base);
+        return canonicalDomain(u.href) === domain && (u.protocol === "https:" || u.protocol === "http:") ? u.href.split("#")[0] : null;
+      } catch {
+        return null;
+      }
+    };
+    const [about, contact] = await Promise.all(
+      [resolve(links.about), resolve(links.contact)].map((u) => (u ? getOnce(u, SECONDARY_PAGE_MAX_BYTES, "text/html") : Promise.resolve(null)))
+    );
+    if (about?.kind === "ok") out.aboutHtml = about.text;
+    if (contact?.kind === "ok") out.contactHtml = contact.text;
+  }
   // Fail closed when evidence went unread: a source over its byte cap, an
   // llms.txt that failed to load, or a homepage that is not a readable 2xx
   // page on this site (the homepage is the core evidence; a missing

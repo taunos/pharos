@@ -32,6 +32,7 @@ describe("self-description layout (RD-0103)", () => {
     expect(lines[1]).toMatch(/^Title: Tartine Bakery – Tartine is a thoughtful expression of modern craft through good food and warm experiences\. .*\.\.\.$/);
     expect(lines[1].length).toBeLessThanOrEqual("Title: ".length + REFERENCE_FIELD_BUDGETS.title + 3);
     expect(lines[2]).toBe("Main heading: Home");
+    expect(lines[3]).toBe("Page text: Home"); // 2026-11-11: the visible text
     expect(r.text).not.toContain("expression of Home");
   });
 
@@ -41,7 +42,7 @@ describe("self-description layout (RD-0103)", () => {
     const prompts: string[] = [];
     const AI = { run: async (_m: string, i: { messages: Array<{ content: string }> }) => (prompts.push(i.messages[0].content), { response: "CORRECT" }) } as unknown as Ai;
     await judgeAccuracy({ AI }, "tartinebakery.com", r.text, "Tartine Bakery is a bakery in San Francisco.");
-    expect(prompts[0]).toMatch(/>\nFrom the homepage:\nTitle: Tartine Bakery – .*\.\.\.\nMain heading: Home\n<\/site-description-/);
+    expect(prompts[0]).toMatch(/>\nFrom the homepage:\nTitle: Tartine Bakery – .*\.\.\.\nMain heading: Home\nPage text: Home\n<\/site-description-/);
     expect(prompts[0]).toContain('one field per line; a field that ends with "..." was cut short');
     expect(ACCURACY_MODEL).toContain("70b");
   });
