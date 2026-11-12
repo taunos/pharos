@@ -1130,7 +1130,9 @@ export async function judgeAccuracy(
     parseFactsOutput,
     "Output ONLY lines of the form FACT: <KIND> | <answer words> | <site words or NONE> | <MATCH or CONFLICT or ABSENT>, or the single line FACTS: NONE."
   );
-  if (!listed.ok) return core.kind === "correct" ? { kind: "unclear", why: "facts_unchecked", raw: "SUPPORTED" } : core;
+  // The facts call failing twice is our failure, not missing evidence: marked
+  // failed so it never decides a grade (checkable.ts, Codex 2026-11-12).
+  if (!listed.ok) return core.kind === "correct" ? { kind: "unclear", why: "facts_unchecked", failed: "judge_failed", raw: "SUPPORTED" } : core;
   if (trace) trace.facts = listed.raw;
   const results: Array<{ compatible: boolean } | null> = [];
   for (let step = 0; step <= FACT_CHECKS_MAX; step++) {
@@ -1140,7 +1142,12 @@ export async function judgeAccuracy(
       continue;
     }
     if (s.kind === "wrong_facts") return s;
-    if ((s.kind === "unchecked" || (listed.value as { more?: boolean }).more) && core.kind === "correct") return { kind: "unclear", why: "facts_unchecked", raw: "SUPPORTED" };
+    if ((s.kind === "unchecked" || (listed.value as { more?: boolean }).more) && core.kind === "correct") {
+      // A "cannot both be true" call that failed twice left it unchecked: our failure too.
+      return results.includes(null)
+        ? { kind: "unclear", why: "facts_unchecked", failed: "judge_failed", raw: "SUPPORTED" }
+        : { kind: "unclear", why: "facts_unchecked", raw: "SUPPORTED" };
+    }
     return core;
   }
   return core;

@@ -456,7 +456,7 @@ describe("collection limits: none can hide evidence silently (Codex r6)", () => 
 
   it("note for unreadable structured data", () => {
     expect(accuracyStructuredDataUnreadableNote(2)).toBe(
-      "Your homepage's structured data has a block that is not valid JSON, so we could not read all of it, and the 2 answers that said the model knew your site could not be checked and were not counted (scored 0). To fix this, correct the syntax in that block; Google's Rich Results Test or the Schema Markup Validator shows where it breaks."
+      "Your homepage's structured data has a block that is not valid JSON, so we could not read all of it, and the 2 answers that said the model knew your site could not be checked and were counted as 0. To fix this, correct the syntax in that block; Google's Rich Results Test or the Schema Markup Validator shows where it breaks."
     );
   });
 
@@ -595,10 +595,10 @@ describe("collection limits: none can hide evidence silently (Codex r6)", () => 
 
   it("notes for the new reasons", () => {
     expect(accuracySourceTooLargeNote(3)).toBe(
-      "Your homepage or llms.txt file is larger than we read in full (4 MB for the homepage, 512 KB for llms.txt), so we could not read all of your site's description of itself, and the 3 answers that said the model knew your site could not be checked and were not counted (scored 0). To fix this, bring the file under that size."
+      "Your homepage or llms.txt file is larger than we read in full (4 MB for the homepage, 512 KB for llms.txt), so we could not read all of your site's description of itself, and the 3 answers that said the model knew your site could not be checked and were counted as 0. To fix this, bring the file under that size."
     );
     expect(accuracyStructuredDataTooDeepNote(1)).toBe(
-      "Your homepage's structured data is nested more than 20 levels deep, so we could not read all of it, and the 1 answer that said the model knew your site could not be checked and was not counted (scored 0). To fix this, put your Organization, LocalBusiness or Person entry at the top level of your structured data."
+      "Your homepage's structured data is nested more than 20 levels deep, so we could not read all of it, and the 1 answer that said the model knew your site could not be checked and was counted as 0. To fix this, put your Organization, LocalBusiness or Person entry at the top level of your structured data."
     );
     expect(accuracyNotCheckedNote(2)).toContain("We could not find or read a clear description of your site on it");
   });
@@ -715,12 +715,17 @@ describe("scoring", () => {
     expect(x.notes).toBe("score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true; accuracy_failed=judge_failed");
   });
 
-  it("a judge failure cannot raise the aggregate (Codex r1 example: CORRECT + failed is 50, not 100)", () => {
+  it("option A: a judge failure is left out of the score, never counted as backed (was Codex r1: 50, not 100)", () => {
     const ok = scoreAffirmedCell(text, t, [], false, { kind: "correct", quoteAt: 0 });
     const failedCell = scoreAffirmedCell(text, t, [], false, { kind: "unclear", failed: "judge_failed" });
     const r = aggregateCells([env("openai:gpt-4o", "q1", ok.notes, text, ok.score), env("openai:gpt-4o", "q2", failedCell.notes, text, 0)], true);
-    expect(r.score).toBe(50);
+    // the average of the one checkable answer; the failed one has its own line
+    expect(r.score).toBe(ok.score);
     expect(r.unmeasurableCount).toBe(0);
+    expect(r.uncheckableCount).toBe(1);
+    // a failed check never becomes credit: next to a mix-up the score stays 0
+    const wrongCell = scoreAffirmedCell(text, t, [], false, { kind: "wrong", quoteAt: 0 });
+    expect(aggregateCells([env("openai:gpt-4o", "q1", wrongCell.notes, text, 0), env("openai:gpt-4o", "q2", failedCell.notes, text, 0)], true).score).toBe(0);
   });
 
   it("runLadder: AFFIRM + WRONG → 0, measurable; the accuracy judge sees the reference and the canonical host", async () => {
@@ -780,13 +785,19 @@ describe("report output", () => {
   it("rates come from CORRECT cells only; counts of the four answer kinds", () => {
     const subs = buildSubChecks(result, false, "acme.com");
     const by = Object.fromEntries(subs.map((s) => [s.id, s]));
-    expect(by.citation_domain_named_rate.score).toBe(13); // 1 of 8
-    expect(by.citation_url_referenced_rate.score).toBe(13);
+    // option A: the UNCLEAR answer is left out, so 1 of the 7 checkable answers
+    expect(by.citation_domain_named_rate.score).toBe(14);
+    expect(by.citation_url_referenced_rate.score).toBe(14);
+    expect(result.score).toBe(14);
     expect(by.citation_domain_named_rate.notes).toBe(
-      "13% of scored test answers named your site (by its domain or the name your site gives itself) and were backed by your site's own text. Of the 8 scored answers, 1 was backed by your site's own text, 4 linked your site to a different named person or business, 1 did not give enough evidence to check against your site, and 2 did not show that the model knew your site. We count your domain and the name your site gives itself; other brand names, nicknames or translations are not counted. 8 of 8 test answers could be scored, across 4 AI models. Average answer score by model (0 to 100): ChatGPT 0, Claude 0, Gemini 0, Perplexity 50."
+      "14% of the test answers we could check named your site (by its domain or the name your site gives itself) and were backed by your site's text. Of the 7 test answers we could check, 1 was backed by your site's text, 4 linked your site to a different named person or business, and 2 did not show that the model knew your site. We count your domain and the name your site gives itself; other brand names, nicknames or translations are not counted. 8 of 8 test answers came back from the 4 AI models, and 7 of those could be checked against your site's text and are counted in this score. Average answer score by model (0 to 100): ChatGPT 0, Claude 0, Gemini 0, Perplexity 50."
     );
     expect(by.citation_url_referenced_rate.notes).toBe(
-      "13% of scored test answers included a link to your site and either were backed by your site's own text, or gave your homepage address when asked for it."
+      "14% of the test answers we could check included a link to your site and either were backed by your site's text, or gave your homepage address when asked for it."
+    );
+    expect(by.citation_uncheckable_answers).toMatchObject({ na: true, weight: 0, score: 0, passed: false });
+    expect(by.citation_uncheckable_answers.notes).toBe(
+      "1 of the 8 test answers that came back is not counted in this score, because we could not check it against your site's text: 1 said things your site's text does not clearly back or contradict. A fuller description of who you are and what you do on your site (your homepage, llms.txt file and structured data) gives us more of your site's own text to check answers against. This row is for information and is not counted in your score."
     );
   });
 
@@ -794,7 +805,7 @@ describe("report output", () => {
     const row = buildSubChecks(result, false, "acme.com").find((s) => s.id === "citation_misidentified_answers")!;
     expect(row).toMatchObject({ na: true, weight: 0, score: 0, passed: false });
     expect(row.notes).toBe(
-      `4 of the 8 scored answers linked your site to a different named person or business; they count as 0 in the checks above. Gemini said: "acme.com is the official site of <script>alert(1)</script> 'Acme Corp', a rocket maker. More."; ChatGPT said: "Acme.com is a dress shop selling party dresses."; Gemini said: "acme.com sells shoes.". Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score.`
+      `4 of the 7 test answers we could check linked your site to a different named person or business; they count as 0 in the checks above. Gemini said: "acme.com is the official site of <script>alert(1)</script> 'Acme Corp', a rocket maker. More."; ChatGPT said: "Acme.com is a dress shop selling party dresses."; Gemini said: "acme.com sells shoes.". Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score.`
     );
     expect(pickWrongAnswerQuotes(cells, "acme.com").map((q) => q.model)).toEqual(["Gemini", "ChatGPT", "Gemini"]);
   });
@@ -819,17 +830,29 @@ describe("report output", () => {
     expect(subs.map((s) => s.id)).not.toContain("citation_misidentified_answers");
     expect(subs[0].score).toBe(0);
     expect(subs[0].notes).toBe(
-      "0% of scored test answers named your domain. We could not find or read a clear description of your site on it, so the 2 answers that said the model knew your site could not be checked and were not counted (scored 0). To fix this, say who you are and what you do in an llms.txt file, in structured data, or in your homepage title and description. 3 of 3 test answers could be scored, across 4 AI models. Average answer score by model (0 to 100): ChatGPT 0, Claude not measured, Gemini not measured, Perplexity not measured."
+      "0% of the test answers we could check named your domain. We could not find or read a clear description of your site on it, so the 2 answers that said the model knew your site could not be checked and were counted as 0. To fix this, say who you are and what you do in an llms.txt file, in structured data, or in your homepage title and description. 3 of 3 test answers came back from the 4 AI models, and 3 of those could be checked against your site's text and are counted in this score. Average answer score by model (0 to 100): ChatGPT 0, Claude not measured, Gemini not measured, Perplexity not measured."
     );
-    expect(accuracyNotCheckedNote(1)).toContain("the 1 answer that said the model knew your site could not be checked and was not counted (scored 0)");
-    expect(accuracyNotCheckedNote(0)).toContain("so an answer that said the model knew your site could not have been checked or counted.");
+    expect(subs.find((s) => s.id === "citation_uncheckable_answers")!.notes).toBe(
+      "All 3 test answers that came back could be checked against your site's text. This row is for information and is not counted in your score."
+    );
+    expect(accuracyNotCheckedNote(1)).toContain("the 1 answer that said the model knew your site could not be checked and was counted as 0");
+    expect(accuracyNotCheckedNote(0)).toContain("so an answer that said the model knew your site could not have been checked and would have been counted as 0.");
   });
 
   it("answers that could not be checked get their own count", () => {
     const FAILED = "score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true; accuracy_failed=judge_failed";
     const r = aggregateCells([cells[0], cells[5], env("openai:gpt-4o", "q7", FAILED), env("openai:gpt-4o", "q8", DENY)], true);
-    expect(buildSubChecks(r, false, "acme.com")[0].notes).toContain(
-      "Of the 4 scored answers, 1 was backed by your site's own text, 0 linked your site to a different named person or business, 1 did not give enough evidence to check against your site, 1 could not be checked (scored 0), and 1 did not show that the model knew your site."
+    const subs = buildSubChecks(r, false, "acme.com");
+    expect(subs[0].notes).toContain(
+      "Of the 2 test answers we could check, 1 was backed by your site's text, 0 linked your site to a different named person or business, and 1 did not show that the model knew your site."
+    );
+    expect(subs.find((s) => s.id === "citation_uncheckable_answers")!.notes).toBe(
+      "2 of the 4 test answers that came back are not counted in this score, because we could not check them against your site's text: 1 said things your site's text does not clearly back or contradict and 1 could not be checked because one of our checks failed. A fuller description of who you are and what you do on your site (your homepage, llms.txt file and structured data) gives us more of your site's own text to check answers against. This row is for information and is not counted in your score."
+    );
+    const CUT = "score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true; unclear_why=truncated; truncated=true";
+    const one = aggregateCells([cells[0], env("openai:gpt-4o", "q9", CUT)], true);
+    expect(buildSubChecks(one, false, "acme.com").find((s) => s.id === "citation_uncheckable_answers")!.notes).toBe(
+      "1 of the 2 test answers that came back is not counted in this score, because we could not check it against your site's text: 1 was cut off by the AI's length limit before the part we would check. This row is for information and is not counted in your score."
     );
   });
 
@@ -931,7 +954,7 @@ describe("injected site description: safe direction is down", () => {
     expect(blocked.calls.some((c) => c.model === ACCURACY_MODEL)).toBe(false);
     const dn = blocked.r.dimension.sub_checks.find((s) => s.id === "citation_domain_named_rate")!;
     expect(dn.notes).toBe(
-      `0% of scored test answers named your domain. ${accuracyBlockedNote(40)} 40 of 40 test answers could be scored, across 4 AI models. Average answer score by model (0 to 100): ChatGPT 0, Claude 0, Gemini 0, Perplexity 0.`
+      `0% of the test answers we could check named your domain. ${accuracyBlockedNote(40)} 40 of 40 test answers came back from the 4 AI models, and 40 of those could be checked against your site's text and are counted in this score. Average answer score by model (0 to 100): ChatGPT 0, Claude 0, Gemini 0, Perplexity 0.`
     );
     expect(dn.notes).toContain("text aimed at automated checkers");
     expect(blocked.r.dimension.sub_checks.map((s) => s.id)).not.toContain("citation_misidentified_answers");
@@ -941,6 +964,8 @@ describe("injected site description: safe direction is down", () => {
     for (const llms of [null, "# Acme"]) {
       const nc = await run(llms);
       expect(nc.r.raw?.accuracyBlocked).toBeUndefined();
+      // option A keeps this fail-closed 0: the site controls its own description (Codex 2026-11-12)
+      expect(nc.r.dimension.na).toBeUndefined();
       expect(nc.r.dimension.score).toBe(0);
       expect(nc.r.cells.filter((c) => !c.result.unmeasurable).every((c) => c.result.notes.includes("accuracy_not_checked=true"))).toBe(true);
       expect(nc.r.dimension.sub_checks[0].notes).toContain(accuracyNotCheckedNote(40));
@@ -950,9 +975,10 @@ describe("injected site description: safe direction is down", () => {
     // A verifiable description: the judge runs and CORRECT keeps credit.
     const ok = await run("# Acme Clinic\n\n> A clinic in Lisbon treating adults and couples.");
     expect(ok.r.raw?.accuracyChecked).toBe(true);
-    // 90, not 100: the fallback question bank has one popularity question ("well known"),
-    // which no site description can back (dim6:v6), so that answer is not counted.
-    expect(ok.r.dimension.score).toBe(90);
+    // The fallback question bank has one popularity question ("well known"), which no
+    // site description can back (dim6:v6): option A leaves those 4 answers out (was 90).
+    expect(ok.r.dimension.score).toBe(100);
+    expect(ok.r.raw?.uncheckableCount).toBe(4);
   });
 
   it("runDim6Paid: more than 8 structured-data entities fails closed with its own note", async () => {
@@ -970,17 +996,18 @@ describe("injected site description: safe direction is down", () => {
         : new Response(`<html><head><script type="application/ld+json">${ld}</script></head></html>`, { status: 200 });
     const r = await runDim6Paid({ AI, cacheKv, questionSetDb, OPENAI_API_KEY: "k", siteFetch } as never, "https://acme.com/");
     expect(r.dimension.score).toBe(0);
+    expect(r.dimension.na).toBeUndefined();
     expect(r.raw?.accuracyNotCheckedReason).toBe("too_many_entities");
     expect(r.dimension.sub_checks[0].notes).toContain(accuracyTooManyEntitiesNote(40));
     expect(calls.some((c) => c.model === ACCURACY_MODEL)).toBe(false);
     expect(accuracyTooManyEntitiesNote(40)).toBe(
-      "Your homepage's structured data describes more than 8 different people or businesses, so we could not tell which one your site is, and the 40 answers that said the model knew your site could not be checked and were not counted (scored 0). To fix this, describe your own business or yourself in your structured data (as an Organization, LocalBusiness or Person), not every person or business you mention."
+      "Your homepage's structured data describes more than 8 different people or businesses, so we could not tell which one your site is, and the 40 answers that said the model knew your site could not be checked and were counted as 0. To fix this, describe your own business or yourself in your structured data (as an Organization, LocalBusiness or Person), not every person or business you mention."
     );
   });
 
   it("blocked note: singular", () => {
     expect(accuracyBlockedNote(1)).toBe(
-      "We could not check these answers against your site's own description, because that description contains text aimed at automated checkers. So the 1 answer that said the model knew your site was not counted and scored 0."
+      "We could not check these answers against your site's own description, because that description contains text aimed at automated checkers. So the 1 answer that said the model knew your site was counted as 0."
     );
   });
 });
@@ -1031,7 +1058,7 @@ describe("affirmation judge screens the raw answer too", () => {
 describe("affirmation-judge failure (Codex r3 MED)", () => {
   const FAILED_AFF = "score=0/100; affirmation_failed=true";
 
-  it("a failed affirmation check stays measurable at 0: one 100-point answer plus one failed check gives 50", () => {
+  it("a failed affirmation check stays measurable but is left out of the score (option A): one 100-point answer plus one failed check gives 100", () => {
     expect(affirmationFailedCell("acme.com is a bakery.", false)).toEqual({
       text: "acme.com is a bakery.",
       score: 0,
@@ -1040,9 +1067,10 @@ describe("affirmation-judge failure (Codex r3 MED)", () => {
       notes: FAILED_AFF,
     });
     const r = aggregateCells([env("openai:gpt-4o", "q1", CORRECT, "acme.com", 100), env("openai:gpt-4o", "q2", FAILED_AFF)], true);
-    expect(r.score).toBe(50);
+    expect(r.score).toBe(100);
+    expect(r.uncheckableCount).toBe(1);
     expect(r.unmeasurableCount).toBe(0);
-    expect(buildSubChecks(r, false, "acme.com")[0].notes).toContain("1 could not be checked (scored 0)");
+    expect(buildSubChecks(r, false, "acme.com").find((s) => s.id === "citation_uncheckable_answers")!.notes).toContain("1 could not be checked because one of our checks failed");
   });
 
   it("failed on every received answer (judge outage) → all unmeasurable, not a 0", () => {

@@ -9,6 +9,8 @@
 // Labels: rows from dev.jsonl / holdout.jsonl. `--as final` (default) uses the resolved labels; attributes still
 // waiting on Bruno are null and those answers are left out of any metric that needs them (the excluded count is printed).
 // `--as a` / `--as b` scores against one labeler's raw labels, to show how much the open disagreements could move a number.
+// The judge file must cover the labels exactly: a missing, duplicate or unknown key (site|qid|modelId) is an error,
+// never a silently smaller denominator.
 
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -22,7 +24,21 @@ export function parseRows(text) {
   return t.split(/\r?\n/).filter((l) => l.trim()).map((l) => JSON.parse(l));
 }
 
+const KEY_FIELDS = ["site", "qid", "modelId"];
 const keyOf = (r) => `${r.site}|${r.qid}|${r.modelId}`;
+
+/** A row's key, or an error naming what is wrong with it (missing or non-string key fields). */
+function checkedKey(r, what, i) {
+  if (!r || typeof r !== "object") throw new Error(`${what} row ${i + 1} is not an object`);
+  const bad = KEY_FIELDS.filter((k) => typeof r[k] !== "string" || !r[k].trim());
+  if (bad.length) throw new Error(`${what} row ${i + 1} has no ${bad.join("/")}`);
+  // "|" joins the key: {site:"a", qid:"b|c"} and {site:"a|b", qid:"c"} would collide (Codex LOW).
+  const piped = KEY_FIELDS.filter((k) => r[k].includes("|"));
+  if (piped.length) throw new Error(`${what} row ${i + 1} has "|" in ${piped.join("/")}`);
+  return keyOf(r);
+}
+
+const listed = (keys, max = 5) => `${keys.slice(0, max).join(", ")}${keys.length > max ? `, … (${keys.length} in all)` : ""}`;
 
 export function normaliseVerdict(v) {
   const n = VERDICT_ALIASES[String(v ?? "").trim().toUpperCase()];
@@ -46,17 +62,42 @@ function ratio(num, den) {
   return { num, den, pct: den ? Math.round((1000 * num) / den) / 10 : null };
 }
 
+/**
+ * Integrity (Codex HIGH, 2026-11-12): every number below is a claim about the
+ * whole label set, so the prediction file must cover it exactly. Hard-fails
+ * on a malformed key, a duplicate label or prediction key, a prediction for
+ * an answer that has no label (unknown key), and a label with no prediction
+ * (missing key). Nothing is silently dropped.
+ */
 export function score(judgeRows, labelRows, { as = "final" } = {}) {
+  if (!["final", "a", "b"].includes(as)) throw new Error(`--as must be final, a or b (got ${as})`);
+  const labels = new Map();
+  const dupLabels = [];
+  labelRows.forEach((r, i) => {
+    const k = checkedKey(r, "label", i);
+    if (labels.has(k)) dupLabels.push(k);
+    labels.set(k, r);
+  });
+  if (dupLabels.length) throw new Error(`duplicate label keys: ${listed(dupLabels)}`);
   const judge = new Map();
-  for (const r of judgeRows) judge.set(keyOf(r), normaliseVerdict(r.verdict));
+  const dupJudge = [];
+  judgeRows.forEach((r, i) => {
+    const k = checkedKey(r, "prediction", i);
+    if (judge.has(k)) dupJudge.push(k);
+    judge.set(k, normaliseVerdict(r.verdict));
+  });
+  if (dupJudge.length) throw new Error(`duplicate prediction keys: ${listed(dupJudge)}`);
+  const unknown = [...judge.keys()].filter((k) => !labels.has(k));
+  if (unknown.length) throw new Error(`predictions for answers with no label (unknown keys): ${listed(unknown)}`);
+  const missing = [...labels.keys()].filter((k) => !judge.has(k));
+  if (missing.length) throw new Error(`labelled answers with no prediction (missing keys): ${listed(missing)}`);
   const rows = [];
-  const missing = [];
-  for (const row of labelRows) {
-    const v = judge.get(keyOf(row));
-    if (!v) { missing.push(keyOf(row)); continue; }
-    rows.push({ key: keyOf(row), site: row.site, verdict: v, l: labelView(row, as) });
+  for (const [key, row] of labels) {
+    const l = labelView(row, as);
+    if (!l || typeof l !== "object") throw new Error(`label ${key} has no ${as === "final" ? "attributes" : `labeler_${as}`}`);
+    rows.push({ key, site: row.site, verdict: judge.get(key), l });
   }
-  const out = { as, answers: rows.length, missing_verdicts: missing.length, metrics: {}, by_site: {} };
+  const out = { as, answers: rows.length, missing_verdicts: 0, metrics: {}, by_site: {} };
   out.metrics = metrics(rows);
   for (const site of [...new Set(rows.map((r) => r.site))].sort()) out.by_site[site] = metrics(rows.filter((r) => r.site === site));
   return out;
@@ -135,6 +176,19 @@ function metrics(rows) {
     got: tally(contra.map((r) => r.verdict)),
     passed_keys: contra.filter((r) => r.verdict === "CORRECT").map((r) => r.key),
   };
+  // 6. WRONG_FACTS precision: judged WRONG_FACTS ("your site's text contradicts
+  // this answer") whose gold facts are really contradicted. A false one accuses
+  // a customer's answer of something their own site does not say.
+  const judgedWF = rows.filter((r) => r.verdict === "WRONG_FACTS");
+  const wfKnown = judgedWF.filter((r) => known(r.l, ["facts"]));
+  const falseWF = wfKnown.filter((r) => r.l.facts !== "contradicted");
+  m.wrong_facts_precision = {
+    ...ratio(wfKnown.length - falseWF.length, wfKnown.length),
+    false_wrong_facts: falseWF.length,
+    false_on_strictly_correct: falseWF.filter((r) => known(r.l, need) && strictCorrect(r.l)).length,
+    excluded_facts_pending: judgedWF.length - wfKnown.length,
+    false_keys: falseWF.map((r) => `${r.key} (gold facts ${r.l.facts})`),
+  };
   m.verdicts = tally(rows.map((r) => r.verdict));
   return m;
 }
@@ -150,7 +204,7 @@ const f = (r) => (r.den ? `${r.num}/${r.den} (${r.pct}%)` : `0/0 (n/a)`);
 export function formatReport(res) {
   const m = res.metrics;
   const lines = [
-    `Labels: ${res.as} · answers scored: ${res.answers} · answers with no judge verdict: ${res.missing_verdicts}`,
+    `Labels: ${res.as} · answers scored: ${res.answers} (every labelled answer has exactly one prediction)`,
     `Verdicts: ${JSON.stringify(m.verdicts)}`,
     ``,
     `1. False "different business" accusations (labelled not a different entity, judged MIXUP): ${f(m.false_mixup_accusations)}`,
@@ -165,6 +219,7 @@ export function formatReport(res) {
     `4. Clear cases: coverage (definite verdict) ${f(m.clear_cases.coverage)} · accuracy ${f(m.clear_cases.accuracy)}`,
     ...Object.entries(m.clear_cases.by_expected).map(([w, r]) => `   expected ${w}: ${f(r)} got ${JSON.stringify(r.got)}`),
     `5. Contradiction recall (facts conflict with the site): flagged as wrong ${f(m.contradiction_recall.flagged)} · not passed as CORRECT ${f(m.contradiction_recall.not_passed_as_correct)} · got ${JSON.stringify(m.contradiction_recall.got)}`,
+    `6. WRONG_FACTS precision (judged WRONG_FACTS whose gold facts are contradicted): ${f(m.wrong_facts_precision)} · false WRONG_FACTS: ${m.wrong_facts_precision.false_wrong_facts} (on truly correct answers: ${m.wrong_facts_precision.false_on_strictly_correct}) · left out (facts label pending): ${m.wrong_facts_precision.excluded_facts_pending}${m.wrong_facts_precision.false_keys.length ? ` · ${m.wrong_facts_precision.false_keys.join(", ")}` : ""}`,
     ``,
     `Per site (false accusations · different-entity recall · CORRECT precision strict · clear-case accuracy):`,
     ...Object.entries(res.by_site).map(([s, b]) => `   ${s.padEnd(14)} ${f(b.false_mixup_accusations).padEnd(16)} ${f(b.mixup_recall).padEnd(16)} ${f(b.correct_precision.strict).padEnd(16)} ${f(b.clear_cases.accuracy)}`),

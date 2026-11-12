@@ -124,8 +124,13 @@ export interface Dim6Result {
   // Returns null when EVERY cell was unmeasurable — caller marks dim na:true.
   score: number | null;
   cells: CellEnvelope[];
-  perModelAverage: Record<ModelId, number | null>;  // null when all cells for that model were unmeasurable
+  // dim6:v6 option A: averages of the CHECKABLE cells (checkable.ts); null when a model has none.
+  perModelAverage: Record<ModelId, number | null>;
   unmeasurableCount: number;
+  // dim6:v6 option A: measured answers we could not check against the site's
+  // own text, left out of score and perModelAverage. Optional: results built
+  // before option A (and test fakes) don't carry it.
+  uncheckableCount?: number;
   totalCells: number;
   // dim6:v5: true when the run had a verifiable reference description of the
   // site, so AFFIRM answers were checked for accuracy. false → they were not

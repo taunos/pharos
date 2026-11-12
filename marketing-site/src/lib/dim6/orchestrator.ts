@@ -20,6 +20,7 @@
 //     the spec invariant (unmeasurable cells excluded) breaks at the
 //     persistence layer.
 
+import { isCheckable } from "./checkable";
 import { runLadder, type LadderEnv, type SiteFacts } from "./ladder";
 import { canonicalDomain, resolveQuestionSet, type QuestionSetEnv } from "./question-set";
 import {
@@ -208,20 +209,24 @@ export function aggregateCells(input: CellEnvelope[], accuracyChecked = false, a
       )
     : input;
 
-  // Score formula: average of all cells where unmeasurable === false.
-  // Truncated cells ARE INCLUDED (per locked decision 4) — they have a real
-  // score even when capped by max_tokens.
+  // Score formula: average of the CHECKABLE cells (checkable.ts, scoring
+  // option A, 2026-11-12): measured answers we could not check against the
+  // site's own text are left out instead of counting as 0. Truncated cells
+  // ARE INCLUDED (per locked decision 4) when their verdict is checkable.
+  // score stays null only when no cell was measured at all (the
+  // all-unmeasurable path); measured but none checkable gives 0 here, and
+  // runDim6Paid suppresses the grade below the floor.
   const measurable = cells.filter((c) => !c.result.unmeasurable);
   const unmeasurableCount = cells.length - measurable.length;
   const totalCells = cells.length;
+  const checkable = measurable.filter(isCheckable);
 
   const score =
     measurable.length === 0
       ? null
-      : Math.round(
-          measurable.reduce((sum, c) => sum + c.result.score, 0) /
-            measurable.length
-        );
+      : checkable.length === 0
+        ? 0
+        : Math.round(checkable.reduce((sum, c) => sum + c.result.score, 0) / checkable.length);
 
   // Per-model averages.
   const perModelAverage: Record<ModelId, number | null> = {
@@ -231,7 +236,7 @@ export function aggregateCells(input: CellEnvelope[], accuracyChecked = false, a
     "perplexity:sonar": null,
   };
   for (const modelId of ALL_MODEL_IDS) {
-    const ms = measurable.filter((c) => c.modelId === modelId);
+    const ms = checkable.filter((c) => c.modelId === modelId);
     if (ms.length > 0) {
       perModelAverage[modelId] = Math.round(
         ms.reduce((s, c) => s + c.result.score, 0) / ms.length
@@ -244,6 +249,7 @@ export function aggregateCells(input: CellEnvelope[], accuracyChecked = false, a
     cells,
     perModelAverage,
     unmeasurableCount,
+    uncheckableCount: measurable.length - checkable.length,
     totalCells,
     accuracyChecked,
     ...(accuracyBlocked ? { accuracyBlocked: true } : {}),

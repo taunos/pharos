@@ -214,8 +214,9 @@ describe("template coverage", () => {
   it("every Dim 6 sub-check id built by runDim6 has a template", () => {
     const src = readFileSync(new URL("./dim6/runDim6.ts", import.meta.url), "utf8");
     // citation_misidentified_answers (dim6:v5) and citation_contradicted_answers
-    // (dim6:v6) are informational (always na), never a gap.
-    const INFORMATIONAL = new Set(["citation_misidentified_answers", "citation_contradicted_answers"]);
+    // (dim6:v6), citation_backed_answers and citation_uncheckable_answers
+    // (dim6:v6 option A) are informational (always na), never a gap.
+    const INFORMATIONAL = new Set(["citation_misidentified_answers", "citation_contradicted_answers", "citation_backed_answers", "citation_uncheckable_answers"]);
     const ids = [...src.matchAll(/: "(citation_[a-z_]+)"/g)].map((m) => m[1]).filter((id) => !INFORMATIONAL.has(id));
     expect(ids).toHaveLength(4);
     for (const id of ids) expect(REMEDIATION_CHECK_IDS).toContain(id);

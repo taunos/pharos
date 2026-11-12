@@ -37,7 +37,7 @@ import {
 import { buildSiteReference, decodeBody, declaredCharset, fetchReferenceSources, REFERENCE_FIELD_BUDGETS, withoutSharedEdges } from "./reference";
 import { cellCacheKey, scoreAffirmedCell, type SiteFacts } from "./ladder";
 import { aggregateCells, pickUrlQuestionId } from "./orchestrator";
-import { buildSubChecks, contradictedRowNote, mixupRowNote, pickEvidenceQuote, siteIdentityText, siteTextAt } from "./runDim6";
+import { backedRowNote, buildSubChecks, contradictedRowNote, mixupRowNote, pickEvidenceQuote, siteIdentityText, siteTextAt } from "./runDim6";
 import { scoreResponse } from "./parser";
 import { callGemini } from "./adapters";
 import { DISPLAY_TEXT_MAX, stripUnsafeChars, stripUnsafeCharsKeepLines } from "../llm-safety";
@@ -589,9 +589,22 @@ describe("report notes: evidence, not verdicts", () => {
     const subs = buildSubChecks(result, false, SITE);
     const by = Object.fromEntries(subs.map((s) => [s.id, s]));
     expect(by.citation_domain_named_rate.notes).toContain(
-      "Of the 6 scored answers, 1 was backed by your site's own text, 1 gave your homepage address when asked for it, 1 linked your site to a different named person or business, 1 was cut off by the AI's length limit after starting to describe a different person or business, 1 was contradicted by your site's own text, 0 did not give enough evidence to check against your site, and 1 did not show that the model knew your site."
+      "Of the 6 test answers we could check, 1 was backed by your site's text, 1 gave your homepage address when asked for it, 1 linked your site to a different named person or business, 1 was cut off by the AI's length limit after starting to describe a different person or business, 1 was contradicted by your site's text, and 1 did not show that the model knew your site."
     );
-    expect(by.citation_contradicted_answers).toMatchObject({ na: true, weight: 0, name: "Answers your site's own text contradicts" });
+    expect(by.citation_contradicted_answers).toMatchObject({ na: true, weight: 0, name: "Answers contradicted by your site's text" });
+    // the backed answer has no recorded offsets: the row gives the count without an example
+    expect(by.citation_backed_answers.notes).toBe("1 of the 6 test answers we could check was backed by your site's text. This row is for information and is not counted again in your score.");
+    expect(by.citation_uncheckable_answers.notes).toBe("All 6 test answers that came back could be checked against your site's text. This row is for information and is not counted in your score.");
+    expect(subs.map((s) => s.id)).toEqual([
+      "citation_domain_named_rate",
+      "citation_url_referenced_rate",
+      "citation_context_relevant_rate",
+      "citation_no_competitor_first_rate",
+      "citation_backed_answers",
+      "citation_misidentified_answers",
+      "citation_contradicted_answers",
+      "citation_uncheckable_answers",
+    ]);
     // The AI quote starts at its sentence, so a "No," or a negation is never cut away.
     expect(by.citation_contradicted_answers.notes).toContain(`Claude said: "No, anasilva.com.br does not have a physical location you can visit."; your site says: "Consultório: Rua das Flores, 20, Recife.`);
     expect(by.citation_misidentified_answers.name).toBe("Answers that linked, or may have linked, your site to a different person or business");
@@ -599,6 +612,16 @@ describe("report notes: evidence, not verdicts", () => {
     expect(by.citation_misidentified_answers.notes).toContain('Your site describes itself as: "Ana Silva – Fisioterapeuta".');
     expect(by.citation_misidentified_answers.notes).toContain("(cut off)");
     for (const s of subs) expect(s.notes.length).toBeLessThanOrEqual(DISPLAY_TEXT_MAX);
+  });
+
+  it("the backed row quotes what the AI said next to the site's words that back it", () => {
+    const said = "anasilva.com.br is a physiotherapy practice in Recife.";
+    const at = ANA_REF.indexOf("Consultório");
+    const backed = cell("perplexity:sonar", "q1", `${CORRECT}; claim_at=0; site_at=${at}`, said, 100);
+    const note = backedRowNote([backed, cell("openai:gpt-4o", "q2", CORRECT, "no offsets", 100)], 2, 2, ANA_REF);
+    expect(note).toBe(
+      `2 of the 2 test answers we could check were backed by your site's text. For example: Perplexity said: "${said}"; your site says: "Consultório: Rua das Flores, 20, Recife. Atendimento para adultos e atletas.". This row is for information and is not counted again in your score.`
+    );
   });
 
   it("the rows fit even with long quotes from every model (RD-0122)", () => {
@@ -649,8 +672,8 @@ describe("executive summary: the naming phrase follows the naming rate (RD-0107.
   const weak = (a: AuditResult) => buildExecutiveSummary(a, "Gaps").find((l) => l.startsWith("The weakest area")) ?? "";
 
   it.each([
-    [20, 24, "AI assistants rarely named your site and described it correctly"],
-    [55, 30, "AI assistants named your site and described it correctly only some of the time"],
+    [20, 24, "AI assistants rarely named your site in answers backed by your site's text"],
+    [55, 30, "AI assistants named your site in answers backed by your site's text only some of the time"],
     [80, 35, "Citation Visibility needs work"],
   ])("named %i%%, dimension %i → %s", (named, dim, phrase) => {
     expect(weak(audit(named, dim))).toContain(phrase);

@@ -157,7 +157,12 @@ export function isUnmeasuredDimension(d: { dimension_id: number; na?: boolean; u
 
 // dim6:v5: informational rows (na, weight 0) that WERE measured: not "did not
 // apply or could not be measured" in the scope line, and no "· N/A" label.
-const INFORMATIONAL_CHECK_IDS = new Set(["citation_misidentified_answers", "citation_contradicted_answers"]);
+const INFORMATIONAL_CHECK_IDS = new Set([
+  "citation_misidentified_answers",
+  "citation_contradicted_answers",
+  "citation_backed_answers",
+  "citation_uncheckable_answers",
+]);
 
 function namesList(names: string[]): string {
   if (names.length <= 1) return names.join("");

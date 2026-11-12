@@ -219,7 +219,19 @@ describe("judgeAccuracy with the facts check", () => {
   it("a facts call that fails twice never leaves a CORRECT standing", async () => {
     const c = CASES.find((x) => x.id === "control-correct")!;
     const { AI } = recordedAi({ ...c.recorded, facts: "here are the facts" });
-    expect(await judgeAccuracy({ AI }, c.domain, c.reference, c.answer, { names: [], question: c.question })).toMatchObject({ kind: "unclear", why: "facts_unchecked" });
+    // our failure, not missing evidence: marked failed, so it never decides a grade (option A)
+    expect(await judgeAccuracy({ AI }, c.domain, c.reference, c.answer, { names: [], question: c.question })).toMatchObject({ kind: "unclear", why: "facts_unchecked", failed: "judge_failed" });
+  });
+
+  it("a 'cannot both be true' call that fails twice is a failed check too", async () => {
+    const c = CASES.find((x) => x.id === "control-correct")!;
+    const city = "Maringá";
+    // site words that are in the reference, so the second call runs
+    const siteWords = c.reference.split(String.fromCharCode(10)).find((l) => l.length > 20)!.slice(0, 20);
+    const { AI, prompts } = recordedAi({ ...c.recorded, facts: `FACT: LOCATION | ${city} | ${siteWords} | CONFLICT`, compats: ["maybe", "maybe"] });
+    const v = await judgeAccuracy({ AI }, c.domain, c.reference, `${c.answer} It also has a shop in ${city}.`, { names: [], question: c.question });
+    expect(prompts.some((p) => p.includes("<site-words-"))).toBe(true);
+    expect(v).toMatchObject({ kind: "unclear", why: "facts_unchecked", failed: "judge_failed" });
   });
 
   it("non-answers and mix-ups do not run the facts call", async () => {
@@ -231,7 +243,9 @@ describe("judgeAccuracy with the facts check", () => {
   it("an unconfirmable conflict turns CORRECT into UNCLEAR, never WRONG_FACTS", async () => {
     const c = CASES.find((x) => x.id === "control-correct")!;
     const { AI } = recordedAi({ ...c.recorded, facts: "FACT: LOCATION | Maringá | NONE | CONFLICT", compats: [] });
-    expect(await judgeAccuracy({ AI }, c.domain, c.reference, c.answer, { names: [], question: c.question })).toMatchObject({ kind: "unclear", why: "facts_unchecked" });
+    const v = await judgeAccuracy({ AI }, c.domain, c.reference, c.answer, { names: [], question: c.question });
+    expect(v).toMatchObject({ kind: "unclear", why: "facts_unchecked" });
+    expect((v as { failed?: string }).failed).toBeUndefined();
   });
 
   it("an answer that only guesses still has its facts checked (gold guide: hedged claims are fact-checked)", async () => {

@@ -28,6 +28,7 @@ import {
   resolveSiteReference,
 } from "./reference";
 import { canonicalDomain } from "./question-set";
+import { checkableCounts, DIM6_MIN_CHECKABLE, DIM6_MIN_CHECKABLE_PER_MODEL, failedCheckBounds, isCheckable, isFailedCheck, isUncheckable, type CheckableCounts } from "./checkable";
 import type { FetchLike } from "../safe-fetch";
 import { capLength, collapseWhitespace, DISPLAY_TEXT_MAX, stripUnsafeChars, stripUnsafeCharsKeepLines } from "../llm-safety";
 
@@ -99,18 +100,25 @@ const SUBCHECK_IDS = {
   // dim6:v6: informational (na, weight 0), present only when the site's own
   // text contradicts at least one answer.
   contradicted_answers: "citation_contradicted_answers",
+  // dim6:v6: informational (na, weight 0): answers backed by the site's text,
+  // with the evidence (present only when at least one), and the answers we
+  // could not check (always present: option A).
+  backed_answers: "citation_backed_answers",
+  uncheckable_answers: "citation_uncheckable_answers",
 } as const;
 
 // Compute per-cell breakdown rates by re-parsing the structured notes the
 // ladder emitted. Notes shape: "score=X/100; domain_named=true; ...".
 // Less brittle than re-running the parser here.
+// dim6:v6 option A: the denominator is the CHECKABLE answers (checkable.ts),
+// the same cells the dimension score averages.
 function rateOf(cells: CellEnvelope[], flag: string): number {
-  const measurable = cells.filter((c) => !c.result.unmeasurable);
-  if (measurable.length === 0) return 0;
-  const trues = measurable.filter((c) =>
+  const checkable = cells.filter(isCheckable);
+  if (checkable.length === 0) return 0;
+  const trues = checkable.filter((c) =>
     c.result.notes.includes(`${flag}=true`)
   ).length;
-  return Math.round((trues / measurable.length) * 100);
+  return Math.round((trues / checkable.length) * 100);
 }
 
 // Customer-facing model names, keyed by the provider prefix of the model id.
@@ -137,12 +145,13 @@ const knewYourSite = (n: number, plural: string, singular: string) =>
 /**
  * dim6:v5: domain-named note addition when the run had no usable description
  * of the site (missing, unreadable or too short). Fail closed: those answers
- * score 0.
+ * count as 0 (dim6:v6 option A keeps this: the site controls its own
+ * description, see checkable.ts).
  */
 const notCheckedClause = (n: number) =>
   n === 0
-    ? "an answer that said the model knew your site could not have been checked or counted"
-    : `${knewYourSite(n, "could not be checked and were", "could not be checked and was")} not counted (scored 0)`;
+    ? "an answer that said the model knew your site could not have been checked and would have been counted as 0"
+    : `${knewYourSite(n, "could not be checked and were", "could not be checked and was")} counted as 0`;
 
 export const accuracyNotCheckedNote = (notChecked: number) =>
   `We could not find or read a clear description of your site on it, so ${notCheckedClause(notChecked)}. To fix this, say who you are and what you do in an llms.txt file, in structured data, or in your homepage title and description.`;
@@ -180,7 +189,7 @@ const NOT_CHECKED_NOTES: Record<NonNullable<Dim6Result["accuracyNotCheckedReason
 /** dim6:v5: domain-named note addition when the site's description tripped the injection screen. */
 export const accuracyBlockedNote = (blocked: number) =>
   `We could not check these answers against your site's own description, because that description contains text aimed at automated checkers. So ${
-    blocked === 0 ? "an answer that said the model knew your site would not have been counted" : `${knewYourSite(blocked, "were", "was")} not counted and scored 0`
+    blocked === 0 ? "an answer that said the model knew your site would have been counted as 0" : `${knewYourSite(blocked, "were", "was")} counted as 0`
   }.`;
 
 const EVIDENCE_MAX_WORDS = 25;
@@ -272,10 +281,11 @@ function countFlag(cells: CellEnvelope[], flag: string): number {
 }
 
 // dim6:v6 copy: evidence, not verdicts (pending Bruno's approval,
-// _tmp/report-truthfulness/copy-for-approval-dim6-v6-2026-11-11.md). Each
-// flagged answer is shown as what the AI said next to what the site's own
-// text says; counts say what was found, not who is right.
-const BACKED = "were backed by your site's own text";
+// _tmp/report-truthfulness/copy-for-approval-dim6-v6-2026-11-12.md). Each
+// verdict is shown as what the AI said next to what the site's own text says;
+// counts say what was found, not who is right. Never "correct".
+const BACKED = "were backed by your site's text";
+const CHECKED = "test answers we could check";
 const NAMES_DISCLOSURE = "We count your domain and the name your site gives itself; other brand names, nicknames or translations are not counted.";
 const MIXUP_ROW_TAIL =
   "Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score.";
@@ -318,9 +328,9 @@ function noteOffset(c: CellEnvelope, key: string): number | undefined {
   return m ? Number(m[1]) : undefined;
 }
 
-/** Up to `max` answers carrying `flag`, one per model first, in cell order. */
-function pickFlagged(cells: CellEnvelope[], flag: string, max: number): CellEnvelope[] {
-  const flagged = cells.filter((c) => !c.result.unmeasurable && c.result.text && c.result.notes.includes(flag));
+/** Up to `max` answers carrying `flag` (and passing `also`), one per model first, in cell order. */
+function pickFlagged(cells: CellEnvelope[], flag: string, max: number, also: (c: CellEnvelope) => boolean = () => true): CellEnvelope[] {
+  const flagged = cells.filter((c) => !c.result.unmeasurable && c.result.text && c.result.notes.includes(flag) && also(c));
   const chosen: CellEnvelope[] = [];
   for (const c of flagged) if (chosen.length < max && !chosen.some((x) => x.modelId === c.modelId)) chosen.push(c);
   for (const c of flagged) if (chosen.length < max && !chosen.includes(c)) chosen.push(c);
@@ -350,8 +360,8 @@ function fitNote(build: (maxQuotes: number, maxWords: number) => string): string
 export function mixupRowNote(cells: CellEnvelope[], domain: string, measurableCount: number, wrong: number, cutOff: number, reference = ""): string {
   const lead =
     wrong === 0
-      ? `None of the ${measurableCount} scored answers clearly linked your site to a different named person or business.`
-      : `${wrong} of the ${measurableCount} scored answers linked your site to a different named person or business; ${wrong === 1 ? "it counts" : "they count"} as 0 in the checks above.`;
+      ? `None of the ${measurableCount} ${CHECKED} clearly linked your site to a different named person or business.`
+      : `${wrong} of the ${measurableCount} ${CHECKED} linked your site to a different named person or business; ${wrong === 1 ? "it counts" : "they count"} as 0 in the checks above.`;
   const cutSentence =
     cutOff === 0
       ? ""
@@ -376,22 +386,78 @@ export function mixupRowNote(cells: CellEnvelope[], domain: string, measurableCo
  * (right site, wrong facts): what the AI said and what the site says.
  */
 export function contradictedRowNote(cells: CellEnvelope[], measurableCount: number, count: number, reference = ""): string {
-  const lead = `${count} of the ${measurableCount} scored answers said something your site's own text contradicts; ${count === 1 ? "it counts" : "they count"} as 0 in the checks above.`;
+  const lead = `${count} of the ${measurableCount} ${CHECKED} said something your site's text contradicts; ${count === 1 ? "it counts" : "they count"} as 0 in the checks above.`;
   return fitNote((maxQuotes, maxWords) => {
-    const examples = pickFlagged(cells, "facts_contradicted=true", maxQuotes).map((c) => {
-      const claimAt = noteOffset(c, "claim_at");
-      const siteAt = noteOffset(c, "site_at");
-      const said = pickEvidenceQuote(judgedText(c), "", claimAt, maxWords);
-      const site = siteAt !== undefined ? siteTextAt(stripUnsafeCharsKeepLines(reference), siteAt, maxWords) : "";
-      return site ? `${modelLabel(c.modelId)} said: "${said}"; your site says: "${site}"` : `${modelLabel(c.modelId)} said: "${said}"`;
-    });
+    const examples = pickFlagged(cells, "facts_contradicted=true", maxQuotes).map((c) => saidVsSite(c, reference, maxWords));
     return `${lead}${examples.length > 0 ? ` ${examples.join(". ")}.` : ""} ${CONTRA_ROW_TAIL}`;
   });
+}
+
+/** `<Model> said: "<answer words>"; your site says: "<site words>"` from a cell's claim_at / site_at. */
+function saidVsSite(c: CellEnvelope, reference: string, maxWords: number): string {
+  const claimAt = noteOffset(c, "claim_at");
+  const siteAt = noteOffset(c, "site_at");
+  const said = pickEvidenceQuote(judgedText(c), "", claimAt, maxWords);
+  const site = siteAt !== undefined ? siteTextAt(stripUnsafeCharsKeepLines(reference), siteAt, maxWords) : "";
+  return site ? `${modelLabel(c.modelId)} said: "${said}"; your site says: "${site}"` : `${modelLabel(c.modelId)} said: "${said}"`;
+}
+
+/**
+ * dim6:v6: the informational row for answers backed by the site's text: what
+ * the AI said next to the site's words that back it (the same evidence the
+ * other rows show for mix-ups and contradictions).
+ */
+export function backedRowNote(cells: CellEnvelope[], checkableCount: number, count: number, reference = ""): string {
+  const lead = `${count} of the ${checkableCount} ${CHECKED} ${count === 1 ? "was backed by your site's text" : BACKED}.`;
+  const hasEvidence = (c: CellEnvelope) => noteOffset(c, "claim_at") !== undefined && noteOffset(c, "site_at") !== undefined;
+  return fitNote((maxQuotes, maxWords) => {
+    const examples = pickFlagged(cells, "accuracy=CORRECT", maxQuotes, hasEvidence).map((c) => saidVsSite(c, reference, maxWords));
+    return `${lead}${examples.length > 0 ? ` For example: ${examples.join(". ")}.` : ""} This row is for information and is not counted again in your score.`;
+  });
+}
+
+const UNCHECKABLE_ADVICE =
+  "A fuller description of who you are and what you do on your site (your homepage, llms.txt file and structured data) gives us more of your site's own text to check answers against.";
+
+const noteHas = (re: RegExp) => (c: CellEnvelope) => re.test(c.result.notes);
+
+/**
+ * dim6:v6 option A: the uncheckable answers on their own line. They are left
+ * out of the score (checkable.ts); this row says how many and why.
+ */
+/** Why the uncheckable answers could not be checked, as a list of clauses. */
+function uncheckableBreakdown(cells: CellEnvelope[]): { parts: string[]; notBacked: number } {
+  const un = cells.filter(isUncheckable);
+  const failed = un.filter(isFailedCheck).length;
+  const cutOff = un.filter((c) => !isFailedCheck(c) && noteHas(/(?:^|; )unclear_why=truncated(?:;|$)/)(c)).length;
+  const notBacked = un.length - failed - cutOff;
+  const parts = [
+    notBacked > 0 ? `${notBacked} said things your site's text does not clearly back or contradict` : null,
+    cutOff > 0 ? `${cutOff} ${cutOff === 1 ? "was" : "were"} cut off by the AI's length limit before the part we would check` : null,
+    failed > 0 ? `${failed} could not be checked because one of our checks failed` : null,
+  ].filter((p): p is string => p !== null);
+  return { parts, notBacked };
+}
+
+const joinClauses = (parts: string[]) => (parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts[0] ?? "");
+
+/**
+ * dim6:v6 option A: the uncheckable answers on their own line. They are left
+ * out of the score (checkable.ts); this row says how many and why.
+ */
+export function uncheckableRowNote(cells: CellEnvelope[], measurableCount: number, uncheckable: number): string {
+  const tail = "This row is for information and is not counted in your score.";
+  if (uncheckable === 0) return `All ${measurableCount} test answers that came back could be checked against your site's text. ${tail}`;
+  const { parts, notBacked } = uncheckableBreakdown(cells);
+  const lead = `${uncheckable} of the ${measurableCount} test answers that came back ${uncheckable === 1 ? "is" : "are"} not counted in this score, because we could not check ${uncheckable === 1 ? "it" : "them"} against your site's text: ${joinClauses(parts)}.`;
+  return `${lead}${notBacked > 0 ? ` ${UNCHECKABLE_ADVICE}` : ""} ${tail}`;
 }
 
 export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, domain = ""): Dim6SubCheck[] {
   const cells = result.cells;
   const measurableCount = cells.length - result.unmeasurableCount;
+  const counts = checkableCounts(cells);
+  const checkableCount = counts.checkable;
   const checked = result.accuracyChecked === true;
   const reference = result.referenceText ?? "";
 
@@ -402,39 +468,33 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
 
   // RD-0123: the average is of per-answer scores, and says so. Keep "Average
   // answer score by model" last: audit-executive-summary.ts citationCoverage
-  // parses it.
-  const summary = `${measurableCount} of ${cells.length} test answers could be scored, across ${ALL_MODEL_IDS.length} AI models. Average answer score by model (0 to 100): ${ALL_MODEL_IDS.map(
+  // parses it (and the "<m> of <t> test answers came back" count).
+  const summary = `${measurableCount} of ${cells.length} test answers came back from the ${ALL_MODEL_IDS.length} AI models, and ${checkableCount} of those could be checked against your site's text and ${checkableCount === 1 ? "is" : "are"} counted in this score. Average answer score by model (0 to 100): ${ALL_MODEL_IDS.map(
     (m) => `${modelLabel(m)} ${result.perModelAverage[m] ?? "not measured"}`
   ).join(", ")}.`;
 
-  // Counts of the answer kinds. Rates above count CORRECT answers (and, for
-  // the link rate, URL-only answers) only: no other cell carries the flags.
+  // Counts of the checkable answer kinds. Rates above count backed answers
+  // (and, for the link rate, URL-only answers) only: no other cell carries
+  // the flags. The uncheckable answers have their own row (option A).
   const correct = countFlag(cells, "accuracy=CORRECT");
   const urlOnly = countFlag(cells, "url_only=true");
   const wrong = countFlag(cells, "misidentified=true");
   const cutOff = countFlag(cells, "possible_mixup_cut_off=true");
   const contradicted = countFlag(cells, "facts_contradicted=true");
-  // "could not be checked": a judge failed twice, the answer was too long to
-  // read in full, or it carried text aimed at automated checkers.
-  const accuracyFailed = countFlag(cells, "accuracy_failed=");
-  const failed = accuracyFailed + countFlag(cells, "affirmation_failed=true");
-  const unclear = countFlag(cells, "accuracy_unclear=true") - accuracyFailed;
   // DENY answers that still linked the site to someone else or stated a
   // contradicted fact are counted there, not here.
   const unknown = cells.filter(
     (c) => !c.result.unmeasurable && c.result.notes.includes("judge=DENY") && !/misidentified=true|possible_mixup_cut_off=true|facts_contradicted=true/.test(c.result.notes)
   ).length;
   const parts = [
-    `${correct} ${correct === 1 ? "was backed by your site's own text" : BACKED}`,
+    `${correct} ${correct === 1 ? "was backed by your site's text" : BACKED}`,
     urlOnly > 0 ? `${urlOnly} gave your homepage address when asked for it` : null,
     `${wrong} linked your site to a different named person or business`,
     cutOff > 0 ? `${cutOff} ${cutOff === 1 ? "was" : "were"} cut off by the AI's length limit after starting to describe a different person or business` : null,
-    contradicted > 0 ? `${contradicted} ${contradicted === 1 ? "was" : "were"} contradicted by your site's own text` : null,
-    `${unclear} did not give enough evidence to check against your site`,
-    failed > 0 ? `${failed} could not be checked (scored 0)` : null,
+    contradicted > 0 ? `${contradicted} ${contradicted === 1 ? "was" : "were"} contradicted by your site's text` : null,
     `${unknown} did not show that the model knew your site`,
   ].filter((p): p is string => p !== null);
-  const breakdown = `Of the ${measurableCount} scored ${measurableCount === 1 ? "answer" : "answers"}, ${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}.`;
+  const breakdown = `Of the ${checkableCount} ${CHECKED}, ${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}.`;
 
   const subChecks: Dim6SubCheck[] = [
     {
@@ -444,10 +504,10 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
       score: dnRate,
       passed: dnRate >= 70,
       notes: checked
-        ? `${dnRate}% of scored test answers named your site (by its domain or the name your site gives itself) and ${BACKED}. ${breakdown} ${NAMES_DISCLOSURE} ${summary}`
+        ? `${dnRate}% of the ${CHECKED} named your site (by its domain or the name your site gives itself) and ${BACKED}. ${breakdown} ${NAMES_DISCLOSURE} ${summary}`
         : result.accuracyBlocked === true
-          ? `${dnRate}% of scored test answers named your domain. ${accuracyBlockedNote(countFlag(cells, "accuracy_blocked=true"))} ${summary}`
-          : `${dnRate}% of scored test answers named your domain. ${(result.accuracyNotCheckedReason ? NOT_CHECKED_NOTES[result.accuracyNotCheckedReason] : accuracyNotCheckedNote)(countFlag(cells, "accuracy_not_checked=true"))} ${summary}`,
+          ? `${dnRate}% of the ${CHECKED} named your domain. ${accuracyBlockedNote(countFlag(cells, "accuracy_blocked=true"))} ${summary}`
+          : `${dnRate}% of the ${CHECKED} named your domain. ${(result.accuracyNotCheckedReason ? NOT_CHECKED_NOTES[result.accuracyNotCheckedReason] : accuracyNotCheckedNote)(countFlag(cells, "accuracy_not_checked=true"))} ${summary}`,
     },
     {
       id: SUBCHECK_IDS.url_referenced_rate,
@@ -455,7 +515,7 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
       weight: 30,
       score: urlRate,
       passed: urlRate >= 70,
-      notes: `${urlRate}% of scored test answers included a link to your site and either ${BACKED}, or gave your homepage address when asked for it.`,
+      notes: `${urlRate}% of the ${CHECKED} included a link to your site and either ${BACKED}, or gave your homepage address when asked for it.`,
     },
     {
       id: SUBCHECK_IDS.context_relevant_rate,
@@ -463,7 +523,7 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
       weight: 20,
       score: ctxRate,
       passed: ctxRate >= 70,
-      notes: `${ctxRate}% of scored test answers ${BACKED} and named your site (by its domain or its own name) in the first half of the answer, rather than only at the end.`,
+      notes: `${ctxRate}% of the ${CHECKED} ${BACKED} and named your site (by its domain or its own name) in the first half of the answer, rather than only at the end.`,
     },
     // dim6:v4: N/A without a competitor list (the cell scores give it no
     // points either, see parser.ts), so it is never a gap.
@@ -474,7 +534,7 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
           weight: 10,
           score: compRate,
           passed: compRate >= 70,
-          notes: `${compRate}% of scored test answers did not name a competitor before your domain.`,
+          notes: `${compRate}% of the ${CHECKED} did not name a competitor before your domain.`,
         }
       : {
           id: SUBCHECK_IDS.no_competitor_first_rate,
@@ -490,6 +550,17 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
   // Informational rows (na, weight 0): no scoring change, never a gap, and the
   // hostile quotes stay out of the domain-named note the executive summary
   // parses.
+  if (checked && correct > 0) {
+    subChecks.push({
+      id: SUBCHECK_IDS.backed_answers,
+      name: "Answers backed by your site's text",
+      weight: 0,
+      score: 0,
+      passed: false,
+      notes: backedRowNote(cells, checkableCount, correct, reference),
+      na: true,
+    });
+  }
   if (checked && (wrong > 0 || cutOff > 0)) {
     subChecks.push({
       id: SUBCHECK_IDS.misidentified_answers,
@@ -500,23 +571,89 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
       weight: 0,
       score: 0,
       passed: false,
-      notes: mixupRowNote(cells, domain, measurableCount, wrong, cutOff, reference),
+      notes: mixupRowNote(cells, domain, checkableCount, wrong, cutOff, reference),
       na: true,
     });
   }
   if (checked && contradicted > 0) {
     subChecks.push({
       id: SUBCHECK_IDS.contradicted_answers,
-      name: "Answers your site's own text contradicts",
+      name: "Answers contradicted by your site's text",
       weight: 0,
       score: 0,
       passed: false,
-      notes: contradictedRowNote(cells, measurableCount, contradicted, reference),
+      notes: contradictedRowNote(cells, checkableCount, contradicted, reference),
       na: true,
     });
   }
+  // Option A: the uncheckable count always has its own line.
+  subChecks.push({
+    id: SUBCHECK_IDS.uncheckable_answers,
+    name: "Answers with not enough evidence to check",
+    weight: 0,
+    score: 0,
+    passed: false,
+    notes: uncheckableRowNote(cells, measurableCount, counts.uncheckable),
+    na: true,
+  });
   return subChecks;
 }
+
+/**
+ * dim6:v6 option A: the whole-dimension note when too few answers could be
+ * checked for a grade (checkable.ts floor). The dimension is N/A ("not
+ * measured"): not counted in the overall score.
+ */
+export function notEnoughEvidenceNote(
+  result: Dim6Result,
+  counts: CheckableCounts,
+  failedGrades: { low: string; high: string } | null = null
+): string {
+  const cells = result.cells;
+  const thin = counts.thinModels.map((m) => `${modelLabel(m)} ${counts.perModel[m]}`);
+  const lead = failedGrades
+    ? `Citation Visibility is not graded on this run: one of our checks failed on ${counts.failed} of the test answers, and depending on what ${counts.failed === 1 ? "that answer" : "those answers"} said, the grade could be anything from ${failedGrades.low} to ${failedGrades.high}. It is not counted in your score; this is a failure on our side, not something your site needs to fix.`
+    : `Citation Visibility is not graded on this run: ${counts.checkable} of the ${cells.length} test answers could be checked against your site's text, and we grade it only when at least ${DIM6_MIN_CHECKABLE} can be checked, with at least ${DIM6_MIN_CHECKABLE_PER_MODEL} from each of the ${ALL_MODEL_IDS.length} AI models${
+        thin.length > 0 ? ` (answers we could check: ${thin.join(", ")})` : ""
+      }. It is not counted in your score.`;
+  const missing = result.unmeasurableCount > 0 ? ` ${result.unmeasurableCount} of the ${cells.length} test answers did not come back from the AI models (network or provider failures).` : "";
+  const { parts, notBacked } = uncheckableBreakdown(cells);
+  const unShort = counts.uncheckable > 0 ? ` ${counts.uncheckable} of the answers that came back could not be checked against your site's text.` : "";
+  const un = counts.uncheckable > 0 ? `${unShort.slice(0, -1)}: ${joinClauses(parts)}.` : "";
+  const wrong = countFlag(cells, "misidentified=true");
+  const contradicted = countFlag(cells, "facts_contradicted=true");
+  const found =
+    wrong + contradicted > 0
+      ? ` Among the answers we could check, ${wrong} linked your site to a different named person or business and ${contradicted} ${contradicted === 1 ? "was" : "were"} contradicted by your site's text.`
+      : "";
+  // Advice only for what the site can fix: answers its text does not cover,
+  // or its own description being unusable. Never for our failed checks.
+  const checked = result.accuracyChecked === true;
+  const why = !checked
+    ? result.accuracyBlocked === true
+      ? ` ${accuracyBlockedNote(countFlag(cells, "accuracy_blocked=true"))}`
+      : ` ${(result.accuracyNotCheckedReason ? NOT_CHECKED_NOTES[result.accuracyNotCheckedReason] : accuracyNotCheckedNote)(countFlag(cells, "accuracy_not_checked=true"))}`
+    : notBacked > 0
+      ? ` ${UNCHECKABLE_ADVICE}`
+      : "";
+  // One note for the whole section, capped at DISPLAY_TEXT_MAX by the report
+  // (Codex 2026-11-12): shorten whole sentences, never cut one.
+  const engine = ` ${DIM6_ENGINE_LINE}.`;
+  for (const note of [
+    `${lead}${missing}${un}${found}${why}${engine}`,
+    `${lead}${missing}${unShort}${found}${why}${engine}`,
+    `${lead}${missing}${unShort}${found}${why}`,
+    `${lead}${missing}${unShort}${why}`,
+  ]) {
+    if (note.length <= DISPLAY_TEXT_MAX) return note;
+  }
+  return `${lead}${unShort}${why}`;
+}
+
+/** Sub-check id of the N/A Dim 6 when too few answers were checkable (option A). */
+export const DIM6_NOT_ENOUGH_EVIDENCE_ID = "dim6_not_enough_evidence";
+/** Sub-check id of the N/A Dim 6 when our failed checks could change the grade. */
+export const DIM6_CHECKS_FAILED_ID = "dim6_checks_failed";
 
 /** Daily-cap note shown on a report that ships without Citation Visibility. */
 export const DIM6_DAILY_CAP_NOTE =
@@ -682,8 +819,46 @@ export async function runDim6Paid(
     };
   }
 
-  const subChecks = buildSubChecks(result, competitorHosts.length > 0, canonicalDomain(scanUrl) ?? "");
-  const score = result.score; // already aggregated 0-100
+  return { ...dim6FromResult(result, competitorHosts.length > 0, canonicalDomain(scanUrl) ?? ""), cells: result.cells, raw: result, capped: false };
+}
+
+/**
+ * The Dim 6 dimension for a run with at least one measured answer: graded
+ * when enough answers were checkable (checkable.ts floor), else N/A with the
+ * reason (dim6:v6 option A). Exported for the replay tools and tests.
+ */
+export function dim6FromResult(result: Dim6Result, hasCompetitorList: boolean, domain: string): { dimension: Dim6Dimension } {
+  const counts = checkableCounts(result.cells);
+  // Our own failed checks are left out of the score, but they never decide a
+  // grade (Codex review 2026-11-12, MED): counted as 0 or as 100 they must
+  // give the same grade, or there is no grade.
+  const bounds = failedCheckBounds(counts);
+  const failedGrades = counts.failed > 0 && gradeFor(bounds.low) !== gradeFor(bounds.high) ? { low: gradeFor(bounds.low), high: gradeFor(bounds.high) } : null;
+  if (!counts.meetsFloor || result.score === null || failedGrades) {
+    return {
+      dimension: {
+        dimension_id: 6,
+        dimension_name: "Citation Visibility",
+        score: 0,
+        grade: gradeFor(0),
+        na: true,
+        sub_checks: [
+          {
+            id: counts.meetsFloor && failedGrades ? DIM6_CHECKS_FAILED_ID : DIM6_NOT_ENOUGH_EVIDENCE_ID,
+            name: counts.meetsFloor && failedGrades ? "Citation Visibility (not graded: our checks failed)" : "Citation Visibility (not enough evidence to grade)",
+            weight: 1,
+            score: 0,
+            passed: false,
+            notes: notEnoughEvidenceNote(result, counts, counts.meetsFloor ? failedGrades : null),
+            na: true,
+          },
+        ],
+        unmeasured: true,
+      },
+    };
+  }
+  const subChecks = buildSubChecks(result, hasCompetitorList, domain);
+  const score = result.score; // already aggregated 0-100 over the checkable answers
 
   return {
     dimension: {
@@ -693,9 +868,6 @@ export async function runDim6Paid(
       grade: gradeFor(score),
       sub_checks: subChecks,
     },
-    cells: result.cells,
-    raw: result,
-    capped: false,
   };
 }
 
