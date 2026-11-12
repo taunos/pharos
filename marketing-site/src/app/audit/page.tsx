@@ -164,7 +164,7 @@ const STEPS = [
   {
     title: "Get your report",
     body: "We redirect you to a results page that polls until your PDF is ready — usually 2–4 minutes. JSON export available alongside the PDF.",
-    heldBody: "We redirect you to a results page that shows your report's status. While we check early reports by hand, the PDF and JSON arrive by email, usually within 1 business day.",
+    heldBody: "We redirect you to a results page that shows your report's status. While we check early reports by hand, the PDF arrives by email, usually within 1 business day, and the PDF and JSON export appear on that page once it's checked.",
   },
 ];
 

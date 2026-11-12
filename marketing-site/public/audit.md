@@ -20,7 +20,7 @@ Includes a one-time Citation Visibility snapshot across ChatGPT, Claude, Perplex
 
 1. **Submit URL + email.** Two fields, one form. We email the PDF to that address once we've checked it.
 2. **Pay.** Dodo Payments handles USD billing and tax as Merchant of Record. Delivery triggers the moment payment confirms.
-3. **Get your report.** We redirect you to a results page that shows your report's status. While we check early reports by hand, the PDF and JSON arrive by email, usually within 1 business day.
+3. **Get your report.** We redirect you to a results page that shows your report's status. While we check early reports by hand, the PDF arrives by email, usually within 1 business day, and the PDF and JSON export appear on that page once it's checked.
 
 ## What the Audit adds (over the free Score)
 
