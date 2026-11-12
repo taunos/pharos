@@ -428,6 +428,11 @@ function canonName(s: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+// Words that say nothing about what a site is (Bruno 2026-11-12, Codex LOW):
+// never the shared word that lets a backed example be shown.
+const GENERIC_EVIDENCE_WORDS = new Set(
+  "website websites site sites official domain domains homepage homepages page pages online company companies brand brands business businesses service services platform platforms www com".split(" ")
+);
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export function backedRowNote(cells: CellEnvelope[], checkableCount: number, count: number, reference = "", domain = "", siteNames: string[] = []): string {
@@ -448,7 +453,7 @@ export function backedRowNote(cells: CellEnvelope[], checkableCount: number, cou
   const masked = (s: string) => {
     let t = canonName(s);
     for (const n of names) t = t.replace(new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRe(n)}(?:'s)?(?=$|[^\\p{L}\\p{N}])`, "gu"), "$1 ");
-    return contentWords(t);
+    return new Set([...contentWords(t)].map((w) => w.replace(/'s$/, "")).filter((w) => !GENERIC_EVIDENCE_WORDS.has(w)));
   };
   const visiblyBacked = (maxWords: number) => (c: CellEnvelope) => {
     const said = masked(pickEvidenceQuote(judgedText(c), "", noteOffset(c, "claim_at"), maxWords));

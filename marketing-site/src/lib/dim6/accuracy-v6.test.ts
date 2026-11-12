@@ -667,6 +667,27 @@ describe("report notes: evidence, not verdicts", () => {
       expect(one("Ugmonk's analog tools.", "Ugmonk designs analog tools", "ugmonk.com", ["Ugmonk"])).toBe(true);
     });
 
+    it("generic words never count as the shared word (Bruno 2026-11-12)", () => {
+      const one = (said: string, site: string) => {
+        const ref = `Summary: ${site}`;
+        const c = cell("perplexity:sonar", "q1", `${CORRECT}; claim_at=0; site_at=${ref.indexOf(site)}`, said, 100);
+        return backedRowNote([c], 1, 1, ref, "acme.com", ["Acme"]).includes("Perplexity said");
+      };
+      for (const [said, site] of [
+        ["Acme is a minimalist website.", "Official website"],
+        ["It is the official site of Acme.", "Official site"],
+        ["The domain belongs to Acme.", "Domain and homepage"],
+        ["Its homepage lists products.", "Homepage"],
+        ["An online company.", "Online company"],
+        ["A design brand and business.", "Brand business"],
+        ["It offers services on a platform.", "Services platform"],
+        ["See www dot com.", "www com"],
+        ["The company's page.", "Company page"],
+      ]) expect(one(said, site), `${said} / ${site}`).toBe(false);
+      // a real fact word alongside them still counts
+      expect(one("Acme is an online bakery website.", "Official website of a bakery")).toBe(true);
+    });
+
     it("buildSubChecks passes the site's names through", () => {
       const result = { ...aggregateCells([brand, tools], true), referenceText: UG_REF, siteNames: ["Ugmonk"] };
       const row = buildSubChecks(result, false, "ugmonk.com").find((s) => s.id === "citation_backed_answers")!;
