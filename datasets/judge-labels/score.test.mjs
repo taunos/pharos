@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { score, parseRows, normaliseVerdict } from "./score.mjs";
+import { score, parseRows, normaliseVerdict, formatReport } from "./score.mjs";
 import { verdictFromNotes } from "./extract-old-judge.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -56,11 +56,53 @@ test("--as a / b scores against a labeler's raw labels (pending rows included)",
   assert.equal(m.false_mixup_accusations.num, 3);
 });
 
-test("missing verdicts are counted, unknown verdicts rejected", () => {
-  const res = score(judge.slice(0, 3), labels);
-  assert.equal(res.missing_verdicts, 5);
+test("integrity: missing, duplicate and unknown keys hard-fail; unknown verdicts rejected (Codex HIGH)", () => {
+  const has = (fragment) => (e) => e instanceof Error && e.message.includes(fragment);
+  // missing: a labelled answer with no prediction
+  assert.throws(() => score(judge.slice(0, 3), labels), has("(missing keys): s|q4|m, s|q5|m, s|q6|m, s|q7|m, s|q8|m"));
+  // duplicate prediction, even with the same verdict
+  assert.throws(() => score([...judge, judge[0]], labels), has("duplicate prediction keys: s|q1|m"));
+  // unknown: a prediction for an answer that has no label
+  assert.throws(() => score([...judge, { site: "s", qid: "q99", modelId: "m", verdict: "CORRECT" }], labels), has("(unknown keys): s|q99|m"));
+  // a different model id is a different answer (here: one unknown and one missing; unknown is reported first)
+  assert.throws(() => score(judge.map((r, i) => (i === 0 ? { ...r, modelId: "other" } : r)), labels), has("(unknown keys): s|q1|other"));
+  // duplicate labels (e.g. the same file passed twice)
+  assert.throws(() => score(judge, [...labels, labels[0]]), has("duplicate label keys: s|q1|m"));
+  // malformed keys
+  assert.throws(() => score([...judge.slice(1), { qid: "q1", modelId: "m", verdict: "CORRECT" }], labels), has("prediction row 8 has no site"));
+  assert.throws(() => score(judge, [...labels.slice(1), { ...labels[0], qid: "" }]), has("label row 8 has no qid"));
+  assert.throws(() => score(judge, labels, { as: "c" }), has("--as must be"));
+  assert.throws(() => score(judge.map((r, i) => (i === 0 ? { ...r, verdict: "MAYBE" } : r)), labels), has("unknown verdict: MAYBE"));
+  // "|" in a key field could make two different answers collide (Codex LOW)
+  assert.throws(() => score(judge, [...labels.slice(1), { ...labels[0], qid: "q1|m" }]), has('label row 8 has "|" in qid'));
+  assert.throws(() => score([...judge.slice(1), { site: "s|q1", qid: "m", modelId: "m", verdict: "CORRECT" }], labels), has('prediction row 8 has "|" in site'));
+  // long lists are capped in the message
+  assert.throws(() => score([], labels), has("… (8 in all)"));
   assert.throws(() => normaliseVerdict("MAYBE"));
   assert.equal(normaliseVerdict("not_cited"), "DENY");
+  // exact coverage passes, in any order
+  assert.equal(score([...judge].reverse(), labels).answers, 8);
+});
+
+test("WRONG_FACTS precision is reported, with the false ones named", () => {
+  const wf = judge.map((r) => (["q1", "q6", "q7"].includes(r.qid) ? { ...r, verdict: "WRONG_FACTS" } : r));
+  const m = score(wf, labels).metrics;
+  // judged WRONG_FACTS: q1 (truly correct: false), q6 (facts supported: false), q7 (contradicted: right)
+  assert.deepEqual([m.wrong_facts_precision.num, m.wrong_facts_precision.den], [1, 3]);
+  assert.equal(m.wrong_facts_precision.false_wrong_facts, 2);
+  assert.equal(m.wrong_facts_precision.false_on_strictly_correct, 1);
+  assert.deepEqual(m.wrong_facts_precision.false_keys, ["s|q1|m (gold facts supported)", "s|q6|m (gold facts supported)"]);
+  // and it shows in the printed report
+  assert.ok(formatReport(score(wf, labels)).includes("6. WRONG_FACTS precision (judged WRONG_FACTS whose gold facts are contradicted): 1/3 (33.3%) · false WRONG_FACTS: 2 (on truly correct answers: 1) · left out (facts label pending): 0"));
+  // a WRONG_FACTS on an answer whose facts label is pending is left out, and the report says how many (Codex LOW)
+  const pendingFacts = labels.map((r) => (r.qid === "q2" ? { ...r, facts: null } : r));
+  const wf2 = wf.map((r) => (r.qid === "q2" ? { ...r, verdict: "WRONG_FACTS" } : r));
+  const m2 = score(wf2, pendingFacts).metrics.wrong_facts_precision;
+  assert.deepEqual([m2.num, m2.den, m2.excluded_facts_pending], [1, 3, 1]);
+  assert.ok(formatReport(score(wf2, pendingFacts)).includes("· left out (facts label pending): 1"));
+  // no WRONG_FACTS verdicts: 0/0, no false ones
+  const none = score(judge, labels).metrics.wrong_facts_precision;
+  assert.deepEqual([none.den, none.false_wrong_facts], [0, 0]);
 });
 
 test("old-judge notes map to verdicts", () => {

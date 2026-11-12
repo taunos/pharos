@@ -12,7 +12,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { DIM6_DISCLOSURE, DIM6_ENGINE_LINE } from "@/lib/dim6/disclosure";
+import { DIM6_DISCLOSURE, DIM6_ENGINE_LINE, DIM6_ENGINE_NAME } from "@/lib/dim6/disclosure";
 import { VERSION_COMPARABILITY_NOTICE } from "@/lib/version-notice";
 
 export const metadata: Metadata = {
@@ -71,7 +71,7 @@ export default function MethodologyPage() {
             Dimension 6 — Citation Visibility
           </h2>
           <p className="mt-2 text-sm text-[var(--color-muted)] italic">
-            Weight 20 · Engine v1 · 4 hosted models · ~10 prompts · ~40 test answers per audit
+            Weight 20 · {DIM6_ENGINE_NAME} · 4 hosted models · ~10 prompts · ~40 test answers per audit
           </p>
           <div className="mt-6 flex flex-col gap-5 text-base text-[var(--color-muted)]">
             {longParagraphs.map((p, i) => (
@@ -91,33 +91,57 @@ export default function MethodologyPage() {
           <ul className="mt-4 flex flex-col gap-3 text-sm text-[var(--color-muted)]">
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_domain_named_rate</span>{" "}
-              (weight 40) — what fraction of scored test answers named your domain and matched how your site describes itself. Each answer that says it knows your site is compared with how your site describes itself (your llms.txt file, structured data, and homepage title and description). We check only who the site is and what kind of business it is, against your site&apos;s own description; details such as prices and dates are not checked. An answer that describes your site as a different person or business, says too little to check, or cannot be checked scores 0. If your site has no clear description we can read, those answers cannot be checked and score 0, and the report says so.
+              (weight 40) — what fraction of the answers we could check against your site named your site (by its domain or the name your site gives itself) and were backed by your site&apos;s text. Each answer is compared with how your site describes itself (your llms.txt file, structured data, and homepage title, description and main heading), and the report shows the evidence: what the AI said next to what your site says. An answer is backed only when the words that answer the question are backed by your site&apos;s text. An answer that does not show the model knows your site scores 0. A guess, or a claim your site&apos;s text does not cover (for example how well known you are), is not enough evidence: it is left out of the score and counted on its own line. If your structured data states street addresses, an answer is backed only if every street address it gives is one we could extract from your structured data or homepage text. If your site has no clear description we can read, the answers that say they know your site cannot be checked and count as 0, and the report says so and how to fix it.
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_url_referenced_rate</span>{" "}
-              (weight 30) — what fraction included an actual URL on your host (not just the brand name).
+              (weight 30) — what fraction of the answers we could check against your site included an actual URL on your host (not just the brand name) and were backed by your site&apos;s text, plus plain answers that gave your homepage address when asked for it.
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_context_relevant_rate</span>{" "}
-              (weight 20) — what fraction positioned your domain in the first half of the response (vs a footer-style mention).
+              (weight 20) — what fraction of the answers we could check against your site were backed by your site&apos;s text and named your site (by its domain or its own name) in the first half of the response (vs a footer-style mention).
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_no_competitor_first_rate</span>{" "}
               (weight 10) — what fraction avoided naming a competitor BEFORE your domain. Not measured in the current Audit: no competitor list is supplied, so this check is not counted.
             </li>
             <li>
+              <span className="text-[var(--color-fg)] font-semibold">citation_backed_answers</span>{" "}
+              (not weighted) — shown only when at least one answer was backed by your site&apos;s text. Up to three examples, each with what the AI said and the words on your site that back it; an example is shown only when the two share a word other than your site&apos;s own name. For information only; it is not counted again in your score.
+            </li>
+            <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_misidentified_answers</span>{" "}
-              (not weighted) — shown only when at least one answer described a different person or business than your site says it is, with up to three short quotes from those answers. For information only; it is not counted again in your score.
+              (not weighted) — shown only when at least one answer linked your site to a different person or business with its own name (for example someone else with a similar name), as a fact or as a possibility, confirmed by a second check. Up to three quotes from those answers, next to how your site describes itself. An answer cut off by the AI&apos;s length limit is shown separately and not counted as a mix-up. For information only; it is not counted again in your score.
+            </li>
+            <li>
+              <span className="text-[var(--color-fg)] font-semibold">citation_contradicted_answers</span>{" "}
+              (not weighted) — shown only when your site&apos;s text contradicts something an answer said about your site (for example &ldquo;no physical location&rdquo; when your site lists an office), confirmed by a second check. Up to three examples, each with what the AI said and what your site says. Claims your site simply does not mention are never counted as contradicted. For information only; it is not counted again in your score.
+            </li>
+            <li>
+              <span className="text-[var(--color-fg)] font-semibold">citation_uncheckable_answers</span>{" "}
+              (not weighted, always shown) — how many answers did not give enough evidence to check against your site&apos;s text, and why: claims your site&apos;s text does not clearly back or contradict, answers cut off before the part we would check, or a check of ours that failed. These answers are left out of the score. A check of ours that failed never decides a grade: if counting those answers as 0 or as 100 would give a different grade, there is no grade on that run.
             </li>
           </ul>
 
           <h3 className="mt-12 text-xl font-semibold">Cell states</h3>
           <p className="mt-2 text-sm text-[var(--color-muted)]">
-            Each cell is one (model × query) trial. A measurable cell scores
-            0–100. An unmeasurable cell is excluded from the score formula
-            entirely so a network blip or a safety refusal doesn&apos;t
-            penalize you. A truncated cell (response hit max_tokens) is
-            included with a flag — the response was valid up to the cap.
+            Each cell is one (model × query) trial. A cell we could check
+            scores 0–100. An unmeasurable cell (a network blip, a safety
+            refusal, a quota error) and a cell we could not check against
+            your site&apos;s text are both left out of the score, so neither
+            penalizes you nor gives you credit. A truncated cell (response
+            hit max_tokens) is included with a flag when the part we checked
+            was complete.
+          </p>
+
+          <h3 className="mt-12 text-xl font-semibold">When there is no grade</h3>
+          <p className="mt-2 text-sm text-[var(--color-muted)]">
+            Citation Visibility is graded only when at least 24 of the 40
+            test answers could be checked against your site&apos;s text, with
+            at least 5 from each of the 4 AI models. Below that, the report
+            says how many answers could be checked and why the others could
+            not, and Citation Visibility is not counted in your overall
+            score.
           </p>
 
           <h3 className="mt-12 text-xl font-semibold">Validator-driven trust pattern</h3>

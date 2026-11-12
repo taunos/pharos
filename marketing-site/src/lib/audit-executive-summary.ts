@@ -46,6 +46,10 @@ export const EXEC_SUMMARY_COPY = {
     `Because only ${scored} of ${total} dimensions could be scored, this is a partial view of your site, and it is not comparable with a score based on more dimensions.`,
   coverageNoCitation:
     "Citation Visibility, which tests what AI assistants say when asked about your site, was not measured on this run, so this score covers your site's own files and pages only.",
+  coverageCitationNotGraded:
+    "Citation Visibility, which tests what AI assistants say when asked about your site, is not graded on this run because too few of its test answers could be checked against your site's text, so this score covers your site's own files and pages only.",
+  coverageCitationChecksFailed:
+    "Citation Visibility, which tests what AI assistants say when asked about your site, is not graded on this run because some of our checks failed on its test answers, so this score covers your site's own files and pages only.",
 
   // Sentence 2.
   weakestOne: (item: string) => `The weakest area: ${item}.`,
@@ -66,6 +70,11 @@ export const EXEC_SUMMARY_COPY = {
     `${names} could not be measured on this run, so ${plural ? "they are" : "it is"} not counted in your score`,
   naCitationUnmeasured:
     "Citation Visibility could not be measured on this run, so it is not counted in your score",
+  // dim6:v6 option A: too few answers could be checked for a grade.
+  naCitationNotGraded:
+    "Citation Visibility is not graded on this run, because too few of its test answers could be checked against your site's text, so it is not counted in your score",
+  naCitationChecksFailed:
+    "Citation Visibility is not graded on this run, because some of our checks failed on its test answers, so it is not counted in your score",
   citationPartial: (assistants: number, ofAssistants: number, cells: number, ofCells: number) =>
     `Citation Visibility was only partly measured (${assistants} of ${ofAssistants} AI assistants returned usable answers, ${cells} of ${ofCells} test answers in all), so treat that score as provisional`,
   citationPartialNoModels: (cells: number, ofCells: number) =>
@@ -105,10 +114,14 @@ export const EXEC_SUMMARY_COPY = {
       partial: "your pages passed only some of our readability checks",
       strong: "your pages passed most of our readability checks",
     },
+    // dim6:v6 (RD-0107..0110): chosen from the "Models name your site" rate
+    // (answers that named the site and were backed by its text), not from
+    // the dimension score; see weakPhraseByState. dim6:v6 evidence wording:
+    // never "correct" (pending Bruno, copy-for-approval-dim6-v6-2026-11-12.md).
     6: {
-      fail: "in our test questions, AI assistants rarely named your site",
-      partial: "in our test questions, AI assistants named your site only some of the time",
-      strong: "in our test questions, AI assistants usually named your site",
+      fail: "in our test questions, AI assistants rarely named your site in answers backed by your site's text",
+      partial: "in our test questions, AI assistants named your site in answers backed by your site's text only some of the time",
+      strong: "in our test questions, AI assistants usually named your site in answers backed by your site's text",
     },
   } as Record<number, DimPhrases>,
   // Evidence-aware phrases (r4), chosen from the sub-check states so the
@@ -161,6 +174,17 @@ function weakPhraseByState(d: DimensionResult): string {
     const hasCard = !!card && !card.na && card.score > 0;
     if (answered && !hasCard) return C.mcpFoundNoCard;
     if (answered || hasCard) return p.partial;
+  }
+  if (d.dimension_id === CITATION_DIM_ID) {
+    // The phrase is about naming, so it follows the naming rate: a site named
+    // in most answers its text backs, but weak on links or
+    // placement gets the neutral "<name> needs work".
+    const named = check(CITATION_SUMMARY_CHECK_ID);
+    if (named && !named.na) {
+      if (named.score < FAIL_BELOW) return p.fail;
+      if (named.score < 70) return p.partial;
+      return C.dimensionFallback(d.dimension_name).partial;
+    }
   }
   return band;
 }
@@ -226,24 +250,34 @@ export type CitationCoverage = {
 // Dim 6 records its coverage only inside the domain-named sub-check's notes
 // (the sub-check carries no structured counts), written by buildSubChecks in
 // lib/dim6/runDim6.ts. Current shape:
-//   "<n>% of scored test answers named your domain. <m> of <t> test answers
-//    could be scored, across <k> AI models. Average by model: ChatGPT not
-//    measured, ..., Perplexity 73."
+//   "<n>% of scored test answers named your site ... <m> of <t> test answers
+//    could be scored, across <k> AI models. Average answer score by model
+//    (0 to 100): ChatGPT not measured, ..., Perplexity 73."
+// (dim6:v5 wrote "Average by model: ..."; stored audits still carry it.)
 // Stored audits written before 2026-11-07 carry the old shape, and are
 // re-rendered, so it is still read:
 //   "<n>% of measurable cells named the target domain. <m>/<t> cells
 //    measurable across <k> models. Per-model averages: openai=n/a, ..., perplexity=73."
 // Returns null when the notes carry neither shape.
+/** dim6:v6 option A: why Citation Visibility is N/A without a grade, or null when it is not. */
+function citationNotGraded(dims: DimensionResult[]): "evidence" | "checks_failed" | null {
+  const d = dims.find((x) => x.dimension_id === CITATION_DIM_ID);
+  if (!d || !d.na) return null;
+  if (d.sub_checks.some((s) => s.id === "dim6_checks_failed")) return "checks_failed";
+  return d.sub_checks.some((s) => s.id === "dim6_not_enough_evidence") ? "evidence" : null;
+}
+
 export function citationCoverage(d: DimensionResult): CitationCoverage | null {
   const notes = d.sub_checks.find((s) => s.id === CITATION_SUMMARY_CHECK_ID)?.notes;
   if (!notes) return null;
   const cells =
+    notes.match(/(\d+) of (\d+) test answers came back/) ??
     notes.match(/(\d+) of (\d+) test answers could be scored/) ??
     notes.match(/(\d+)\/(\d+) cells measurable/);
   if (!cells) return null;
   let measuredModels: number | null = null;
   let totalModels: number | null = null;
-  const perModelNew = notes.match(/Average by model: ([^]*?)\.?$/);
+  const perModelNew = notes.match(/Average (?:answer score )?by model(?: \(0 to 100\))?: ([^]*?)\.?$/);
   const perModelOld = notes.match(/Per-model averages: ([^]*?)\.?$/);
   let values: string[] = [];
   if (perModelNew) {
@@ -286,7 +320,10 @@ export function buildExecutiveSummary(
   const citationMeasured = scored.some((d) => d.dimension_id === CITATION_DIM_ID);
   const lowCoverage = scored.length < MIN_FULL_COVERAGE;
   if (lowCoverage) out.push(C.coverageLow(scored.length, total));
-  else if (!citationMeasured) out.push(C.coverageNoCitation);
+  else if (!citationMeasured) {
+    const why = citationNotGraded(scan.dimensions);
+    out.push(why === "checks_failed" ? C.coverageCitationChecksFailed : why === "evidence" ? C.coverageCitationNotGraded : C.coverageNoCitation);
+  }
 
   // 2. Weakest areas (lowest score first; ties keep dimension order).
   if (gaps.length > 0) {
@@ -324,7 +361,10 @@ export function buildExecutiveSummary(
     caveats.push(C.naUnmeasured(joinNames(naUnmeasured.map((d) => d.dimension_name)), naUnmeasured.length > 1));
   }
   // Already said by the coverage sentence when that one is about Citation Visibility.
-  if (naCitation && lowCoverage) caveats.push(C.naCitationUnmeasured);
+  if (naCitation && lowCoverage) {
+    const why = citationNotGraded(scan.dimensions);
+    caveats.push(why === "checks_failed" ? C.naCitationChecksFailed : why === "evidence" ? C.naCitationNotGraded : C.naCitationUnmeasured);
+  }
   const citation = scored.find((d) => d.dimension_id === CITATION_DIM_ID);
   const cov = citation ? citationCoverage(citation) : null;
   if (cov && cov.measurableCells < cov.totalCells) {

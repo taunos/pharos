@@ -8,16 +8,20 @@ import { DIM6_QUESTION_SET_VERSION } from "./question-set";
 
 vi.mock("./orchestrator", () => ({
   runDim6Orchestrator: vi.fn(async (): Promise<Dim6Result> => {
-    const cell = (notes: string, score: number): CellEnvelope => ({
+    const cell = (modelId: ModelId, notes: string, score: number): CellEnvelope => ({
       query: { id: "q1", text: "q", rationale: null },
-      modelId: "openai:gpt-4o",
+      modelId,
       result: { text: "t", score, unmeasurable: false, truncated: false, notes },
     });
-    const cells = [
-      cell("score=100/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=true; context_relevant=true; no_competitor_first=true", 100),
-      cell("score=0/100; judge=DENY", 0),
-      cell("score=0/100; judge=DENY", 0),
-    ];
+    // dim6:v6 option A: 9 checkable answers per model (36 in all), above the
+    // grading floor; one in three backed by the site's text.
+    const cells = ALL_MODEL_IDS.flatMap((m) =>
+      [0, 1, 2].flatMap(() => [
+        cell(m, "score=100/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=true; context_relevant=true; no_competitor_first=true", 100),
+        cell(m, "score=0/100; judge=DENY", 0),
+        cell(m, "score=0/100; judge=DENY", 0),
+      ])
+    );
     return {
       score: 33,
       cells,
@@ -49,7 +53,7 @@ const runDim6Paid: typeof runDim6PaidReal = (env, ...rest) =>
 
 describe("dim6:v4 competitor-first N/A", () => {
   it("engine and question-set versions are bumped", () => {
-    expect(DIM6_ENGINE_VERSION).toBe("dim6:v5");
+    expect(DIM6_ENGINE_VERSION).toBe("dim6:v6");
     expect(DIM6_QUESTION_SET_VERSION).toBe("dim6-qs:v3");
   });
 
@@ -77,15 +81,18 @@ describe("dim6:v4 competitor-first N/A", () => {
     const r = await runDim6Paid({ cacheKv: kv() } as never, "https://acme.com/", {}, ["rival.com"]);
     const notes = Object.fromEntries(r.dimension.sub_checks.map((s) => [s.id, s.notes]));
     expect(notes.citation_domain_named_rate).toBe(
-      "33% of scored test answers named your domain and matched how your site describes itself. Of the 3 scored answers, 1 matched how your site describes itself, 0 described a different person or business than your site says it is, 0 did not say enough to check, and 2 did not show that the model knew your site. 3 of 3 test answers could be scored, across 4 AI models. Average by model: ChatGPT 33, Claude 33, Gemini 33, Perplexity 33.",
+      "33% of the answers we could check against your site named your site (by its domain or the name your site gives itself) and were backed by your site's text. Of the 36 answers we could check against your site, 12 were backed by your site's text, 0 linked your site to a different named person or business, and 24 did not show that the model knew your site. We count your domain and the name your site gives itself; other brand names, nicknames or translations are not counted. 36 of 36 test answers came back from the 4 AI models, and 36 of those could be checked against your site's text and are counted in this score. Average answer score by model (0 to 100): ChatGPT 33, Claude 33, Gemini 33, Perplexity 33.",
     );
-    expect(notes.citation_url_referenced_rate).toBe("33% of scored test answers matched how your site describes itself and included at least one link to it.");
+    expect(notes.citation_url_referenced_rate).toBe(
+      "33% of the answers we could check against your site included a link to your site and either were backed by your site's text, or gave your homepage address when asked for it.",
+    );
     expect(notes.citation_context_relevant_rate).toBe(
-      "33% of scored test answers matched how your site describes itself and put your domain in the first half of the answer, rather than only mentioning it at the end.",
+      "33% of the answers we could check against your site were backed by your site's text and named your site (by its domain or its own name) in the first half of the answer, rather than only at the end.",
     );
-    expect(notes.citation_no_competitor_first_rate).toBe("33% of scored test answers did not name a competitor before your domain.");
+    expect(notes.citation_no_competitor_first_rate).toBe("33% of the answers we could check against your site did not name a competitor before your domain.");
     for (const n of Object.values(notes)) expect(n).not.toMatch(/cells|target (domain|host)|openai=|n\/a/);
-    expect(citationCoverage(r.dimension as never)).toEqual({ measurableCells: 3, totalCells: 3, measuredModels: 4, totalModels: 4 });
+    expect(notes.citation_uncheckable_answers).toBe("All 36 test answers that came back could be checked against your site's text. This row is for information and is not counted in your score.");
+    expect(citationCoverage(r.dimension as never)).toEqual({ measurableCells: 36, totalCells: 36, measuredModels: 4, totalModels: 4 });
   });
 
   it("modelLabel maps provider prefixes and keeps an unknown one", () => {

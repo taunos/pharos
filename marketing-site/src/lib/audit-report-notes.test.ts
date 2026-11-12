@@ -9,7 +9,7 @@ import { AUDIT_REPORT_COPY, buildAuditReportModel } from "./audit-report-model";
 import { buildExecutiveSummary } from "./audit-executive-summary";
 import { remediationFor, T } from "./remediation-templates";
 import { plainScoreNote } from "./score-notes";
-import { VERSION_COMPARABILITY_NOTICE } from "./version-notice";
+import { CITATION_VISIBILITY_V6_DATE, noticeDate, SCANNER_1_5_2_DATE, VERSION_COMPARABILITY_NOTICE } from "./version-notice";
 import { METHODOLOGY_CALIBRATION_MD } from "./methodology-content";
 import type { AuditResult, ScanResult, SubCheck } from "./audit-types";
 
@@ -297,17 +297,33 @@ describe("paid report shows plain notes; consumers keep raw notes", () => {
 
 describe("version comparability notice", () => {
   const NOTICE =
-    "Scores are only comparable between reports made with the same version. Astrant Score scoring version 1.5.1 (Nov 7, 2026) and Citation Visibility v5 (Nov 8, 2026) measure more strictly than earlier versions, so a lower score after these dates does not by itself mean your site got worse.";
+    // Bruno's approved text, verbatim, with <deploy date> filled from the two constants
+    "Scores are only comparable between reports made with the same version. " +
+    `Astrant Score scoring versions 1.5.1 (Nov 7, 2026) and 1.5.2 (${noticeDate(SCANNER_1_5_2_DATE)}) and Citation Visibility v5 (Nov 8, 2026) measure more strictly than earlier versions, so a lower score after these dates does not by itself mean your site got worse. ` +
+    `Citation Visibility v6 (${noticeDate(CITATION_VISIBILITY_V6_DATE)}) counts only the answers it can check against your site's own text and gives no grade when too few can be checked, so its score for the same site can be higher or lower than v5's.`;
 
-  it("is the approved sentence", () => {
+  it("is the approved sentence (v6 sentence approved by Bruno 2026-11-12; the date is one constant set on ship day)", () => {
     expect(VERSION_COMPARABILITY_NOTICE).toBe(NOTICE);
+    expect(CITATION_VISIBILITY_V6_DATE).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(SCANNER_1_5_2_DATE).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // today both dates are 2026-11-13: the exact customer sentence
+    if (SCANNER_1_5_2_DATE === "2026-11-13" && CITATION_VISIBILITY_V6_DATE === "2026-11-13") {
+      expect(VERSION_COMPARABILITY_NOTICE).toBe(
+        "Scores are only comparable between reports made with the same version. Astrant Score scoring versions 1.5.1 (Nov 7, 2026) and 1.5.2 (Nov 13, 2026) and Citation Visibility v5 (Nov 8, 2026) measure more strictly than earlier versions, so a lower score after these dates does not by itself mean your site got worse. Citation Visibility v6 (Nov 13, 2026) counts only the answers it can check against your site's own text and gives no grade when too few can be checked, so its score for the same site can be higher or lower than v5's."
+      );
+    }
+    expect(noticeDate("2026-11-13")).toBe("Nov 13, 2026");
+    expect(noticeDate("2027-01-02")).toBe("Jan 2, 2027");
+    for (const bad of ["2026-13-01", "2026-11-32", "13 Nov 2026", ""]) expect(() => noticeDate(bad)).toThrow();
   });
   it("names this report's scoring version from the scan, under the coverage line", () => {
     const m = buildAuditReportModel(audit(), "sess-0001");
     expect(m.versionNote).toBe(`This report was scored with Astrant Score scoring version 1.5.1. ${NOTICE}`);
     const html = renderAuditHtml(audit(), "sess-0001");
-    expect(html.indexOf(m.versionNote)).toBeGreaterThan(html.indexOf(m.scopeNote));
-    expect(html.indexOf(m.versionNote)).toBeLessThan(html.indexOf(AUDIT_REPORT_COPY.summaryHeading));
+    // the HTML escapes the apostrophes of the v6 sentence
+    const at = html.indexOf(m.versionNote.replace(/'/g, "&#39;"));
+    expect(at).toBeGreaterThan(html.indexOf(m.scopeNote));
+    expect(at).toBeLessThan(html.indexOf(AUDIT_REPORT_COPY.summaryHeading));
   });
   it("leaves the version out when the scan has none or a malformed one", () => {
     expect(buildAuditReportModel(audit(scan("")), "s").versionNote).toBe(NOTICE);

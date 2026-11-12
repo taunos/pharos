@@ -238,29 +238,65 @@ globalThis.fetch = async (input, init) => {
   return realFetch(input, init);
 };
 
-// ── synthetic Dim 6 (shape = runDim6.ts buildSubChecks) ─────────────────
-function syntheticDim6() {
-  const summary =
-    "36 of 40 test answers could be scored, across 4 AI models. Average by model: ChatGPT 12, Claude 4, Gemini 9, Perplexity 31.";
-  return {
-    dimension_id: 6,
-    dimension_name: "Citation Visibility",
-    score: 14,
-    grade: "F",
-    sub_checks: [
-      { id: "citation_domain_named_rate", name: "Models name your domain", weight: 40, score: 17, passed: false,
-        notes: `17% of scored test answers named your domain and matched how your site describes itself. Of the 36 scored answers, 7 matched how your site describes itself, 5 described a different person or business than your site says it is, 2 did not say enough to check, and 22 did not show that the model knew your site. ${summary}` },
-      { id: "citation_url_referenced_rate", name: "Models cite your URL", weight: 30, score: 6, passed: false,
-        notes: "6% of scored test answers matched how your site describes itself and included at least one link to it." },
-      { id: "citation_context_relevant_rate", name: "Models treat your domain as the principal answer", weight: 20, score: 8, passed: false,
-        notes: "8% of scored test answers matched how your site describes itself and put your domain in the first half of the answer, rather than only mentioning it at the end." },
-      { id: "citation_no_competitor_first_rate", name: "Competitor-first check (not measured)", weight: 10, score: 0, passed: false, na: true,
-        notes: "Not measured: this Audit doesn't take a competitor list yet, so there is nothing to compare against. This check is not counted in your score." },
-      // dim6:v5 informational row (shape of runDim6.ts buildSubChecks; quotes invented).
-      { id: "citation_misidentified_answers", name: "Answers that described a different person or business than your site says it is", weight: 0, score: 0, passed: false, na: true,
-        notes: "5 of the 36 scored answers described a different person or business than your site says it is; they count as 0 in the checks above. Example: Gemini: \"example answer: the site is a different business with a similar name\". This row is for information and is not counted again in your score." },
-    ],
+// ── synthetic Dim 6 (built by the real runDim6.ts code) ─────────────────
+// Invented answers and site text (each quote starts with "example"), scored
+// into cell notes the way the ladder writes them, then turned into the
+// dimension by dim6.dim6FromResult, so the report shows the wording and
+// layout the current code produces. 40 answers: 36 came back, 32 checkable
+// (above the option A floor), 4 not checkable.
+const SYNTH_REF = [
+  "From llms.txt:",
+  "Name: Example Site – what the site says it is",
+  "Summary: example site text: a bakery in Example City",
+  "From the homepage:",
+  "Details: example site text: Office at Example Street 1",
+].join("\n");
+const SYNTH_MODELS = ["openai:gpt-4o", "anthropic:claude-sonnet", "google:gemini-2.5-flash", "perplexity:sonar"];
+
+function syntheticDim6(dim6) {
+  const at = (needle) => SYNTH_REF.indexOf(needle);
+  const backed = "example answer: Example Site is a bakery in Example City.";
+  const kinds = {
+    correct: { score: 100, text: backed, notes: `score=100/100; judge=AFFIRM; accuracy=CORRECT; domain_named=true; url_referenced=true; context_relevant=true; no_competitor_first=true; claim_at=0; site_at=${at("example site text: a bakery")}` },
+    url: { score: 33, text: "https://example.com", notes: "score=33/100; judge=AFFIRM; accuracy=URL_ONLY; url_only=true; url_referenced=true" },
+    wrong: { score: 0, text: "example answer: the site belongs to Example Namesake, a different business with a similar name.", notes: "score=0/100; judge=AFFIRM; accuracy=WRONG; misidentified=true; wrong_at=0" },
+    contra: { score: 0, text: "example answer: it has no physical location.", notes: `score=0/100; judge=AFFIRM; accuracy=WRONG_FACTS; facts_contradicted=true; claim_at=0; site_at=${at("example site text: Office")}` },
+    unclear: { score: 0, text: "example answer: it is one of the best-known bakeries.", notes: "score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true; unclear_why=uncheckable" },
+    cut: { score: 0, text: "example answer: Example Site is a bakery that", notes: "score=0/100; judge=AFFIRM; accuracy=UNCLEAR; accuracy_unclear=true; unclear_why=truncated; truncated=true" },
+    deny: { score: 0, text: "example answer: I don't have information about this site.", notes: "score=0/100; judge=DENY" },
+    missing: { score: 0, text: null, notes: "Templated fallback: network/timeout: example", unmeasurable: true },
   };
+  // per model, 10 answers each
+  const plan = [
+    ["correct", "correct", "url", "wrong", "unclear", "deny", "deny", "deny", "deny", "missing"],
+    ["correct", "contra", "unclear", "deny", "deny", "deny", "deny", "deny", "deny", "missing"],
+    ["correct", "correct", "wrong", "wrong", "cut", "deny", "deny", "deny", "deny", "missing"],
+    ["correct", "correct", "wrong", "unclear", "deny", "deny", "deny", "deny", "deny", "missing"],
+  ];
+  const cells = plan.flatMap((row, mi) =>
+    row.map((k, qi) => {
+      const c = kinds[k];
+      return {
+        query: { id: `q${qi + 1}`, text: "example question", rationale: null },
+        modelId: SYNTH_MODELS[mi],
+        result: { text: c.text, score: c.score, unmeasurable: c.unmeasurable === true, truncated: c.notes.includes("truncated=true"), notes: c.notes },
+      };
+    }),
+  );
+  const unchecked = /(?:^|; )(?:accuracy_unclear=true|accuracy_not_checked=true|affirmation_failed=true)(?:;|$)/;
+  const checkable = cells.filter((c) => !c.result.unmeasurable && !unchecked.test(c.result.notes));
+  const avg = (cs) => (cs.length ? Math.round(cs.reduce((s, c) => s + c.result.score, 0) / cs.length) : null);
+  const result = {
+    score: avg(checkable),
+    cells,
+    perModelAverage: Object.fromEntries(SYNTH_MODELS.map((m) => [m, avg(checkable.filter((c) => c.modelId === m))])),
+    unmeasurableCount: cells.filter((c) => c.result.unmeasurable).length,
+    uncheckableCount: cells.filter((c) => !c.result.unmeasurable).length - checkable.length,
+    totalCells: cells.length,
+    accuracyChecked: true,
+    referenceText: SYNTH_REF,
+  };
+  return dim6.dim6FromResult(result, false, "example.com").dimension;
 }
 
 // ── markdown extraction from the shared report model ─────────────────────
@@ -279,7 +315,8 @@ function toMarkdown(m, C, banner) {
   L.push(`## ${C.dimensionsHeading}`, "");
   for (const d of m.dimensions) {
     if (d.kind === "na") {
-      L.push(`### ${d.name} — ${C.naLabel} (${d.unmeasured ? C.naGradeUnmeasured : C.naGrade})`, "", d.note, "");
+      L.push(`### ${d.name} — ${M.reportModel.naLabelOf(d)} (${M.reportModel.naGradeOf(d)})`, "", d.note, "");
+      for (const e of d.evidence ?? []) L.push(`**${e.name}:** ${e.notes}`, "");
       continue;
     }
     L.push(`### ${d.name} — ${d.score} ${d.grade}`, "", `| ${C.checkColumns.join(" | ")} |`, "|---|---|---|---|");
@@ -366,7 +403,7 @@ async function runSite(M, site) {
 
     // 4. synthetic Dim 6 variant (same KV => non-Dim-6 remediations are cache hits).
     if (SYNTH_DIM6) {
-      const scanS = M.pipeline.splicePaidDim6(scannerScan, syntheticDim6());
+      const scanS = M.pipeline.splicePaidDim6(scannerScan, syntheticDim6(M.dim6));
       const gapsS = M.pipeline.buildRemediationGaps ? M.pipeline.buildRemediationGaps(scanS) : await M.pipeline.llmEnrichGaps(mEnv, scanS, sessionId);
       const auditS = { scan: scanS, gaps: gapsS, engine_version: M.pipeline.REMEDIATION_ENGINE_VERSION_TAG };
       fs.writeFileSync(path.join(dir, "audit-SYNTHETIC-DIM6.json"), JSON.stringify(auditS, null, 2));

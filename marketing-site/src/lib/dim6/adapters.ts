@@ -325,6 +325,11 @@ export async function callGemini(
         generationConfig: {
           temperature: 0,
           maxOutputTokens: 800,
+          // dim6:v6: Gemini 2.5 Flash counts its hidden "thinking" tokens
+          // against maxOutputTokens, so on the 2026-11-10 release check 22 of
+          // its 40 answers stopped at MAX_TOKENS after ~25 words. A budget of
+          // 0 turns thinking off (supported on 2.5 Flash).
+          thinkingConfig: { thinkingBudget: 0 },
           // No seed parameter on Gemini.
         },
       }),

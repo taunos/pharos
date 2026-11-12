@@ -20,7 +20,8 @@
 //     the spec invariant (unmeasurable cells excluded) breaks at the
 //     persistence layer.
 
-import { runLadder, type LadderEnv } from "./ladder";
+import { isCheckable } from "./checkable";
+import { runLadder, type LadderEnv, type SiteFacts } from "./ladder";
 import { canonicalDomain, resolveQuestionSet, type QuestionSetEnv } from "./question-set";
 import {
   ALL_MODEL_IDS,
@@ -47,6 +48,26 @@ export interface OrchestratorInput {
   // dim6:v5: the site's description tripped the injection screen → every
   // AFFIRM answer scores 0 (accuracy_blocked=true).
   referenceBlocked?: boolean;
+  // dim6:v6: the site's own names and addresses (reference.ts), with the reference.
+  siteFacts?: SiteFacts | null;
+}
+
+const URL_QUESTION_RE = /\b(?:URL|web ?address|website address|home ?page)\b/i;
+const URL_QUESTION_MAX_WORDS = 25;
+
+/**
+ * dim6:v6: the id of the run's homepage-URL question: the FIRST question that
+ * asks for the URL / web address / homepage and names the domain, at most 25
+ * words. At most one per run, so URL-only credit (ladder.ts) can come from
+ * one question of ten at most.
+ */
+export function pickUrlQuestionId(queries: PromptSetQuery[], domain: string | null): string | null {
+  if (!domain) return null;
+  const d = domain.toLowerCase();
+  const q = queries.find(
+    (x) => URL_QUESTION_RE.test(x.text) && x.text.toLowerCase().includes(d) && x.text.trim().split(/\s+/).length <= URL_QUESTION_MAX_WORDS
+  );
+  return q?.id ?? null;
 }
 
 // Defensive fallback synthesis. Per CC-1 + Task 8: handles anything from
@@ -110,6 +131,8 @@ export async function runDim6Orchestrator(
   // must not be scored as a different host from x.com.
   const domain = canonicalDomain(scanUrl);
   const targetUrl = domain ? `https://${domain}` : scanUrl;
+  const urlQuestionId = pickUrlQuestionId(queries, domain);
+  const siteFacts = input.siteFacts ?? null;
 
   // Build the (model × query) task list. Tasks are DEFERRED (function returning
   // a promise) — NOT pre-created promises. This is load-bearing for the
@@ -138,6 +161,8 @@ export async function runDim6Orchestrator(
             competitorHosts,
             reference,
             referenceBlocked,
+            urlQuestion: query.id === urlQuestionId,
+            siteFacts,
           }),
       });
     }
@@ -184,20 +209,24 @@ export function aggregateCells(input: CellEnvelope[], accuracyChecked = false, a
       )
     : input;
 
-  // Score formula: average of all cells where unmeasurable === false.
-  // Truncated cells ARE INCLUDED (per locked decision 4) — they have a real
-  // score even when capped by max_tokens.
+  // Score formula: average of the CHECKABLE cells (checkable.ts, scoring
+  // option A, 2026-11-12): measured answers we could not check against the
+  // site's own text are left out instead of counting as 0. Truncated cells
+  // ARE INCLUDED (per locked decision 4) when their verdict is checkable.
+  // score stays null only when no cell was measured at all (the
+  // all-unmeasurable path); measured but none checkable gives 0 here, and
+  // runDim6Paid suppresses the grade below the floor.
   const measurable = cells.filter((c) => !c.result.unmeasurable);
   const unmeasurableCount = cells.length - measurable.length;
   const totalCells = cells.length;
+  const checkable = measurable.filter(isCheckable);
 
   const score =
     measurable.length === 0
       ? null
-      : Math.round(
-          measurable.reduce((sum, c) => sum + c.result.score, 0) /
-            measurable.length
-        );
+      : checkable.length === 0
+        ? 0
+        : Math.round(checkable.reduce((sum, c) => sum + c.result.score, 0) / checkable.length);
 
   // Per-model averages.
   const perModelAverage: Record<ModelId, number | null> = {
@@ -207,7 +236,7 @@ export function aggregateCells(input: CellEnvelope[], accuracyChecked = false, a
     "perplexity:sonar": null,
   };
   for (const modelId of ALL_MODEL_IDS) {
-    const ms = measurable.filter((c) => c.modelId === modelId);
+    const ms = checkable.filter((c) => c.modelId === modelId);
     if (ms.length > 0) {
       perModelAverage[modelId] = Math.round(
         ms.reduce((s, c) => s + c.result.score, 0) / ms.length
@@ -220,6 +249,7 @@ export function aggregateCells(input: CellEnvelope[], accuracyChecked = false, a
     cells,
     perModelAverage,
     unmeasurableCount,
+    uncheckableCount: measurable.length - checkable.length,
     totalCells,
     accuracyChecked,
     ...(accuracyBlocked ? { accuracyBlocked: true } : {}),

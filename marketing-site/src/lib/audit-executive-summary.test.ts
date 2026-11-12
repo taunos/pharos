@@ -99,7 +99,7 @@ describe("buildExecutiveSummary", () => {
     expectWellFormed(s);
     expect(s).toEqual([
       `Your site scored 85/100 (grade A-) on the 5 of 6 dimensions we could score: ${C.overallBands.strong}`,
-      "The weakest areas: the structured data (JSON-LD) on your homepage is incomplete (Structured Capability Data, 69/100); and in our test questions, AI assistants named your site only some of the time (Citation Visibility, 73/100).",
+      "The weakest areas: the structured data (JSON-LD) on your homepage is incomplete (Structured Capability Data, 69/100); and Citation Visibility needs work (Citation Visibility, 73/100).",
       "What's working: your MCP server passed most of our discovery checks; your llms.txt file passed most of our checks; and your pages passed most of our readability checks.",
       "OpenAPI / API Catalog did not apply to this site, so it is not counted in your score; Citation Visibility was only partly measured (1 of 4 AI assistants returned usable answers, 10 of 40 test answers in all), so treat that score as provisional.",
       `The "${GAPS_HEADING}" section below lists each check that did not pass, with a suggested change, starting with the ones that cost the most points.`,

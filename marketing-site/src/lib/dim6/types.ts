@@ -60,7 +60,19 @@
 //     (accuracy_blocked=true), and the report says why. First real run
 //     (a clinical psychologist): 8 of 15 AFFIRM answers described a
 //     different person or business. Cache key also covers the reference.
-export const DIM6_ENGINE_VERSION = "dim6:v5";
+//   - dim6:v6 (accuracy fix, 2026-11-10): the first real release check found
+//     the v5 judge calling correct answers mix-ups on all five panel sites.
+//     Every verdict is now grounded: CORRECT/WRONG must quote the answer;
+//     a WRONG needs a second, differently framed confirmation call; guesses
+//     and non-answers are never CORRECT; a cut-off answer is never CORRECT
+//     and never a confirmed mix-up; a CORRECT answer giving a street address
+//     the site does not state is not counted. Answers naming the site by its
+//     own declared name count as naming it (site-identity.ts). A plain
+//     homepage-URL answer to the URL question earns the link points only.
+//     The self-description keeps one labelled field per line. Gemini 2.5
+//     Flash runs without thinking tokens (they ate the 800-token output
+//     budget). Bump invalidates every v5 cell (scores changed).
+export const DIM6_ENGINE_VERSION = "dim6:v6";
 
 // Locked at 4 models per locked decision 2. No 5th model in Slice 3b.
 export type ModelId =
@@ -112,8 +124,13 @@ export interface Dim6Result {
   // Returns null when EVERY cell was unmeasurable — caller marks dim na:true.
   score: number | null;
   cells: CellEnvelope[];
-  perModelAverage: Record<ModelId, number | null>;  // null when all cells for that model were unmeasurable
+  // dim6:v6 option A: averages of the CHECKABLE cells (checkable.ts); null when a model has none.
+  perModelAverage: Record<ModelId, number | null>;
   unmeasurableCount: number;
+  // dim6:v6 option A: measured answers we could not check against the site's
+  // own text, left out of score and perModelAverage. Optional: results built
+  // before option A (and test fakes) don't carry it.
+  uncheckableCount?: number;
   totalCells: number;
   // dim6:v5: true when the run had a verifiable reference description of the
   // site, so AFFIRM answers were checked for accuracy. false → they were not
@@ -126,4 +143,11 @@ export interface Dim6Result {
   // dim6:v5: why accuracy was not checked, when the report explains it
   // differently from "no clear description" (set by runDim6Paid).
   accuracyNotCheckedReason?: "too_many_entities" | "source_too_large" | "structured_data_too_deep" | "structured_data_unreadable";
+  // dim6:v6: the site's own description the answers were checked against
+  // (reference.ts), for the "your site says" quotes in the report. The site
+  // owner's own words, already screened; never sent to an LLM from here.
+  referenceText?: string;
+  // dim6:v6: the site's own names from the reference, so the evidence rows can
+  // tell a shared name from a shared fact (runDim6.ts backedRowNote).
+  siteNames?: string[];
 }

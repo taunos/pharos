@@ -452,7 +452,7 @@ export default function Page() {
                 Astrant publishes how its citation check is calibrated, including what hasn&apos;t been validated yet.
               </blockquote>
               <div className="mt-2 text-sm font-mono text-[var(--color-muted)]">
-                Astrant Citation Visibility v5
+                Astrant Citation Visibility v6
               </div>
               <a
                 href="/methodology"

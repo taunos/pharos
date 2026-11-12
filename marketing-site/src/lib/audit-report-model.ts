@@ -35,6 +35,9 @@ export const AUDIT_REPORT_COPY = {
     " The same JSON is also available as a separate download from your audit results page.",
   naLabel: "N/A",
   naLabelUnmeasured: "Not measured",
+  // dim6:v6 option A (Bruno 2026-11-12): measured, but too few answers could
+  // be checked, or our checks failed: "Not graded", not "Not measured".
+  naLabelNotGraded: "Not graded",
   naGrade: "not applicable",
   naGradeUnmeasured: "not counted in score",
   // Coverage line under the composite score: always says how many dimensions
@@ -42,6 +45,7 @@ export const AUDIT_REPORT_COPY = {
   scopeScored: (scored: number, total: number) => `Scored on ${scored} of ${total} dimensions.`,
   scopeNotApplicable: (names: string) => ` Not applicable to this site: ${names}.`,
   scopeNotMeasured: (names: string) => ` Not measured on this run: ${names}.`,
+  scopeNotGraded: (names: string) => ` Not graded on this run: ${names}.`,
   scopeNotCounted: " Dimensions that were not scored are not counted in the score.",
   // r4: N/A or not-measured checks inside the scored dimensions. Joined to
   // scopeNotCounted with "; " (one sentence), or a sentence of its own.
@@ -99,6 +103,11 @@ export type ReportDimension =
       name: string;
       note: string;
       unmeasured?: true;
+      // dim6:v6: measured but not graded (option A floor or failed checks).
+      notGraded?: true;
+      // dim6:v6: evidence rows kept under a section with no grade (mix-ups,
+      // contradictions), shown after the note.
+      evidence?: Array<{ id: string; name: string; notes: string }>;
     }
   | {
       kind: "scored";
@@ -155,9 +164,30 @@ export function isUnmeasuredDimension(d: { dimension_id: number; na?: boolean; u
   return !!d.na && (!!d.unmeasured || d.dimension_id === CITATION_DIM_ID);
 }
 
+// dim6:v6 option A: Citation Visibility measured but not graded (runDim6.ts
+// DIM6_NOT_ENOUGH_EVIDENCE_ID / DIM6_CHECKS_FAILED_ID). Read from the stored
+// sub-check id, so re-rendered stored audits get it too.
+const NOT_GRADED_CHECK_IDS = new Set(["dim6_not_enough_evidence", "dim6_checks_failed"]);
+export function isNotGradedDimension(d: { na?: boolean; sub_checks?: Array<{ id: string }> }): boolean {
+  return !!d.na && NOT_GRADED_CHECK_IDS.has(d.sub_checks?.[0]?.id ?? "");
+}
+
+/** Label and grade text for a whole-dimension N/A, shared by every renderer. */
+export function naLabelOf(d: { unmeasured?: boolean; notGraded?: boolean }): string {
+  return d.notGraded ? AUDIT_REPORT_COPY.naLabelNotGraded : d.unmeasured ? AUDIT_REPORT_COPY.naLabelUnmeasured : AUDIT_REPORT_COPY.naLabel;
+}
+export function naGradeOf(d: { unmeasured?: boolean; notGraded?: boolean }): string {
+  return d.unmeasured || d.notGraded ? AUDIT_REPORT_COPY.naGradeUnmeasured : AUDIT_REPORT_COPY.naGrade;
+}
+
 // dim6:v5: informational rows (na, weight 0) that WERE measured: not "did not
 // apply or could not be measured" in the scope line, and no "· N/A" label.
-const INFORMATIONAL_CHECK_IDS = new Set(["citation_misidentified_answers"]);
+const INFORMATIONAL_CHECK_IDS = new Set([
+  "citation_misidentified_answers",
+  "citation_contradicted_answers",
+  "citation_backed_answers",
+  "citation_uncheckable_answers",
+]);
 
 function namesList(names: string[]): string {
   if (names.length <= 1) return names.join("");
@@ -169,13 +199,15 @@ function scopeNote(scan: AuditResult["scan"]): string {
   const scored = scan.dimensions.filter((d) => !d.na).length;
   const total = Math.max(scan.dimensions_total ?? 0, scan.dimensions.length);
   const name = (d: { dimension_name: string }) => clean(d.dimension_name, 120);
-  const unmeasured = scan.dimensions.filter(isUnmeasuredDimension).map(name);
+  const notGraded = scan.dimensions.filter(isNotGradedDimension).map(name);
+  const unmeasured = scan.dimensions.filter((d) => isUnmeasuredDimension(d) && !isNotGradedDimension(d)).map(name);
   const inapplicable = scan.dimensions.filter((d) => d.na && !isUnmeasuredDimension(d)).map(name);
   let s = C.scopeScored(scored, total);
   if (inapplicable.length > 0) s += C.scopeNotApplicable(namesList(inapplicable));
   if (unmeasured.length > 0) s += C.scopeNotMeasured(namesList(unmeasured));
+  if (notGraded.length > 0) s += C.scopeNotGraded(namesList(notGraded));
   const naChecks = scan.dimensions.filter((d) => !d.na).reduce((n, d) => n + d.sub_checks.filter((sc) => sc.na && !INFORMATIONAL_CHECK_IDS.has(sc.id)).length, 0);
-  if (inapplicable.length + unmeasured.length > 0) {
+  if (inapplicable.length + unmeasured.length + notGraded.length > 0) {
     s += naChecks > 0 ? `${C.scopeNotCounted.slice(0, -1)}; ${C.scopeChecksNotCounted(naChecks)}` : C.scopeNotCounted;
   } else if (naChecks > 0) {
     s += ` ${C.scopeChecksNotCounted(naChecks)}`;
@@ -209,6 +241,13 @@ export function buildAuditReportModel(
         // Applies but was not measured this run: graded "not measured", not
         // "not applicable". Key only present when set (old scans unchanged).
         ...(isUnmeasuredDimension(d) ? { unmeasured: true as const } : {}),
+        ...(isNotGradedDimension(d) ? { notGraded: true as const } : {}),
+        ...(() => {
+          const evidence = isNotGradedDimension(d)
+            ? d.sub_checks.slice(1).filter((s) => INFORMATIONAL_CHECK_IDS.has(s.id)).map((s) => ({ id: s.id, name: clean(s.name, 120), notes: shownNote(s.id, s.notes) }))
+            : [];
+          return evidence.length > 0 ? { evidence } : {};
+        })(),
       };
     }
     return {
