@@ -13,6 +13,8 @@
 
 import {
   AUDIT_REPORT_COPY as C,
+  naGradeOf,
+  naLabelOf,
   type AuditReportModel,
   type ScoreBand,
 } from "@/lib/audit-report-model";
@@ -101,14 +103,20 @@ function Dimension({ d }: { d: AuditReportModel["dimensions"][number] }) {
           <h3 className="text-lg font-semibold text-[var(--color-fg)]">
             {d.name}{" "}
             <span className="font-mono text-xs uppercase tracking-wider text-[var(--color-dim)]">
-              {d.unmeasured ? C.naLabelUnmeasured : C.naLabel}
+              {naLabelOf(d)}
             </span>
           </h3>
           <span className="font-mono text-sm italic text-[var(--color-dim)]">
-            {d.unmeasured ? C.naGradeUnmeasured : C.naGrade}
+            {naGradeOf(d)}
           </span>
         </div>
         <p className="mt-2 text-sm text-[var(--color-muted)]">{d.note}</p>
+        {d.evidence?.map((e) => (
+          <div key={e.id} data-testid="audit-report-evidence" className="mt-3 border-t border-[var(--color-border)] pt-3">
+            <p className="text-sm font-semibold text-[var(--color-fg)]">{e.name}</p>
+            <p className="mt-1 text-sm text-[var(--color-muted)]">{e.notes}</p>
+          </div>
+        ))}
       </section>
     );
   }

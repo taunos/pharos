@@ -147,4 +147,7 @@ export interface Dim6Result {
   // (reference.ts), for the "your site says" quotes in the report. The site
   // owner's own words, already screened; never sent to an LLM from here.
   referenceText?: string;
+  // dim6:v6: the site's own names from the reference, so the evidence rows can
+  // tell a shared name from a shared fact (runDim6.ts backedRowNote).
+  siteNames?: string[];
 }

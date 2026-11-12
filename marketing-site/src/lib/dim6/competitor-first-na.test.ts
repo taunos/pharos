@@ -81,15 +81,15 @@ describe("dim6:v4 competitor-first N/A", () => {
     const r = await runDim6Paid({ cacheKv: kv() } as never, "https://acme.com/", {}, ["rival.com"]);
     const notes = Object.fromEntries(r.dimension.sub_checks.map((s) => [s.id, s.notes]));
     expect(notes.citation_domain_named_rate).toBe(
-      "33% of the test answers we could check named your site (by its domain or the name your site gives itself) and were backed by your site's text. Of the 36 test answers we could check, 12 were backed by your site's text, 0 linked your site to a different named person or business, and 24 did not show that the model knew your site. We count your domain and the name your site gives itself; other brand names, nicknames or translations are not counted. 36 of 36 test answers came back from the 4 AI models, and 36 of those could be checked against your site's text and are counted in this score. Average answer score by model (0 to 100): ChatGPT 33, Claude 33, Gemini 33, Perplexity 33.",
+      "33% of the answers we could check against your site named your site (by its domain or the name your site gives itself) and were backed by your site's text. Of the 36 answers we could check against your site, 12 were backed by your site's text, 0 linked your site to a different named person or business, and 24 did not show that the model knew your site. We count your domain and the name your site gives itself; other brand names, nicknames or translations are not counted. 36 of 36 test answers came back from the 4 AI models, and 36 of those could be checked against your site's text and are counted in this score. Average answer score by model (0 to 100): ChatGPT 33, Claude 33, Gemini 33, Perplexity 33.",
     );
     expect(notes.citation_url_referenced_rate).toBe(
-      "33% of the test answers we could check included a link to your site and either were backed by your site's text, or gave your homepage address when asked for it.",
+      "33% of the answers we could check against your site included a link to your site and either were backed by your site's text, or gave your homepage address when asked for it.",
     );
     expect(notes.citation_context_relevant_rate).toBe(
-      "33% of the test answers we could check were backed by your site's text and named your site (by its domain or its own name) in the first half of the answer, rather than only at the end.",
+      "33% of the answers we could check against your site were backed by your site's text and named your site (by its domain or its own name) in the first half of the answer, rather than only at the end.",
     );
-    expect(notes.citation_no_competitor_first_rate).toBe("33% of the test answers we could check did not name a competitor before your domain.");
+    expect(notes.citation_no_competitor_first_rate).toBe("33% of the answers we could check against your site did not name a competitor before your domain.");
     for (const n of Object.values(notes)) expect(n).not.toMatch(/cells|target (domain|host)|openai=|n\/a/);
     expect(notes.citation_uncheckable_answers).toBe("All 36 test answers that came back could be checked against your site's text. This row is for information and is not counted in your score.");
     expect(citationCoverage(r.dimension as never)).toEqual({ measurableCells: 36, totalCells: 36, measuredModels: 4, totalModels: 4 });

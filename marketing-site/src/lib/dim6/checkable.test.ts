@@ -8,7 +8,8 @@ import { checkableCounts, DIM6_MIN_CHECKABLE, DIM6_MIN_CHECKABLE_PER_MODEL, fail
 import { aggregateCells } from "./orchestrator";
 import { buildSubChecks, dim6FromResult, DIM6_NOT_ENOUGH_EVIDENCE_ID } from "./runDim6";
 import { buildExecutiveSummary } from "../audit-executive-summary";
-import { buildRemediationGaps } from "../audit-pipeline";
+import { buildRemediationGaps, renderAuditHtml } from "../audit-pipeline";
+import { buildAuditReportModel, naGradeOf, naLabelOf } from "../audit-report-model";
 import { DISPLAY_TEXT_MAX } from "../llm-safety";
 import type { AuditResult, ScanResult } from "../audit-types";
 
@@ -90,11 +91,34 @@ describe("checkable answers (option A)", () => {
     const r = { ...aggregateCells(cells, true), referenceText: "Name: Acme" };
     const { dimension } = dim6FromResult(r, false, "acme.com");
     expect(dimension).toMatchObject({ dimension_id: 6, na: true, unmeasured: true, score: 0 });
-    expect(dimension.sub_checks).toHaveLength(1);
+    // Bruno 2026-11-12: the mix-up and contradiction evidence stays visible with no grade
+    expect(dimension.sub_checks.map((s) => s.id)).toEqual([DIM6_NOT_ENOUGH_EVIDENCE_ID, "citation_misidentified_answers", "citation_contradicted_answers"]);
+    const [, mix, contra] = dimension.sub_checks;
+    expect(mix.notes).toMatch(/^4 of the 20 answers we could check against your site linked your site to a different named person or business\. /);
+    expect(mix.notes).toMatch(/This row is for information\.$/);
+    expect(contra.notes).toMatch(/^4 of the 20 answers we could check against your site said something your site's text contradicts\. /);
+    expect(contra.notes).toMatch(/This row is for information\.$/);
+    for (const row of [mix, contra]) {
+      expect(row.notes).not.toContain("checks above");
+      expect(row.notes).not.toContain("counted again");
+    }
+    // the report: "Not graded", the note, then the evidence rows
+    const model = buildAuditReportModel({ scan: { id: "s", url: "https://acme.com/", composite: { score: 50, grade: "D" }, dimensions_total: 6, created_at: 0, dimensions: [dimension] }, gaps: [] } as unknown as AuditResult, "sess-0001");
+    const d = model.dimensions[0];
+    expect(d).toMatchObject({ kind: "na", notGraded: true, unmeasured: true });
+    if (d.kind !== "na") throw new Error("na");
+    expect(naLabelOf(d)).toBe("Not graded");
+    expect(naGradeOf(d)).toBe("not counted in score");
+    expect(d.evidence?.map((e) => e.id)).toEqual(["citation_misidentified_answers", "citation_contradicted_answers"]);
+    expect(model.scopeNote).toContain("Not graded on this run: Citation Visibility.");
+    expect(model.scopeNote).not.toContain("Not measured");
+    const html = renderAuditHtml({ scan: { id: "s", url: "https://acme.com/", composite: { score: 50, grade: "D" }, dimensions_total: 6, created_at: 0, dimensions: [dimension] }, gaps: [] } as unknown as AuditResult, "sess-0001");
+    expect(html).toContain(">Not graded</span>");
+    expect(html).toContain("Answers contradicted by your site&#39;s text");
     const sc = dimension.sub_checks[0];
     expect(sc).toMatchObject({ id: DIM6_NOT_ENOUGH_EVIDENCE_ID, na: true });
     expect(sc.notes).toBe(
-      "Citation Visibility is not graded on this run: 20 of the 40 test answers could be checked against your site's text, and we grade it only when at least 24 can be checked, with at least 5 from each of the 4 AI models. It is not counted in your score. 20 of the answers that came back could not be checked against your site's text: 20 said things your site's text does not clearly back or contradict. Among the answers we could check, 4 linked your site to a different named person or business and 4 were contradicted by your site's text. A fuller description of who you are and what you do on your site (your homepage, llms.txt file and structured data) gives us more of your site's own text to check answers against. Astrant Citation Visibility v6 (4 AI models)."
+      "Citation Visibility is not graded on this run: 20 of the 40 test answers could be checked against your site's text, and we grade it only when at least 24 can be checked, with at least 5 from each of the 4 AI models. It is not counted in your score. 20 of the answers that came back could not be checked against your site's text: 20 said things your site's text does not clearly back or contradict. A fuller description of who you are and what you do on your site (your homepage, llms.txt file and structured data) gives us more of your site's own text to check answers against. Astrant Citation Visibility v6 (4 AI models)."
     );
     expect(sc.notes.length).toBeLessThanOrEqual(DISPLAY_TEXT_MAX);
     const scan = { id: "s", url: "https://acme.com/", composite: { score: 50, grade: "D" }, dimensions_total: 6, created_at: 0, dimensions: [dimension] } as unknown as ScanResult;

@@ -180,6 +180,11 @@ const QUOTE_STOPWORDS = new Set(
 );
 const MIN_SHARED_RUN = 3;
 
+/** The content words of a text under the quote rule (3+ letters or digits, not a stopword), lowercased. */
+export function contentWords(s: string): Set<string> {
+  return new Set(tokens(normalizeForQuote(s).text).map((x) => x.w).filter((w) => w.length >= 3 && !QUOTE_STOPWORDS.has(w)));
+}
+
 /** Lowercase words of normalized text, with their start offsets in it. */
 function tokens(norm: string): Array<{ w: string; at: number }> {
   const out: Array<{ w: string; at: number }> = [];

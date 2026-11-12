@@ -20,6 +20,7 @@ import {
   type Dim6Result,
 } from "./types";
 import { DIM6_ENGINE_LINE } from "./disclosure";
+import { contentWords } from "./accuracy-judge";
 import {
   REFERENCE_HTML_MAX_BYTES,
   REFERENCE_JSONLD_MAX_DEPTH,
@@ -285,13 +286,18 @@ function countFlag(cells: CellEnvelope[], flag: string): number {
 // verdict is shown as what the AI said next to what the site's own text says;
 // counts say what was found, not who is right. Never "correct".
 const BACKED = "were backed by your site's text";
-const CHECKED = "test answers we could check";
+// Bruno 2026-11-12: "the answers we could check against your site".
+const CHECKED = "answers we could check against your site";
+const checkedOf = (n: number) => (n === 1 ? "answer we could check against your site" : CHECKED);
 const NAMES_DISCLOSURE = "We count your domain and the name your site gives itself; other brand names, nicknames or translations are not counted.";
 const MIXUP_ROW_TAIL =
   "Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score.";
 const CONTRA_ROW_TAIL =
   "If your site's text is out of date, updating it is the fix; if it is right, stating these facts clearly on your site (for example in your llms.txt file) gives AI assistants that read it the right details. This row is for information and is not counted again in your score.";
 const SITE_QUOTE_MAX_WORDS = 20;
+const NOT_COUNTED_AGAIN = "This row is for information and is not counted again in your score.";
+/** Under a section with no grade there is no score to count "again" in. */
+const ungradedTail = (tail: string) => tail.replace(NOT_COUNTED_AGAIN, "This row is for information.");
 
 /** The site's own words on the reference line holding `at`, field label removed, capped. */
 export function siteTextAt(reference: string, at: number, maxWords = SITE_QUOTE_MAX_WORDS): string {
@@ -357,17 +363,21 @@ function fitNote(build: (maxQuotes: number, maxWords: number) => string): string
  * named person or business, each with what the AI said, plus what the site
  * says about itself.
  */
-export function mixupRowNote(cells: CellEnvelope[], domain: string, measurableCount: number, wrong: number, cutOff: number, reference = ""): string {
+export function mixupRowNote(cells: CellEnvelope[], domain: string, measurableCount: number, wrong: number, cutOff: number, reference = "", graded = true): string {
+  const counts0 = (one: boolean) => (graded ? `; ${one ? "it counts" : "they count"} as 0 in the checks above.` : ".");
   const lead =
     wrong === 0
-      ? `None of the ${measurableCount} ${CHECKED} clearly linked your site to a different named person or business.`
-      : `${wrong} of the ${measurableCount} ${CHECKED} linked your site to a different named person or business; ${wrong === 1 ? "it counts" : "they count"} as 0 in the checks above.`;
+      ? `None of the ${measurableCount} ${checkedOf(measurableCount)} clearly linked your site to a different named person or business.`
+      : `${wrong} of the ${measurableCount} ${checkedOf(measurableCount)} linked your site to a different named person or business${counts0(wrong === 1)}`;
+  const cutHead = ` ${cutOff === 1 ? "1 answer was" : `${cutOff} answers were`} cut off by the AI's length limit after starting to describe a different person or business`;
   const cutSentence =
     cutOff === 0
       ? ""
-      : ` ${cutOff === 1 ? "1 answer was" : `${cutOff} answers were`} cut off by the AI's length limit after starting to describe a different person or business; ${
-          cutOff === 1 ? "it counts" : "they count"
-        } as 0 too, and ${wrong === 0 ? (cutOff === 1 ? "we do not count it" : "we do not count them") : cutOff === 1 ? "it is not included" : "they are not included"} in that number.`;
+      : graded
+        ? `${cutHead}; ${cutOff === 1 ? "it counts" : "they count"} as 0 too, and ${
+            wrong === 0 ? (cutOff === 1 ? "we do not count it" : "we do not count them") : cutOff === 1 ? "it is not included" : "they are not included"
+          } in that number.`
+        : `${cutHead}${wrong === 0 ? "" : `; ${cutOff === 1 ? "it is not included" : "they are not included"} in that number`}.`;
   const identity = siteIdentityText(reference);
   const siteSays = identity ? ` Your site describes itself as: "${identity}".` : "";
   return fitNote((maxQuotes, maxWords) => {
@@ -377,7 +387,7 @@ export function mixupRowNote(cells: CellEnvelope[], domain: string, measurableCo
       `${modelLabel(c.modelId)} said: "${pickEvidenceQuote(judgedText(c), domain, wrongAt(c), maxWords)}${suffix}"`;
     const quotes = [...confirmed.map((c) => quote(c)), ...cut.map((c) => quote(c, " (cut off)"))];
     const examples = quotes.length > 0 ? ` ${quotes.join("; ")}.` : "";
-    return `${lead}${cutSentence}${examples}${quotes.length > 0 ? siteSays : ""} ${MIXUP_ROW_TAIL}`;
+    return `${lead}${cutSentence}${examples}${quotes.length > 0 ? siteSays : ""} ${graded ? MIXUP_ROW_TAIL : ungradedTail(MIXUP_ROW_TAIL)}`;
   });
 }
 
@@ -385,11 +395,11 @@ export function mixupRowNote(cells: CellEnvelope[], domain: string, measurableCo
  * dim6:v6: the informational row for answers the site's own text contradicts
  * (right site, wrong facts): what the AI said and what the site says.
  */
-export function contradictedRowNote(cells: CellEnvelope[], measurableCount: number, count: number, reference = ""): string {
-  const lead = `${count} of the ${measurableCount} ${CHECKED} said something your site's text contradicts; ${count === 1 ? "it counts" : "they count"} as 0 in the checks above.`;
+export function contradictedRowNote(cells: CellEnvelope[], measurableCount: number, count: number, reference = "", graded = true): string {
+  const lead = `${count} of the ${measurableCount} ${checkedOf(measurableCount)} said something your site's text contradicts${graded ? `; ${count === 1 ? "it counts" : "they count"} as 0 in the checks above` : ""}.`;
   return fitNote((maxQuotes, maxWords) => {
     const examples = pickFlagged(cells, "facts_contradicted=true", maxQuotes).map((c) => saidVsSite(c, reference, maxWords));
-    return `${lead}${examples.length > 0 ? ` ${examples.join(". ")}.` : ""} ${CONTRA_ROW_TAIL}`;
+    return `${lead}${examples.length > 0 ? ` ${examples.join(". ")}.` : ""} ${graded ? CONTRA_ROW_TAIL : ungradedTail(CONTRA_ROW_TAIL)}`;
   });
 }
 
@@ -407,12 +417,47 @@ function saidVsSite(c: CellEnvelope, reference: string, maxWords: number): strin
  * the AI said next to the site's words that back it (the same evidence the
  * other rows show for mix-ups and contradictions).
  */
-export function backedRowNote(cells: CellEnvelope[], checkableCount: number, count: number, reference = ""): string {
-  const lead = `${count} of the ${checkableCount} ${CHECKED} ${count === 1 ? "was backed by your site's text" : BACKED}.`;
+/** Lowercase, accents removed, curly apostrophes straightened, hyphens and underscores as spaces, spaces collapsed. */
+function canonName(s: string): string {
+  return s
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[’‘]/g, "'")
+    .replace(/[-_‐-―]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+export function backedRowNote(cells: CellEnvelope[], checkableCount: number, count: number, reference = "", domain = "", siteNames: string[] = []): string {
+  const lead = `${count} of the ${checkableCount} ${checkedOf(checkableCount)} ${count === 1 ? "was backed by your site's text" : BACKED}.`;
   const hasEvidence = (c: CellEnvelope) => noteOffset(c, "claim_at") !== undefined && noteOffset(c, "site_at") !== undefined;
+  // Bruno 2026-11-12: show an example only when the site's words visibly back
+  // the answer: the two quotes share a content word other than the site's
+  // own name (else e.g. "Agent Instructions — Ugmonk" next to "a brand known
+  // for minimalist design"). Otherwise skip it and try the next; none left
+  // gives the count alone.
+  // The site's own name is masked out of both quotes as whole names (Codex
+  // 2026-11-12): any case, accents, hyphens and possessives ("Ugmonk's"), plus
+  // the domain with or without www and its first label. A word that is only
+  // part of a longer name (e.g. "foundation") still counts as a shared word.
+  const keyRef = stripUnsafeCharsKeepLines(reference);
+  const label = domain.split(".")[0] ?? "";
+  const names = [...new Set([...siteNames, `www.${domain}`, domain, label].map(canonName).filter((n) => n.length >= 2))].sort((a, b) => b.length - a.length);
+  const masked = (s: string) => {
+    let t = canonName(s);
+    for (const n of names) t = t.replace(new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRe(n)}(?:'s)?(?=$|[^\\p{L}\\p{N}])`, "gu"), "$1 ");
+    return contentWords(t);
+  };
+  const visiblyBacked = (maxWords: number) => (c: CellEnvelope) => {
+    const said = masked(pickEvidenceQuote(judgedText(c), "", noteOffset(c, "claim_at"), maxWords));
+    return [...masked(siteTextAt(keyRef, noteOffset(c, "site_at") ?? -1, maxWords))].some((w) => said.has(w));
+  };
   return fitNote((maxQuotes, maxWords) => {
-    const examples = pickFlagged(cells, "accuracy=CORRECT", maxQuotes, hasEvidence).map((c) => saidVsSite(c, reference, maxWords));
-    return `${lead}${examples.length > 0 ? ` For example: ${examples.join(". ")}.` : ""} This row is for information and is not counted again in your score.`;
+    const ok = visiblyBacked(maxWords);
+    const examples = pickFlagged(cells, "accuracy=CORRECT", maxQuotes, (c) => hasEvidence(c) && ok(c)).map((c) => saidVsSite(c, reference, maxWords));
+    return `${lead}${examples.length > 0 ? ` For example: ${examples.join(". ")}.` : ""} ${NOT_COUNTED_AGAIN}`;
   });
 }
 
@@ -494,7 +539,7 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
     contradicted > 0 ? `${contradicted} ${contradicted === 1 ? "was" : "were"} contradicted by your site's text` : null,
     `${unknown} did not show that the model knew your site`,
   ].filter((p): p is string => p !== null);
-  const breakdown = `Of the ${checkableCount} ${CHECKED}, ${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}.`;
+  const breakdown = `Of the ${checkableCount} ${checkedOf(checkableCount)}, ${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}.`;
 
   const subChecks: Dim6SubCheck[] = [
     {
@@ -557,35 +602,11 @@ export function buildSubChecks(result: Dim6Result, hasCompetitorList: boolean, d
       weight: 0,
       score: 0,
       passed: false,
-      notes: backedRowNote(cells, checkableCount, correct, reference),
+      notes: backedRowNote(cells, checkableCount, correct, reference, domain, result.siteNames ?? []),
       na: true,
     });
   }
-  if (checked && (wrong > 0 || cutOff > 0)) {
-    subChecks.push({
-      id: SUBCHECK_IDS.misidentified_answers,
-      name:
-        cutOff > 0
-          ? "Answers that linked, or may have linked, your site to a different person or business"
-          : "Answers that linked your site to a different person or business",
-      weight: 0,
-      score: 0,
-      passed: false,
-      notes: mixupRowNote(cells, domain, checkableCount, wrong, cutOff, reference),
-      na: true,
-    });
-  }
-  if (checked && contradicted > 0) {
-    subChecks.push({
-      id: SUBCHECK_IDS.contradicted_answers,
-      name: "Answers contradicted by your site's text",
-      weight: 0,
-      score: 0,
-      passed: false,
-      notes: contradictedRowNote(cells, checkableCount, contradicted, reference),
-      na: true,
-    });
-  }
+  subChecks.push(...evidenceRows(result, domain, true));
   // Option A: the uncheckable count always has its own line.
   subChecks.push({
     id: SUBCHECK_IDS.uncheckable_answers,
@@ -620,12 +641,8 @@ export function notEnoughEvidenceNote(
   const { parts, notBacked } = uncheckableBreakdown(cells);
   const unShort = counts.uncheckable > 0 ? ` ${counts.uncheckable} of the answers that came back could not be checked against your site's text.` : "";
   const un = counts.uncheckable > 0 ? `${unShort.slice(0, -1)}: ${joinClauses(parts)}.` : "";
-  const wrong = countFlag(cells, "misidentified=true");
-  const contradicted = countFlag(cells, "facts_contradicted=true");
-  const found =
-    wrong + contradicted > 0
-      ? ` Among the answers we could check, ${wrong} linked your site to a different named person or business and ${contradicted} ${contradicted === 1 ? "was" : "were"} contradicted by your site's text.`
-      : "";
+  // Mix-ups and contradictions are shown in their own rows under this note.
+  const found = "";
   // Advice only for what the site can fix: answers its text does not cover,
   // or its own description being unusable. Never for our failed checks.
   const checked = result.accuracyChecked === true;
@@ -648,6 +665,49 @@ export function notEnoughEvidenceNote(
     if (note.length <= DISPLAY_TEXT_MAX) return note;
   }
   return `${lead}${unShort}${why}`;
+}
+
+/**
+ * The informational mix-up and contradiction rows (na, weight 0), present only
+ * when the answers were checked and at least one was found. `graded` false:
+ * under a section with no grade (option A floor), worded without "the checks
+ * above".
+ */
+function evidenceRows(result: Dim6Result, domain: string, graded: boolean): Dim6SubCheck[] {
+  if (result.accuracyChecked !== true) return [];
+  const cells = result.cells;
+  const checkableCount = checkableCounts(cells).checkable;
+  const reference = result.referenceText ?? "";
+  const wrong = countFlag(cells, "misidentified=true");
+  const cutOff = countFlag(cells, "possible_mixup_cut_off=true");
+  const contradicted = countFlag(cells, "facts_contradicted=true");
+  const rows: Dim6SubCheck[] = [];
+  if (wrong > 0 || cutOff > 0) {
+    rows.push({
+      id: SUBCHECK_IDS.misidentified_answers,
+      name:
+        cutOff > 0
+          ? "Answers that linked, or may have linked, your site to a different person or business"
+          : "Answers that linked your site to a different person or business",
+      weight: 0,
+      score: 0,
+      passed: false,
+      notes: mixupRowNote(cells, domain, checkableCount, wrong, cutOff, reference, graded),
+      na: true,
+    });
+  }
+  if (contradicted > 0) {
+    rows.push({
+      id: SUBCHECK_IDS.contradicted_answers,
+      name: "Answers contradicted by your site's text",
+      weight: 0,
+      score: 0,
+      passed: false,
+      notes: contradictedRowNote(cells, checkableCount, contradicted, reference, graded),
+      na: true,
+    });
+  }
+  return rows;
 }
 
 /** Sub-check id of the N/A Dim 6 when too few answers were checkable (option A). */
@@ -783,7 +843,10 @@ export async function runDim6Paid(
     // safe direction is down. Missing/short → not checked (also 0).
     referenceBlocked: !reference.verifiable && reference.reason === "injection",
   });
-  if (reference.verifiable) result.referenceText = reference.text;
+  if (reference.verifiable) {
+    result.referenceText = reference.text;
+    result.siteNames = reference.names.map((n) => n.text);
+  }
   if (
     !reference.verifiable &&
     (reference.reason === "too_many_entities" || reference.reason === "source_too_large" || reference.reason === "structured_data_too_deep" || reference.reason === "structured_data_unreadable")
@@ -852,6 +915,8 @@ export function dim6FromResult(result: Dim6Result, hasCompetitorList: boolean, d
             notes: notEnoughEvidenceNote(result, counts, counts.meetsFloor ? failedGrades : null),
             na: true,
           },
+          // Bruno 2026-11-12: the mix-up and contradiction evidence stays visible with no grade.
+          ...evidenceRows(result, domain, false),
         ],
         unmeasured: true,
       },

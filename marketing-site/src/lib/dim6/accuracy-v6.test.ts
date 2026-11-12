@@ -589,11 +589,11 @@ describe("report notes: evidence, not verdicts", () => {
     const subs = buildSubChecks(result, false, SITE);
     const by = Object.fromEntries(subs.map((s) => [s.id, s]));
     expect(by.citation_domain_named_rate.notes).toContain(
-      "Of the 6 test answers we could check, 1 was backed by your site's text, 1 gave your homepage address when asked for it, 1 linked your site to a different named person or business, 1 was cut off by the AI's length limit after starting to describe a different person or business, 1 was contradicted by your site's text, and 1 did not show that the model knew your site."
+      "Of the 6 answers we could check against your site, 1 was backed by your site's text, 1 gave your homepage address when asked for it, 1 linked your site to a different named person or business, 1 was cut off by the AI's length limit after starting to describe a different person or business, 1 was contradicted by your site's text, and 1 did not show that the model knew your site."
     );
     expect(by.citation_contradicted_answers).toMatchObject({ na: true, weight: 0, name: "Answers contradicted by your site's text" });
     // the backed answer has no recorded offsets: the row gives the count without an example
-    expect(by.citation_backed_answers.notes).toBe("1 of the 6 test answers we could check was backed by your site's text. This row is for information and is not counted again in your score.");
+    expect(by.citation_backed_answers.notes).toBe("1 of the 6 answers we could check against your site was backed by your site's text. This row is for information and is not counted again in your score.");
     expect(by.citation_uncheckable_answers.notes).toBe("All 6 test answers that came back could be checked against your site's text. This row is for information and is not counted in your score.");
     expect(subs.map((s) => s.id)).toEqual([
       "citation_domain_named_rate",
@@ -614,13 +614,74 @@ describe("report notes: evidence, not verdicts", () => {
     for (const s of subs) expect(s.notes.length).toBeLessThanOrEqual(DISPLAY_TEXT_MAX);
   });
 
+  describe("backed examples need visible evidence (Bruno 2026-11-12)", () => {
+    const UG_REF = ["From llms.txt:", "Title: Agent Instructions — Ugmonk", "Summary: Ugmonk designs analog tools for focused, intentional work."].join("\n");
+    const at = (needle: string) => UG_REF.indexOf(needle);
+    const backed = (model: ModelId, q: string, text: string, siteNeedle: string) =>
+      cell(model, q, `${CORRECT}; claim_at=0; site_at=${at(siteNeedle)}`, text, 100);
+    const brand = backed("openai:gpt-4o", "q1", "The domain ugmonk.com belongs to Ugmonk, a brand known for its minimalist and thoughtfully designed products.", "Agent Instructions");
+    const tools = backed("anthropic:claude-sonnet", "q2", "Ugmonk designs analog tools for focused work.", "Ugmonk designs");
+
+    it("skips the Ugmonk 'Agent Instructions — Ugmonk' example: no shared word but the site's own name", () => {
+      const note = backedRowNote([brand, tools], 2, 2, UG_REF, "ugmonk.com", ["Ugmonk"]);
+      expect(note).not.toContain("Agent Instructions");
+      expect(note).not.toContain("ChatGPT said");
+      expect(note).toContain('Claude said: "Ugmonk designs analog tools for focused work."; your site says: "Ugmonk designs analog tools for focused, intentional work."');
+    });
+
+    it("none qualify: the count sentence alone", () => {
+      expect(backedRowNote([brand], 1, 1, UG_REF, "ugmonk.com", ["Ugmonk"])).toBe(
+        "1 of the 1 answer we could check against your site was backed by your site's text. This row is for information and is not counted again in your score."
+      );
+    });
+
+    it("the site's name is ignored whether it comes from the site's names or the domain (EFF)", () => {
+      const ref = "Name: Electronic Frontier Foundation (EFF)\nSummary: a nonprofit defending civil liberties in the digital world";
+      const nameOnly = cell("google:gemini-2.5-flash", "q3", `${CORRECT}; claim_at=0; site_at=0`, "eff.org belongs to the Electronic Frontier Foundation (EFF).", 100);
+      const fact = cell("perplexity:sonar", "q4", `${CORRECT}; claim_at=0; site_at=${ref.indexOf("a nonprofit")}`, "EFF is a nonprofit that defends digital rights.", 100);
+      const note = backedRowNote([nameOnly, fact], 2, 2, ref, "eff.org", ["Electronic Frontier Foundation", "EFF"]);
+      expect(note).not.toContain("Gemini said");
+      expect(note).toContain("Perplexity said");
+      // with the names unknown, the domain label alone still hides the "EFF" match
+      expect(backedRowNote([cell("google:gemini-2.5-flash", "q5", `${CORRECT}; claim_at=0; site_at=0`, "It is EFF.", 100)], 1, 1, "Name: EFF", "eff.org", [])).not.toContain("said");
+    });
+
+    it("name variants never count as evidence; a word that is only part of the name still does (Codex 2026-11-12)", () => {
+      const one = (said: string, site: string, domain: string, names: string[]) => {
+        const ref = `Summary: ${site}`;
+        const c = cell("perplexity:sonar", "q1", `${CORRECT}; claim_at=0; site_at=${ref.indexOf(site)}`, said, 100);
+        return backedRowNote([c], 1, 1, ref, domain, names).includes("Perplexity said");
+      };
+      // possessive, curly apostrophe
+      expect(one("Ugmonk’s minimalist products.", "Ugmonk's instructions", "ugmonk.com", ["Ugmonk"])).toBe(false);
+      // accents and case
+      expect(one("CAFE LUZ serves breakfast.", "Café Luz", "cafeluz.pt", ["Café Luz"])).toBe(false);
+      // hyphenated form of a multi-word name
+      expect(one("The Electronic-Frontier-Foundation site.", "Electronic Frontier Foundation", "eff.org", ["Electronic Frontier Foundation"])).toBe(false);
+      // the whole domain, with or without www
+      expect(one("ugmonk.com sells minimalist products.", "Instructions for www.ugmonk.com", "ugmonk.com", ["Ugmonk"])).toBe(false);
+      expect(one("Visit www.ugmonk.com today.", "Instructions for ugmonk.com", "ugmonk.com", [])).toBe(false);
+      // a word that is only part of the name is a fact word: shown
+      expect(one("It is a nonprofit foundation.", "An independent foundation", "eff.org", ["Electronic Frontier Foundation", "EFF"])).toBe(true);
+      // a real shared fact word next to the name: shown
+      expect(one("Ugmonk's analog tools.", "Ugmonk designs analog tools", "ugmonk.com", ["Ugmonk"])).toBe(true);
+    });
+
+    it("buildSubChecks passes the site's names through", () => {
+      const result = { ...aggregateCells([brand, tools], true), referenceText: UG_REF, siteNames: ["Ugmonk"] };
+      const row = buildSubChecks(result, false, "ugmonk.com").find((s) => s.id === "citation_backed_answers")!;
+      expect(row.notes).not.toContain("Agent Instructions");
+      expect(row.notes).toContain("Claude said");
+    });
+  });
+
   it("the backed row quotes what the AI said next to the site's words that back it", () => {
     const said = "anasilva.com.br is a physiotherapy practice in Recife.";
     const at = ANA_REF.indexOf("Consultório");
     const backed = cell("perplexity:sonar", "q1", `${CORRECT}; claim_at=0; site_at=${at}`, said, 100);
     const note = backedRowNote([backed, cell("openai:gpt-4o", "q2", CORRECT, "no offsets", 100)], 2, 2, ANA_REF);
     expect(note).toBe(
-      `2 of the 2 test answers we could check were backed by your site's text. For example: Perplexity said: "${said}"; your site says: "Consultório: Rua das Flores, 20, Recife. Atendimento para adultos e atletas.". This row is for information and is not counted again in your score.`
+      `2 of the 2 answers we could check against your site were backed by your site's text. For example: Perplexity said: "${said}"; your site says: "Consultório: Rua das Flores, 20, Recife. Atendimento para adultos e atletas.". This row is for information and is not counted again in your score.`
     );
   });
 

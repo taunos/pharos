@@ -790,10 +790,10 @@ describe("report output", () => {
     expect(by.citation_url_referenced_rate.score).toBe(14);
     expect(result.score).toBe(14);
     expect(by.citation_domain_named_rate.notes).toBe(
-      "14% of the test answers we could check named your site (by its domain or the name your site gives itself) and were backed by your site's text. Of the 7 test answers we could check, 1 was backed by your site's text, 4 linked your site to a different named person or business, and 2 did not show that the model knew your site. We count your domain and the name your site gives itself; other brand names, nicknames or translations are not counted. 8 of 8 test answers came back from the 4 AI models, and 7 of those could be checked against your site's text and are counted in this score. Average answer score by model (0 to 100): ChatGPT 0, Claude 0, Gemini 0, Perplexity 50."
+      "14% of the answers we could check against your site named your site (by its domain or the name your site gives itself) and were backed by your site's text. Of the 7 answers we could check against your site, 1 was backed by your site's text, 4 linked your site to a different named person or business, and 2 did not show that the model knew your site. We count your domain and the name your site gives itself; other brand names, nicknames or translations are not counted. 8 of 8 test answers came back from the 4 AI models, and 7 of those could be checked against your site's text and are counted in this score. Average answer score by model (0 to 100): ChatGPT 0, Claude 0, Gemini 0, Perplexity 50."
     );
     expect(by.citation_url_referenced_rate.notes).toBe(
-      "14% of the test answers we could check included a link to your site and either were backed by your site's text, or gave your homepage address when asked for it."
+      "14% of the answers we could check against your site included a link to your site and either were backed by your site's text, or gave your homepage address when asked for it."
     );
     expect(by.citation_uncheckable_answers).toMatchObject({ na: true, weight: 0, score: 0, passed: false });
     expect(by.citation_uncheckable_answers.notes).toBe(
@@ -805,7 +805,7 @@ describe("report output", () => {
     const row = buildSubChecks(result, false, "acme.com").find((s) => s.id === "citation_misidentified_answers")!;
     expect(row).toMatchObject({ na: true, weight: 0, score: 0, passed: false });
     expect(row.notes).toBe(
-      `4 of the 7 test answers we could check linked your site to a different named person or business; they count as 0 in the checks above. Gemini said: "acme.com is the official site of <script>alert(1)</script> 'Acme Corp', a rocket maker. More."; ChatGPT said: "Acme.com is a dress shop selling party dresses."; Gemini said: "acme.com sells shoes.". Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score.`
+      `4 of the 7 answers we could check against your site linked your site to a different named person or business; they count as 0 in the checks above. Gemini said: "acme.com is the official site of <script>alert(1)</script> 'Acme Corp', a rocket maker. More."; ChatGPT said: "Acme.com is a dress shop selling party dresses."; Gemini said: "acme.com sells shoes.". Saying clearly who you are and what you do in your llms.txt file, structured data and homepage gives AI assistants that read your site the right description. It does not change what a model has already learned, so results can take time to change. This row is for information and is not counted again in your score.`
     );
     expect(pickWrongAnswerQuotes(cells, "acme.com").map((q) => q.model)).toEqual(["Gemini", "ChatGPT", "Gemini"]);
   });
@@ -830,7 +830,7 @@ describe("report output", () => {
     expect(subs.map((s) => s.id)).not.toContain("citation_misidentified_answers");
     expect(subs[0].score).toBe(0);
     expect(subs[0].notes).toBe(
-      "0% of the test answers we could check named your domain. We could not find or read a clear description of your site on it, so the 2 answers that said the model knew your site could not be checked and were counted as 0. To fix this, say who you are and what you do in an llms.txt file, in structured data, or in your homepage title and description. 3 of 3 test answers came back from the 4 AI models, and 3 of those could be checked against your site's text and are counted in this score. Average answer score by model (0 to 100): ChatGPT 0, Claude not measured, Gemini not measured, Perplexity not measured."
+      "0% of the answers we could check against your site named your domain. We could not find or read a clear description of your site on it, so the 2 answers that said the model knew your site could not be checked and were counted as 0. To fix this, say who you are and what you do in an llms.txt file, in structured data, or in your homepage title and description. 3 of 3 test answers came back from the 4 AI models, and 3 of those could be checked against your site's text and are counted in this score. Average answer score by model (0 to 100): ChatGPT 0, Claude not measured, Gemini not measured, Perplexity not measured."
     );
     expect(subs.find((s) => s.id === "citation_uncheckable_answers")!.notes).toBe(
       "All 3 test answers that came back could be checked against your site's text. This row is for information and is not counted in your score."
@@ -844,7 +844,7 @@ describe("report output", () => {
     const r = aggregateCells([cells[0], cells[5], env("openai:gpt-4o", "q7", FAILED), env("openai:gpt-4o", "q8", DENY)], true);
     const subs = buildSubChecks(r, false, "acme.com");
     expect(subs[0].notes).toContain(
-      "Of the 2 test answers we could check, 1 was backed by your site's text, 0 linked your site to a different named person or business, and 1 did not show that the model knew your site."
+      "Of the 2 answers we could check against your site, 1 was backed by your site's text, 0 linked your site to a different named person or business, and 1 did not show that the model knew your site."
     );
     expect(subs.find((s) => s.id === "citation_uncheckable_answers")!.notes).toBe(
       "2 of the 4 test answers that came back are not counted in this score, because we could not check them against your site's text: 1 said things your site's text does not clearly back or contradict and 1 could not be checked because one of our checks failed. A fuller description of who you are and what you do on your site (your homepage, llms.txt file and structured data) gives us more of your site's own text to check answers against. This row is for information and is not counted in your score."
@@ -954,7 +954,7 @@ describe("injected site description: safe direction is down", () => {
     expect(blocked.calls.some((c) => c.model === ACCURACY_MODEL)).toBe(false);
     const dn = blocked.r.dimension.sub_checks.find((s) => s.id === "citation_domain_named_rate")!;
     expect(dn.notes).toBe(
-      `0% of the test answers we could check named your domain. ${accuracyBlockedNote(40)} 40 of 40 test answers came back from the 4 AI models, and 40 of those could be checked against your site's text and are counted in this score. Average answer score by model (0 to 100): ChatGPT 0, Claude 0, Gemini 0, Perplexity 0.`
+      `0% of the answers we could check against your site named your domain. ${accuracyBlockedNote(40)} 40 of 40 test answers came back from the 4 AI models, and 40 of those could be checked against your site's text and are counted in this score. Average answer score by model (0 to 100): ChatGPT 0, Claude 0, Gemini 0, Perplexity 0.`
     );
     expect(dn.notes).toContain("text aimed at automated checkers");
     expect(blocked.r.dimension.sub_checks.map((s) => s.id)).not.toContain("citation_misidentified_answers");

@@ -94,6 +94,7 @@ export const DIM6_DISCLOSURE = {
 // External naming (Bruno 2026-11-07): "Astrant Citation Visibility v<N>", never
 // the internal "dim6:v<N>", and not "Astrant Score v<N>" (that would read as the
 // scanner's own version, printed separately as "Engine: v1.x.y").
-export const DIM6_ENGINE_LINE = `Astrant Citation Visibility ${DIM6_ENGINE_VERSION.replace(/^dim6:/, "")} (${ALL_MODEL_IDS.length} AI models)`;
+export const DIM6_ENGINE_NAME = `Astrant Citation Visibility ${DIM6_ENGINE_VERSION.replace(/^dim6:/, "")}`;
+export const DIM6_ENGINE_LINE = `${DIM6_ENGINE_NAME} (${ALL_MODEL_IDS.length} AI models)`;
 
 export type Dim6Disclosure = typeof DIM6_DISCLOSURE;

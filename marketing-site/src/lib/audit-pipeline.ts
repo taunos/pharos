@@ -19,6 +19,8 @@ import type {
 import {
   AUDIT_REPORT_COPY,
   buildAuditReportModel,
+  naGradeOf,
+  naLabelOf,
   type ScoreBand,
 } from "./audit-report-model";
 import { DIMENSION_WEIGHTS, isGap, orderGaps } from "./audit-gaps";
@@ -205,12 +207,16 @@ export function renderAuditHtml(audit: AuditResult, sessionId: string): string {
         return `
       <section class="dim">
         <div class="dim-head">
-          <h3>${escapeHtml(d.name)} <span style="font-size:9pt;font-family:ui-monospace,monospace;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">${d.unmeasured ? C.naLabelUnmeasured : C.naLabel}</span></h3>
+          <h3>${escapeHtml(d.name)} <span style="font-size:9pt;font-family:ui-monospace,monospace;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">${escapeHtml(naLabelOf(d))}</span></h3>
           <div class="dim-score">
-            <span class="dim-grade" style="color:#64748b;font-style:italic;">${d.unmeasured ? C.naGradeUnmeasured : C.naGrade}</span>
+            <span class="dim-grade" style="color:#64748b;font-style:italic;">${escapeHtml(naGradeOf(d))}</span>
           </div>
         </div>
-        <p style="font-size:10pt;color:#64748b;margin:6pt 0;">${escapeHtml(d.note)}</p>
+        <p style="font-size:10pt;color:#64748b;margin:6pt 0;">${escapeHtml(d.note)}</p>${(d.evidence ?? [])
+          .map((e) => `
+        <p style="font-size:10pt;margin:8pt 0 2pt;font-weight:600;">${escapeHtml(e.name)}</p>
+        <p style="font-size:10pt;color:#64748b;margin:0 0 6pt;">${escapeHtml(e.notes)}</p>`)
+          .join("")}
       </section>`;
       }
       const subs = d.checks

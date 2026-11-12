@@ -90,7 +90,7 @@ describe("report cells (RD-0122, RD-0123)", () => {
     const cells = models.flatMap((m, i) => [cell(m, `q${i}`, WRONG, long(`${"W".repeat(9)} acme.com is someone else entirely`)), cell(m, `q${i + 5}`, WRONG, long("acme.com is another business"))]);
     const note = mixupRowNote(cells, "acme.com", 40, 8, 0);
     expect(note.length).toBeLessThanOrEqual(DISPLAY_TEXT_MAX);
-    expect(note.startsWith("8 of the 40 test answers we could check linked your site to a different named person or business")).toBe(true);
+    expect(note.startsWith("8 of the 40 answers we could check against your site linked your site to a different named person or business")).toBe(true);
     expect(note).toMatch(/This row is for information and is not counted again in your score\.$/);
     expect(note).toContain(" said: \"");
   });

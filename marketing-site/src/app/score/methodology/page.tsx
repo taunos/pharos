@@ -12,7 +12,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { DIM6_DISCLOSURE, DIM6_ENGINE_LINE } from "@/lib/dim6/disclosure";
+import { DIM6_DISCLOSURE, DIM6_ENGINE_LINE, DIM6_ENGINE_NAME } from "@/lib/dim6/disclosure";
 import { VERSION_COMPARABILITY_NOTICE } from "@/lib/version-notice";
 
 export const metadata: Metadata = {
@@ -71,7 +71,7 @@ export default function MethodologyPage() {
             Dimension 6 — Citation Visibility
           </h2>
           <p className="mt-2 text-sm text-[var(--color-muted)] italic">
-            Weight 20 · Engine v1 · 4 hosted models · ~10 prompts · ~40 test answers per audit
+            Weight 20 · {DIM6_ENGINE_NAME} · 4 hosted models · ~10 prompts · ~40 test answers per audit
           </p>
           <div className="mt-6 flex flex-col gap-5 text-base text-[var(--color-muted)]">
             {longParagraphs.map((p, i) => (
@@ -91,15 +91,15 @@ export default function MethodologyPage() {
           <ul className="mt-4 flex flex-col gap-3 text-sm text-[var(--color-muted)]">
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_domain_named_rate</span>{" "}
-              (weight 40) — what fraction of the test answers we could check named your site (by its domain or the name your site gives itself) and were backed by your site&apos;s text. Each answer is compared with how your site describes itself (your llms.txt file, structured data, and homepage title, description and main heading), and the report shows the evidence: what the AI said next to what your site says. An answer is backed only when the words that answer the question are backed by your site&apos;s text. An answer that does not show the model knows your site scores 0. A guess, or a claim your site&apos;s text does not cover (for example how well known you are), is not enough evidence: it is left out of the score and counted on its own line. If your structured data states street addresses, an answer is backed only if every street address it gives is one we could extract from your structured data or homepage text. If your site has no clear description we can read, the answers that say they know your site cannot be checked and count as 0, and the report says so and how to fix it.
+              (weight 40) — what fraction of the answers we could check against your site named your site (by its domain or the name your site gives itself) and were backed by your site&apos;s text. Each answer is compared with how your site describes itself (your llms.txt file, structured data, and homepage title, description and main heading), and the report shows the evidence: what the AI said next to what your site says. An answer is backed only when the words that answer the question are backed by your site&apos;s text. An answer that does not show the model knows your site scores 0. A guess, or a claim your site&apos;s text does not cover (for example how well known you are), is not enough evidence: it is left out of the score and counted on its own line. If your structured data states street addresses, an answer is backed only if every street address it gives is one we could extract from your structured data or homepage text. If your site has no clear description we can read, the answers that say they know your site cannot be checked and count as 0, and the report says so and how to fix it.
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_url_referenced_rate</span>{" "}
-              (weight 30) — what fraction of the test answers we could check included an actual URL on your host (not just the brand name) and were backed by your site&apos;s text, plus plain answers that gave your homepage address when asked for it.
+              (weight 30) — what fraction of the answers we could check against your site included an actual URL on your host (not just the brand name) and were backed by your site&apos;s text, plus plain answers that gave your homepage address when asked for it.
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_context_relevant_rate</span>{" "}
-              (weight 20) — what fraction of the test answers we could check were backed by your site&apos;s text and named your site (by its domain or its own name) in the first half of the response (vs a footer-style mention).
+              (weight 20) — what fraction of the answers we could check against your site were backed by your site&apos;s text and named your site (by its domain or its own name) in the first half of the response (vs a footer-style mention).
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_no_competitor_first_rate</span>{" "}
@@ -107,7 +107,7 @@ export default function MethodologyPage() {
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_backed_answers</span>{" "}
-              (not weighted) — shown only when at least one answer was backed by your site&apos;s text. Up to three examples, each with what the AI said and the words on your site that back it. For information only; it is not counted again in your score.
+              (not weighted) — shown only when at least one answer was backed by your site&apos;s text. Up to three examples, each with what the AI said and the words on your site that back it; an example is shown only when the two share a word other than your site&apos;s own name. For information only; it is not counted again in your score.
             </li>
             <li>
               <span className="text-[var(--color-fg)] font-semibold">citation_misidentified_answers</span>{" "}

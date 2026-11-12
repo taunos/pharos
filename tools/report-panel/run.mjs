@@ -315,7 +315,8 @@ function toMarkdown(m, C, banner) {
   L.push(`## ${C.dimensionsHeading}`, "");
   for (const d of m.dimensions) {
     if (d.kind === "na") {
-      L.push(`### ${d.name} — ${C.naLabel} (${d.unmeasured ? C.naGradeUnmeasured : C.naGrade})`, "", d.note, "");
+      L.push(`### ${d.name} — ${M.reportModel.naLabelOf(d)} (${M.reportModel.naGradeOf(d)})`, "", d.note, "");
+      for (const e of d.evidence ?? []) L.push(`**${e.name}:** ${e.notes}`, "");
       continue;
     }
     L.push(`### ${d.name} — ${d.score} ${d.grade}`, "", `| ${C.checkColumns.join(" | ")} |`, "|---|---|---|---|");
