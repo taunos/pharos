@@ -5,7 +5,7 @@
 ## Services
 
 - [Astrant Score v1.3.1](/score.md): Free. URL-input scan across 6 dimensions — dimensions 1–5 scored live; dimension 6 (Citation Visibility) is a static demo preview on the free tier and runs live across 4 AI models with the $79 Audit. Live now at astrant.io/score.
-- [AEO Audit](/audit.md): $79 one-time, delivered in a few minutes. Rich PDF — 6-dimension deep analysis, per-gap remediation with effort estimates, one-time Citation Visibility snapshot across ChatGPT/Claude/Perplexity/Gemini, machine-readable JSON export.
+- [AEO Audit](/audit.md): $79 one-time, checked by hand before delivery (usually within 1 business day). Rich PDF — 6-dimension deep analysis, per-gap remediation with effort estimates, one-time Citation Visibility snapshot across ChatGPT/Claude/Perplexity/Gemini, machine-readable JSON export.
 - [AEO Implementation](/implementation.md): Not open yet. $1,299 one-time, <24h delivery. Automated build: llms.txt, MCP server, OpenAPI spec, JSON-LD schema, baseline monitoring. Delivered as a PR against your repo. For standard B2B SaaS sites.
 - [Custom Implementation](/custom.md): From $4,999. Bespoke builds for complex APIs, multi-region content, custom MCP tools, deep content rewrites, or multi-stakeholder engagements. Scoping call + fixed quote + 2–4 week build.
 - [Standard Subscription](/subscriptions.md): Not open yet. $149/month, month-to-month. Twice-weekly citation probes detecting mentions of your brand and tracked competitors across ChatGPT, Claude, Perplexity, Gemini — see which competitors show up in your category; monthly 6-section agent-citation report; monthly Astrant Score recalibration; hosted MCP endpoint.

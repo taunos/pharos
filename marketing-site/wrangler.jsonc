@@ -104,6 +104,12 @@
 		// check found the v5 accuracy judge flags correct answers as mix-ups
 		// (RD-0102..0106).
 		"AUDIT_CHECKOUT_ENABLED": "false",
+		// Review hold (lib/audit-review-hold.ts): the first N paid standalone
+		// Audit orders are generated but not delivered until released via
+		// /api/internal/audit-review. Counted in CITATION_DB.audit_review_holds
+		// (migration 0019 — apply BEFORE deploying this). Fail-closed: absent or
+		// malformed → 10; "0" = no hold.
+		"AUDIT_REVIEW_HOLD_COUNT": "10",
 		// /api/audit-create per-IP limit per hour.
 		"AUDIT_CHECKOUT_RATE_LIMIT": "5",
 		// Test C-B: canonical public origin for links in the Audit buyer email

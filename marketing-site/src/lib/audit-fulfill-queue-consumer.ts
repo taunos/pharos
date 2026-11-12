@@ -43,6 +43,9 @@ export const RECHECK_DELAY_SEC = 60;
 export const MAX_RECHECKS = 10; // ~10 min of rechecks
 export const CAP_DEFERRAL_DELAY_SEC = 6 * 3600; // 21600
 export const CAP_DEFERRAL_ALERT_AT = 2;
+// Review hold: re-check a held order whose generation lease another run holds
+// once that lease (30 min, lib/audit-review-hold.ts) has expired.
+export const GENERATION_RECHECK_DELAY_SEC = 31 * 60;
 // R2-8: the synthetic queue smoke uses `smoke-<uuid>` session ids.
 export const SMOKE_SESSION_PREFIX = "smoke-";
 
@@ -157,6 +160,19 @@ export async function auditFulfillQueueHandler(
           // Webhook enqueues BEFORE writing `fulfilling` (R2-1) — recheck.
           recheckReason = "not_yet_paid";
           break;
+        case "generation_in_progress": {
+          // Fresh message past the lease: if the holder finished, the run
+          // no-ops on `ready`; if it died, this run takes the expired lease.
+          const rechecks = msg.rechecks + 1;
+          if (rechecks > MAX_RECHECKS) {
+            console.error(`AUDIT_FULFILL_RECHECKS_EXHAUSTED session_id=${sessionId} reason=generation_in_progress`);
+            await alertOperator(env, "AUDIT_FULFILL_RECHECKS_EXHAUSTED", sessionId, "reason=generation_in_progress");
+          } else {
+            await env.AUDIT_FULFILL_QUEUE.send({ ...msg, rechecks }, { delaySeconds: GENERATION_RECHECK_DELAY_SEC });
+            console.log(`AUDIT_FULFILL_RECHECK session_id=${sessionId} reason=generation_in_progress rechecks=${rechecks}`);
+          }
+          break;
+        }
         case "cap_deferred": {
           // Fresh message so cap deferrals never consume `attempts` (R2-2).
           const deferrals = msg.deferrals + 1;

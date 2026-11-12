@@ -33,6 +33,39 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
+describe("POST /api/audit-fulfill — review hold", () => {
+  it("passes mayGenerateHeld:false; a held order is handed to the audit queue (202), not generated here", async () => {
+    const auditSend = vi.fn(async () => undefined);
+    state.env = { INTERNAL_FULFILL_KEY: KEY, AUDIT_FULFILL_QUEUE: { send: auditSend }, PUBLIC_ORIGIN: "https://astrant.io" };
+    vi.mocked(runAuditFulfillment).mockResolvedValueOnce({ kind: "held_requires_queue" });
+    const { POST } = await import("./route");
+    const res = await POST(req("11111111-2222-4333-8444-555555555555"));
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ ok: true, enqueued: true, review_held: true });
+    expect(vi.mocked(runAuditFulfillment).mock.calls[0][3]).toMatchObject({ mayGenerateHeld: false });
+    expect(auditSend).toHaveBeenCalledWith({
+      session_id: "11111111-2222-4333-8444-555555555555",
+      origin: "https://astrant.io",
+    });
+  });
+});
+
+describe("POST /api/audit-fulfill — review hold hand-off failure", () => {
+  it("enqueue throws → 503, session NOT marked error", async () => {
+    const { writeAuditSession } = await import("@/lib/audit-fulfill-run");
+    vi.mocked(writeAuditSession).mockClear();
+    state.env = {
+      INTERNAL_FULFILL_KEY: KEY,
+      AUDIT_FULFILL_QUEUE: { send: vi.fn(async () => { throw new Error("queue down"); }) },
+    };
+    vi.mocked(runAuditFulfillment).mockResolvedValueOnce({ kind: "held_requires_queue" });
+    const { POST } = await import("./route");
+    const res = await POST(req("11111111-2222-4333-8444-555555555555"));
+    expect(res.status).toBe(503);
+    expect(writeAuditSession).not.toHaveBeenCalled();
+  });
+});
+
 describe("POST /api/audit-fulfill — impl-day (Slice Q)", () => {
   it("impl-day id → enqueue {kind:impl_day} → 202; no run in the request", async () => {
     const { POST } = await import("./route");
@@ -106,6 +139,7 @@ describe("POST /api/audit-fulfill — impl-day (Slice Q)", () => {
     expect(res.status).toBe(200);
     expect(runAuditFulfillment).toHaveBeenCalledWith(state.env, "ap-sub_x-123", "https://astrant.io", {
       onCap: "partial",
+      mayGenerateHeld: false,
     });
     expect(state.send).not.toHaveBeenCalled();
   });

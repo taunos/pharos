@@ -11,6 +11,7 @@ import {
   buildAuditReportModel,
   type AuditReportModel,
 } from "@/lib/audit-report-model";
+import { AUDIT_REVIEW_HOLD_STATUS_TITLE } from "@/lib/audit-review-hold";
 
 type StatusPayload =
   | { ok: true; status: "awaiting_payment"; message: string }
@@ -19,7 +20,10 @@ type StatusPayload =
       status: "fulfilling";
       message: string;
       started_at?: number;
+      review_hold?: true;
     }
+  // Review hold (lib/audit-review-hold.ts): report generated, withheld.
+  | { ok: true; status: "in_review"; message: string }
   | {
       ok: true;
       status: "ready";
@@ -38,6 +42,8 @@ type StatusPayload =
   | { ok: false; error: string };
 
 const POLL_INTERVAL_MS = 2000;
+// A held report waits for a person; poll slowly so release shows up.
+const REVIEW_POLL_INTERVAL_MS = 60 * 1000;
 const SOFT_TIMEOUT_MS = 5 * 60 * 1000;
 
 function gradeColor(grade?: string): string {
@@ -74,11 +80,14 @@ function isTerminal(p: StatusPayload | null): boolean {
 export default function AuditResultsPoller({
   sessionId,
   intro,
+  heldIntro,
   afterPaid,
 }: {
   sessionId: string;
   // The page's "Hold tight…" paragraph: shown until the audit is ready.
   intro?: ReactNode;
+  // Replaces `intro` while a review-held order is still running.
+  heldIntro?: ReactNode;
   // Shown under the status once payment is confirmed (fulfilling / ready).
   afterPaid?: ReactNode;
 }) {
@@ -133,12 +142,13 @@ export default function AuditResultsPoller({
   // Schedule the next poll based on current payload.
   useEffect(() => {
     if (isTerminal(payload)) return;
+    const inReview = !!payload && payload.ok && payload.status === "in_review";
     const handle = setTimeout(() => {
-      if (Date.now() - startTsRef.current > SOFT_TIMEOUT_MS) {
+      if (!inReview && Date.now() - startTsRef.current > SOFT_TIMEOUT_MS) {
         setSoftTimedOut(true);
       }
       void fetchStatus();
-    }, POLL_INTERVAL_MS);
+    }, inReview ? REVIEW_POLL_INTERVAL_MS : POLL_INTERVAL_MS);
     return () => clearTimeout(handle);
   }, [payload, fetchStatus]);
 
@@ -147,11 +157,19 @@ export default function AuditResultsPoller({
   }
 
   const isReady = !!payload && payload.ok && payload.status === "ready";
+  const isInReview = !!payload && payload.ok && payload.status === "in_review";
   const isPaid =
-    !!payload && payload.ok && (payload.status === "fulfilling" || payload.status === "ready");
+    !!payload &&
+    payload.ok &&
+    (payload.status === "fulfilling" || payload.status === "ready" || payload.status === "in_review");
   const frame = (body: ReactNode) => (
     <>
-      {isReady ? null : intro}
+      {/* The intro promises minutes and an email; neither holds while in review. */}
+      {isReady || isInReview
+        ? null
+        : payload?.ok && payload.status === "fulfilling" && payload.review_hold
+          ? (heldIntro ?? intro)
+          : intro}
       <p className="mt-2 text-xs font-mono text-[var(--color-muted)]">
         Session: {sessionId}
       </p>
@@ -257,6 +275,15 @@ export default function AuditResultsPoller({
             className="size-5 animate-spin rounded-full border-2 border-[var(--color-border)] border-t-[var(--color-fg)] motion-reduce:animate-[spin_3s_linear_infinite]"
           />
         ) : null}
+      </div>
+    );
+  }
+
+  if (payload.status === "in_review") {
+    return frame(
+      <div className="mt-8 border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6">
+        <p className="font-semibold text-[var(--color-fg)]">{AUDIT_REVIEW_HOLD_STATUS_TITLE}</p>
+        <p className="mt-3 text-[var(--color-muted)]">{payload.message}</p>
       </div>
     );
   }

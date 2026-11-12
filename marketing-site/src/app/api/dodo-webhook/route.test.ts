@@ -138,7 +138,8 @@ beforeEach(() => {
   state.queueBound = true;
   state.failSessionPut = false;
   state.publicOrigin = undefined;
-  state.sq = null;
+  // Review hold (migration 0019): the audit branch decides the hold at payment.
+  state.sq = createSqliteD1([readMigration("0019_audit_review_holds.sql")]);
   state.fulfillSend = vi.fn(async () => undefined);
   state.fulfillBound = true;
   state.maxProbeTargets = undefined;
@@ -197,6 +198,28 @@ describe("POST /api/dodo-webhook — audit tier", () => {
     expect(keys[keys.length - 1]).toBe("webhook:wh_1");
     // Enqueue happened before any session write.
     expect(state.send.mock.invocationCallOrder[0]).toBeLessThan(kv.put.mock.invocationCallOrder[0]);
+  });
+
+  it("review hold: the slot is decided at payment, before the enqueue (payment order)", async () => {
+    seed("awaiting_payment");
+    const { POST } = await import("./route");
+    expect((await POST(webhook())).status).toBe(200);
+    const row = state.sq!.db.prepare(`SELECT held FROM audit_review_holds WHERE session_id = ?`).get(SID) as
+      | { held: number }
+      | undefined;
+    expect(row?.held).toBe(1);
+    const decideCall = state.sq!.calls.findIndex((c) => c.sql.includes("INSERT OR IGNORE INTO audit_review_holds"));
+    expect(decideCall).toBeGreaterThanOrEqual(0);
+  });
+
+  it("review hold: D1 down at payment → 500, no enqueue, no state change, no dedupe (Dodo retries)", async () => {
+    seed("awaiting_payment");
+    state.sq!.failWhen = () => true;
+    const { POST } = await import("./route");
+    expect((await POST(webhook())).status).toBe(500);
+    expect(state.send).not.toHaveBeenCalled();
+    expect(session().status).toBe("awaiting_payment");
+    expect(state.store.has("webhook:wh_1")).toBe(false);
   });
 
   it("fulfilling WITHOUT enqueued_at (pre-C-A / crashed write) → enqueue, keeps paid_at", async () => {

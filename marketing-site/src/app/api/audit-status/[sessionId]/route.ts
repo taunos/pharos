@@ -1,14 +1,23 @@
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { SessionRecord } from "@/lib/audit-types";
+import {
+  AUDIT_REVIEW_HOLD_STATUS_MESSAGE,
+  isWithheld,
+  readReviewHold,
+} from "@/lib/audit-review-hold";
 
 interface StatusEnv {
   SESSIONS: KVNamespace;
+  CITATION_DB: D1Database;
 }
 
 type StatusResponse =
   | { status: "awaiting_payment"; message: string }
-  | { status: "fulfilling"; message: string; started_at?: number }
+  | { status: "fulfilling"; message: string; started_at?: number; review_hold?: true }
+  // Review hold: the report exists but is withheld until a reviewer releases
+  // it (lib/audit-review-hold.ts). No report links.
+  | { status: "in_review"; message: string }
   | {
       status: "ready";
       pdf_url: string;
@@ -69,8 +78,27 @@ export async function GET(
           "Audit running — scanning your site, enriching each gap with remediation guidance, and rendering your PDF.",
         started_at: record.started_at,
       };
+      // Review hold decided at payment: the page swaps its intro for the
+      // held-order one. A D1 error flags it too (the held intro is still true).
+      try {
+        if (isWithheld(await readReviewHold(env.CITATION_DB, sessionId))) payload.review_hold = true;
+      } catch {
+        payload.review_hold = true;
+      }
       break;
-    case "ready":
+    case "ready": {
+      // Review hold gate. Fail-closed: a D1 error withholds the links too.
+      let withheld: boolean;
+      try {
+        withheld = isWithheld(await readReviewHold(env.CITATION_DB, sessionId));
+      } catch {
+        console.error(`AUDIT_REVIEW_HOLD_READ_FAILED route=status session_id=${sessionId}`);
+        withheld = true;
+      }
+      if (withheld) {
+        payload = { status: "in_review", message: AUDIT_REVIEW_HOLD_STATUS_MESSAGE };
+        break;
+      }
       payload = {
         status: "ready",
         pdf_url: record.pdf_url ?? `/audit-results/${sessionId}/pdf`,
@@ -80,6 +108,7 @@ export async function GET(
         grade: record.grade,
       };
       break;
+    }
     case "error":
       payload = {
         status: "error",

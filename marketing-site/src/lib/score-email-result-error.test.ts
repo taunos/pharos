@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Test C-A (A4) — Resend v6 returns { error } instead of throwing; the
 // AutoPilot audit-ready and the standalone audit-ready senders must report it.
 
-const h = vi.hoisted(() => ({ error: null as null | { message: string } }));
+const h = vi.hoisted(() => ({ error: null as null | { message: string; statusCode?: number | null } }));
 vi.mock("resend", () => ({
   Resend: class {
     emails = {
@@ -58,9 +58,15 @@ Questions or something looks wrong? Reply to this email or write to contact@astr
     const noPdf = { ...env, AUDITS: { get: async () => null } as unknown as R2Bucket };
     expect(await sendAuditReadyEmail(noPdf, input, copy)).toEqual({ ok: false, error: "pdf_not_found:audits/s.pdf" });
   });
-  it("ok:false when Resend returns result.error", async () => {
-    h.error = { message: "rate_limited" };
+  it("ok:false when Resend returns result.error (4xx = confirmed not sent)", async () => {
+    h.error = { message: "rate_limited", statusCode: 429 };
     expect(await sendAuditReadyEmail(env, input, copy)).toEqual({ ok: false, error: "rate_limited" });
+  });
+  it("review hold: SDK transport error (statusCode null) or 5xx → ambiguous (the email may have gone out)", async () => {
+    h.error = { message: "Unable to fetch data", statusCode: null };
+    expect(await sendAuditReadyEmail(env, input, copy)).toEqual({ ok: false, error: "Unable to fetch data", ambiguous: true });
+    h.error = { message: "internal", statusCode: 500 };
+    expect(await sendAuditReadyEmail(env, input, copy)).toEqual({ ok: false, error: "internal", ambiguous: true });
   });
   it("ok when sent", async () => {
     expect(await sendAuditReadyEmail(env, input, copy)).toEqual({ ok: true });
