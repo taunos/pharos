@@ -1,10 +1,10 @@
 # AEO Audit
 
 **Price:** $79 one-time
-**Delivery:** Automatic (a few minutes)
+**Delivery:** Generated automatically, checked by hand before delivery (usually within 1 business day)
 **Checkout:** https://astrant.io/audit
 
-Pay, paste your URL, get a rich PDF analysis of your site's agent discoverability in a few minutes. Six-dimension deep analysis with developer-ready remediation guidance for each gap, plus a machine-readable JSON export. No call required — the scoring engine does the work.
+Pay, paste your URL, get a rich PDF analysis of your site's agent discoverability, checked by hand before delivery. Six-dimension deep analysis with developer-ready remediation guidance for each gap, plus a machine-readable JSON export. No call required — the scoring engine does the work.
 
 ## The full analysis includes
 
@@ -18,9 +18,9 @@ Includes a one-time Citation Visibility snapshot across ChatGPT, Claude, Perplex
 
 ## Three steps
 
-1. **Submit URL + email.** Two fields, one form. We email the PDF to that address as soon as it's ready.
+1. **Submit URL + email.** Two fields, one form. We email the PDF to that address once we've checked it.
 2. **Pay.** Dodo Payments handles USD billing and tax as Merchant of Record. Delivery triggers the moment payment confirms.
-3. **Get your report.** We redirect you to a results page that polls until your PDF is ready — usually 2–4 minutes. JSON export available alongside the PDF.
+3. **Get your report.** We redirect you to a results page that shows your report's status. While we check early reports by hand, the PDF and JSON arrive by email, usually within 1 business day.
 
 ## What the Audit adds (over the free Score)
 
@@ -32,7 +32,7 @@ The free Score gives you a public grade across six dimensions. The Audit goes de
 No. The audit is read-only. Just the URL.
 
 **How is this automatic if the report is that deep?**
-Automated checks and AI model tests do the analysis; each gap's remediation is a fixed, check-specific text chosen from what we found. Nothing is human-gated. PDF rendering takes a few extra seconds; the whole pipeline finishes in a few minutes end-to-end.
+Automated checks and AI model tests do the analysis; each gap's remediation is a fixed, check-specific text chosen from what we found. The analysis is automated. While we open the Audit to our first customers, we check each report by hand before it is sent, usually within 1 business day.
 
 **Can I audit a competitor instead?**
 Only sites you own or have permission to analyze — see [our terms](https://astrant.io/terms).

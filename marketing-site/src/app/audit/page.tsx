@@ -14,20 +14,56 @@ import {
   parseReviewHoldCount,
 } from "@/lib/audit-review-hold";
 import Link from "next/link";
+import { cache } from "react";
 
 // Test C-A (A1): the Audit gate is an env var, so this page must not be
 // prerendered at build time (C-B reads the gate here for the open-state UI).
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "AEO Audit — $79, delivered in a few minutes — Astrant",
-  description:
-    "Pay $79, paste your URL, get a rich PDF in a few minutes. Six-dimension deep analysis with developer-ready remediation guidance for each gap, plus a machine-readable JSON export.",
-  alternates: {
-    canonical: "/audit",
-    types: { "text/markdown": "/audit.md" },
-  },
-};
+// Review hold (approved 2026-11-12): while new orders are still held, the
+// delivery-time lines say "checked by hand"; after the Nth held order they
+// revert to today's text. One D1 read per request (shared by metadata + page).
+const reviewHoldActive = cache(async (): Promise<boolean> => {
+  const env = getCloudflareContext().env as unknown as {
+    AUDIT_REVIEW_HOLD_COUNT?: string;
+    CITATION_DB?: D1Database;
+  };
+  return isReviewHoldAcceptingOrders(env.CITATION_DB, parseReviewHoldCount(env.AUDIT_REVIEW_HOLD_COUNT));
+});
+
+const DESCRIPTION_TAIL =
+  "Six-dimension deep analysis with developer-ready remediation guidance for each gap, plus a machine-readable JSON export.";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const held = await reviewHoldActive();
+  return {
+    title: held
+      ? "AEO Audit — $79, checked by hand before delivery — Astrant"
+      : "AEO Audit — $79, delivered in a few minutes — Astrant",
+    description: held
+      ? `Pay $79, paste your URL, get a rich PDF, checked by hand before delivery (usually within 1 business day). ${DESCRIPTION_TAIL}`
+      : `Pay $79, paste your URL, get a rich PDF in a few minutes. ${DESCRIPTION_TAIL}`,
+    alternates: {
+      canonical: "/audit",
+      types: { "text/markdown": "/audit.md" },
+    },
+  };
+}
+
+const SERVICE_OFFER_TAIL =
+  "Rich PDF with 6-dimension analysis and developer-ready remediation guidance for each gap, plus machine-readable JSON export. Includes a one-time Citation Visibility snapshot across ChatGPT, Claude, Perplexity, and Gemini. Ongoing citation tracking over time and competitor comparison are coming in a future iteration.";
+
+function serviceLdFor(held: boolean) {
+  return {
+    ...serviceLd,
+    offers: {
+      ...serviceLd.offers,
+      description: held
+        ? `Automated audit, checked by hand before delivery (usually within 1 business day). ${SERVICE_OFFER_TAIL}`
+        : `Automated audit, delivered in a few minutes. ${SERVICE_OFFER_TAIL}`,
+    },
+  };
+}
 
 const serviceLd = {
   "@context": "https://schema.org",
@@ -43,8 +79,7 @@ const serviceLd = {
     price: "79",
     priceCurrency: "USD",
     url: "https://astrant.io/audit",
-    description:
-      "Automated audit, delivered in a few minutes. Rich PDF with 6-dimension analysis and developer-ready remediation guidance for each gap, plus machine-readable JSON export. Includes a one-time Citation Visibility snapshot across ChatGPT, Claude, Perplexity, and Gemini. Ongoing citation tracking over time and competitor comparison are coming in a future iteration.",
+    description: `Automated audit, delivered in a few minutes. ${SERVICE_OFFER_TAIL}`,
   },
 };
 
@@ -120,6 +155,7 @@ const STEPS = [
   {
     title: "Submit URL + email",
     body: "Two fields, one form. We email the PDF to that address as soon as it's ready.",
+    heldBody: "Two fields, one form. We email the PDF to that address once we've checked it.",
   },
   {
     title: "Pay",
@@ -128,6 +164,7 @@ const STEPS = [
   {
     title: "Get your report",
     body: "We redirect you to a results page that polls until your PDF is ready — usually 2–4 minutes. JSON export available alongside the PDF.",
+    heldBody: "We redirect you to a results page that shows your report's status. While we check early reports by hand, the PDF and JSON arrive by email, usually within 1 business day.",
   },
 ];
 
@@ -140,23 +177,18 @@ export default async function AuditPage({
   // /api/audit-create. Gate closed → the page renders exactly as before.
   const env = getCloudflareContext().env as unknown as {
     AUDIT_CHECKOUT_ENABLED?: string;
-    AUDIT_REVIEW_HOLD_COUNT?: string;
-    CITATION_DB?: D1Database;
   };
   const checkoutEnabled = isAuditCheckoutEnabled(env);
-  // Review hold: the badge, FAQ answer and CTA line say "checked by hand"
-  // while new orders are still held; after the Nth held order they revert.
-  const reviewHold = await isReviewHoldAcceptingOrders(
-    env.CITATION_DB,
-    parseReviewHoldCount(env.AUDIT_REVIEW_HOLD_COUNT),
-  );
+  // Review hold: the delivery-time lines say "checked by hand" while new
+  // orders are still held; after the Nth held order they revert.
+  const reviewHold = await reviewHoldActive();
   const faqs = faqsFor(reviewHold);
   const showCanceled = checkoutEnabled && (await searchParams).canceled === "1";
   return (
     <div className="min-h-screen">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceLdFor(reviewHold)) }}
       />
       <script
         type="application/ld+json"
@@ -180,7 +212,11 @@ export default async function AuditPage({
                 questions about you, and record whether they name you. We also
                 check what agents can and can&apos;t read on your site, and give
                 a specific, developer-ready fix for every gap, biggest gaps
-                first. Delivered as a PDF in a few minutes. Fixes make your site
+                first.{" "}
+                {reviewHold
+                  ? "Delivered as a PDF, checked by hand first, usually within 1 business day."
+                  : "Delivered as a PDF in a few minutes."}{" "}
+                Fixes make your site
                 easier for agents to read; they can&apos;t guarantee a
                 recommendation.
               </p>
@@ -258,7 +294,7 @@ export default async function AuditPage({
                     Step {i + 1}
                   </div>
                   <h3 className="mt-2 text-xl font-semibold">{s.title}</h3>
-                  <p className="mt-3 text-[var(--color-muted)]">{s.body}</p>
+                  <p className="mt-3 text-[var(--color-muted)]">{reviewHold && "heldBody" in s ? s.heldBody : s.body}</p>
                 </li>
               ))}
             </ol>
