@@ -98,15 +98,69 @@ describe("1.4.0 N1 ugmonk (Shopify): the live MCP server is found, Dim 2 is scor
     const r = await scan(UG);
     const d2 = dim(r, 2);
     expect(d2.na).toBeUndefined();
-    expect(sub(d2, "live_invocation")).toMatchObject({ score: 100, passed: true, notes: "tools/list returned 3 tools" });
+    expect(sub(d2, "live_invocation")).toMatchObject({
+      score: 100,
+      passed: true,
+      notes: "tools/list returned 3 tools (endpoint tested: https://ugmonk.com/api/mcp)",
+    });
     expect(sub(d2, "well_known").notes).toContain("an MCP server was found (an MCP endpoint answered at https://ugmonk.com/api/mcp) but it is not advertised with a server card");
     expect(sub(d2, "dns_txt")).toMatchObject({ na: true });
     expect(d2.score).toBe(Math.round((0 * 30 + 0 * 20 + 100 * 25) / 75));
     // The UCP endpoint is on another host (ugmonk-2.myshopify.com): never probed.
     expect(calls.some((c) => c.url.includes("myshopify.com"))).toBe(false);
-    // /api/mcp answered with tools, so the declared https://ugmonk.com/api/ucp/mcp
-    // (llms.txt) needs no probe: 3 POSTs in all (initialize, initialized, tools/list).
-    expect(calls.filter((c) => c.method === "POST").map((c) => c.url)).toEqual(Array(3).fill("https://ugmonk.com/api/mcp"));
+    // 1.5.2: the declared https://ugmonk.com/api/ucp/mcp (llms.txt) is tried
+    // first; it does not answer in this fixture, so the guessed /api/mcp counts.
+    const posts = calls.filter((c) => c.method === "POST").map((c) => c.url);
+    expect(posts.filter((u) => u === "https://ugmonk.com/api/ucp/mcp")).toEqual(["https://ugmonk.com/api/ucp/mcp"]);
+    expect(posts.filter((u) => u === "https://ugmonk.com/api/mcp")).toEqual(Array(3).fill("https://ugmonk.com/api/mcp"));
+    // RD-0119: the store's MCP server is Shopify's (UCP endpoint on myshopify.com).
+    expect(sub(d2, "well_known").evidence).toMatchObject({ mcp_endpoint: "https://ugmonk.com/api/mcp", mcp_hosted_by: "shopify" });
+  });
+
+  it("RD-0118: the advertised /api/ucp/mcp (14 tools) is tested and reported, not the old /api/mcp (1 tool)", async () => {
+    const many = Array.from({ length: 14 }, (_, i) => ({ name: `t${i}`, description: `Tool ${i}.`, inputSchema: { type: "object" } }));
+    const calls = routes({
+      [UG]: html(page({ ld: home.ld, hrefs: home.hrefs })),
+      "https://ugmonk.com/llms.txt": text(fx("ugmonk-llms.txt"), "text/markdown; charset=utf-8"),
+      "https://ugmonk.com/.well-known/ucp": text(fx("ugmonk-ucp.json"), "application/json; charset=utf-8"),
+      "https://ugmonk.com/api/mcp": mcpServer(SHOPIFY_TOOLS.slice(0, 1)),
+      "https://ugmonk.com/api/ucp/mcp": mcpServer(many),
+    });
+    const d2 = await runDim2(UG, env(), true, gatherSiteSignals(UG, fx("ugmonk-llms.txt"), null));
+    expect(sub(d2, "live_invocation").notes).toBe("tools/list returned 14 tools (endpoint tested: https://ugmonk.com/api/ucp/mcp)");
+    expect(sub(d2, "well_known").notes).toContain("an MCP endpoint answered at https://ugmonk.com/api/ucp/mcp");
+    expect(sub(d2, "well_known").notes).not.toContain("/api/mcp)");
+    expect(sub(d2, "well_known").evidence).toMatchObject({ mcp_endpoint: "https://ugmonk.com/api/ucp/mcp", mcp_hosted_by: "shopify" });
+    expect(calls.some((c) => c.url === "https://ugmonk.com/api/ucp/mcp" && c.method === "POST")).toBe(true);
+  });
+
+  it("RD-0118: an MCP endpoint advertised only in a robots.txt comment is tested first", async () => {
+    const many = Array.from({ length: 14 }, (_, i) => ({ name: `t${i}`, description: `Tool ${i}.`, inputSchema: { type: "object" } }));
+    routes({
+      [UG]: html(page({ ld: home.ld })),
+      "https://ugmonk.com/robots.txt": text(
+        [
+          "# UCP discovery: https://ugmonk.com/.well-known/ucp",
+          "# UCP/MCP endpoint: https://ugmonk.com/api/ucp/mcp",
+          "User-agent: *",
+          "Sitemap: https://ugmonk.com/sitemap.xml",
+        ].join(String.fromCharCode(10)),
+        "text/plain; charset=utf-8"
+      ),
+      "https://ugmonk.com/api/mcp": mcpServer(SHOPIFY_TOOLS.slice(0, 1)),
+      "https://ugmonk.com/api/ucp/mcp": mcpServer(many),
+    });
+    const sig = await gatherSiteSignals(UG, null, null);
+    expect(sig.mcpUrls).toEqual(["https://ugmonk.com/api/ucp/mcp"]);
+    // robots.txt gives MCP endpoints only, never API-documentation evidence.
+    expect(sig.apiSignals).toEqual([]);
+    const d2 = await runDim2(UG, env(), true, sig);
+    expect(sub(d2, "live_invocation").notes).toBe("tools/list returned 14 tools (endpoint tested: https://ugmonk.com/api/ucp/mcp)");
+  });
+
+  it("an HTML robots.txt (soft-404) is not read", async () => {
+    routes({ "https://ugmonk.com/robots.txt": html("<html><body>https://ugmonk.com/api/ucp/mcp</body></html>") });
+    expect((await gatherSiteSignals(UG, null, null)).mcpUrls).toEqual([]);
   });
 
   it("with /api/mcp down, the UCP profile alone still keeps Dim 2 scored and is named", async () => {
@@ -201,6 +255,8 @@ describe("1.4.0 N1 positive absence and the GraphQL probe", () => {
     expect(dim(r, 2).sub_checks[0].notes).toBe(DIM2_CONTENT_ONLY_NA_NOTE);
     expect(DIM2_CONTENT_ONLY_NA_NOTE).toMatch(/^No supported MCP discovery signal was found/);
     expect(DIM2_CONTENT_ONLY_NA_NOTE).not.toMatch(/content-only site|no MCP endpoint found/i);
+    // 1.5.2 (Bruno 2026-11-12, copy item 8): robots.txt is read for MCP links too.
+    expect(DIM2_CONTENT_ONLY_NA_NOTE).toContain("no MCP link in /llms.txt, /robots.txt or on the homepage");
     expect(dim(r, 3).sub_checks[0].notes).toBe(DIM3_NO_API_NA_NOTE);
     // Extra requests for a content site: /.well-known/ucp, POST /api/mcp and
     // the two GraphQL GETs (no link evidence) - 4 in all.

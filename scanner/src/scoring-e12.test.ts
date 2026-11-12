@@ -217,7 +217,7 @@ const live = async () => (await runDim2("https://acme.com/", env())).sub_checks.
 describe("E12 Dim 2: live check follows the MCP lifecycle", () => {
   it("initialize -> notifications/initialized -> tools/list with session + protocol headers => 100", async () => {
     const calls = strictServer();
-    expect(await live()).toMatchObject({ score: 100, notes: "tools/list returned 3 tools" });
+    expect(await live()).toMatchObject({ score: 100, notes: `tools/list returned 3 tools (endpoint tested: ${MCP})` });
     const posts = calls.filter((c) => c.url === MCP);
     expect(posts.map((c) => JSON.parse(c.body).method)).toEqual(["initialize", "notifications/initialized", "tools/list"]);
     const init = JSON.parse(posts[0].body);
@@ -462,7 +462,7 @@ describe("E12 r2/r3: JSON-RPC scan is bounded and only takes responses", () => {
         return new Response(null, { status: 202 });
       },
     });
-    expect(await live()).toMatchObject({ score: 100, notes: "tools/list returned 3 tools" });
+    expect(await live()).toMatchObject({ score: 100, notes: `tools/list returned 3 tools (endpoint tested: ${MCP})` });
   });
 
   it("live check: an exhausted scan is reported distinctly", async () => {

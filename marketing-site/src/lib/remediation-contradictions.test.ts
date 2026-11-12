@@ -229,7 +229,7 @@ function contradiction(s: SubCheck, siblings: SubCheck[], out: string): string |
       break;
     case "service_offer_schema":
       if (/Service\/Product\/Offer block/.test(n) && has("We found no Service, Product or Offer structured data")) return "no-markup text with markup";
-      if (/sampled product page/.test(n) && (has("reads the homepage only") || has("block on your homepage"))) return "homepage-only text for a product page";
+      if (/sampled product (?:listing )?page/.test(n) && (has("reads the homepage only") || has("block on your homepage"))) return "homepage-only text for a product page";
       break;
     case "faq_schema":
       if (/^[1-9]\d* Q&A pair/.test(n) && has("no questions")) return "no-questions text with questions";

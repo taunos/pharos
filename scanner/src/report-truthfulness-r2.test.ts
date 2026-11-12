@@ -42,8 +42,8 @@ const HOME = "https://acme.com/";
 const sub = (d: { sub_checks: { id: string }[] }, id: string) =>
   d.sub_checks.find((s) => s.id === id) as import("./types").SubCheck;
 
-it("SCORING_VERSION is 1.5.0 (supersedes 1.3.3)", () => {
-  expect(SCORING_VERSION).toBe("1.5.1");
+it("SCORING_VERSION is 1.5.2 (supersedes 1.3.3)", () => {
+  expect(SCORING_VERSION).toBe("1.5.2");
 });
 
 describe("1.3.3 Dim 4: schema.org subtypes, optional sameAs / price, FAQ N/A, nested ratings", () => {

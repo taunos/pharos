@@ -98,6 +98,17 @@ export type SubCheckEvidence = {
    * 404 or 410; false when a request failed or got another status.
    */
   card_absent_proven?: boolean;
+  /**
+   * Dim 2 well_known only (1.5.2), when there is no card: the MCP endpoint
+   * that answered (else the first one the site declares).
+   */
+  mcp_endpoint?: string;
+  /**
+   * Dim 2 well_known only (1.5.2): "shopify" when the site's /.well-known/ucp
+   * profile declares an MCP endpoint on *.myshopify.com, i.e. Shopify runs
+   * the store's MCP server (and what is served under /.well-known/).
+   */
+  mcp_hosted_by?: "shopify";
 };
 
 export type SubCheck = {

@@ -124,8 +124,9 @@ export function plainScoreNote(sub: Pick<SubCheck, "id" | "notes">): string {
       }
       return notes;
     case "service_offer_schema":
-      if ((m = notes.match(/^(\d+) Service\/Product\/Offer block\(s\); best match has (\d)\/3 required fields(?: \(on the sampled product page (\S+); none on the homepage\))?$/))) {
-        const where = m[3] ? ` on the product page we sampled (${m[3]}), and none on the homepage` : "";
+      if ((m = notes.match(/^(\d+) Service\/Product\/Offer block\(s\); best match has (\d)\/3 required fields(?: \(on the sampled product (listing )?page (\S+); none on the homepage\))?$/))) {
+        // 1.5.2: a sampled product index or shop page is named as such.
+        const where = m[4] ? ` on the product ${m[3] ? "listing " : ""}page we sampled (${m[4]}), and none on the homepage` : "";
         return `We found ${count(m[1], "Service, Product or Offer entry", "Service, Product or Offer entries")}${where}. The most complete one has ${m[2]} of the 3 fields we check: a name, a description, and who provides it (such as provider, brand or seller).`;
       }
       return notes;
@@ -215,6 +216,10 @@ export function plainScoreNote(sub: Pick<SubCheck, "id" | "notes">): string {
     case "live_invocation":
       if ((m = notes.match(/^tools\/list returned (\d+) tools$/))) {
         return `The MCP server answered and listed ${m[1]} tool${m[1] === "1" ? "" : "s"}.`;
+      }
+      // Scanner 1.5.2 (RD-0118): the note names the endpoint tested.
+      if ((m = notes.match(/^tools\/list returned (\d+) tools \(endpoint tested: (https?:\/\/[^\s()]{1,2048})\)$/))) {
+        return `The MCP server at ${m[2]} answered and listed ${m[1]} tool${m[1] === "1" ? "" : "s"}.`;
       }
       return notes;
     default:

@@ -127,6 +127,15 @@ export const T = {
   well_known: {
     noCard: (o: string) =>
       `We found no MCP discovery card at ${o}/.well-known/mcp.json or ${o}/.well-known/mcp/server-card.json. If you run an MCP server, publish a JSON card at one of those addresses with the server's name and a transports list giving its URL (server cards are still a draft proposal, so the format may change). If you don't run one, building an MCP server is a development project, worth it only if you have tools or data you want AI agents to use, such as booking, ordering or account lookups. Estimated effort: 30 minutes to 1 hour for the card; several days to build a new MCP server.`,
+    // 1.5.2 (RD-0119): the scanner saw the store's /.well-known/ucp profile
+    // point its MCP endpoint at *.myshopify.com, so Shopify runs the server
+    // and what is served under /.well-known/; no "publish a card" advice.
+    shopifyHosted: (o: string) =>
+      `We found no MCP discovery card at ${o}/.well-known/mcp.json or ${o}/.well-known/mcp/server-card.json. Your store's MCP server is run by Shopify: the commerce profile Shopify publishes for your store (${o}/.well-known/ucp) points to it. Shopify stores generally can't serve their own files under /.well-known/, so adding a card there is up to Shopify rather than something you can change in your store settings or theme. Server cards are still a draft proposal, and agents that read the commerce profile can already find the server. Estimated effort: nothing to do on your side unless Shopify adds this option.`,
+    // 1.5.2: an MCP server was found (it answered, or the site declares it),
+    // but the scanner can't tell who hosts it.
+    foundServer: (o: string) =>
+      `We found your MCP server, but no discovery card at ${o}/.well-known/mcp.json or ${o}/.well-known/mcp/server-card.json. If you host the server yourself, publish a JSON card at one of those addresses with the server's name and a transports list giving its URL (server cards are still a draft proposal, so the format may change). If a platform runs the server for you, whether a card can be published at those addresses is up to the platform. Estimated effort: 30 minutes to 1 hour if you host the server; nothing to do if the platform controls those addresses.`,
     missingFields: (o: string, path: string) =>
       `We found a discovery card at ${o}${path} but not both a name field and a non-empty transports list in it. Add "name" and a "transports" array whose entries give the server URL. If your card follows a different layout (server cards are still a draft proposal), you can keep it and add these two fields as well. Estimated effort: under 30 minutes.`,
     invalidJson: (o: string, path: string) =>
@@ -135,6 +144,9 @@ export const T = {
   tool_coverage: {
     noCard:
       "Depends on Well-known discovery: there is no discovery card to read tools from. If you publish a card, list each tool your MCP server offers in its tools array, with a name, a plain-language description and an inputSchema. Estimated effort: 30 minutes to 1 hour.",
+    // 1.5.2 (RD-0119): Shopify runs the store's MCP server (see well_known.shopifyHosted).
+    noCardShopify:
+      "Depends on Well-known discovery: there is no discovery card to read tools from. Your store's MCP server is run by Shopify, so whether its tools are listed in a card is up to Shopify; agents that connect to the server can list its tools themselves. Estimated effort: nothing to do on your side.",
     noToolsField:
       "Your discovery card has no tools array. If your server's tools can be listed publicly, add a tools array with each tool's name, a plain-language description and an inputSchema (a JSON Schema for its inputs). If you'd rather agents see tools only after connecting, this check can stay below passing. Estimated effort: 30 minutes to 1 hour.",
     counts: (qualified: number, total: number) =>
@@ -328,6 +340,13 @@ function llmsFileState(ctx: RemediationContext): "absent" | "unreadable" | "read
 // 410; a card probe that failed or got another status proves no absence.
 // Reports from older scanners carry no such evidence and keep their text.
 const cardAbsenceUnproven = (s: SubCheck | undefined) => s?.evidence?.card_absent_proven === false;
+// 1.5.2 (RD-0119): Shopify runs the store's MCP server (scanner evidence:
+// the /.well-known/ucp profile points it at *.myshopify.com).
+const shopifyHostedMcp = (s: SubCheck | undefined) => s?.evidence?.mcp_hosted_by === "shopify";
+// An MCP endpoint answered without a card (scanner 1.4.0+ well_known note).
+// Codex review: a link or a TXT record alone does not prove a server, so
+// those keep the no-card text.
+const mcpServerFound = (s: SubCheck | undefined) => /; an MCP server was found \(an MCP endpoint answered at /.test(String(s?.notes ?? ""));
 
 // r7: Dim 4 sub-checks carry the homepage request's evidence; when it shows
 // the homepage was not read (or JSON-LD absence not proven), no template may
@@ -453,7 +472,12 @@ const SELECTORS: Record<string, Selector> = {
     // "missing name or transports" (before 1.4.0); "missing a server name and
     // a transport URL ..." (1.4.0).
     if (path && /^card present at \S+ but missing /.test(s.notes)) return T.well_known.missingFields(c.origin, path);
-    if (/^no card at /.test(s.notes)) return cardAbsenceUnproven(s) ? UNKNOWN_CHECK_REMEDIATION : T.well_known.noCard(c.origin);
+    if (/^no card at /.test(s.notes)) {
+      if (cardAbsenceUnproven(s)) return UNKNOWN_CHECK_REMEDIATION;
+      if (shopifyHostedMcp(s)) return T.well_known.shopifyHosted(c.origin);
+      if (mcpServerFound(s)) return T.well_known.foundServer(c.origin);
+      return T.well_known.noCard(c.origin);
+    }
     return UNKNOWN_CHECK_REMEDIATION;
   },
 
@@ -468,7 +492,9 @@ const SELECTORS: Record<string, Selector> = {
     if (q !== null && n !== null && n > 0 && q <= n) return T.tool_coverage.counts(q, n);
     if (/no tools\[\] field/.test(s.notes)) return T.tool_coverage.noToolsField;
     if (/^no card or no tools declared$/.test(s.notes)) {
-      return cardAbsenceUnproven(sibling(c, "well_known")) ? UNKNOWN_CHECK_REMEDIATION : T.tool_coverage.noCard;
+      const wk = sibling(c, "well_known");
+      if (cardAbsenceUnproven(wk)) return UNKNOWN_CHECK_REMEDIATION;
+      return shopifyHostedMcp(wk) ? T.tool_coverage.noCardShopify : T.tool_coverage.noCard;
     }
     return UNKNOWN_CHECK_REMEDIATION;
   },
@@ -600,7 +626,7 @@ const SELECTORS: Record<string, Selector> = {
   service_offer_schema: (s) => {
     // Both templates speak of the homepage: a note about a sampled product
     // page (1.4.0) gets the neutral text.
-    if (/sampled product page/.test(s.notes)) return UNKNOWN_CHECK_REMEDIATION;
+    if (/sampled product (?:listing )?page/.test(s.notes)) return UNKNOWN_CHECK_REMEDIATION;
     const k = int(s.notes.match(/best match has (\d)\/3 required fields/)?.[1]);
     // Markup with 0 of 3 fields is markup, not "no structured data".
     if (k !== null && k <= 2) return T.service_offer_schema.partial(k);

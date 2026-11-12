@@ -138,5 +138,24 @@
  *   "names the business" dropped, the H1 names it). Dim 2 well_known
  *   evidence says whether both card addresses answered 404 / 410.
  *   `CURRENT_SCORING_VERSION` on /score/[id] bumped in lockstep.
+ * - 1.5.2 (scanner inputs, 2026-11-10; RD-0117..0120): Dim 5 page weight
+ *   is the decompressed homepage HTML (Content-Length, the compressed
+ *   transfer size, is no longer used: ugmonk.com scored 100 on 83,656 bytes
+ *   for about 1.2 MB of HTML); the note says "measured uncompressed", a body
+ *   past 3 MB is "more than 3 MB", and an unread homepage is N/A "not
+ *   measured" (it scored 100 as 0 bytes). Dim 2 tests the MCP endpoints the
+ *   site advertises (llms.txt, homepage, /robots.txt, /.well-known/ucp, _mcp
+ *   TXT) before the guessed /api/mcp, which counts only when none answered;
+ *   the tools/list note names the endpoint tested; well_known evidence gives
+ *   the endpoint found and whether Shopify hosts it (UCP endpoint on
+ *   *.myshopify.com). Dim 4 product pages and Dim 5 price-sample product
+ *   pages are recognized in other languages (/produtos/x, /productos, /shop,
+ *   /loja ...), with a product index taken when no product page is linked;
+ *   Dim 5 follows pricing links named in other languages (Preços, Planos,
+ *   Precios, Tarifs, Preise ...); the free-tier render check counts
+ *   pricing / product / service words in those languages and any recognized
+ *   price (euro, R$ ...) as commercial signals, not only English words and
+ *   "$". `CURRENT_SCORING_VERSION` on /score/[id]
+ *   bumped in lockstep.
  */
-export const SCORING_VERSION = "1.5.1";
+export const SCORING_VERSION = "1.5.2";

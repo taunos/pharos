@@ -41,7 +41,10 @@ const SCANNER_URL = `${DEFAULT_SCANNER_URL}/api/scan`;
 // v10 (2026-11-07): scanner 1.5.1 notes (FAQ and blockquote rules); absence
 // wording only for a proven 404 / 410 (llms.txt), card absence (Dim 2) or a
 // homepage read in full (Dim 4); "couldn't read" llms.txt template.
-const REMEDIATION_ENGINE_VERSION = "v10";
+// v11 (2026-11-10): scanner 1.5.2 (RD-0119): no "publish a card" advice when
+// Shopify runs the store's MCP server; "we found your MCP server" wording when
+// one was found without a card; the live check names the endpoint tested.
+const REMEDIATION_ENGINE_VERSION = "v11";
 
 export type AuditEnv = {
   AI: Ai;

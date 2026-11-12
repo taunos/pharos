@@ -3,8 +3,9 @@
 // Dim 3 never call a site "content-only" or say "no MCP" while the site links
 // its own MCP server or API. Only links on the audited site's own host or one
 // of its subdomains count (a link to someone else's docs says nothing about
-// this site). The only fetches here are the GraphQL probes, and they run only
-// when the free link evidence found nothing.
+// this site). The fetches here are /robots.txt (1.5.2: stores advertise their
+// MCP endpoint in its comments) and the GraphQL probes, which run only when
+// the link evidence found nothing.
 import { isSameSite, safeFetch } from "../safe-fetch";
 import type { HomepageRead } from "./dim3-openapi";
 
@@ -31,6 +32,41 @@ export function siteBase(siteUrl: string): string {
 
 /** true when `host` is the site's base host or one of its subdomains (defined in safe-fetch). */
 export { isSameSite };
+
+// 1.5.2 (RD-0120): product pages in the languages of the sites we scan. The
+// English-only /products/ pattern missed drveit.com.br's /produtos/ page and
+// the report said "We found no product pages". A path counts when it is one
+// of these words (a product index, or a shop page) or one of them followed
+// by one more segment (a product page), with an optional locale prefix
+// (/en-br/products/x). "store" / "lojas" are left out: they are often store
+// locators, not online shops.
+const PRODUCT_WORDS = new Set([
+  "product", "products", "produto", "produtos", "producto", "productos", "produit", "produits",
+  "produkt", "produkte", "prodotto", "prodotti", "producten", "produkty", "produkter", "tuotteet",
+]);
+const SHOP_WORDS = new Set(["shop", "loja", "tienda", "boutique", "negozio", "winkel", "sklep", "butik"]);
+const LOCALE_SEGMENT = /^[a-z]{2}(?:[-_][a-z]{2})?$/i;
+
+/**
+ * "detail" for a product page (/products/x, /produtos/x, /p/x), "listing" for
+ * a product index or shop page (/produtos, /shop), null otherwise.
+ */
+export function productPathKind(pathname: string): "detail" | "listing" | null {
+  let segs = pathname.split("/").filter(Boolean);
+  let decoded: string[];
+  try {
+    decoded = segs.map((x) => decodeURIComponent(x).toLowerCase());
+  } catch {
+    return null;
+  }
+  if (decoded.length > 1 && LOCALE_SEGMENT.test(decoded[0]) && !PRODUCT_WORDS.has(decoded[0])) {
+    decoded = decoded.slice(1);
+    segs = segs.slice(1);
+  }
+  if (decoded.length === 2 && (PRODUCT_WORDS.has(decoded[0]) || decoded[0] === "p")) return "detail";
+  if (decoded.length === 1 && (PRODUCT_WORDS.has(decoded[0]) || SHOP_WORDS.has(decoded[0]))) return "listing";
+  return null;
+}
 
 /** A URL found in a document; `linked` is false for a bare URL in the text. */
 export type FoundUrl = { url: URL; linked: boolean };
@@ -93,7 +129,12 @@ function isApiUrl(u: URL, base: string): boolean {
 }
 
 /** Link evidence only (no fetch). */
-export function linkSignals(siteUrl: string, docs: Array<{ text: string; base: string } | null>): SiteSignals {
+export function linkSignals(
+  siteUrl: string,
+  // mcpOnly: take MCP endpoint URLs only (robots.txt: its Sitemap / comment
+  // URLs are not API documentation links).
+  docs: Array<{ text: string; base: string; mcpOnly?: boolean } | null>
+): SiteSignals {
   const base = siteBase(siteUrl);
   const mcpUrls: string[] = [];
   const apiSignals: string[] = [];
@@ -104,7 +145,7 @@ export function linkSignals(siteUrl: string, docs: Array<{ text: string; base: s
       const s = u.toString();
       if (isMcpUrl(u)) {
         if (mcpUrls.length < MAX_KEPT && !mcpUrls.includes(s)) mcpUrls.push(s);
-      } else if (linked && isApiUrl(u, base)) {
+      } else if (linked && !doc.mcpOnly && isApiUrl(u, base)) {
         // Only real links: a bare URL in a page's scripts is not a published API.
         const sig = `a link to ${s}`;
         if (apiSignals.length < MAX_KEPT && !apiSignals.includes(sig)) apiSignals.push(sig);
@@ -134,7 +175,24 @@ async function probeGraphql(url: string, base: string): Promise<boolean> {
 }
 
 /**
- * Link evidence from /llms.txt and the homepage; when that finds nothing, a
+ * 1.5.2 (RD-0118): /robots.txt as plain text (64 KB cap, every hop on the
+ * site); null when absent, unreadable or not plain text (an HTML soft-404).
+ */
+async function readRobots(origin: string, base: string): Promise<string | null> {
+  const r = await safeFetch(`${origin}/robots.txt`, { headers: { Accept: "text/plain" } }, { timeoutMs: PROBE_TIMEOUT_MS, sameSite: base });
+  if (!r) return null;
+  const ct = (r.headers.get("content-type") ?? "").toLowerCase();
+  if (r.status !== 200 || !ct.includes("text/plain")) {
+    r.discard();
+    return null;
+  }
+  const b = await r.body({ maxBytes: PROBE_MAX_BYTES });
+  return b.complete || b.truncated ? b.text : null;
+}
+
+/**
+ * Link evidence from /llms.txt, the homepage and (MCP endpoints only)
+ * /robots.txt; when that finds nothing, a
  * GET to /graphql on the site and on api.<site> (2 requests). Never throws.
  */
 export async function gatherSiteSignals(
@@ -143,11 +201,16 @@ export async function gatherSiteSignals(
   homepage: HomepageRead | null | Promise<HomepageRead | null>
 ): Promise<SiteSignals> {
   try {
-    const [llms, home] = await Promise.all([llmsTxt, homepage]);
     const origin = new URL(siteUrl).origin;
+    const [llms, home, robots] = await Promise.all([
+      llmsTxt,
+      homepage,
+      readRobots(origin, siteBase(siteUrl)).catch(() => null),
+    ]);
     const signals = linkSignals(siteUrl, [
       llms ? { text: llms, base: `${origin}/llms.txt` } : null,
       home ? { text: home.html, base: home.url || siteUrl } : null,
+      robots ? { text: robots, base: `${origin}/robots.txt`, mcpOnly: true } : null,
     ]);
     if (signals.mcpUrls.length > 0 || signals.apiSignals.length > 0) return signals;
     const probes = [`${origin}/graphql`, `https://api.${siteBase(siteUrl)}/graphql`];

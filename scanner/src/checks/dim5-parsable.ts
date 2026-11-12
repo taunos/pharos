@@ -15,7 +15,7 @@
 import type { DimensionResult, Env, ScanTier, SubCheck } from "../types";
 import { dimensionScoreOrThrow, gradeFor } from "../scoring";
 import { MAX_HTML_BYTES, safeFetch, type SafeResponse } from "../safe-fetch";
-import { isSameSite, siteBase } from "./site-signals";
+import { isSameSite, productPathKind, siteBase } from "./site-signals";
 import { scanTags } from "./dim3-openapi";
 import {
   DAILY_BR_INVOCATION_CAP,
@@ -51,9 +51,9 @@ async function readHtml(r: SafeResponse): Promise<string> {
 // Rendered HTML from Browser Rendering (JSON-wrapped) can be larger than a
 // static page; bounded all the same.
 const MAX_BR_BYTES = 10 * 1024 * 1024;
-// page_weight_lcp buckets are <1MB / <=3MB / >3MB. When there is no
-// Content-Length and the body passes the HTML cap, keep counting (without
-// buffering) to just past 3MB so the bucket is unchanged.
+// page_weight_lcp buckets are <1MB / <=3MB / >3MB. When the body passes the
+// HTML cap, keep counting (without buffering) to just past 3MB so the bucket
+// is unchanged.
 const PAGE_WEIGHT_COUNT_UP_TO = 3 * 1024 * 1024 + 1;
 
 const isNameChar = (c: string | undefined) => c !== undefined && /[A-Za-z0-9_]/.test(c);
@@ -132,6 +132,15 @@ function jaccard(a: Set<string>, b: Set<string>): number {
 
 const COMMERCIAL_HEURISTIC_RE =
   /\$\d|pricing|plans?|capabilities|case stud|customers?\b|services?\b/i;
+// 1.5.2: the same signals in Portuguese, Spanish, French, German, Italian and
+// Dutch, plus any price Dim 5 recognizes (R$, euro, pound, yen, ISO codes):
+// the English / dollar-only test scored coffeecircle.com (German, prices in
+// euro) 50 with "no obvious pricing/capabilities signals".
+const COMMERCIAL_WORDS_INTL_RE =
+  /\b(?:pre[çc]os?|precios|preise|prix|prezzi|prijzen|tarif(?:s|as?|e|en)?|planos|planes|servi[çc]os|servicios|leistungen|produtos|productos|produkte|produits|prodotti|clientes|kunden)\b/i;
+function hasCommercialSignal(text: string): boolean {
+  return COMMERCIAL_HEURISTIC_RE.test(text) || COMMERCIAL_WORDS_INTL_RE.test(text) || new RegExp(PRICE_TOKEN).test(text);
+}
 
 // ── Browser Rendering helpers ─────────────────────────────────────────────
 
@@ -271,7 +280,7 @@ function scoreStaticAlone(body: string | null): number {
     // Minimal HTML — likely an SPA shell.
     return 0;
   }
-  if (COMMERCIAL_HEURISTIC_RE.test(text)) return 100;
+  if (hasCommercialSignal(text)) return 100;
   return 50;
 }
 
@@ -280,7 +289,7 @@ function describeStaticAlone(body: string | null): string {
     return "Static fetch returned minimal HTML (likely a JS-required SPA shell)";
   }
   const text = stripTags(body);
-  const matched = COMMERCIAL_HEURISTIC_RE.test(text);
+  const matched = hasCommercialSignal(text);
   return matched
     ? `Static fetch returned ${text.length} chars of body text including pricing/capabilities signals`
     : `Static fetch returned ${text.length} chars of body text but no obvious pricing/capabilities signals`;
@@ -288,15 +297,29 @@ function describeStaticAlone(body: string | null): string {
 
 // ── Sub-check 2: page_weight_lcp ─────────────────────────────────────────
 
-/** page_weight_lcp note (1.4.0). */
+/**
+ * page_weight_lcp note (1.5.2: says the size is uncompressed). The leading
+ * "Homepage HTML size: <n.nn> MB" is read by the Audit remediation templates.
+ */
 export const pageWeightNote = (mb: number, bytes: number) =>
-  `Homepage HTML size: ${mb.toFixed(2)} MB (${bytes} bytes). This check looks at page size only; it does not measure loading speed.`;
+  `Homepage HTML size: ${mb.toFixed(2)} MB (${bytes} bytes), measured uncompressed. This check looks at page size only; it does not measure loading speed.`;
 
-async function runPageWeightLcp(
-  url: string,
-  staticBody: string | null,
-  staticContentLength: number | null
-): Promise<SubCheck> {
+/** page_weight_lcp note (1.5.2): the body ran past the counting cap. */
+export const pageWeightOverNote = (bytes: number) =>
+  `Homepage HTML size: more than ${(bytes / (1024 * 1024)).toFixed(0)} MB uncompressed (we stopped counting at ${bytes} bytes). This check looks at page size only; it does not measure loading speed.`;
+
+/** page_weight_lcp N/A note (1.5.2): the homepage HTML could not be read in full. */
+export const PAGE_WEIGHT_NOT_MEASURED_NOTE =
+  "Not measured: we could not read your homepage's HTML in full, so we could not size it. This check is not counted in your score.";
+
+/**
+ * The homepage HTML read for the size check: bytes of the body as received
+ * by the scanner, after any gzip / br transfer encoding is undone (fetch
+ * decompresses), counted up to PAGE_WEIGHT_COUNT_UP_TO.
+ */
+export type HomepageSize = { bytes: number; complete: boolean; truncated: boolean; countFailed?: true };
+
+export function runPageWeightLcp(size: HomepageSize | null): SubCheck {
   // 1.4.0: named for what it measures. Loading speed (LCP) was never
   // measured, so the name and note no longer mention it (the id stays for
   // consumers).
@@ -304,14 +327,19 @@ async function runPageWeightLcp(
   const name = "Page weight";
   const weight = 15;
 
-  // Use Content-Length if present, else fall back to body length.
-  const bodyBytes =
-    staticContentLength != null
-      ? staticContentLength
-      : staticBody
-        ? new TextEncoder().encode(staticBody).length
-        : 0;
+  // 1.5.2 (RD-0117): the size is the decompressed body. Content-Length is
+  // the compressed transfer size (ugmonk.com: 83,656 bytes for about 1.2 MB
+  // of HTML), so it is never used. A body that was not read (fetch failed,
+  // read error, timeout) is not measured; it used to count as 0 bytes and
+  // score 100.
+  // Codex review: a read that failed while counting past the HTML cap gives
+  // a lower bound only (a 5 MB page could read as 2.4 MB): not measured.
+  if (!size || (!size.complete && !size.truncated) || size.countFailed) {
+    return { id, name, weight, score: 0, passed: false, notes: PAGE_WEIGHT_NOT_MEASURED_NOTE, na: true };
+  }
+  const bodyBytes = size.bytes;
   const mb = bodyBytes / (1024 * 1024);
+  const over = size.truncated && bodyBytes >= PAGE_WEIGHT_COUNT_UP_TO;
 
   let score: number;
   if (mb < 1) score = 100;
@@ -324,7 +352,7 @@ async function runPageWeightLcp(
     weight,
     score,
     passed: score >= 70,
-    notes: pageWeightNote(mb, bodyBytes),
+    notes: over ? pageWeightOverNote(PAGE_WEIGHT_COUNT_UP_TO - 1) : pageWeightNote(mb, bodyBytes),
   };
 }
 
@@ -524,6 +552,14 @@ function sameSiteLink(href: string, pageUrl: string, base: string): URL | null {
   }
 }
 
+/**
+ * Homepage link text that names a pricing page. 1.5.2: also in Portuguese,
+ * Spanish, French, German, Italian and Dutch (was English only, so a
+ * "Preços" or "Planos" link was never followed).
+ */
+export const PRICING_LINK_TEXT =
+  /pricing|plans|price|\b(?:pre[çc]os?|planos|precios|planes|tarif(?:s|as|e|en)?|prix|preise|prezzi|prijzen)\b/i;
+
 async function findPricingPath(
   url: string,
   homepageHtml: string | null,
@@ -551,7 +587,7 @@ async function findPricingPath(
     // unclosed "<a ". 1.4.2: same-site links only, each address once, at
     // most MAX_PRICING_LINKS requests.
     let linksTried = 0;
-    for (const href of anchorHrefs(homepageHtml, (text) => /pricing|plans|price/i.test(text))) {
+    for (const href of anchorHrefs(homepageHtml, (text) => PRICING_LINK_TEXT.test(text))) {
       if (linksTried >= MAX_PRICING_LINKS) break;
       const link = sameSiteLink(href, url, base);
       if (!link || isExcludedContentPath(link.pathname)) continue;
@@ -567,8 +603,6 @@ async function findPricingPath(
   return null;
 }
 
-// Same paths as Dim 4's product links (/products/x, /product/x, /p/x).
-const PRODUCT_LINK_PATH = /^\/(?:products?|p)\/[^/]+\/?$/i;
 
 /**
  * 1.4.2: pages linked from the homepage to sample for prices when there is no
@@ -589,7 +623,8 @@ export function priceSampleLinks(homepageHtml: string, homepageUrl: string, skip
     if (path === homePath || ASSET_EXT.test(path) || isExcludedContentPath(link.pathname)) continue;
     const s = link.toString();
     if (skip.has(s) || product.includes(s) || other.includes(s)) continue;
-    (PRODUCT_LINK_PATH.test(link.pathname) ? product : other).push(s);
+    // 1.5.2: Dim 4's product pages, in any language (productPathKind).
+    (productPathKind(link.pathname) ? product : other).push(s);
   }
   return [...product, ...other].slice(0, MAX_PRICE_SAMPLE_PAGES);
 }
@@ -1088,15 +1123,12 @@ export async function runDim5(
     redirect: "follow",
   });
   let staticBody: string | null = null;
-  let contentLength: number | null = null;
+  let homeSize: HomepageSize | null = null;
   if (homeRes && homeRes.ok) {
-    const cl = homeRes.headers.get("content-length");
-    contentLength = cl ? parseInt(cl, 10) : null;
-    if (Number.isNaN(contentLength)) contentLength = null;
     const b = await homeRes.body({ maxBytes: MAX_HTML_BYTES, countUpTo: PAGE_WEIGHT_COUNT_UP_TO });
     // A read error or timeout is null, as a thrown text() was before.
     staticBody = b.complete || b.truncated ? b.text : null;
-    if (b.truncated && contentLength == null) contentLength = b.bytes;
+    homeSize = { bytes: b.bytes, complete: b.complete, truncated: b.truncated, ...(b.countFailed ? { countFailed: true as const } : {}) };
   } else {
     homeRes?.discard();
   }
@@ -1105,7 +1137,7 @@ export async function runDim5(
   // Sequential where it makes sense (shared homepage fetch already done).
   // Parallel would hammer the target site; serial is fine for v1.
   subs.push(await runJsVsNoJsRenderDiff(targetUrl, env, tier, staticBody));
-  subs.push(await runPageWeightLcp(targetUrl, staticBody, contentLength));
+  subs.push(runPageWeightLcp(homeSize));
   // 1.5.0: informational (weight redistributed), like Dim 2 dns_txt: shown
   // with what was found, not scored.
   const md = await runMarkdownNegotiation(targetUrl);

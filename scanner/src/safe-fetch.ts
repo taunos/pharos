@@ -142,6 +142,11 @@ export interface CappedBody {
   truncated: boolean;
   /** The WHOLE body was read without error and without truncation. */
   complete: boolean;
+  /**
+   * 1.5.2: set only when a read error or timeout came while counting past
+   * maxBytes, so bytes is a lower bound, not the body size.
+   */
+  countFailed?: true;
 }
 
 export interface BodyOpts {
@@ -184,6 +189,7 @@ async function readCapped(res: Response, deadline: Deadline, opts: BodyOpts): Pr
   let kept = 0;
   let seen = 0;
   let truncated = false;
+  let countFailed = false;
   try {
     for (;;) {
       const { done, value } = await deadline.race(reader.read());
@@ -205,6 +211,7 @@ async function readCapped(res: Response, deadline: Deadline, opts: BodyOpts): Pr
     cancelQuietly(reader);
     // Past the cap we were only counting: keep the prefix (still truncated).
     if (!truncated) return failed;
+    countFailed = seen < countUpTo;
   }
   if (truncated) cancelQuietly(reader);
   else {
@@ -220,7 +227,7 @@ async function readCapped(res: Response, deadline: Deadline, opts: BodyOpts): Pr
     all.set(c, off);
     off += c.byteLength;
   }
-  return { text: new TextDecoder().decode(all), bytes: seen, truncated, complete: !truncated };
+  return { text: new TextDecoder().decode(all), bytes: seen, truncated, complete: !truncated, ...(countFailed ? { countFailed: true as const } : {}) };
 }
 
 export interface SafeResponse {
