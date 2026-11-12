@@ -197,11 +197,12 @@ async function sendBuyerEmailOrThrow(
   record: SessionRecord,
   origin: string,
   copy: AuditReadyEmailCopy,
+  reviewed = false,
 ): Promise<void> {
   const sessionId = record.session_id;
   const result = await sendAuditReadyEmail(
     env,
-    { toEmail: record.email, sessionId, url: record.url, origin },
+    { toEmail: record.email, sessionId, url: record.url, origin, reviewed },
     copy,
   );
   if (!result.ok) {
@@ -248,7 +249,7 @@ export async function deliverBuyerEmail(
       return "send_in_progress";
     }
     try {
-      await sendBuyerEmailOrThrow(env, record, origin, copy);
+      await sendBuyerEmailOrThrow(env, record, origin, copy, true);
     } catch (err) {
       if (err instanceof AuditReadyEmailError && err.ambiguous) {
         // Outcome unknown: keep the claim (no automatic resend); operator checks Resend.

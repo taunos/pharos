@@ -98,6 +98,16 @@ describe("results-page status gate (/api/audit-status)", async () => {
     expect(body).toEqual({ ok: true, status: "in_review", message: AUDIT_REVIEW_HOLD_STATUS_MESSAGE });
   });
 
+  it("still running + held → fulfilling with review_hold (page swaps its intro); not held → no flag", async () => {
+    kv.set(`audit:${SID}`, JSON.stringify({ ...JSON.parse(kv.get(`audit:${SID}`)!), status: "fulfilling" }));
+    let body = (await (await GET(get(`/api/audit-status/${SID}`), params)).json()) as J;
+    expect(body.status).toBe("fulfilling");
+    expect(body.review_hold).toBeUndefined();
+    hold(false);
+    body = (await (await GET(get(`/api/audit-status/${SID}`), params)).json()) as J;
+    expect(body).toMatchObject({ status: "fulfilling", review_hold: true });
+  });
+
   it("released → ready with links", async () => {
     hold(true);
     const body = (await (await GET(get(`/api/audit-status/${SID}`), params)).json()) as J;

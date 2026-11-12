@@ -6,6 +6,13 @@ import AuditSamplePanel from "@/components/AuditSamplePanel";
 import TierWaitlistForm from "@/components/TierWaitlistForm";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { isAuditCheckoutEnabled } from "@/lib/audit-gate";
+import {
+  AUDIT_REVIEW_HOLD_PAGE_BADGE,
+  AUDIT_REVIEW_HOLD_PAGE_CTA_LINE,
+  AUDIT_REVIEW_HOLD_PAGE_FAQ_TAIL,
+  isReviewHoldAcceptingOrders,
+  parseReviewHoldCount,
+} from "@/lib/audit-review-hold";
 import Link from "next/link";
 
 // Test C-A (A1): the Audit gate is an env var, so this page must not be
@@ -41,6 +48,12 @@ const serviceLd = {
   },
 };
 
+// Review hold: the "How is this automatic" answer while new orders are held.
+const FAQ_AUTOMATIC_HEAD =
+  "Automated checks and AI model tests do the analysis; each gap's remediation is a fixed, check-specific text chosen from what we found.";
+const FAQ_AUTOMATIC_DEFAULT = `${FAQ_AUTOMATIC_HEAD} Nothing is human-gated. PDF rendering takes a few extra seconds; the whole pipeline finishes in a few minutes end-to-end.`;
+const FAQ_AUTOMATIC_HELD = `${FAQ_AUTOMATIC_HEAD} ${AUDIT_REVIEW_HOLD_PAGE_FAQ_TAIL}`;
+
 // `aNode` (optional) is the visible answer when it carries markup; `a` stays
 // plain text for the FAQPage JSON-LD.
 const FAQS: { q: string; a: string; aNode?: React.ReactNode }[] = [
@@ -50,7 +63,7 @@ const FAQS: { q: string; a: string; aNode?: React.ReactNode }[] = [
   },
   {
     q: "How is this automatic if the report is that deep?",
-    a: "Automated checks and AI model tests do the analysis; each gap's remediation is a fixed, check-specific text chosen from what we found. Nothing is human-gated. PDF rendering takes a few extra seconds; the whole pipeline finishes in a few minutes end-to-end.",
+    a: FAQ_AUTOMATIC_DEFAULT,
   },
   {
     q: "Can I audit a competitor instead?",
@@ -78,15 +91,23 @@ const FAQS: { q: string; a: string; aNode?: React.ReactNode }[] = [
   },
 ];
 
-const faqLd = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: FAQS.map(({ q, a }) => ({
-    "@type": "Question",
-    name: q,
-    acceptedAnswer: { "@type": "Answer", text: a },
-  })),
-};
+function faqsFor(reviewHold: boolean) {
+  return reviewHold
+    ? FAQS.map((f) => (f.a === FAQ_AUTOMATIC_DEFAULT ? { ...f, a: FAQ_AUTOMATIC_HELD } : f))
+    : FAQS;
+}
+
+function faqLdFor(faqs: typeof FAQS) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map(({ q, a }) => ({
+      "@type": "Question",
+      name: q,
+      acceptedAnswer: { "@type": "Answer", text: a },
+    })),
+  };
+}
 
 const INCLUDES = [
   "Every gap explained in plain language — what it is and what agents can't read because of it",
@@ -119,8 +140,17 @@ export default async function AuditPage({
   // /api/audit-create. Gate closed → the page renders exactly as before.
   const env = getCloudflareContext().env as unknown as {
     AUDIT_CHECKOUT_ENABLED?: string;
+    AUDIT_REVIEW_HOLD_COUNT?: string;
+    CITATION_DB?: D1Database;
   };
   const checkoutEnabled = isAuditCheckoutEnabled(env);
+  // Review hold: the badge, FAQ answer and CTA line say "checked by hand"
+  // while new orders are still held; after the Nth held order they revert.
+  const reviewHold = await isReviewHoldAcceptingOrders(
+    env.CITATION_DB,
+    parseReviewHoldCount(env.AUDIT_REVIEW_HOLD_COUNT),
+  );
+  const faqs = faqsFor(reviewHold);
   const showCanceled = checkoutEnabled && (await searchParams).canceled === "1";
   return (
     <div className="min-h-screen">
@@ -130,7 +160,7 @@ export default async function AuditPage({
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLdFor(faqs)) }}
       />
       <SiteHeader />
 
@@ -140,7 +170,7 @@ export default async function AuditPage({
           <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start lg:gap-16">
             <div>
               <div className="inline-flex rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm font-mono text-emerald-400">
-                $79 · delivered in a few minutes
+                {reviewHold ? AUDIT_REVIEW_HOLD_PAGE_BADGE : "$79 · delivered in a few minutes"}
               </div>
               <h1 className="mt-6 text-balance text-4xl font-bold tracking-tight sm:text-6xl">
                 See what AI says about you, and what to fix.
@@ -165,6 +195,11 @@ export default async function AuditPage({
               <div className={showCanceled ? "mt-6" : "mt-10"}>
                 <AuditCheckoutForm checkoutEnabled={checkoutEnabled} />
               </div>
+              {reviewHold ? (
+                <p className="mt-4 text-sm text-[var(--color-muted)]">
+                  {AUDIT_REVIEW_HOLD_PAGE_CTA_LINE}
+                </p>
+              ) : null}
               <p className="mt-4 font-mono text-xs uppercase tracking-wider text-[var(--color-muted)]">
                 30-day refund · No call · No login
               </p>
@@ -255,7 +290,7 @@ export default async function AuditPage({
               FAQ
             </h2>
             <dl className="mt-10 flex flex-col gap-6">
-              {FAQS.map((f) => (
+              {faqs.map((f) => (
                 <div
                   key={f.q}
                   className="border border-[var(--color-border)] bg-[var(--color-surface-2)] p-6"

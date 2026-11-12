@@ -20,6 +20,7 @@ type StatusPayload =
       status: "fulfilling";
       message: string;
       started_at?: number;
+      review_hold?: true;
     }
   // Review hold (lib/audit-review-hold.ts): report generated, withheld.
   | { ok: true; status: "in_review"; message: string }
@@ -79,11 +80,14 @@ function isTerminal(p: StatusPayload | null): boolean {
 export default function AuditResultsPoller({
   sessionId,
   intro,
+  heldIntro,
   afterPaid,
 }: {
   sessionId: string;
   // The page's "Hold tight…" paragraph: shown until the audit is ready.
   intro?: ReactNode;
+  // Replaces `intro` while a review-held order is still running.
+  heldIntro?: ReactNode;
   // Shown under the status once payment is confirmed (fulfilling / ready).
   afterPaid?: ReactNode;
 }) {
@@ -161,7 +165,11 @@ export default function AuditResultsPoller({
   const frame = (body: ReactNode) => (
     <>
       {/* The intro promises minutes and an email; neither holds while in review. */}
-      {isReady || isInReview ? null : intro}
+      {isReady || isInReview
+        ? null
+        : payload?.ok && payload.status === "fulfilling" && payload.review_hold
+          ? (heldIntro ?? intro)
+          : intro}
       <p className="mt-2 text-xs font-mono text-[var(--color-muted)]">
         Session: {sessionId}
       </p>

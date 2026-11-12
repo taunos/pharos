@@ -6,7 +6,9 @@ import { createSqliteD1, readMigration, type SqliteD1 } from "./test-support/sql
 import {
   DEFAULT_AUDIT_REVIEW_HOLD_COUNT,
   REVIEW_GEN_LEASE_MS,
+  AUDIT_REVIEW_RELEASED_EMAIL_LINE,
   decideReviewHold,
+  isReviewHoldAcceptingOrders,
   parseReviewHoldCount,
   readReviewHold,
   reviewEvidenceKey,
@@ -181,6 +183,39 @@ describe("parseReviewHoldCount — fail-closed", () => {
     }
     expect(parseReviewHoldCount("0")).toBe(0);
     expect(parseReviewHoldCount("3")).toBe(3);
+  });
+});
+
+describe("isReviewHoldAcceptingOrders (/audit page hold lines)", () => {
+  it("true while fewer than N are held; false at N or with N = 0; true on a D1 error", async () => {
+    expect(await isReviewHoldAcceptingOrders(sq.d1, 2)).toBe(true);
+    await decideReviewHold(sq.d1, sid(1), 2);
+    expect(await isReviewHoldAcceptingOrders(sq.d1, 2)).toBe(true);
+    await decideReviewHold(sq.d1, sid(2), 2);
+    expect(await isReviewHoldAcceptingOrders(sq.d1, 2)).toBe(false);
+    expect(await isReviewHoldAcceptingOrders(sq.d1, 0)).toBe(false);
+    sq.failWhen = () => true;
+    expect(await isReviewHoldAcceptingOrders(sq.d1, 2)).toBe(true);
+    expect(await isReviewHoldAcceptingOrders(undefined, 2)).toBe(true);
+  });
+});
+
+describe("released-report email line (D)", () => {
+  it("a released report's email carries the hand-check line (real copy); a never-held order's does not", async () => {
+    const env = makeEnv({ AUDIT_REVIEW_HOLD_COUNT: "1" });
+    seed(sid(1), "fulfilling");
+    await runAuditFulfillment(env, sid(1), "o"); // held, default copy
+    seed(sid(2), "fulfilling");
+    await runAuditFulfillment(env, sid(2), "o"); // not held → sent now
+    await releaseHeldAudit(env, sid(1), "https://astrant.io");
+    expect(h.resendSends).toHaveLength(2);
+    const [notHeld, released] = h.resendSends;
+    expect(String(notHeld.payload.text)).not.toContain(AUDIT_REVIEW_RELEASED_EMAIL_LINE);
+    expect(String(notHeld.payload.html)).not.toContain(AUDIT_REVIEW_RELEASED_EMAIL_LINE);
+    expect(String(released.payload.text)).toContain(
+      `is ready.\n\n${AUDIT_REVIEW_RELEASED_EMAIL_LINE}\n\nThe PDF is attached.`,
+    );
+    expect(String(released.payload.html)).toContain(AUDIT_REVIEW_RELEASED_EMAIL_LINE);
   });
 });
 

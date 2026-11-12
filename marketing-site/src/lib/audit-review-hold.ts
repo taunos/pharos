@@ -270,9 +270,40 @@ export function reviewEvidenceKey(sessionId: string): string {
   return `audits/${sessionId}.dim6-review.json`;
 }
 
-// PLACEHOLDER customer-facing text, pending Bruno's approval. Options are in
-// _tmp/report-truthfulness/copy-for-approval-review-hold-2026-11-12.md.
-// Deliberately neutral and promises no time.
-export const AUDIT_REVIEW_HOLD_STATUS_TITLE = "Being checked";
+// Customer-facing text, approved by Bruno 2026-11-12
+// (_tmp/report-truthfulness/copy-for-approval-review-hold-2026-11-12.md).
+// A: results page while the report is held.
+export const AUDIT_REVIEW_HOLD_STATUS_TITLE = "Your audit is being checked";
 export const AUDIT_REVIEW_HOLD_STATUS_MESSAGE =
-  "Your audit has been generated and is being checked before delivery. We'll email it to you once it's released.";
+  "Your audit is ready. We check each early report by hand before we send it, usually within 1 business day. We'll email you the PDF when it's done. Questions? Write to contact@astrant.io.";
+// B: results page intro while a held order is still running.
+export const AUDIT_REVIEW_HOLD_RUNNING_INTRO =
+  "Hold tight — we're scanning your site, generating remediation guidance for each gap, and rendering your PDF. This takes a few minutes. We check early reports by hand before sending them, so the email may come later.";
+// C: /audit page, shown only while new orders are still held
+// (isReviewHoldAcceptingOrders); the page falls back to its usual text after.
+export const AUDIT_REVIEW_HOLD_PAGE_BADGE = "$79 · checked by hand, usually within 1 business day";
+export const AUDIT_REVIEW_HOLD_PAGE_FAQ_TAIL =
+  "The analysis is automated. While we open the Audit to our first customers, we check each report by hand before it is sent, usually within 1 business day.";
+export const AUDIT_REVIEW_HOLD_PAGE_CTA_LINE =
+  "Each early report is checked by hand before delivery, usually within 1 business day.";
+// D: extra line in the "Your Astrant Audit is ready" email for released reports.
+export const AUDIT_REVIEW_RELEASED_EMAIL_LINE = "We checked this report by hand before sending it.";
+
+// /audit page: true while a new order would still be held (fewer than
+// `limit` orders held so far), so the page's hold lines show only then.
+// Fail-closed toward telling the buyer: a D1 error reports the hold active.
+export async function isReviewHoldAcceptingOrders(
+  db: D1Database | undefined,
+  limit: number,
+): Promise<boolean> {
+  if (limit <= 0) return false;
+  try {
+    if (!db) return true;
+    const row = await db
+      .prepare(`SELECT COUNT(*) AS n FROM audit_review_holds WHERE held = 1`)
+      .first<{ n: number }>();
+    return (row?.n ?? 0) < limit;
+  } catch {
+    return true;
+  }
+}

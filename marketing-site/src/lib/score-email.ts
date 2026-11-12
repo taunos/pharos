@@ -13,6 +13,7 @@
 // All sends use From: `Astrant Score <reports@astrant.io>` — Bruno added
 // the `reports@astrant.io` Cloudflare Email Routing forwarder pre-flight.
 
+import { AUDIT_REVIEW_RELEASED_EMAIL_LINE } from "./audit-review-hold";
 import { Resend } from "resend";
 import type { ScanResult } from "./audit-types";
 import { hashEmailForLog } from "./score-tokens";
@@ -466,19 +467,21 @@ ${digestLine}
 export type AuditReadyEmailCopy = {
   subject: string;
   // `url` is the audited site; `pdfUrl` is the R2-backed PDF route.
-  text: (args: { url: string; pdfUrl: string }) => string;
-  html: (args: { url: string; pdfUrl: string }) => string;
+  // `reviewed`: the report was held for review and released (adds one line).
+  text: (args: { url: string; pdfUrl: string; reviewed?: boolean }) => string;
+  html: (args: { url: string; pdfUrl: string; reviewed?: boolean }) => string;
 };
 export const AUDIT_READY_EMAIL_COPY: AuditReadyEmailCopy | null = {
   subject: "Your Astrant Audit is ready",
-  text: ({ url, pdfUrl }) =>
-    `Your Astrant Audit for ${url} is ready.\n\nThe PDF is attached. You can also open it here:\n${pdfUrl}\n\nQuestions or something looks wrong? Reply to this email or write to contact@astrant.io.\n\n—Astrant`,
-  html: ({ url, pdfUrl }) =>
+  text: ({ url, pdfUrl, reviewed }) =>
+    `Your Astrant Audit for ${url} is ready.\n\n${reviewed ? `${AUDIT_REVIEW_RELEASED_EMAIL_LINE}\n\n` : ""}The PDF is attached. You can also open it here:\n${pdfUrl}\n\nQuestions or something looks wrong? Reply to this email or write to contact@astrant.io.\n\n—Astrant`,
+  html: ({ url, pdfUrl, reviewed }) =>
     renderEmailLayout({
       preheader: `Your Astrant Audit for ${url} is ready.`,
       heading: "Your Astrant Audit is ready",
       cards: [
         `<p style="margin: 0 0 12px 0;">Your Astrant Audit for ${escapeHtml(url)} is ready.</p>` +
+          (reviewed ? `<p style="margin: 0 0 12px 0;">${AUDIT_REVIEW_RELEASED_EMAIL_LINE}</p>` : "") +
           `<p style="margin: 0 0 12px 0;">The PDF is attached. You can also open it here:<br /><a href="${escapeHtml(pdfUrl)}" style="color: ${EMAIL_PALETTE.fg}; word-break: break-all;">${escapeHtml(pdfUrl)}</a></p>` +
           `<p style="margin: 0 0 12px 0;">Questions or something looks wrong? Reply to this email or write to <a href="mailto:contact@astrant.io" style="color: ${EMAIL_PALETTE.fg};">contact@astrant.io</a>.</p>` +
           `<p style="margin: 0;">—Astrant</p>`,
@@ -493,6 +496,8 @@ export type AuditReadyInput = {
   sessionId: string;
   url: string;
   origin: string;
+  // Review hold: the report was held and released by a reviewer.
+  reviewed?: boolean;
 };
 
 export async function sendAuditReadyEmail(
@@ -512,7 +517,7 @@ export async function sendAuditReadyEmail(
     const pdfObj = await env.AUDITS.get(pdfKey);
     if (!pdfObj) return { ok: false, error: `pdf_not_found:${pdfKey}` };
     const pdfBase64 = uint8ArrayToBase64Local(new Uint8Array(await pdfObj.arrayBuffer()));
-    const args = { url: input.url, pdfUrl };
+    const args = { url: input.url, pdfUrl, reviewed: input.reviewed === true };
     const result = await resend.emails.send(
       {
         from: "Astrant <reports@astrant.io>",

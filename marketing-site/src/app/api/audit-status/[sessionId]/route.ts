@@ -14,7 +14,7 @@ interface StatusEnv {
 
 type StatusResponse =
   | { status: "awaiting_payment"; message: string }
-  | { status: "fulfilling"; message: string; started_at?: number }
+  | { status: "fulfilling"; message: string; started_at?: number; review_hold?: true }
   // Review hold: the report exists but is withheld until a reviewer releases
   // it (lib/audit-review-hold.ts). No report links.
   | { status: "in_review"; message: string }
@@ -78,6 +78,13 @@ export async function GET(
           "Audit running — scanning your site, enriching each gap with remediation guidance, and rendering your PDF.",
         started_at: record.started_at,
       };
+      // Review hold decided at payment: the page swaps its intro for the
+      // held-order one. A D1 error flags it too (the held intro is still true).
+      try {
+        if (isWithheld(await readReviewHold(env.CITATION_DB, sessionId))) payload.review_hold = true;
+      } catch {
+        payload.review_hold = true;
+      }
       break;
     case "ready": {
       // Review hold gate. Fail-closed: a D1 error withholds the links too.

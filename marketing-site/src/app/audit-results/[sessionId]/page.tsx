@@ -4,6 +4,7 @@ import SiteFooter from "@/components/SiteFooter";
 import AuditResultsPoller from "@/components/AuditResultsPoller";
 import AuditIntakeForm from "@/components/AuditIntakeForm";
 import { isIntakeSessionId } from "@/lib/dataset-intake";
+import { AUDIT_REVIEW_HOLD_RUNNING_INTRO } from "@/lib/audit-review-hold";
 
 export const metadata: Metadata = {
   title: "Your Astrant Audit — Astrant",
@@ -35,6 +36,11 @@ export default async function AuditResultsPage({
                 Hold tight — we&apos;re scanning your site, generating remediation
                 guidance for each gap, and rendering your PDF. Usually 2–4
                 minutes. We&apos;ll also email you the PDF.
+              </p>
+            }
+            heldIntro={
+              <p className="mt-6 text-lg text-[var(--color-muted)]">
+                {AUDIT_REVIEW_HOLD_RUNNING_INTRO}
               </p>
             }
             afterPaid={
