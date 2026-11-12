@@ -441,7 +441,7 @@ export const mcpAuthRequiredNote = (url: string) =>
 
 /** Whole-dimension N/A note (1.4.0): shown in the Score and Audit reports. */
 export const DIM2_CONTENT_ONLY_NA_NOTE =
-  "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored.";
+  "No supported MCP discovery signal was found: no MCP server card (/.well-known/mcp.json or /.well-known/mcp/server-card.json), nothing answering as an MCP server at /api/mcp, no MCP link in /llms.txt, /robots.txt or on the homepage, no /.well-known/ucp profile declaring MCP and no _mcp DNS TXT record. No API evidence was found either (no OpenAPI description or API catalog, GraphQL endpoint or API documentation link). An MCP server may still exist elsewhere, so this dimension is marked N/A rather than scored.";
 
 /** oauth_metadata N/A note (1.3.3): no MCP server card was found. */
 export const OAUTH_NO_CARD_NA_NOTE =

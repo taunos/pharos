@@ -255,6 +255,8 @@ describe("1.4.0 N1 positive absence and the GraphQL probe", () => {
     expect(dim(r, 2).sub_checks[0].notes).toBe(DIM2_CONTENT_ONLY_NA_NOTE);
     expect(DIM2_CONTENT_ONLY_NA_NOTE).toMatch(/^No supported MCP discovery signal was found/);
     expect(DIM2_CONTENT_ONLY_NA_NOTE).not.toMatch(/content-only site|no MCP endpoint found/i);
+    // 1.5.2 (Bruno 2026-11-12, copy item 8): robots.txt is read for MCP links too.
+    expect(DIM2_CONTENT_ONLY_NA_NOTE).toContain("no MCP link in /llms.txt, /robots.txt or on the homepage");
     expect(dim(r, 3).sub_checks[0].notes).toBe(DIM3_NO_API_NA_NOTE);
     // Extra requests for a content site: /.well-known/ucp, POST /api/mcp and
     // the two GraphQL GETs (no link evidence) - 4 in all.
