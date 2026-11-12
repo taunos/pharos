@@ -28,7 +28,7 @@ interface Case {
   question: string;
   reference: string;
   answer: string;
-  expect: "correct" | "wrong_facts" | "not correct";
+  expect: "correct" | "wrong_facts" | "not correct" | "not wrong_facts";
   recorded: { judge: string | null; confirm: string | null; facts: string | null; compats: string[] };
 }
 const CASES = JSON.parse(fs.readFileSync(path.join(__dirname, "__fixtures__/fictional-facts-cases.json"), "utf8")) as Case[];
@@ -56,13 +56,15 @@ describe("recorded 70B outputs on fictional sites (held-out patterns)", () => {
     const { AI } = recordedAi(c.recorded);
     const v = await judgeAccuracy({ AI }, c.domain, c.reference, c.answer, { names: [], question: c.question });
     if (c.expect === "not correct") expect(v.kind).not.toBe("correct");
+    else if (c.expect === "not wrong_facts") expect(v.kind).not.toBe("wrong_facts");
     else expect(v.kind).toBe(c.expect);
   });
 
-  it("the dentist answer backs its broad claim but states another specialty: WRONG_FACTS, quoting the site's own self-description", async () => {
+  it("the dentist answer backs its broad claim but states another specialty: WRONG_FACTS, quoting the site's job title", async () => {
     const { AI } = recordedAi(DENTIST.recorded);
     const v = await judgeAccuracy({ AI }, DENTIST.domain, DENTIST.reference, DENTIST.answer, { names: [], question: DENTIST.question });
-    expect(v).toMatchObject({ kind: "wrong_facts", siteQuote: "Dra. Marina Costa – Cirurgiã-Dentista em Natal" });
+    expect(v.kind).toBe("wrong_facts");
+    if (v.kind === "wrong_facts") expect(v.siteQuote).toContain("Cirurgiã-Dentista");
     if (v.kind === "wrong_facts") expect(DENTIST.answer.slice(v.claimAt)).toMatch(/^dermatology/);
   });
 });
@@ -76,6 +78,11 @@ describe("parseFactsOutput", () => {
     expect(parseFactsOutput(many)).toHaveLength(FACTS_MAX);
     expect((parseFactsOutput(many) as { more?: boolean }).more).toBe(true);
     expect((parseFactsOutput("FACT: OTHER | a | NONE | ABSENT") as { more?: boolean }).more).toBeUndefined();
+    // the last line cut off by the output limit: dropped, and the list counts as cut
+    const cut = parseFactsOutput("FACT: LOCATION | Curitiba | Curitiba | MATCH\nFACT: LOCATION | Joinvi");
+    expect(cut).toHaveLength(1);
+    expect((cut as { more?: boolean }).more).toBe(true);
+    expect(parseFactsOutput("FACT: LOCATION | Curitiba | Curitiba | MATCH\nnot a fact\nFACT: LOCATION | Londrina | Londrina | MATCH")).toBeNull();
   });
   it("rejects anything else", () => {
     for (const bad of ["", "CORRECT", "FACT: LOCATION | Curitiba | MATCH", "FACT: CITY | Curitiba | Curitiba | MATCH", "FACT: LOCATION | Curitiba | Curitiba | MAYBE", "Here are the facts:\nFACT: LOCATION | a | b | MATCH"])
@@ -93,12 +100,14 @@ describe("settleFacts gates", () => {
     expect(settleFacts(city, A, REF, "padariasol.com.br", { names: [] }, [])).toMatchObject({ needsCompat: true, index: 0, claimAt: A.indexOf("Florianópolis") });
     expect(settleFacts(city, A, REF, "padariasol.com.br", { names: [] }, [{ compatible: false }])).toMatchObject({ kind: "wrong_facts", siteQuote: "Nossas lojas: Curitiba" });
     expect(settleFacts(city, A, REF, "padariasol.com.br", { names: [] }, [{ compatible: true }])).toEqual({ kind: "ok" });
-    expect(settleFacts(city, A, REF, "padariasol.com.br", { names: [] }, [null])).toEqual({ kind: "ok" });
+    // a check that failed clears nothing: no CORRECT, no accusation
+    expect(settleFacts(city, A, REF, "padariasol.com.br", { names: [] }, [null])).toEqual({ kind: "unchecked" });
   });
 
   it("words that are not in the answer or not in the site description are no evidence", () => {
     expect(settleFacts([f("LOCATION", "Porto Alegre", "Nossas lojas", "CONFLICT")], A, REF, "padariasol.com.br", { names: [] }, [])).toEqual({ kind: "ok" });
-    expect(settleFacts([f("LOCATION", "Florianópolis", "Lojas em Joinville e Blumenau", "CONFLICT")], A, REF, "padariasol.com.br", { names: [] }, [])).toEqual({ kind: "ok" });
+    // site words not found: never an accusation, but the conflict withholds CORRECT
+    expect(settleFacts([f("LOCATION", "Florianópolis", "Lojas em Joinville e Blumenau", "CONFLICT")], A, REF, "padariasol.com.br", { names: [] }, [])).toEqual({ kind: "unchecked" });
   });
 
   it("an unverifiable detail changes nothing (gold guide R1/R3: only an explicit conflict is wrong)", () => {
@@ -122,9 +131,9 @@ describe("settleFacts gates", () => {
   });
 
   it("at most FACT_CHECKS_MAX second calls per answer; a candidate left unchecked is reported (Codex review: no CORRECT then)", () => {
-    const ans = "Shops in Alpha, Beta, Gamma, Delta, Epsilon and Zeta.";
+    const ans = "Shops in Alpha, Beta, Gamma, Delta, Epsilon, Zeta, Eta and Theta.";
     const ref = "From the homepage:\nPage text: Nossas lojas: Curitiba e Londrina.";
-    const facts = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta"].map((c) => f("LOCATION", c, "Nossas lojas: Curitiba e Londrina", "CONFLICT"));
+    const facts = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta"].map((c) => f("LOCATION", c, "Nossas lojas: Curitiba e Londrina", "CONFLICT"));
     const results = Array.from({ length: FACT_CHECKS_MAX }, () => ({ compatible: true }));
     expect(settleFacts(facts, ans, ref, "x.com.br", { names: [] }, results)).toEqual({ kind: "unchecked" });
     expect(settleFacts(facts.slice(0, FACT_CHECKS_MAX), ans, ref, "x.com.br", { names: [] }, results)).toEqual({ kind: "ok" });
@@ -138,13 +147,53 @@ describe("settleFacts gates", () => {
   it("a place, address, phone, date or price conflict needs a value in the answer (dev: \"not confined to a specific geographic location\" vs an office address)", () => {
     const ans = "No, it is an online service, not confined to a specific geographic location.";
     const ref = "From structured data:\nAddress: 10 Main Street\nFrom the homepage:\nTitle: Email API for developers";
-    // never an accusation; the conflict is not cleared either, so no CORRECT (Codex review round 2)
-    expect(settleFacts([f("LOCATION", "not confined to a specific geographic location", "Address: 10 Main Street", "CONFLICT")], ans, ref, "x.com", { names: [] }, [])).toEqual({ kind: "unchecked" });
+    // never an accusation: the second call may clear it; upheld, it only withholds CORRECT (Codex review round 2)
+    const valueless = [f("LOCATION", "not confined to a specific geographic location", "Address: 10 Main Street", "CONFLICT")];
+    expect(settleFacts(valueless, ans, ref, "x.com", { names: [] }, [])).toMatchObject({ needsCompat: true });
+    expect(settleFacts(valueless, ans, ref, "x.com", { names: [] }, [{ compatible: false }])).toEqual({ kind: "unchecked" });
+    expect(settleFacts(valueless, ans, ref, "x.com", { names: [] }, [{ compatible: true }])).toEqual({ kind: "ok" });
+    expect(settleFacts(valueless, ans, ref, "x.com", { names: [] }, [null])).toEqual({ kind: "unchecked" });
     expect(settleFacts([f("LOCATION", "not confined to a specific geographic location", null, "ABSENT")], ans, ref, "x.com", { names: [] }, [])).toEqual({ kind: "ok" });
     expect(givesValue(f("LOCATION", "Florianópolis", null, "CONFLICT"))).toBe(true);
     expect(givesValue(f("ADDRESS", "near the station", null, "CONFLICT"))).toBe(false);
     expect(givesValue(f("PHONE", "(41) 3333-0000", null, "CONFLICT"))).toBe(true);
     expect(givesValue(f("CATEGORY", "dermatology", null, "ABSENT"))).toBe(true);
+  });
+
+  it("held-out pattern: a conflict that cannot be confirmed withholds CORRECT but never accuses", () => {
+    // site words NONE (a city missing from the site's list), or only part of a street name
+    expect(settleFacts([f("LOCATION", "Florianópolis", null, "CONFLICT")], A, REF, "padariasol.com.br", { names: [] }, [])).toEqual({ kind: "unchecked" });
+    expect(settleFacts([f("ADDRESS", "Florianópolis", "Rua XV de Novembro, 850", "CONFLICT")], A, REF, "padariasol.com.br", { names: [] }, [])).toEqual({ kind: "unchecked" });
+    // a check that fails clears nothing
+    expect(settleFacts([f("LOCATION", "Florianópolis", "Nossas lojas: Curitiba", "CONFLICT")], A, REF, "padariasol.com.br", { names: [] }, [null])).toEqual({ kind: "unchecked" });
+  });
+
+  it("held-out pattern: an option in a hedged list of possibilities never accuses, bulleted or inline", () => {
+    const bullets = ["I can't verify padariasol.com.br. Based on the name, it likely operates in one of these areas:", "", "- a bakery", "- an automotive parts shop", "- a solar energy installer"].join("\n");
+    const auto = [f("CATEGORY", "an automotive parts shop", null, "CONFLICT")];
+    expect(settleFacts(auto, bullets, BAKERY_REF, "padariasol.com.br", { names: [] }, [])).toEqual({ kind: "unchecked" });
+    const inline = "It could be a solar energy company, a tanning salon or a car dealership.";
+    expect(settleFacts([f("CATEGORY", "a car dealership", null, "CONFLICT")], inline, BAKERY_REF, "padariasol.com.br", { names: [] }, [])).toEqual({ kind: "unchecked" });
+    // a single hedged guess is still a claim (gold guide): it goes to the check
+    expect(settleFacts([f("CATEGORY", "a car dealership", null, "CONFLICT")], "It is probably a car dealership.", BAKERY_REF, "padariasol.com.br", { names: [] }, [])).toMatchObject({ needsCompat: true });
+    // a plain list (no possibility word) is a list of claims
+    const plainList = ["Padaria Sol offers:", "- bread", "- car repairs"].join("\n");
+    expect(settleFacts([f("SERVICE", "car repairs", "Nossas lojas", "CONFLICT")], plainList, BAKERY_REF, "padariasol.com.br", { names: [] }, [])).toMatchObject({ needsCompat: true });
+  });
+
+  it("Codex review round 3: the hedge must introduce the options; two-item lists count; a failed self-description check clears nothing", () => {
+    const later = "It is a dermatology clinic and could accept cash or cards.";
+    expect(settleFacts([f("CATEGORY", "dermatology clinic", null, "CONFLICT")], later, DENTIST.reference, DENTIST.domain, { names: [] }, [])).toMatchObject({ needsCompat: true });
+    const two = "It could be a dermatology clinic, a bakery.";
+    expect(settleFacts([f("CATEGORY", "a dermatology clinic", null, "CONFLICT")], two, DENTIST.reference, DENTIST.domain, { names: [] }, [])).toEqual({ kind: "unchecked" });
+    expect(settleFacts([f("CATEGORY", "dermatology clinic", null, "ABSENT")], "It is a dermatology clinic.", DENTIST.reference, DENTIST.domain, { names: [] }, [null])).toEqual({ kind: "unchecked" });
+  });
+
+  it("a kind of business whose site words were NONE is cleared when the second call, reading the self-description, finds no conflict", () => {
+    const d = "It is a dental practice in Natal.";
+    const facts = [f("CATEGORY", "dental practice", null, "CONFLICT")];
+    expect(settleFacts(facts, d, DENTIST.reference, DENTIST.domain, { names: [] }, [{ compatible: true }])).toEqual({ kind: "ok" });
+    expect(settleFacts(facts, d, DENTIST.reference, DENTIST.domain, { names: [] }, [{ compatible: false }])).toMatchObject({ kind: "wrong_facts" });
   });
 
   it("Codex review: different explicit country codes are different numbers", () => {
@@ -177,6 +226,12 @@ describe("judgeAccuracy with the facts check", () => {
     const { AI, prompts } = recordedAi({ judge: J6("UNKNOWN", "NO", "NONE", "NONE", "UNSUPPORTED"), confirm: null, facts: null, compats: [] });
     expect(await judgeAccuracy({ AI }, "padariasol.com.br", BAKERY_REF, "I don't have information about this site.", { names: [] })).toEqual({ kind: "deny" });
     expect(prompts.some((p) => p.includes("<answer-facts-"))).toBe(false);
+  });
+
+  it("an unconfirmable conflict turns CORRECT into UNCLEAR, never WRONG_FACTS", async () => {
+    const c = CASES.find((x) => x.id === "control-correct")!;
+    const { AI } = recordedAi({ ...c.recorded, facts: "FACT: LOCATION | Maringá | NONE | CONFLICT", compats: [] });
+    expect(await judgeAccuracy({ AI }, c.domain, c.reference, c.answer, { names: [], question: c.question })).toMatchObject({ kind: "unclear", why: "facts_unchecked" });
   });
 
   it("an answer that only guesses still has its facts checked (gold guide: hedged claims are fact-checked)", async () => {

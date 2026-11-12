@@ -90,7 +90,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a platform designed to simplify the process of sending transactional emails\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | platform designed to simplify | Email API for developers | MATCH\nFACT: SERVICE | sending transactional emails | Send transactional email | MATCH\nFACT: CATEGORY | for developers | Email for developers | MATCH\nFACT: SERVICE | email sending capabilities | Send transactional and marketing emails | MATCH\nFACT: SERVICE | email templates | Build email templates | MATCH\nFACT: SERVICE | analytics | NONE | ABSENT\nFACT: SERVICE | support for various programming languages | SDKs for your favorite programming languages | MATCH\nFACT: OTHER | reliability, scalability, and ease of use | NONE | ABSENT",
+   "facts": "FACT: CATEGORY | platform designed to simplify the process of sending transactional emails | Email API for developers | MATCH\nFACT: SERVICE | sending transactional emails | Send transactional email | MATCH\nFACT: CATEGORY | developers | for developers | MATCH\nFACT: SERVICE | email sending capabilities | Send transactional and marketing emails | MATCH\nFACT: SERVICE | email templates | Build email templates | MATCH\nFACT: SERVICE | analytics | NONE | ABSENT\nFACT: SERVICE | support for various programming languages and frameworks | SDKs for your favorite programming languages | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -101,8 +101,10 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: an email API service\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | email API service | Email API for developers | MATCH\nFACT: PERSON | Zeno Rocha | NONE | ABSENT\nFACT: SERVICE | transactional and marketing emails | Send transactional and marketing emails at scale | MATCH\nFACT: SERVICE | SDKs available for popular programming languages | SDKs for your favorite programming languages | MATCH\nFACT: SERVICE | Email templates | Build email templates with React | MATCH\nFACT: SERVICE | Domain authentication | verify domains (SPF/DKIM/DMARC) | MATCH\nFACT: SERVICE | Analytics | monitor delivery events | MATCH\nFACT: CATEGORY | developer-focused | Email for developers | MATCH",
-   "compats": [],
+   "facts": "FACT: CATEGORY | email API service | Email API for developers | MATCH\nFACT: PERSON | Zeno Rocha | NONE | ABSENT\nFACT: CATEGORY | developer-focused email API | Email API for developers | MATCH\nFACT: SERVICE | transactional and marketing emails | Send transactional and marketing emails | MATCH\nFACT: OTHER | clean API design | simple, modern API | MATCH\nFACT: OTHER | developer experience | first-class developer experience | MATCH\nFACT: CATEGORY | startups and developers | Companies of all sizes | CONFLICT \nFACT: SERVICE | email templates | Build email templates with React | MATCH\nFACT: SERVICE | domain authentication | verify domains (SPF/DKIM/DMARC) | MATCH\nFACT: SERVICE | analytics | monitor delivery events | MATCH\nFACT: OTHER | SendGrid, Mailgun, Postmark, and Amazon SES | NONE | ABSENT",
+   "compats": [
+    "NO"
+   ],
    "verdict": "CORRECT"
   },
   {
@@ -112,7 +114,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: an email API for developers\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | email API for developers | Email API for developers | MATCH \nFACT: SERVICE | send transactional and marketing emails | Send transactional email, Send marketing email | MATCH \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | email API for developers | Email API for developers | MATCH \nFACTS: NONE",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -123,7 +125,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: an email infrastructure platform for developers\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | email infrastructure platform for developers | Email API for developers | MATCH\nFACT: SERVICE | send individual, batch, or scheduled emails | Send transactional and marketing emails at scale | MATCH\nFACT: SERVICE | email templates | Build email templates with React | MATCH\nFACT: SERVICE | delivery analytics | monitor delivery events | MATCH\nFACT: SERVICE | webhooks for events | configure webhooks | MATCH\nFACT: SERVICE | contact management | manage contacts, segments, and broadcasts | MATCH\nFACT: CATEGORY | similar to SendGrid, Mailgun, or Amazon SES | NONE | ABSENT\nFACT: OTHER | emphasizes a simpler developer experience | first-class developer experience | MATCH",
+   "facts": "FACT: CATEGORY | email infrastructure platform for developers | Email API for developers | MATCH\nFACT: SERVICE | send individual, batch, or scheduled emails | Send transactional and marketing emails at scale | MATCH\nFACT: SERVICE | email templates | Build email templates with React using [React Email] | MATCH\nFACT: SERVICE | delivery analytics | monitor delivery events | MATCH\nFACT: SERVICE | webhooks for events | configure webhooks | MATCH\nFACT: SERVICE | contact management | manage contacts, segments, and broadcasts | MATCH\nFACT: SERVICE | inbound email routing | Receive and act on inbound email | MATCH\nFACT: CATEGORY | similar to SendGrid, Mailgun, or Amazon SES | NONE | ABSENT\nFACT: SERVICE | account verification and password resets | Send transactional email (welcome emails, password resets | MATCH\nFACT: SERVICE | receipts, alerts, and notifications | Send transactional email (receipts, notifications | MATCH\nFACT: SERVICE | marketing emails and newsletters | Send marketing email | MATCH\nFACT: SERVICE | automated lifecycle messages | build recurring flows with automations | MATCH\nFACT: SERVICE | React-based email development | Build email templates with React using [React Email] | MATCH \nFACT: OTHER | emphasizes a simpler developer experience | first-class developer experience | MATCH\nFACT: OTHER | modern integrations | modern API | MATCH",
    "compats": [
     "NO"
    ],
@@ -136,7 +138,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, Resend.com offers services that can be beneficial for small businesses.\nSITE: Email for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | email infrastructure services | Email API for developers | MATCH\nFACT: SERVICE | sending, receiving, and managing emails | Send transactional and marketing emails | MATCH\nFACT: CATEGORY | small businesses | Companies of all sizes | MATCH\nFACT: SERVICE | transactional emails | Send transactional email | MATCH\nFACT: SERVICE | marketing campaigns | Send marketing email | MATCH\nFACT: SERVICE | customer engagement | Deliver transactional and marketing emails | MATCH\nFACT: OTHER | reliable email delivery | Deliver transactional and marketing emails at scale | MATCH\nFACT: OTHER | email communication needs | Email for developers | MATCH",
+   "facts": "FACT: CATEGORY | email infrastructure services | Email API for developers | MATCH\nFACT: SERVICE | sending, receiving, and managing emails | Send transactional and marketing emails | MATCH\nFACT: CATEGORY | business | Companies of all sizes | MATCH \nFACTS: NONE",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -147,7 +149,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, Resend.com offers several services\nSITE: Email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | Email API for Developers | Email API for developers | MATCH\nFACT: SERVICE | transactional emails | Send transactional email | MATCH\nFACT: PRICE | 3,000 emails per month | NONE | ABSENT\nFACT: PRICE | 100 emails per day | NONE | ABSENT\nFACT: ADDRESS | NONE | 2261 Market Street #5039 | CONFLICT\nFACT: PAGE | NONE | Pricing | CONFLICT\nFACT: OTHER | pay-as-you-grow pricing model | NONE | ABSENT\nFACT: OTHER | Free Tier | NONE | ABSENT",
+   "facts": "FACT: CATEGORY | Email API for Developers | Email API for developers | MATCH\nFACT: SERVICE | transactional emails | Send transactional email | MATCH\nFACT: PRICE | 3,000 emails per month | NONE | ABSENT\nFACT: PRICE | 100 emails per day | NONE | ABSENT\nFACT: PAGE | Pricing | Pricing | MATCH\nFACT: OTHER | pay-as-you-grow pricing model | NONE | ABSENT\nFACT: OTHER | reliable delivery | Deliver transactional and marketing emails at scale | MATCH\nFACT: ADDRESS | NONE | 2261 Market Street #5039 | CONFLICT \nFACT: LOCATION | NONE | NONE | ABSENT \nFACT: OTHER | Free Tier | NONE | ABSENT \nFACT: OTHER | Paid Plans | NONE | ABSENT",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -169,7 +171,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes. Resend offers services suitable for small businesses\nSITE: Email for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | email delivery and marketing | Email API for developers | MATCH\nFACT: SERVICE | Transactional email | Send transactional email | MATCH\nFACT: SERVICE | Marketing email | Send marketing email | MATCH\nFACT: PRICE | 3,000 emails per month | NONE | ABSENT\nFACT: PRICE | 1,000 contacts | NONE | ABSENT\nFACT: PAGE | FREE plans | Pricing | MATCH\nFACT: OTHER | small businesses | Companies of all sizes | ABSENT\nFACT: OTHER | developer-integrated email | Email for developers | MATCH",
+   "facts": "FACT: CATEGORY | email delivery and marketing | Email API for developers | MATCH\nFACT: SERVICE | Transactional email | Send transactional email | MATCH\nFACT: SERVICE | Marketing email | Send marketing email | MATCH\nFACT: PRICE | 3,000 emails per month | NONE | ABSENT\nFACT: PRICE | 1,000 contacts | NONE | ABSENT\nFACT: PRICE | 100 per day | NONE | ABSENT\nFACT: PAGE | Free plans | Pricing | ABSENT\nFACT: OTHER | small business | Companies of all sizes | ABSENT\nFACT: OTHER | website, SaaS product, or online store | NONE | ABSENT\nFACT: ADDRESS | NONE | 2261 Market Street #5039 | ABSENT \nFACT: CATEGORY | developer-integrated email | Email for developers | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -191,7 +193,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: The website URL for Resend is:  **https://resend.com**\nSITE: Resend · Email for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | email API service | Email API for developers | MATCH\nFACT: SERVICE | sending transactional emails | Send transactional email | MATCH \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | email API service | Email API for developers | MATCH\nFACT: SERVICE | sending transactional emails | Send transactional email | MATCH \nFACT: OTHER | modern approach | modern API | MATCH\nFACT: OTHER | https://resend.com | https://resend.com | MATCH",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -224,7 +226,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, Resend is a software company\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | software company | Email API for developers | MATCH\nFACT: SERVICE | email infrastructure | Send transactional and marketing emails | MATCH \nFACT: CATEGORY | tools and services for developers | Email for developers | MATCH \nFACT: SERVICE | send and manage emails | Send transactional email | MATCH \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | software company | Email API for developers | MATCH\nFACT: SERVICE | email infrastructure | Send transactional and marketing emails | MATCH \nFACT: CATEGORY | tools and services for developers | Email for developers | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -235,8 +237,10 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, **Resend** (resend.com) is a software company\nSITE: Resend: Email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | software company | Email API for developers | MATCH\nFACT: SERVICE | email infrastructure and APIs | Email API for developers | MATCH\nFACT: PERSON | Zeno Rocha | NONE | ABSENT\nFACT: CATEGORY | developer-focused email API platform | Email API for developers | MATCH\nFACT: SERVICE | tools for sending, tracking, and managing emails | Send transactional and marketing emails at scale | MATCH\nFACT: OTHER | modern alternative to traditional email service providers | NONE | ABSENT\nFACT: OTHER | emphasis on Clean, developer-friendly APIs | simple, modern API | MATCH\nFACT: OTHER | React-based email templates | Build email templates with React using [React Email] | MATCH",
-   "compats": [],
+   "facts": "FACT: CATEGORY | software company | Email API for developers | MATCH\nFACT: SERVICE | email infrastructure and APIs | Email API for developers | MATCH\nFACT: PERSON | Zeno Rocha | NONE | ABSENT\nFACT: CATEGORY | developer-focused email API platform | Email API for developers | MATCH\nFACT: SERVICE | tools for sending, tracking, and managing emails | Send transactional and marketing emails | MATCH\nFACT: OTHER | modern alternative to traditional email service providers | NONE | ABSENT\nFACT: SERVICE | React-based email templates | Build email templates with React | MATCH\nFACT: CATEGORY | SaaS company in the email infrastructure space | NONE | ABSENT \nFACT: OTHER | Competes with services like SendGrid, Mailgun, and Postmark | NONE | ABSENT \nFACT: OTHER | Clean, developer-friendly APIs | NONE | ABSENT \nFACT: OTHER | Better deliverability | NONE | ABSENT \nFACT: OTHER | Modern development workflows | NONE | ABSENT \nFACT: OTHER | Emphasis on developer experience | NONE | ABSENT \nFACT: ADDRESS | NONE | 2261 Market Street #5039 | CONFLICT",
+   "compats": [
+    "NO"
+   ],
    "verdict": "CORRECT"
   },
   {
@@ -246,7 +250,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, **Resend.com** is a **software company**\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | software company | Email API for developers | MATCH\nFACT: SERVICE | API and platform for developers | Email API for developers | MATCH\nFACT: CATEGORY | SaaS | NONE | ABSENT \nFACT: SERVICE | send transactional emails | Send transactional email | MATCH \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | software company | Email API for developers | MATCH\nFACT: SERVICE | API and platform for developers to send transactional emails | Send transactional and marketing emails at scale | MATCH \nFACT: CATEGORY | SaaS | NONE | ABSENT",
    "compats": [
     "NO"
    ],
@@ -259,7 +263,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes. **Resend is a software company**\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | software company | Email API for developers | MATCH\nFACT: DATE | January 2023 | NONE | ABSENT\nFACT: CATEGORY | communications platform | NONE | ABSENT \nFACT: SERVICE | email platform | Email for developers | MATCH\nFACTS: NONE",
+   "facts": "FACT: CATEGORY | software company | Email API for developers | MATCH\nFACT: DATE | January 2023 | NONE | ABSENT \nFACT: CATEGORY | communications platform | NONE | ABSENT \nFACTS: NONE",
    "compats": [
     "NO"
    ],
@@ -272,10 +276,8 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: does not sell products\nSITE: Email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | service that provides developers | Email API for developers | MATCH\nFACT: SERVICE | manage and send transactional emails | Send transactional email | MATCH\nFACT: CATEGORY | not a retail website | NONE | ABSENT \nFACT: SERVICE | simplifying the process of integrating email | NONE | ABSENT \nFACTS: NONE",
-   "compats": [
-    "NO"
-   ],
+   "facts": "FACT: CATEGORY | service that provides developers with tools | Email API for developers | MATCH\nFACT: SERVICE | manage and send transactional emails | Send transactional email | MATCH\nFACTS: NONE",
+   "compats": [],
    "verdict": "CORRECT"
   },
   {
@@ -285,7 +287,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Email API platform for developers\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | email API platform for developers | Email API for developers | MATCH\nFACT: SERVICE | Email API | Send transactional and marketing emails | MATCH\nFACT: SERVICE | Domain authentication and verification | verify domains (SPF/DKIM/DMARC) | MATCH\nFACT: PAGE | Pricing | Pricing | MATCH\nFACT: LOCATION | NONE | 2261 Market Street #5039 | ABSENT \nFACT: OTHER | transactional emails | transactional email | MATCH\nFACT: OTHER | marketing campaigns | marketing email | MATCH\nFACT: OTHER | application-to-user communications | send transactional and marketing emails | MATCH",
+   "facts": "FACT: CATEGORY | email API platform for developers | Email API for developers | MATCH\nFACT: SERVICE | Email API | Send transactional and marketing emails | MATCH\nFACT: SERVICE | email templates and customization | Build email templates with React | MATCH\nFACT: SERVICE | domain authentication and verification | verify domains (SPF/DKIM/DMARC) | MATCH\nFACT: SERVICE | delivery tracking and analytics | monitor delivery events | MATCH\nFACT: SERVICE | webhook support for email events | configure webhooks | MATCH\nFACT: SERVICE | SDKs for various programming languages | SDKs for your favorite programming languages | MATCH\nFACT: CATEGORY | developer-focused email sending service | Email for developers | MATCH\nFACT: OTHER | modern alternative to services like SendGrid, Mailgun, and Amazon SES | NONE | ABSENT\nFACT: PAGE | Pricing | Pricing · | MATCH\nFACT: PAGE | Log in | Log in · | MATCH\nFACT: PAGE | Get started | Get started · | MATCH\nFACT: PAGE | Documentation | Documentation · | MATCH\nFACT: PAGE | Explore Enterprise | Explore Enterprise · | MATCH\nFACT: OTHER | focus on developer experience and ease of integration | first-class developer experience | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -296,7 +298,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Email API designed for developers\nSITE: Email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | Email API | Email API for developers | MATCH\nFACT: SERVICE | transaction | transactional and marketing emails | MATCH\nFACT: CATEGORY | for developers | for developers | MATCH\nFACT: SERVICE | Email API | Email API for developers | MATCH\nFACTS: NONE",
+   "facts": "FACT: CATEGORY | Email API | Email API for developers | MATCH\nFACT: SERVICE | transactional email | Send transactional email | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -307,7 +309,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Resend sells an email infrastructure platform\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | Email infrastructure platform | Email API for developers | MATCH\nFACT: SERVICE | Email API / Transactional Email | Send transactional email | MATCH\nFACT: SERVICE | Marketing Emails | Send marketing email | MATCH\nFACT: SERVICE | Automations | Build recurring flows with automations | MATCH\nFACT: SERVICE | Inbound Email | Receive and act on inbound email | MATCH\nFACT: SERVICE | React Email | Build email templates with React | MATCH\nFACT: ADDRESS | 2261 Market Street #5039 | 2261 Market Street #5039 | MATCH\nFACT: PAGE | Pricing | Pricing · | MATCH",
+   "facts": "FACT: CATEGORY | Email infrastructure platform | Email API for developers | MATCH\nFACT: SERVICE | Email API / Transactional Email | Send transactional email | MATCH\nFACT: SERVICE | Marketing Emails | Send marketing email | MATCH\nFACT: SERVICE | Automations | Build recurring flows with automations | MATCH\nFACT: SERVICE | Inbound Email | Receive and act on inbound email | MATCH\nFACT: SERVICE | React Email | Build email templates with React | MATCH\nFACT: PAGE | Free, Pro, Scale, and Enterprise plans | Pricing · | ABSENT\nFACT: OTHER | priced according to contacts | NONE | ABSENT",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -318,7 +320,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: primarily focuses on serving businesses\nSITE: Email API for developers\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | email infrastructure services | Email API for developers | MATCH\nFACT: SERVICE | robust email solutions | Send transactional and marketing emails | MATCH\nFACTS: NONE",
+   "facts": "FACT: CATEGORY | email infrastructure services | Email API for developers | MATCH\nFACT: SERVICE | robust email solutions | Send transactional and marketing emails | MATCH \nFACTS: NONE",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -329,8 +331,10 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: serves both individuals and businesses\nSITE: Email API for developers\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | developer-focused email API service | Email API for developers | MATCH\nFACT: SERVICE | transactional emails | transactional email | MATCH\nFACT: PRICE | $20/month | NONE | ABSENT\nFACT: SERVICE | Free tier available | NONE | ABSENT\nFACT: CATEGORY | businesses | Companies of all sizes | MATCH\nFACT: PRICE | 100 emails/day | NONE | ABSENT\nFACT: PAGE | Pricing | Pricing | MATCH\nFACT: OTHER | No credit card required | NONE | ABSENT",
-   "compats": [],
+   "facts": "FACT: CATEGORY | developer-focused email API service | Email API for developers | MATCH\nFACT: SERVICE | transactional emails | transactional email | MATCH\nFACT: PRICE | $20/month | NONE | ABSENT\nFACT: SERVICE | free tier | NONE | ABSENT\nFACT: PRICE | 100 emails/day | NONE | ABSENT\nFACT: OTHER | no credit card required | NONE | ABSENT\nFACT: CATEGORY | businesses | Companies of all sizes | MATCH\nFACT: SERVICE | custom domains | verify domains | MATCH\nFACT: SERVICE | team collaboration | NONE | ABSENT\nFACT: SERVICE | higher sending limits | NONE | ABSENT\nFACT: PAGE | free plan | Pricing | ABSENT \nFACT: PAGE | paid plans | Pricing | ABSENT \nFACT: OTHER | simple API | simple, modern API | MATCH\nFACT: OTHER | good documentation | Documentation | MATCH\nFACT: CATEGORY | modern alternative | NONE | ABSENT\nFACT: SERVICE | password resets | password resets | MATCH\nFACT: SERVICE | notifications | notifications | MATCH\nFACT: SERVICE | receipts | receipts | MATCH",
+   "compats": [
+    "NO"
+   ],
    "verdict": "UNCLEAR"
   },
   {
@@ -340,7 +344,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: businesses and developers\nSITE: Email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | businesses and developers | Email API for developers | MATCH\nFACT: SERVICE | transactional emails | Send transactional email | MATCH \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | businesses and developers | Email API for developers | MATCH \nFACT: SERVICE | transactional emails | Send transactional email | MATCH",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -351,10 +355,8 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Resend serves **both individuals and businesses**\nSITE: Email for developers\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | developer-focused email infrastructure service | Email API for developers | MATCH\nFACT: SERVICE | transactional email and marketing campaigns | Send transactional and marketing emails at scale | MATCH\nFACT: PAGE | Pricing | Pricing · | MATCH\nFACT: OTHER | Users must be at least 18 | NONE | ABSENT\nFACT: OTHER | marketing recipients must have explicitly opted in | recipients must have opted in | MATCH\nFACT: CATEGORY | serves both individuals and businesses | NONE | ABSENT\nFACT: ADDRESS | NONE | 2261 Market Street #5039 | ABSENT \nFACTS: NONE",
-   "compats": [
-    "NO"
-   ],
+   "facts": "FACT: CATEGORY | developer-focused email infrastructure service | Email API for developers | MATCH\nFACT: SERVICE | transactional email and marketing campaigns | Send transactional and marketing emails at scale | MATCH\nFACT: CATEGORY | serves both individuals and businesses | Companies of all sizes trust Resend | MATCH\nFACT: OTHER | users must be at least 18 | NONE | ABSENT\nFACT: OTHER | marketing recipients must have explicitly opted in | recipients must have opted in | MATCH\nFACT: ADDRESS | NONE | 2261 Market Street #5039 | ABSENT \nFACT: PAGE | NONE | Pricing · Log in · Get started | ABSENT \nFACT: OTHER | free plan and self-serve tiers | NONE | ABSENT \nFACT: OTHER | designed to scale for teams and enterprise customers | Companies of all sizes trust Resend | MATCH",
+   "compats": [],
    "verdict": "UNCLEAR"
   },
   {
@@ -375,7 +377,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: an email API platform for developers\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | email API platform for developers | Email API for developers | MATCH\nFACT: SERVICE | send transactional and marketing emails | Send transactional email, Send marketing email | MATCH \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | email API platform | Email API for developers | MATCH\nFACT: SERVICE | send transactional and marketing emails | Send transactional email, Send marketing email | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -386,7 +388,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a modern, developer-friendly email API\nSITE: Resend is the email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | email API | Email API for developers | MATCH\nFACT: SERVICE | sending transactional emails | Send transactional email | MATCH \nFACT: CATEGORY | modern, developer-friendly | Email for developers | MATCH\nFACT: SERVICE | high deliverability | Deliver transactional and marketing emails at scale | MATCH \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | email API | Email API for developers | MATCH\nFACT: SERVICE | sending transactional emails | Send transactional email | MATCH \nFACTS: NONE",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -408,8 +410,10 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Resend.com is not a local business\nSITE: Email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | technology company | NONE | ABSENT\nFACT: SERVICE | email infrastructure services | Email API for developers | MATCH\nFACT: LOCATION | globally | NONE | ABSENT\nFACT: CATEGORY | provides email infrastructure | Email API for developers | MATCH \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | technology company | NONE | ABSENT\nFACT: SERVICE | email infrastructure services | Email API for developers | MATCH\nFACT: LOCATION | globally | Address: 2261 Market Street #5039 | CONFLICT \nFACT: CATEGORY | not a local business | NONE | ABSENT",
    "compats": [
+    "NO",
+    "NO",
     "NO"
    ],
    "verdict": "CORRECT"
@@ -421,10 +425,8 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, Resend.com is not a local business\nSITE: Email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | cloud-based email API service | Email API for developers | MATCH\nFACT: SERVICE | email infrastructure | Send transactional and marketing emails | MATCH\nFACT: LOCATION | operates globally | NONE | ABSENT\nFACT: CATEGORY | SaaS company | NONE | ABSENT\nFACT: SERVICE | send transactional and marketing emails | Send transactional email, Send marketing email | MATCH\nFACT: OTHER | operates online | NONE | ABSENT\nFACT: OTHER | operates digitally | NONE | ABSENT\nFACT: CATEGORY | operates digitally without being tied to a specific physical location | NONE | ABSENT",
-   "compats": [
-    "NO"
-   ],
+   "facts": "FACT: CATEGORY | cloud-based email API service | Email API for developers | MATCH\nFACT: SERVICE | send transactional and marketing emails | Send transactional email, Send marketing email | MATCH\nFACT: LOCATION | operates globally | NONE | ABSENT\nFACT: CATEGORY | SaaS company | NONE | ABSENT \nFACTS: NONE",
+   "compats": [],
    "verdict": "CORRECT"
   },
   {
@@ -434,8 +436,9 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, **resend.com is not a local business.**\nSITE: Email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | online service | Email API for developers | MATCH\nFACT: SERVICE | email API | Email API for developers | MATCH\nFACT: LOCATION | not confined to a specific geographic location | Address: 2261 Market Street #5039 | CONFLICT \nFACT: ADDRESS | NONE | Address: 2261 Market Street #5039 | ABSENT\nFACT: CATEGORY | digital | NONE | ABSENT\nFACT: OTHER | operates remotely | NONE | ABSENT\nFACT: CATEGORY | software-as-a-service (SaaS) | NONE | ABSENT \nFACT: OTHER | delivers its product over the internet | NONE | ABSENT",
+   "facts": "FACT: CATEGORY | online service | Email API for developers | MATCH\nFACT: CATEGORY | email API for developers and businesses | Email API for developers | MATCH\nFACT: LOCATION | not a specific geographic location | Address: 2261 Market Street #5039 | CONFLICT \nFACT: CATEGORY | software-as-a-service (SaaS) companies | NONE | ABSENT \nFACT: CATEGORY | local business | NONE | ABSENT",
    "compats": [
+    "YES",
     "NO",
     "NO"
    ],
@@ -448,9 +451,9 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No. **Resend is primarily an online, global email-delivery software business**\nSITE: Email API for developers\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | email-delivery software business | Email API for developers | MATCH\nFACT: LOCATION | San Francisco, California | NONE | ABSENT\nFACT: OTHER | operated by Plus Five Five, Inc. | NONE | ABSENT\nFACT: CATEGORY | online, global | Email for developers | MATCH\nFACT: LOCATION | headquarters | Address: 2261 Market Street #5039 | CONFLICT\nFACTS: NONE",
+   "facts": "FACT: CATEGORY | email-delivery software business | Email API for developers | MATCH\nFACT: LOCATION | San Francisco, California | NONE | ABSENT\nFACT: OTHER | operated by Plus Five Five, Inc. | NONE | ABSENT \nFACT: ADDRESS | NONE | 2261 Market Street #5039 | CONFLICT",
    "compats": [],
-   "verdict": "UNCLEAR"
+   "verdict": "CORRECT"
   },
   {
    "site": "resend",
@@ -459,7 +462,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: various types of support to its customers\nSITE: Support · Status · Knowledge base · \nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | Email API for developers | Email API for developers | MATCH\nFACT: SERVICE | Documentation | Documentation | MATCH\nFACT: SERVICE | Email Support | Support | MATCH\nFACT: PAGE | Knowledge base | Knowledge base | MATCH\nFACT: OTHER | Customer Success Team | NONE | ABSENT\nFACT: OTHER | Live Chat | NONE | ABSENT\nFACT: OTHER | API Support | API | MATCH \nFACT: OTHER | Community Forums | NONE | ABSENT",
+   "facts": "FACTS: NONE",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -470,7 +473,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Resend Customer Support\nSITE: Support · Status\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | Email API for developers | Email API for developers | MATCH\nFACT: PAGE | resend.com/support | Support | MATCH\nFACT: SERVICE | Email support | NONE | ABSENT\nFACT: SERVICE | Community/Discord | NONE | ABSENT\nFACT: SERVICE | GitHub | NONE | ABSENT\nFACT: SERVICE | Status page | Status unknown | MATCH\nFACT: SERVICE | Knowledge base | Knowledge base · Legal policies | MATCH\nFACT: ADDRESS | NONE | 2261 Market Street #5039 | CONFLICT",
+   "facts": "FACT: CATEGORY | Email API for developers | Email API for developers | MATCH\nFACT: PAGE | resend.com/support | NONE | ABSENT\nFACT: SERVICE | Email support | Support | ABSENT \nFACT: SERVICE | Community/Discord | NONE | ABSENT\nFACT: SERVICE | GitHub | View on GitHub | MATCH\nFACT: SERVICE | Status page | Status | MATCH\nFACT: SERVICE | Knowledge base | Knowledge base | MATCH\nFACT: SERVICE | API reference | API | MATCH\nFACT: SERVICE | SDKs | SDKs | MATCH\nFACT: OTHER | Free tier | NONE | ABSENT\nFACT: OTHER | Paid plans | Pricing | ABSENT\nFACT: OTHER | Enterprise | Enterprise | MATCH\nFACT: OTHER | Priority support | NONE | ABSENT\nFACT: OTHER | Dedicated assistance | NONE | ABSENT\nFACT: OTHER | Faster response times | NONE | ABSENT\nFACT: OTHER | Direct email support | NONE | ABSENT\nFACT: OTHER | Community support | NONE | ABSENT\nFACT: OTHER | Documentation | Documentation | MATCH",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -492,7 +495,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Resend offers several customer-support options\nSITE: NONE\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | Email API for developers | Email API for developers | MATCH\nFACT: SERVICE | Email and ticket support | NONE | ABSENT\nFACT: SERVICE | Dedicated Slack support | NONE | ABSENT\nFACT: SERVICE | Knowledge base and in-app documentation | Documentation | MATCH\nFACT: ADDRESS | NONE | 2261 Market Street #5039 | ABSENT\nFACT: PAGE | NONE | Pricing · Log in · Get started | ABSENT\nFACT: OTHER | Support team includes product engineers | NONE | ABSENT\nFACT: OTHER | Available seven days a week | NONE | ABSENT",
+   "facts": "FACT: CATEGORY | Email API for developers | Email API for developers | MATCH\nFACT: SERVICE | Email and ticket support | NONE | ABSENT\nFACT: SERVICE | Dedicated Slack support | NONE | ABSENT\nFACT: SERVICE | Knowledge base and in-app documentation | Documentation | MATCH\nFACT: SERVICE | Deliverability expertise | NONE | ABSENT\nFACT: SERVICE | AI assistant | NONE | ABSENT\nFACT: SERVICE | Enterprise support | Enterprise | MATCH\nFACT: OTHER | Support team includes product engineers | NONE | ABSENT\nFACT: OTHER | Support team available seven days a week | NONE | ABSENT\nFACT: ADDRESS | NONE | 2261 Market Street #5039 | ABSENT \nFACT: LOCATION | NONE | NONE | ABSENT \nFACT: PAGE | NONE | Pricing · Log in · Get started | ABSENT \nFACT: PAGE | NONE | Documentation | MATCH \nFACT: PAGE | NONE | Explore Enterprise | ABSENT \nFACT: PAGE | NONE | Support | MATCH \nFACT: OTHER | Founders | NONE | ABSENT \nFACT: OTHER | Email experts | NONE | ABSENT \nFACT: OTHER | Product engineers | NONE | ABSENT \nFACT: OTHER | Eligible plans | NONE | ABSENT \nFACT: OTHER | Paid plans | NONE | ABSENT \nFACT: OTHER | Priority support | NONE | ABSENT \nFACT: OTHER | SLA guarantees | NONE | ABSENT \nFACT: OTHER | Dedicated IP options | Dedicated IPs | MATCH \nFACT: OTHER | Personalized migration assistance | Migrate | MATCH",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -514,10 +517,8 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: HEDGED\nCLAIM: It depends on your context\nSITE: NONE\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | Email API for developers | Email API for developers | MATCH\nFACT: PERSON | Zeno Rocha | NONE | ABSENT\nFACT: DATE | 2022 | NONE | ABSENT\nFACT: OTHER | developer tools space | NONE | ABSENT\nFACT: CATEGORY | modern alternative to services | NONE | ABSENT\nFACT: OTHER | Y Combinator (YC W23) | NONE | ABSENT\nFACT: OTHER | SendGrid, Mailgun, and Amazon SES | NONE | ABSENT\nFACT: PAGE | NONE | Pricing · Log in · Get started | ABSENT",
-   "compats": [
-    "NO"
-   ],
+   "facts": "FACT: CATEGORY | Email API for developers | Email API for developers | MATCH\nFACT: PERSON | Zeno Rocha | NONE | ABSENT\nFACT: DATE | 2022 | NONE | ABSENT\nFACT: LOCATION | NONE | San Francisco (from \"2261 Market Street #5039\") | CONFLICT \nFACT: ADDRESS | NONE | 2261 Market Street #5039 | CONFLICT",
+   "compats": [],
    "verdict": "UNCLEAR"
   },
   {
@@ -538,7 +539,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes—**Resend is a legitimate and increasingly well-known company\nSITE: NONE\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | email-delivery company | Email API for developers | MATCH\nFACT: LOCATION | San Francisco | NONE | ABSENT\nFACT: DATE | founded in 2023 | NONE | ABSENT\nFACT: PERSON | NONE | NONE | ABSENT\nFACT: DATE | late 2024 | NONE | ABSENT\nFACT: OTHER | backed by Y Combinator | NONE | ABSENT\nFACT: OTHER | raised an $18 million Series A | NONE | ABSENT\nFACT: OTHER | used by developers to build email templates | Build email templates with React using [React Email] | MATCH",
+   "facts": "FACT: CATEGORY | email-delivery company | Email API for developers | MATCH\nFACT: LOCATION | San Francisco | NONE | ABSENT\nFACT: DATE | 2023 | NONE | ABSENT\nFACT: DATE | 2024 | NONE | ABSENT\nFACT: OTHER | backed by Y Combinator | NONE | ABSENT\nFACT: OTHER | raised an $18 million Series A | NONE | ABSENT\nFACT: OTHER | led by Andreessen Horowitz | NONE | ABSENT\nFACT: OTHER | more than 200,000 developers signed up | NONE | ABSENT\nFACT: OTHER | used by companies including Warner Bros. | NONE | ABSENT\nFACT: OTHER | grew out of React Email | React Email | MATCH\nFACT: PERSON | NONE | NONE | ABSENT \nFACT: ADDRESS | NONE | 2261 Market Street #5039 | CONFLICT",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -549,7 +550,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: The domain eff.org belongs to the Electronic Frontier Foundation (EFF)\nSITE: Name: Electronic Frontier Foundation (EFF)\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: CATEGORY | defending civil liberties | defending civil liberties | MATCH\nFACT: OTHER | digital world | digital world | MATCH\nFACT: OTHER | privacy, free expression, and innovation | privacy, free expression, and innovation | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT \nFACT: DATE | NONE | 1990 | ABSENT \nFACT: CATEGORY | NONE | U.S. 501(c)(3) nonprofit | ABSENT \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: CATEGORY | defending civil liberties | defending civil liberties | MATCH\nFACT: OTHER | dedicated to defending civil liberties | defending civil liberties | MATCH\nFACT: OTHER | focuses on issues such as privacy, free expression, and innovation | free speech, privacy, creativity and innovation | MATCH \nFACT: OTHER | advocating for user rights | champions user privacy, free expression, and innovation | MATCH\nFACT: OTHER | promoting policies that protect individuals' freedoms online | defending digital privacy, free speech, and innovation | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -560,7 +561,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Electronic Frontier Foundation (EFF)\nSITE: Electronic Frontier Foundation\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: DATE | 1990 | Founded in 1990 | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: SERVICE | Privacy Badger | Privacy Badger | MATCH\nFACT: SERVICE | Certbot | Certbot | MATCH\nFACT: CATEGORY | digital rights advocacy | defending civil liberties | MATCH\nFACT: PAGE | NONE | Deeplinks Blog | ABSENT\nFACT: OTHER | watchdog organization | NONE | ABSENT",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: DATE | 1990 | Founded in 1990 | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: SERVICE | Privacy Badger | Privacy Badger | MATCH\nFACT: SERVICE | Certbot | Certbot | MATCH\nFACT: OTHER | digital rights advocacy | defending civil liberties | MATCH\nFACT: OTHER | legal action | impact litigation | MATCH\nFACT: OTHER | policy work | policy analysis | MATCH\nFACT: OTHER | technology development | technology development | MATCH\nFACT: OTHER | education | educational guides | MATCH\nFACT: OTHER | tracker blocker | NONE | ABSENT\nFACT: OTHER | HTTPS certificates | NONE | ABSENT\nFACT: CATEGORY | digital rights advocacy | defending digital privacy | MATCH\nFACT: OTHER | intellectual property reform | copyright | MATCH\nFACT: OTHER | net neutrality | NONE | ABSENT\nFACT: OTHER | government transparency | transparency | MATCH\nFACT: OTHER | security and encryption | security | MATCH\nFACT: OTHER | free speech online | free speech | MATCH\nFACT: OTHER | privacy and surveillance | privacy | MATCH",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -571,7 +572,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: the official website domain for the Electronic Frontier Foundation (EFF)\nSITE: Name: Electronic Frontier Foundation (EFF)\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | non-profit digital rights group | nonprofit organization defending civil liberties | MATCH\nFACT: CATEGORY | advocates for civil liberties | defending civil liberties in the digital world | MATCH\nFACT: SERVICE | defend free speech, privacy, innovation | champions user privacy, free expression, and innovation | MATCH\nFACT: OTHER | international | based in San Francisco | CONFLICT\nFACT: CATEGORY | digital rights | digital world | MATCH \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | non-profit digital rights group | nonprofit organization defending civil liberties | MATCH\nFACT: CATEGORY | advocates for civil liberties | defending civil liberties in the digital world | MATCH\nFACT: SERVICE | litigation | impact litigation | MATCH\nFACT: SERVICE | policy analysis | policy analysis | MATCH\nFACT: SERVICE | activism | grassroots activism | MATCH\nFACT: SERVICE | technology development | technology development | MATCH\nFACT: LOCATION | international | based in San Francisco | CONFLICT \nFACT: CATEGORY | defends free speech, privacy, innovation, and consumer rights | defending digital privacy, free speech, and innovation | MATCH\nFACT: OTHER | Electronic Frontier Foundation (EFF) | Electronic Frontier Foundation (EFF) | MATCH",
    "compats": [
     "NO"
    ],
@@ -584,7 +585,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: the official website of the Electronic Frontier Foundation (EFF)\nSITE: The Electronic Frontier Foundation is the leading nonprofit organization defending civil liberties in the digital world.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: CATEGORY | advocates for digital privacy, free speech, online civil liberties, and innovation | defending civil liberties in the digital world | MATCH\nFACT: SERVICE | legal and policy analysis | policy analysis | MATCH\nFACT: SERVICE | educational resources | educational guides | MATCH\nFACT: SERVICE | advocacy campaigns | grassroots activism | MATCH\nFACT: OTHER | defends rights in the digital world | defending digital privacy, free speech, and innovation | MATCH\nFACT: CATEGORY | Electronic Frontier Foundation (EFF) | Electronic Frontier Foundation (EFF) | MATCH\nFACT: OTHER | online civil liberties | civil liberties in the digital world | MATCH",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: CATEGORY | advocates for digital privacy, free speech, online civil liberties, and innovation | defending civil liberties in the digital world | MATCH\nFACT: SERVICE | legal and policy analysis | policy analysis | MATCH\nFACT: SERVICE | educational resources | educational guides | MATCH\nFACT: SERVICE | advocacy campaigns | grassroots activism | MATCH\nFACT: OTHER | defends rights in the digital world | defending digital privacy, free speech, and innovation | MATCH \nFACT: CATEGORY | Electronic Frontier Foundation (EFF) | Electronic Frontier Foundation (EFF) | MATCH",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -595,7 +596,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: nonprofit organization\nSITE: donor-funded, member-supported US 501(c)(3) nonprofit\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: CATEGORY | defending civil liberties | defending civil liberties | MATCH\nFACT: SERVICE | litigation | impact litigation | MATCH\nFACT: SERVICE | policy analysis | policy analysis | MATCH\nFACT: SERVICE | grassroots activism | grassroots activism | MATCH\nFACT: SERVICE | technology development | technology development | MATCH\nFACT: OTHER | protecting privacy, free expression, and innovation | user privacy, free expression, and innovation | MATCH\nFACT: OTHER | online privacy, free speech, digital surveillance, and intellectual property rights | free speech, privacy, creativity and innovation | MATCH",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: CATEGORY | defending civil liberties | defending civil liberties | MATCH\nFACT: SERVICE | litigation | impact litigation | MATCH\nFACT: SERVICE | policy analysis | policy analysis | MATCH\nFACT: SERVICE | grassroots activism | grassroots activism | MATCH\nFACT: SERVICE | technology development | technology development | MATCH\nFACT: OTHER | protecting privacy | user privacy | MATCH\nFACT: OTHER | free expression | free expression | MATCH\nFACT: OTHER | innovation | innovation | MATCH\nFACT: OTHER | online privacy | online privacy | MATCH\nFACT: OTHER | free speech | free speech | MATCH\nFACT: OTHER | digital surveillance | surveillance | MATCH\nFACT: OTHER | intellectual property rights | copyright | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -606,8 +607,9 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: non-profit digital rights organization\nSITE: leading nonprofit organization defending civil liberties\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | non-profit digital rights organization | nonprofit organization defending civil liberties | MATCH\nFACT: CATEGORY | defending civil liberties | defending civil liberties in the digital world | MATCH\nFACT: SERVICE | legal advocacy and litigation | impact litigation | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: SERVICE | creating privacy tools and guides | free privacy and security tools | MATCH\nFACT: CATEGORY | watchdog organization | NONE | ABSENT\nFACT: OTHER | funded primarily through donations | donor-funded | MATCH\nFACT: CATEGORY | advocates for users' rights | defending digital privacy, free speech, and innovation | MATCH",
+   "facts": "FACT: CATEGORY | non-profit digital rights organization | nonprofit organization defending civil liberties | MATCH\nFACT: CATEGORY | defending civil liberties | defending civil liberties in the digital world | MATCH\nFACT: SERVICE | legal advocacy and litigation | impact litigation | MATCH\nFACT: SERVICE | policy analysis and activism | policy analysis, grassroots activism | MATCH\nFACT: SERVICE | creating privacy tools and guides | free privacy and security tools | MATCH\nFACT: CATEGORY | watchdog organization | NONE | ABSENT\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: CATEGORY | consumer rights | NONE | ABSENT\nFACT: OTHER | technology sector | digital world | MATCH\nFACT: OTHER | government regulation and corporate power | government and corporate surveillance | MATCH\nFACT: OTHER | funded primarily through donations | donor-funded, member-supported | MATCH \nFACT: DATE | NONE | 1990 | ABSENT\nFACT: CATEGORY | free speech online | free expression | MATCH\nFACT: CATEGORY | privacy rights | privacy | MATCH\nFACT: CATEGORY | transparency in government and corporate tech practices | transparency | MATCH\nFACT: OTHER | advocating for users' rights | advocating for users and innovators | MATCH",
    "compats": [
+    "NO",
     "NO"
    ],
    "verdict": "CORRECT"
@@ -619,7 +621,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: not a business\nSITE: donor-funded, member-supported US 501(c)(3) nonprofit\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | non-profit organization | nonprofit organization | MATCH\nFACT: CATEGORY | Defend civil liberties | defending civil liberties | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: DATE | NONE | Founded in 1990 | ABSENT\nFACT: CATEGORY | advocate for user privacy, free speech, and innovation | champions user privacy, free expression, and innovation | MATCH\nFACT: OTHER | rely on donations, grants, and memberships | donor-funded, member-supported | MATCH\nFACT: OTHER | engage in litigation, policy analysis, grassroots activism, and technology development | impact litigation, policy analysis, grassroots activism, and technology development | MATCH \nFACT: CATEGORY | not a business | NONE | ABSENT",
+   "facts": "FACT: CATEGORY | non-profit organization | nonprofit organization | MATCH\nFACT: CATEGORY | defend civil liberties | defending civil liberties | MATCH\nFACT: CATEGORY | advocate for user privacy, free speech, and innovation online | defending digital privacy, free speech, and innovation | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT \nFACT: DATE | NONE | 1990 | ABSENT \nFACT: CATEGORY | Engage in litigation, policy analysis, grassroots activism, and technology development | impact litigation, policy analysis, grassroots activism, and technology development | MATCH \nFACT: OTHER | relies on donations, grants, and memberships | donor-funded, member-supported | MATCH \nFACT: OTHER | fund its work, rather than selling products or services for profit | US 501(c)(3) nonprofit | CONFLICT",
    "compats": [
     "NO"
    ],
@@ -632,8 +634,11 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: nonprofit advocacy organization\nSITE: donor-funded, member-supported US 501(c)(3) nonprofit\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | 501(c)(3) nonprofit advocacy organization | donor-funded, member-supported US 501(c)(3) nonprofit | MATCH\nFACT: LOCATION | U.S.-based | based in San Francisco | CONFLICT\nFACT: CATEGORY | defends digital civil liberties | defending civil liberties in the digital world | MATCH\nFACT: SERVICE | impact litigation | impact litigation | MATCH\nFACT: SERVICE | policy analysis | policy analysis | MATCH\nFACT: SERVICE | grassroots activism | grassroots activism | MATCH\nFACT: SERVICE | technology development | technology development | MATCH\nFACT: DATE | NONE | Founded in 1990 | ABSENT",
+   "facts": "FACT: CATEGORY | 501(c)(3) nonprofit advocacy organization | donor-funded, member-supported US 501(c)(3) nonprofit | MATCH\nFACT: LOCATION | U.S.-based | based in San Francisco | CONFLICT\nFACT: CATEGORY | defends digital civil liberties | defending civil liberties in the digital world | MATCH\nFACT: SERVICE | impact litigation | impact litigation | MATCH\nFACT: SERVICE | policy analysis | policy analysis | MATCH\nFACT: SERVICE | grassroots activism | grassroots activism | MATCH\nFACT: SERVICE | technology development | technology development | MATCH\nFACT: SERVICE | public education | educational guides, activist workshops | MATCH\nFACT: OTHER | individual donors, memberships, grants, and organizational contributions | donations and memberships | CONFLICT\nFACT: CATEGORY | digital consumer rights | creativity and innovation | CONFLICT\nFACT: CATEGORY | innovation and technology policy | innovation | CONFLICT\nFACT: CATEGORY | legal defense for internet users and technology innovators | legal case pages | MATCH\nFACT: SERVICE | Online privacy and protection from surveillance | privacy | MATCH\nFACT: SERVICE | Free speech and expression on the internet | free speech | MATCH",
    "compats": [
+    "NO",
+    "NO",
+    "NO",
     "NO"
    ],
    "verdict": "CORRECT"
@@ -645,7 +650,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, the Electronic Frontier Foundation (EFF) offers a variety of services\nSITE: EFF builds free privacy and security tools\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: SERVICE | Legal Advocacy | legal assistance | MATCH\nFACT: LOCATION | San Francisco | San Francisco | MATCH\nFACT: SERVICE | technology projects | free privacy and security tools | MATCH\nFACT: DATE | NONE | 1990 | ABSENT\nFACT: PAGE | HTTPS Everywhere | NONE | ABSENT\nFACT: SERVICE | Policy Analysis | policy analysis | MATCH\nFACT: SERVICE | Educational Resources | educational guides | MATCH",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: SERVICE | Legal Advocacy | impact litigation | MATCH\nFACT: SERVICE | Policy Analysis | policy analysis | MATCH\nFACT: SERVICE | Educational Resources | educational guides | MATCH\nFACT: SERVICE | Technology Projects | free privacy and security tools | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: DATE | NONE | 1990 | ABSENT\nFACT: SERVICE | Membership and Donations | donations and memberships | MATCH\nFACT: OTHER | digital rights | digital rights | MATCH\nFACT: OTHER | privacy and security online | privacy and security | MATCH\nFACT: SERVICE | HTTPS Everywhere | NONE | ABSENT\nFACT: SERVICE | Privacy Badger | Privacy Badger | MATCH\nFACT: SERVICE | Certbot | Certbot | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -656,7 +661,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: free resources and services\nSITE: EFF builds free privacy and security tools\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | donor-funded U.S. 501(c)(3) nonprofit | MATCH\nFACT: SERVICE | Privacy Badger | Privacy Badger | MATCH\nFACT: SERVICE | Certbot | Certbot | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: SERVICE | Legal assistance | Legal Assistance Services | MATCH\nFACT: PAGE | NONE | Deeplinks Blog | ABSENT\nFACT: OTHER | free resources and services | free privacy and security tools | MATCH\nFACT: OTHER | branded merchandise | Shop | MATCH",
+   "facts": "FACT: CATEGORY | nonprofit organization | donor-funded U.S. 501(c)(3) nonprofit | MATCH\nFACT: SERVICE | Privacy Badger | Privacy Badger | MATCH\nFACT: SERVICE | HTTPS Everywhere | NONE | ABSENT\nFACT: SERVICE | Certbot | Certbot | MATCH\nFACT: SERVICE | Surveillance Self-Defense | Surveillance Self-Defense | MATCH\nFACT: SERVICE | Legal assistance | Legal Assistance Services | MATCH\nFACT: SERVICE | Action alerts | Action Center | MATCH\nFACT: OTHER | branded merchandise | Shop | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT \nFACT: DATE | NONE | 1990 | ABSENT \nFACT: PAGE | NONE | About EFF | ABSENT \nFACT: PAGE | NONE | Contact | ABSENT \nFACT: PHONE | NONE | 415-436-9333 | ABSENT \nFACT: PHONE | NONE | +1-510-243-8020 | ABSENT",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -667,7 +672,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, the Electronic Frontier Foundation (EFF), which operates eff.org, offers a range of services and some products\nSITE: EFF builds free privacy and security tools\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | Electronic Frontier Foundation | Electronic Frontier Foundation | MATCH\nFACT: CATEGORY | advocacy | nonprofit organization | MATCH \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | Electronic Frontier Foundation | Electronic Frontier Foundation | MATCH\nFACT: CATEGORY | advocacy | defending civil liberties | MATCH \nFACTS: NONE",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -678,7 +683,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes. EFF offers several **free or nonprofit digital-rights services and products**\nSITE: EFF builds free privacy and security tools\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit digital-rights services | nonprofit organization defending civil liberties | MATCH\nFACT: SERVICE | Legal services and referrals | Legal Assistance Services | MATCH\nFACT: SERVICE | Free privacy and security tools | free privacy and security tools | MATCH\nFACT: SERVICE | Educational resources and training | educational guides, activist workshops | MATCH\nFACT: PAGE | online shop | Shop | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: PERSON | NONE | Lawyers, technologists, activists, and other staff | ABSENT\nFACT: DATE | NONE | Founded in 1990 | ABSENT",
+   "facts": "FACT: CATEGORY | nonprofit digital-rights services | nonprofit organization defending civil liberties | MATCH\nFACT: SERVICE | Legal services and referrals | Legal Assistance Services | MATCH\nFACT: SERVICE | Free privacy and security tools | free privacy and security tools | MATCH\nFACT: SERVICE | Educational resources and training | educational guides, activist workshops | MATCH\nFACT: SERVICE | Membership and events | memberships, events | MATCH\nFACT: SERVICE | An online shop | Shop, Donate, Shop · Donate to EFF | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: PHONE | NONE | 415-436-9333 x177, +1-510-243-8020 | ABSENT\nFACT: DATE | NONE | 1990, November 23, 2026 | ABSENT\nFACT: PAGE | NONE | About, Contact, Press, Issues | ABSENT\nFACT: OTHER | operates as a commercial vendor | donor-funded, member-supported | CONFLICT",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -689,7 +694,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: individuals and organizations concerned with digital rights\nSITE: defending civil liberties in the digital world\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT \nFACT: SERVICE | advocacy, litigation, and education | impact litigation, policy analysis, grassroots activism, and technology development | ABSENT\nFACT: CATEGORY | digital rights and civil liberties | defending civil liberties in the digital world | MATCH\nFACT: OTHER | individuals and organizations | users, innovators | ABSENT\nFACT: OTHER | privacy, free expression, and innovation | user privacy, free expression, and innovation | MATCH\nFACT: OTHER | internet users, activists, journalists, technologists | NONE | ABSENT\nFACTS: NONE",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: CATEGORY | digital rights and civil liberties | defending civil liberties | MATCH\nFACT: SERVICE | advocacy, litigation, and education | impact litigation, policy analysis, grassroots activism | MATCH\nFACT: OTHER | individuals and organizations concerned with digital rights | users, innovators | MATCH \nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: OTHER | internet users, activists, journalists, technologists | people of the world | ABSENT \nFACT: OTHER | privacy, free expression, and innovation | user privacy, free expression, and innovation | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -700,7 +705,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: internet users and digital rights advocates\nSITE: defending civil liberties in the digital world\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: LOCATION | San Francisco | San Francisco | MATCH\nFACT: DATE | 1990 | 1990 | MATCH\nFACT: SERVICE | litigation | impact litigation | MATCH\nFACT: SERVICE | policy advocacy | policy analysis | MATCH\nFACT: PAGE | Privacy Badger | Privacy Badger | MATCH\nFACT: OTHER | digital rights | digital rights | MATCH\nFACT: OTHER | technology development | technology development | MATCH",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: LOCATION | San Francisco | San Francisco | MATCH\nFACT: DATE | 1990 | 1990 | MATCH\nFACT: PHONE | 415-436-9333 x177 | 415-436-9333 x177 | MATCH\nFACT: PAGE | Privacy Badger | Privacy Badger | MATCH\nFACT: OTHER | digital rights | digital rights | MATCH\nFACT: OTHER | litigation | impact litigation | MATCH\nFACT: OTHER | policy advocacy | policy analysis | MATCH\nFACT: OTHER | technology development | technology development | MATCH\nFACT: OTHER | public education | educational guides | MATCH \nFACT: CATEGORY | public interest organization | donor-funded U.S. 501(c)(3) nonprofit organization | MATCH\nFACT: SERVICE | litigation | impact litigation | MATCH\nFACT: SERVICE | policy advocacy | policy analysis | MATCH\nFACT: SERVICE | technology development | technology development | MATCH\nFACT: OTHER | net neutrality | NONE | ABSENT\nFACT: OTHER | corporate overreach | NONE | ABSENT\nFACT: OTHER | censorship | censorship | MATCH\nFACT: OTHER | government surveillance | government surveillance | MATCH\nFACT: OTHER | digital security | security research | MATCH\nFACT: OTHER | open-source projects | open source software | MATCH\nFACT: OTHER | encryption | encryption | MATCH\nFACT: OTHER | security tools | security tools | MATCH\nFACT: OTHER | digital security and protection | Surveillance Self-Defense | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -711,7 +716,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: internet users and the general public\nSITE: defending civil liberties in the digital world\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: SERVICE | legal action | impact litigation | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: CATEGORY | defends internet users | defending civil liberties | MATCH\nFACT: SERVICE | policy analysis | policy analysis | MATCH\nFACT: SERVICE | public education | educational guides | MATCH\nFACT: OTHER | digital privacy | digital privacy | MATCH\nFACT: OTHER | free speech online | free speech | MATCH",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: SERVICE | legal action | impact litigation | MATCH\nFACT: SERVICE | policy analysis | policy analysis | MATCH\nFACT: SERVICE | activism | grassroots activism | MATCH\nFACT: SERVICE | public education | educational guides | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: CATEGORY | defends digital privacy | user privacy | MATCH\nFACT: CATEGORY | free speech online | free expression | MATCH\nFACT: CATEGORY | innovation | innovation | MATCH\nFACT: OTHER | fundamental rights | civil liberties | MATCH\nFACT: OTHER | government surveillance | government surveillance | MATCH\nFACT: OTHER | corporate data collection | corporate surveillance | MATCH\nFACT: OTHER | censorship | censorship | ABSENT \nFACT: OTHER | open communication | free expression | MATCH\nFACT: OTHER | technology | technology | MATCH\nFACT: OTHER | civil liberties | civil liberties | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -722,7 +727,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: internet users and the general public\nSITE: defending digital privacy, free speech, and innovation\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: SERVICE | litigation, policy work, activism | impact litigation, policy analysis, grassroots activism | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: PERSON | NONE | NONE | ABSENT\nFACT: DATE | NONE | 1990 | ABSENT\nFACT: PAGE | NONE | About EFF | ABSENT\nFACT: OTHER | digital rights | digital world | MATCH\nFACT: OTHER | internet users and the general public | users, people of the world | MATCH",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: SERVICE | litigation, policy work, activism, education, and technology development | impact litigation, policy analysis, grassroots activism, and technology development | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: OTHER | internet users and the general public | users | MATCH\nFACT: OTHER | privacy, free expression, innovation, and consumer rights | user privacy, free expression, and innovation | MATCH\nFACT: OTHER | journalists, activists, technologists, researchers, policymakers, vulnerable communities, and innovators worldwide | NONE | ABSENT\nFACT: DATE | NONE | 1990 | ABSENT\nFACT: OTHER | digital rights | digital rights | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -733,7 +738,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a nonprofit organization\nSITE: the leading nonprofit organization\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: CATEGORY | defending civil liberties | defending civil liberties | MATCH\nFACT: OTHER | Electronic Frontier Foundation | Electronic Frontier Foundation | MATCH \nFACT: OTHER | user privacy, free expression, and innovation | user privacy, free expression, and innovation | MATCH\nFACT: OTHER | impact litigation, policy analysis, grassroots activism, and technology development | impact litigation, policy analysis, grassroots activism, and technology development | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: DATE | NONE | 1990 | ABSENT\nFACT: CATEGORY | digital world | digital world | MATCH",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: CATEGORY | defending civil liberties | defending civil liberties | MATCH\nFACT: SERVICE | impact litigation | impact litigation | MATCH\nFACT: SERVICE | policy analysis | policy analysis | MATCH\nFACT: SERVICE | grassroots activism | grassroots activism | MATCH\nFACT: SERVICE | technology development | technology development | MATCH\nFACT: OTHER | Electronic Frontier Foundation (EFF) | Electronic Frontier Foundation (EFF) | MATCH\nFACT: LOCATION | digital world | digital world | MATCH \nFACT: OTHER | user privacy, free expression, and innovation | user privacy, free expression, and innovation | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -744,8 +749,9 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a nonprofit organization\nSITE: donor-funded, member-supported US 501(c)(3) nonprofit\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: LOCATION | United States | US | MATCH\nFACT: DATE | NONE | 1990 | ABSENT \nFACT: CATEGORY | 501(c)(3) tax-exempt organization | U.S. 501(c)(3) nonprofit organization | MATCH\nFACT: OTHER | defends civil liberties | defending civil liberties | MATCH\nFACT: OTHER | free speech, privacy, innovation, and consumer rights online | free speech, privacy, creativity and innovation | CONFLICT\nFACT: OTHER | digital world | digital world | MATCH",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: LOCATION | United States | based in San Francisco, | CONFLICT\nFACT: CATEGORY | 501(c)(3) tax-exempt organization | U.S. 501(c)(3) nonprofit organization | MATCH\nFACT: CATEGORY | defending civil liberties | defending civil liberties | MATCH \nFACT: OTHER | free speech, privacy, innovation, and consumer rights online | free speech, privacy, creativity and innovation, | CONFLICT",
    "compats": [
+    "NO",
     "NO"
    ],
    "verdict": "CORRECT"
@@ -757,7 +763,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a nonprofit organization\nSITE: the leading nonprofit organization\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: LOCATION | United States | based in San Francisco, | MATCH\nFACT: CATEGORY | 501(c)(3) nonprofit | U.S. 501(c)(3) nonprofit | MATCH\nFACT: DATE | NONE | Founded in 1990 | ABSENT \nFACT: OTHER | defending civil liberties | defending civil liberties | MATCH\nFACT: OTHER | digital world | digital world | MATCH",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: LOCATION | United States | based in San Francisco, | MATCH\nFACT: CATEGORY | 501(c)(3) nonprofit | U.S. 501(c)(3) nonprofit | MATCH\nFACT: DATE | NONE | Founded in 1990 | ABSENT",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -768,7 +774,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes. **EFF.org is the website of the Electronic Frontier Foundation (EFF), a U.S. 501(c)(3) nonprofit organization**\nSITE: The Electronic Frontier Foundation is the leading nonprofit organization defending civil liberties in the digital world. \nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | U.S. 501(c)(3) nonprofit organization | donor-funded, member-supported US 501(c)(3) nonprofit | MATCH\nFACT: OTHER | 04-3091431 | NONE | ABSENT \nFACT: CATEGORY | defends civil liberties | defending civil liberties in the digital world | MATCH\nFACTS: NONE",
+   "facts": "FACT: CATEGORY | U.S. 501(c)(3) nonprofit organization | nonprofit organization | MATCH\nFACT: DATE | NONE | 1990 | ABSENT\nFACT: OTHER | tax identification number is 04-3091431 | NONE | ABSENT\nFACT: CATEGORY | defends civil liberties | defending civil liberties | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT \nFACT: OTHER | Electronic Frontier Foundation (EFF) | Electronic Frontier Foundation (EFF) | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -779,7 +785,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: defend civil liberties in the digital world\nSITE: defending civil liberties in the digital world\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: CATEGORY | defend civil liberties | defending civil liberties | MATCH\nFACT: SERVICE | legal action | impact litigation | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: DATE | NONE | Founded in 1990 | ABSENT\nFACT: OTHER | user privacy, free expression, and innovation | user privacy, free expression, and innovation | MATCH\nFACT: OTHER | government surveillance, digital privacy, free speech online | government and corporate surveillance, data protection, and encryption | MATCH\nFACT: OTHER | intellectual property rights | copyright, DMCA, patents, fair use, and right to repair | MATCH",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: CATEGORY | defend civil liberties | defending civil liberties | MATCH\nFACT: SERVICE | legal action | impact litigation | MATCH\nFACT: SERVICE | policy analysis | policy analysis | MATCH\nFACT: SERVICE | grassroots activism | grassroots activism | MATCH\nFACT: SERVICE | technology development | technology development | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT \nFACT: DATE | NONE | 1990 | ABSENT",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -790,7 +796,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: The Electronic Frontier Foundation (EFF) is a nonprofit organization\nSITE: The Electronic Frontier Foundation is the leading nonprofit organization\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: CATEGORY | defending civil liberties | defending civil liberties | MATCH\nFACT: SERVICE | protecting digital privacy | user privacy | MATCH\nFACT: SERVICE | defending free speech online | free speech | MATCH\nFACT: SERVICE | promoting innovation | innovation | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: DATE | NONE | Founded in 1990 | ABSENT\nFACT: CATEGORY | ensuring security | security | MATCH",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: CATEGORY | defending civil liberties | defending civil liberties | MATCH\nFACT: SERVICE | protecting digital privacy | user privacy | MATCH\nFACT: SERVICE | defending free speech online | free expression | MATCH\nFACT: SERVICE | promoting innovation | innovation | MATCH\nFACT: SERVICE | ensuring security | security | MATCH\nFACT: SERVICE | government transparency | transparency | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: DATE | NONE | 1990 | ABSENT\nFACT: OTHER | litigation | impact litigation | MATCH\nFACT: OTHER | policy analysis | policy analysis | MATCH\nFACT: OTHER | grassroots activism | grassroots activism | MATCH\nFACT: OTHER | technology development | technology development | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -801,7 +807,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: defend civil liberties in the digital world\nSITE: defending civil liberties in the digital world\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | defend civil liberties | nonprofit organization defending civil liberties | MATCH\nFACT: CATEGORY | protect online privacy | user privacy | MATCH\nFACT: CATEGORY | defend free speech | free expression | MATCH\nFACT: CATEGORY | promote innovation | innovation | MATCH\nFACT: SERVICE | educate the public | educational guides | MATCH\nFACT: SERVICE | engage in litigation | impact litigation | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: DATE | NONE | Founded in 1990 | ABSENT",
+   "facts": "FACT: CATEGORY | defend civil liberties | defending civil liberties in the digital world | MATCH\nFACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: SERVICE | Protect online privacy | user privacy | MATCH\nFACT: SERVICE | Defend free speech | free expression | MATCH\nFACT: SERVICE | Promote innovation | innovation | MATCH\nFACT: SERVICE | Advocate for an open internet | NONE | ABSENT\nFACT: SERVICE | Educate the public | educational guides | MATCH\nFACT: SERVICE | Engage in litigation | impact litigation | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: DATE | NONE | Founded in 1990 | ABSENT\nFACT: OTHER | defend civil liberties in the digital world | defending civil liberties in the digital world | MATCH\nFACT: OTHER | advocating for and defending the rights | defending civil liberties in the digital world | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -812,7 +818,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: defend civil liberties in the digital world\nSITE: defending civil liberties in the digital world\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: SERVICE | litigation, policy advocacy, activism | impact litigation, policy analysis, grassroots activism | MATCH\nFACT: CATEGORY | defend civil liberties | defending civil liberties | MATCH\nFACT: SERVICE | technology development | technology development | MATCH\nFACT: OTHER | online privacy, free expression, and technological innovation | user privacy, free expression, and innovation | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT \nFACT: DATE | NONE | 1990 | ABSENT \nFACT: CATEGORY | FOUNDATION | Electronic Frontier Foundation | MATCH",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: CATEGORY | defend civil liberties | defending civil liberties | MATCH\nFACT: SERVICE | litigation | impact litigation | MATCH\nFACT: SERVICE | policy advocacy | policy analysis | MATCH\nFACT: SERVICE | activism | grassroots activism | MATCH\nFACT: SERVICE | technology development | technology development | MATCH\nFACT: SERVICE | public education | educational guides | MATCH\nFACT: OTHER | online privacy | digital privacy | MATCH\nFACT: OTHER | free expression | free expression | MATCH\nFACT: OTHER | technological innovation | innovation | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT \nFACT: DATE | NONE | 1990 | ABSENT",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -823,7 +829,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, the Electronic Frontier Foundation (EFF) has a physical location\nSITE: Founded in 1990 and based in San Francisco\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | Electronic Frontier Foundation | nonprofit organization | MATCH\nFACT: LOCATION | San Francisco, California | based in San Francisco | MATCH\nFACT: OTHER | main office | NONE | ABSENT \nFACT: DATE | NONE | Founded in 1990 | ABSENT\nFACT: PAGE | NONE | About EFF | ABSENT\nFACT: PERSON | NONE | Lawyers, technologists, activists | ABSENT\nFACT: SERVICE | NONE | impact litigation, policy analysis | ABSENT\nFACTS: NONE",
+   "facts": "FACT: CATEGORY | Electronic Frontier Foundation | Electronic Frontier Foundation | MATCH\nFACT: LOCATION | San Francisco, California | based in San Francisco | MATCH\nFACT: OTHER | main office | NONE | ABSENT \nFACT: DATE | NONE | 1990 | ABSENT\nFACT: OTHER | official website | https://www.eff.org | ABSENT",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -834,7 +840,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, EFF has a physical office location\nSITE: Founded in 1990 and based in San Francisco\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | Electronic Frontier Foundation | nonprofit organization | MATCH\nFACT: LOCATION | San Francisco, California | based in San Francisco | MATCH\nFACT: ADDRESS | 815 Eddy Street | NONE | ABSENT\nFACT: DATE | 1990 | Founded in 1990 | MATCH\nFACT: LOCATION | San Francisco | based in San Francisco | MATCH\nFACT: OTHER | digital rights issues | defending civil liberties in the digital world | MATCH\nFACT: OTHER | remote work | NONE | ABSENT \nFACT: ADDRESS | San Francisco, CA 94109 | NONE | ABSENT",
+   "facts": "FACT: CATEGORY | Electronic Frontier Foundation | nonprofit organization | MATCH\nFACT: LOCATION | San Francisco, California | San Francisco | MATCH\nFACT: ADDRESS | 815 Eddy Street San Francisco, CA 94109 | NONE | ABSENT\nFACT: DATE | 1990 | 1990 | MATCH\nFACT: OTHER | digital rights issues | digital world | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -845,7 +851,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, the Electronic Frontier Foundation (EFF), which operates eff.org, has a physical headquarters.\nSITE: Founded in 1990 and based in San Francisco\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: LOCATION | San Francisco, California | based in San Francisco | MATCH\nFACT: ADDRESS | 815 Eddy Street San Francisco, CA 94109 | NONE | ABSENT\nFACT: CATEGORY | digital rights | defending civil liberties in the digital world | MATCH\nFACT: LOCATION | California | based in San Francisco | MATCH \nFACT: OTHER | has a physical headquarters | Founded in 1990, EFF champions | ABSENT \nFACT: DATE | NONE | Founded in 1990 | ABSENT \nFACT: OTHER | maintains a physical office | Based in San Francisco | ABSENT",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: LOCATION | San Francisco, California | based in San Francisco | MATCH\nFACT: ADDRESS | 815 Eddy Street San Francisco, CA 94109 | NONE | ABSENT\nFACT: CATEGORY | digital rights | defending civil liberties in the digital world | MATCH \nFACT: DATE | NONE | Founded in 1990 | ABSENT",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -856,7 +862,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes. **EFF (Electronic Frontier Foundation) has a physical headquarters**\nSITE: Founded in 1990 and based in San Francisco\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | Electronic Frontier Foundation | nonprofit organization | MATCH\nFACT: LOCATION | San Francisco | San Francisco | MATCH\nFACT: ADDRESS | 815 Eddy Street | NONE | ABSENT\nFACT: PHONE | +1-415-436-9333 | 415-436-9333 x177 | CONFLICT\nFACT: LOCATION | USA | US | MATCH\nFACT: CATEGORY | nonprofit | nonprofit organization | MATCH\nFACT: ADDRESS | 94109 | NONE | ABSENT",
+   "facts": "FACT: CATEGORY | Electronic Frontier Foundation | nonprofit organization | MATCH\nFACT: LOCATION | San Francisco | San Francisco | MATCH\nFACT: ADDRESS | 815 Eddy Street | NONE | ABSENT\nFACT: PHONE | +1-415-436-9333 | 415-436-9333 x177 | CONFLICT\nFACT: LOCATION | USA | US | MATCH\nFACT: CATEGORY | nonprofit | nonprofit organization | MATCH \nFACT: OTHER | physical headquarters | based in San Francisco | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -867,10 +873,8 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: You can visit their website at eff.org and look for a link to their shop\nSITE: Shop · Donate · Donate to EFF · Giving Societies · Sponsorships · Other Ways to Give\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | digital rights advocacy | nonprofit organization defending civil liberties | MATCH\nFACT: SERVICE | merchandise such as T-shirts, stickers | Shop · Donate · Donate to EFF · Giving Societies | MATCH\nFACT: CATEGORY | defending civil liberties | defending digital privacy, free speech, and innovation | MATCH\nFACT: OTHER | online shop | Shop | MATCH\nFACT: CATEGORY | traditional online store | donor-funded, member-supported US 501(c)(3) nonprofit | CONFLICT \nFACT: OTHER | support their mission | depends on your support to continue fighting | MATCH\nFACT: OTHER | their website at eff.org | https://www.eff.org/ | MATCH\nFACT: OTHER | link to their shop | Shop · Donate | MATCH",
-   "compats": [
-    "NO"
-   ],
+   "facts": "FACT: CATEGORY | digital rights advocacy | nonprofit organization defending civil liberties | MATCH\nFACT: SERVICE | merchandise such as T-shirts, stickers | Shop · Donate · Donate to EFF · Giving Societies · Sponsorships · Other Ways to Give · Membership FAQ · Join EFF Lists | MATCH\nFACT: CATEGORY | defending civil liberties | defending digital privacy, free speech, and innovation | MATCH\nFACT: OTHER | online shop | Shop | MATCH\nFACT: OTHER | support their mission | donor-funded, member-supported US 501(c)(3) nonprofit | MATCH\nFACT: OTHER | defending civil liberties in the digital world | defending civil liberties in the digital world | MATCH",
+   "compats": [],
    "verdict": "CORRECT"
   },
   {
@@ -880,7 +884,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, you cannot purchase products\nSITE: Shop · Donate · Donate to EFF · Giving Societies\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit digital rights organization | nonprofit organization defending civil liberties | MATCH\nFACT: SERVICE | Make donations | Donations and memberships: https://supporters.eff.org/donate/join-4--llm | MATCH\nFACT: SERVICE | Become a member | Membership FAQ | MATCH\nFACT: SERVICE | Buy merchandise | Shop · Donate · Donate to EFF | MATCH\nFACT: PAGE | Donate | Donate today | MATCH\nFACT: PAGE | Join | Join EFF Lists | MATCH\nFACT: PAGE | Shop | Shop | MATCH\nFACT: CATEGORY | not a store | The Electronic Frontier Foundation is the leading nonprofit organization | MATCH",
+   "facts": "FACT: CATEGORY | nonprofit digital rights organization | nonprofit organization defending civil liberties | MATCH\nFACT: SERVICE | Make donations | Donations and memberships: https://supporters.eff.org/donate/join-4--llm | MATCH\nFACT: SERVICE | Become a member | Membership FAQ | MATCH\nFACT: SERVICE | Buy merchandise | Shop · Donate · Donate to EFF | MATCH\nFACT: PAGE | Donate | Donate today | MATCH\nFACT: PAGE | Join | Join EFF Lists | MATCH\nFACT: PAGE | Shop | Shop | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -891,7 +895,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, you can support the Electronic Frontier Foundation (EFF)\nSITE: Donate to EFF \nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | non-profit organization | nonprofit organization | MATCH\nFACT: CATEGORY | Electronic Frontier Foundation | nonprofit organization defending civil liberties | MATCH \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | non-profit organization | nonprofit organization | MATCH\nFACT: OTHER | support the Electronic Frontier Foundation | donor-funded, member-supported | MATCH \nFACTS: NONE",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -902,7 +906,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes. EFF operates an online shop\nSITE: Shop · Donate · Donate to EFF · Giving Societies\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: SERVICE | online shop | Shop · Donate · Donate to EFF · Giving Societies | MATCH\nFACT: OTHER | T-shirts, stickers, accessories | NONE | ABSENT\nFACT: OTHER | 2–4 weeks for small U.S. items | NONE | ABSENT\nFACT: OTHER | up to 8 weeks for international orders | NONE | ABSENT\nFACT: PAGE | NONE | Shop | ABSENT \nFACT: OTHER | membership gift certificates | Membership FAQ · Join EFF Lists | MATCH\nFACT: OTHER | books, mugs | NONE | ABSENT",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: SERVICE | online shop | Shop · Donate · Donate to EFF | MATCH\nFACT: OTHER | T-shirts, stickers, accessories | NONE | ABSENT\nFACT: OTHER | books, mugs, membership gift certificates | NONE | ABSENT\nFACT: OTHER | shipping times vary | NONE | ABSENT\nFACT: OTHER | up to 2–4 weeks for small U.S. items | NONE | ABSENT\nFACT: OTHER | up to 8 weeks for international orders | NONE | ABSENT",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -913,8 +917,10 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, eff.org is not a software company\nSITE: The Electronic Frontier Foundation is the leading nonprofit organization\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: CATEGORY | defending civil liberties | defending civil liberties | MATCH\nFACT: SERVICE | advocacy, litigation, and education | impact litigation, policy analysis, grassroots activism | MATCH\nFACT: SERVICE | develop some software tools | builds free privacy and security tools | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT \nFACT: DATE | NONE | Founded in 1990 | ABSENT \nFACT: CATEGORY | focused on privacy, free expression, and innovation | champions user privacy, free expression, and innovation | MATCH\nFACT: OTHER | Electronic Frontier Foundation (EFF) | Electronic Frontier Foundation (EFF) | MATCH",
-   "compats": [],
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: CATEGORY | defending civil liberties | defending civil liberties | MATCH\nFACT: SERVICE | advocacy | policy analysis, grassroots activism | MATCH\nFACT: SERVICE | litigation | impact litigation | MATCH\nFACT: SERVICE | education | educational guides | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: CATEGORY | software development | technology development | CONFLICT \nFACT: DATE | NONE | Founded in 1990 | ABSENT",
+   "compats": [
+    "NO"
+   ],
    "verdict": "CORRECT"
   },
   {
@@ -924,10 +930,8 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, EFF.org (the Electronic Frontier Foundation) is not a software company\nSITE: The Electronic Frontier Foundation is the leading nonprofit organization defending civil liberties in the digital world\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit digital rights organization | nonprofit organization defending civil liberties | MATCH\nFACT: DATE | founded in 1990 | Founded in 1990 | MATCH\nFACT: LOCATION | NONE | based in San Francisco | ABSENT\nFACT: SERVICE | Privacy Badger, HTTPS Everywhere, and Certbot | Privacy Badger | MATCH\nFACT: CATEGORY | software development is not their primary purpose | technology development | CONFLICT\nFACT: OTHER | defending civil liberties in the digital world | defending civil liberties in the digital world | MATCH\nFACT: OTHER | fighting for privacy, free speech, and innovation | champions user privacy, free expression, and innovation | MATCH\nFACT: OTHER | challenging government surveillance and censorship | fight illegal surveillance | MATCH",
-   "compats": [
-    "NO"
-   ],
+   "facts": "FACT: CATEGORY | nonprofit digital rights organization | nonprofit organization defending civil liberties | MATCH\nFACT: DATE | founded in 1990 | Founded in 1990 | MATCH\nFACT: LOCATION | NONE | based in San Francisco | ABSENT\nFACT: SERVICE | create some software tools | builds free privacy and security tools | MATCH\nFACT: OTHER | Privacy Badger, HTTPS Everywhere, and Certbot | Privacy Badger | MATCH \nFACT: OTHER | fighting for privacy, free speech, and innovation | champions user privacy, free expression, and innovation | MATCH\nFACT: CATEGORY | defending civil liberties | defending civil liberties in the digital world | MATCH",
+   "compats": [],
    "verdict": "CORRECT"
   },
   {
@@ -937,8 +941,10 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, **eff.org (the Electronic Frontier Foundation)** is not a software company\nSITE: The Electronic Frontier Foundation is the leading nonprofit organization defending civil liberties in the digital world\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | non-profit digital rights advocacy organization | nonprofit organization defending civil liberties | MATCH\nFACT: SERVICE | Privacy Badger | Privacy Badger | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT\nFACT: CATEGORY | develops and promotes some software tools | builds free privacy and security tools | MATCH\nFACT: OTHER | protecting civil liberties | defending civil liberties | MATCH\nFACT: OTHER | legal advocacy | impact litigation | MATCH\nFACT: OTHER | public education | educational guides | MATCH\nFACT: OTHER | defending digital rights | defending digital privacy, free speech, and innovation | MATCH",
-   "compats": [],
+   "facts": "FACT: CATEGORY | non-profit digital rights advocacy organization | nonprofit organization defending civil liberties | MATCH\nFACT: LOCATION | San Francisco | based in San Francisco | MATCH\nFACT: SERVICE | Privacy Badger | Privacy Badger | MATCH\nFACT: DATE | NONE | 1990 | ABSENT\nFACT: CATEGORY | software company | NONE | CONFLICT \nFACT: SERVICE | HTTPS Everywhere | NONE | ABSENT\nFACT: OTHER | free and open-source | free privacy and security tools | MATCH",
+   "compats": [
+    "NO"
+   ],
    "verdict": "CORRECT"
   },
   {
@@ -948,7 +954,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No. eff.org is the website of the Electronic Frontier Foundation (EFF), a U.S. 501(c)(3) nonprofit digital-rights organization, not a software company.\nSITE: The Electronic Frontier Foundation is the leading nonprofit organization defending civil liberties in the digital world.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | U.S. 501(c)(3) nonprofit digital-rights organization | nonprofit organization defending civil liberties | MATCH\nFACT: CATEGORY | not a software company | The Electronic Frontier Foundation is the leading nonprofit organization | MATCH\nFACT: SERVICE | free, open-source tools | EFF also builds free privacy and security tools | MATCH\nFACT: LOCATION | U.S. | based in San Francisco, | MATCH\nFACT: PERSON | NONE | Lawyers, technologists, activists, and other staff | ABSENT\nFACT: DATE | NONE | Founded in 1990 | ABSENT\nFACT: OTHER | Certbot and Privacy Badger | Certbot · Surveillance Self-Defense · Certbot | MATCH\nFACT: OTHER | develop free, open-source tools | EFF advises policymakers and educates | ABSENT",
+   "facts": "FACT: CATEGORY | U.S. 501(c)(3) nonprofit digital-rights organization | nonprofit organization defending civil liberties | MATCH\nFACT: CATEGORY | not a software company | The Electronic Frontier Foundation is the leading nonprofit organization | MATCH\nFACT: SERVICE | develop free, open-source tools | EFF also builds free privacy and security tools | MATCH\nFACT: LOCATION | U.S. | based in San Francisco, | MATCH\nFACT: OTHER | Certbot | Certbot | MATCH\nFACT: OTHER | Privacy Badger | Privacy Badger | MATCH\nFACT: DATE | NONE | Founded in 1990 | ABSENT \nFACT: CATEGORY | digital-rights organization | defending civil liberties in the digital world | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -959,7 +965,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: https://www.eff.org\nSITE: NONE\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT \nFACT: PAGE | homepage | Title: Electronic Frontier Foundation | MATCH\nFACT: DATE | NONE | Founded in 1990 | ABSENT \nFACT: OTHER | Electronic Frontier Foundation | Electronic Frontier Foundation | MATCH \nFACT: OTHER | https://www.eff.org | https://www.eff.org | MATCH \nFACT: CATEGORY | defending civil liberties | defending civil liberties | MATCH \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT \nFACT: OTHER | Electronic Frontier Foundation | Electronic Frontier Foundation | MATCH\nFACT: PAGE | NONE | About EFF | ABSENT \nFACT: OTHER | homepage | homepage | MATCH \nFACT: OTHER | https://www.eff.org | https://www.eff.org | MATCH",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -970,7 +976,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: https://www.eff.org/\nSITE: NONE\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: DATE | NONE | 1990 | ABSENT \nFACT: LOCATION | NONE | San Francisco | ABSENT \nFACT: CATEGORY | defends civil liberties | defending civil liberties | MATCH \nFACT: PAGE | NONE | About EFF | ABSENT \nFACT: OTHER | Electronic Frontier Foundation | Electronic Frontier Foundation | MATCH \nFACT: OTHER | defends civil liberties | defending civil liberties | MATCH \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | nonprofit organization | nonprofit organization | MATCH\nFACT: LOCATION | NONE | San Francisco | ABSENT \nFACT: DATE | NONE | 1990 | ABSENT \nFACT: PAGE | NONE | About | ABSENT \nFACT: OTHER | defends civil liberties | defending civil liberties | MATCH \nFACT: OTHER | Electronic Frontier Foundation | Electronic Frontier Foundation | MATCH \nFACT: OTHER | https://www.eff.org/ | https://www.eff.org/ | MATCH",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -981,7 +987,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: https://www.eff.org\nSITE: NONE\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACTS: NONE",
+   "facts": "FACT: PAGE | https://www.eff.org | https://www.eff.org | MATCH \nFACT: OTHER | eff.org's homepage | Title: Electronic Frontier Foundation | MATCH \nFACTS: NONE",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -1003,7 +1009,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: belongs to Ugmonk\nSITE: Ugmonk\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | minimalist and thoughtfully designed products | analog tools for focused, intentional work | CONFLICT\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff | MATCH\nFACT: CATEGORY | including apparel, accessories, and workspace organization items | analog tools for focused, intentional work | CONFLICT\nFACT: DATE | NONE | 2008 | ABSENT \nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT \nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd | ABSENT \nFACT: CATEGORY | a brand | Ugmonk | ABSENT",
+   "facts": "FACT: CATEGORY | minimalist and thoughtfully designed products | analog tools for focused, intentional work | CONFLICT\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff | MATCH\nFACT: CATEGORY | apparel, accessories, and workspace organization items | Analog tools designed to help you focus | CONFLICT\nFACT: DATE | NONE | 2008 | ABSENT \nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT \nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd | ABSENT",
    "compats": [
     "NO",
     "NO"
@@ -1017,11 +1023,8 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Ugmonk is an online store and lifestyle brand\nSITE: Ugmonk designs analog tools for focused, intentional work.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | online store and lifestyle brand | Ugmonk designs analog tools for focused, intentional work. | MATCH\nFACT: PERSON | Jeff Sheldon | I'm Jeff. | MATCH\nFACT: OTHER | Minimalist apparel | NONE | ABSENT\nFACT: OTHER | Workspace tools | Analog tools designed to help you focus | CONFLICT\nFACT: OTHER | Everyday carry items | The Ugmonk Utility Tote | CONFLICT\nFACT: DATE | founded by designer | started Ugmonk in 2008 | MATCH\nFACT: CATEGORY | productivity system | Analog Card System | MATCH\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | ABSENT",
-   "compats": [
-    "NO",
-    "NO"
-   ],
+   "facts": "FACT: CATEGORY | online store and lifestyle brand | Ugmonk designs analog tools for focused, intentional work. | MATCH\nFACT: PERSON | Jeff Sheldon | I'm Jeff. | MATCH\nFACT: DATE | 2008 | I started Ugmonk in 2008 | MATCH\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | CONFLICT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | CONFLICT \nFACT: SERVICE | Analog productivity system | Analog tools designed to help you focus | MATCH\nFACT: SERVICE | Minimalist apparel | NONE | ABSENT\nFACT: SERVICE | Workspace tools | NONE | ABSENT\nFACT: SERVICE | Everyday carry items | NONE | ABSENT",
+   "compats": [],
    "verdict": "CORRECT"
   },
   {
@@ -1031,7 +1034,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Ugmonk, a design studio and lifestyle brand\nSITE: Ugmonk designs analog tools for focused, intentional work.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | design studio and lifestyle brand | Ugmonk designs analog tools for focused, intentional work. | MATCH\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff. | MATCH\nFACT: SERVICE | Analog productivity tools | Analog tools designed to help you focus | MATCH\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | CONFLICT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | CONFLICT\nFACT: CATEGORY | minimalist and high-quality products | Analog tools for a distracted world. | MATCH\nFACT: DATE | founded by Jeff Sheldon | started Ugmonk in 2008 | MATCH\nFACT: OTHER | NONE | Ugmonk exists to be that wink. | ABSENT",
+   "facts": "FACT: CATEGORY | design studio and lifestyle brand | Ugmonk designs analog tools for focused, intentional work. | MATCH\nFACT: PERSON | Jeff Sheldon | I'm Jeff. | MATCH\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | CONFLICT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | CONFLICT\nFACT: SERVICE | Analog productivity tools | Analog tools designed to help you focus | MATCH\nFACT: SERVICE | Apparel | NONE | ABSENT\nFACT: SERVICE | Leather goods | NONE | ABSENT\nFACT: SERVICE | Stationery | NONE | ABSENT\nFACT: SERVICE | Desk accessories | NONE | ABSENT \nFACT: DATE | 2008 | I started Ugmonk in 2008 | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -1042,7 +1045,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: the official online store for **Ugmonk**\nSITE: Ugmonk designs analog tools for focused, intentional work.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | design brand | designs analog tools for focused, intentional work | MATCH\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff | MATCH\nFACT: LOCATION | Downingtown, Pennsylvania | Downingtown, PA 19335 USA | MATCH\nFACT: ADDRESS | 806 Dorlan Mill Rd | 806 Dorlan Mill Rd. | MATCH\nFACT: DATE | 2008 | 2008 | MATCH\nFACT: CATEGORY | family-run | NONE | ABSENT\nFACT: SERVICE | minimalist “analog tools” | Analog tools designed to help you focus | MATCH\nFACT: OTHER | sells journals, card-based productivity systems, desk accessories, apparel, and wood products | Analog Card System | ABSENT",
+   "facts": "FACT: CATEGORY | design brand | Ugmonk designs analog tools | MATCH\nFACT: PERSON | Jeff Sheldon | I'm Jeff | MATCH\nFACT: LOCATION | Downingtown, Pennsylvania | Downingtown, PA 19335 USA | MATCH\nFACT: ADDRESS | 806 Dorlan Mill Rd | 806 Dorlan Mill Rd. | MATCH\nFACT: DATE | 2008 | 2008 | MATCH\nFACT: CATEGORY | family-run | NONE | ABSENT\nFACT: SERVICE | journals, card-based productivity systems | Analog tools designed to help you focus | MATCH\nFACT: SERVICE | desk accessories, apparel, and wood products | Accessories | MATCH",
    "compats": [
     "NO"
    ],
@@ -1055,7 +1058,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: lifestyle brand\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: CONTRADICTED",
    "confirm": null,
    "compat": "NO",
-   "facts": "FACT: CATEGORY | lifestyle brand | NONE | ABSENT\nFACT: SERVICE | apparel, accessories, and home goods | Analog tools for focused, intentional work | CONFLICT\nFACT: CATEGORY | creating high-quality, minimalist products | designs analog tools for focused, intentional work | CONFLICT \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | lifestyle brand | NONE | ABSENT\nFACT: SERVICE | apparel, accessories, and home goods | Analog tools for focused, intentional work | CONFLICT\nFACT: CATEGORY | creating high-quality, minimalist products | analog tools for a distracted world | CONFLICT \nFACTS: NONE",
    "compats": [
     "NO",
     "NO",
@@ -1071,10 +1074,8 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: e-commerce lifestyle brand\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | e-commerce lifestyle brand | NONE | ABSENT\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff. | MATCH\nFACT: DATE | NONE | 2008 | ABSENT\nFACT: CATEGORY | Direct-to-consumer online retail | Ugmonk designs analog tools | CONFLICT\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | ABSENT\nFACT: DATE | Founded by Jeff Sheldon | Seventeen years later, that conviction remains true | ABSENT \nFACT: OTHER | minimalist products | Analog tools designed to help you focus | CONFLICT",
+   "facts": "FACT: CATEGORY | e-commerce lifestyle brand | NONE | ABSENT\nFACT: SERVICE | Apparel | NONE | ABSENT\nFACT: SERVICE | Workspace/Productivity Tools | Analog tools for focused, intentional work | MATCH\nFACT: SERVICE | Everyday Carry Items | NONE | ABSENT\nFACT: SERVICE | Home Goods | NONE | ABSENT\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff | MATCH\nFACT: DATE | 2008 | Seventeen years later | CONFLICT\nFACT: CATEGORY | design-focused brand | designer by trade | MATCH \nFACT: OTHER | Direct-to-consumer online retail | Shop at Ugmonk's online store | MATCH",
    "compats": [
-    "NO",
-    "NO",
     "NO"
    ],
    "verdict": "CORRECT"
@@ -1086,7 +1087,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: e-commerce business that operates as a design studio and lifestyle brand\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | e-commerce business | Ugmonk designs analog tools | MATCH\nFACT: CATEGORY | design studio and lifestyle brand | Ugmonk exists to be that wink | MATCH \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | e-commerce business | Ugmonk designs analog tools | MATCH\nFACT: CATEGORY | design studio and lifestyle brand | Ugmonk designs analog tools | MATCH\nFACTS: NONE",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -1097,7 +1098,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a direct-to-consumer design and lifestyle brand\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | direct-to-consumer design and lifestyle brand | Ugmonk designs analog tools for focused, intentional work. | ABSENT\nFACT: PERSON | Jeff Sheldon | I'm Jeff. I'm a designer by trade | MATCH\nFACT: DATE | 2008 | I started Ugmonk in 2008 | MATCH\nFACT: LOCATION | Downingtown, Pennsylvania | Downingtown, PA 19335 USA | MATCH\nFACT: ADDRESS | 806 Dorlan Mill Rd. | 806 Dorlan Mill Rd. | MATCH\nFACT: CATEGORY | sells minimalist, premium analog tools | Analog tools designed to help you focus | ABSENT \nFACT: OTHER | family-run business | NONE | ABSENT\nFACT: OTHER | small | NONE | ABSENT",
+   "facts": "FACT: CATEGORY | direct-to-consumer design and lifestyle brand | Ugmonk designs analog tools for focused, intentional work. | ABSENT\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff. | MATCH\nFACT: DATE | 2008 | I started Ugmonk in 2008 | MATCH\nFACT: LOCATION | Downingtown, Pennsylvania | Downingtown, PA 19335 USA | MATCH\nFACT: ADDRESS | 806 Dorlan Mill Rd. | 806 Dorlan Mill Rd. | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -1108,7 +1109,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, Ugmonk is a brand that offers a variety of products\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | brand that offers a variety of products | Ugmonk designs analog tools for focused, intentional work | MATCH\nFACT: SERVICE | apparel such as t-shirts and sweatshirts | NONE | ABSENT\nFACT: SERVICE | accessories like hats and bags | The Ugmonk Utility Tote | MATCH\nFACT: SERVICE | workspace products, including desk organizers and stationery items | Analog tools designed to help you focus | MATCH\nFACT: CATEGORY | minimalist design items | Analog tools designed to help you focus | MATCH\nFACT: OTHER | high-quality | Analog tools designed to help you focus | MATCH\nFACT: OTHER | simplicity, functionality, and aesthetic appeal | Good design should outlast trends | MATCH\nFACT: PERSON | NONE | Hi. I'm Jeff | ABSENT",
+   "facts": "FACT: CATEGORY | brand that offers a variety of products | Ugmonk designs analog tools for focused, intentional work | MATCH\nFACT: SERVICE | apparel such as t-shirts and sweatshirts | NONE | ABSENT\nFACT: SERVICE | accessories like hats and bags | NONE | ABSENT\nFACT: SERVICE | workspace products, including desk organizers and stationery items | Analog tools designed to help you focus | MATCH\nFACT: CATEGORY | minimalist design items | Ugmonk designs analog tools for focused, intentional work | MATCH\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | CONFLICT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd | CONFLICT\nFACT: PERSON | NONE | I'm Jeff | CONFLICT\nFACT: DATE | NONE | 2008 | CONFLICT \nFACT: CATEGORY | high-quality | Ugmonk designs analog tools for focused, intentional work | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -1119,8 +1120,11 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, Ugmonk offers several products and services\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | minimalist apparel | NONE | ABSENT\nFACT: SERVICE | E-commerce/online shopping | Shop | MATCH\nFACT: CATEGORY | design and branding | designer by trade | MATCH\nFACT: SERVICE | Analog productivity system | Analog tools for focused, intentional work | MATCH\nFACT: PERSON | they're known for | Hi. I'm Jeff | MATCH\nFACT: DATE | NONE | 2008 | ABSENT\nFACT: CATEGORY | Workspace accessories | Analog tools | MATCH\nFACT: OTHER | Analog system | Analog Card System | MATCH",
+   "facts": "FACT: CATEGORY | Minimalist apparel | NONE | ABSENT\nFACT: CATEGORY | Analog productivity system | Analog tools for focused, intentional work | MATCH\nFACT: CATEGORY | Workspace accessories and desk organizers | Analog tools for focused, intentional work | MATCH\nFACT: CATEGORY | Everyday carry items | NONE | ABSENT\nFACT: CATEGORY | Home goods | NONE | ABSENT\nFACT: SERVICE | E-commerce/online shopping | Shop at Ugmonk's online store | MATCH\nFACT: SERVICE | Design and branding | Designer by trade | MATCH\nFACT: PERSON | they | Jeff | CONFLICT\nFACT: CATEGORY | Physical card-based productivity tool | Analog Card System | MATCH\nFACT: OTHER | Ugmonk is particularly well-known | Ugmonk designs analog tools | MATCH \nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd | ABSENT\nFACT: DATE | NONE | 2008 | ABSENT",
    "compats": [
+    "NO",
+    "NO",
+    "NO",
     "NO"
    ],
    "verdict": "CORRECT"
@@ -1132,7 +1136,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes, absolutely! \nSITE: Ugmonk designs analog tools for focused, intentional work.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | design-focused, minimalist, and high-quality products | Ugmonk designs analog tools for focused, intentional work. | MATCH\nFACT: PERSON | Jeff Sheldon | I'm Jeff. I'm a designer by trade and an entrepreneur by accident. | MATCH\nFACT: CATEGORY | e-commerce business | Ugmonk exists to be that wink. | ABSENT\nFACT: SERVICE | Apparel | NONE | ABSENT\nFACT: SERVICE | Desk Accessories & Productivity Tools | Analog tools designed to help you focus | MATCH\nFACT: DATE | 2008 | I started Ugmonk in 2008 | MATCH\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. Downingtown, PA 19335 USA | CONFLICT\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | CONFLICT",
+   "facts": "FACT: CATEGORY | design-focused, minimalist, and high-quality products | analog tools for focused, intentional work | MATCH\nFACT: PERSON | Jeff Sheldon | I'm Jeff | MATCH\nFACT: CATEGORY | e-commerce business | Ugmonk exists to be that wink | ABSENT\nFACT: SERVICE | Apparel | Ugmonk Utility Tote | ABSENT\nFACT: SERVICE | Desk Accessories & Productivity Tools | Analog tools designed to help you focus | MATCH\nFACT: SERVICE | Bags & Wallets | Ugmonk Utility Tote | MATCH\nFACT: SERVICE | Prints & Art | NONE | ABSENT\nFACT: SERVICE | Stationery | Analog Card System | MATCH\nFACT: DATE | 2008 | started Ugmonk in 2008 | MATCH\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd | ABSENT",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -1143,7 +1147,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes. Ugmonk offers physical productivity and desk-organization products\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | physical productivity and desk-organization products | analog tools for focused, intentional work | MATCH\nFACT: SERVICE | Analog system | Analog Card System | MATCH\nFACT: PERSON | NONE | Jeff | ABSENT\nFACT: OTHER | custom bulk orders for businesses | NONE | ABSENT\nFACT: CATEGORY | analog tools | analog tools for a distracted world | MATCH\nFACT: SERVICE | Task, weekly, lined, grid, blank, and other refill cards | Analog Cards | MATCH\nFACT: OTHER | Daily Focus Kits and Starter Kits | Starter Kits | MATCH\nFACT: OTHER | Journals, including refillable discbound journals | Journals | MATCH",
+   "facts": "FACT: CATEGORY | physical productivity and desk-organization products | analog tools for focused, intentional work | MATCH\nFACT: SERVICE | Analog system | Analog Card System | MATCH\nFACT: SERVICE | Task, weekly, lined, grid, blank, and other refill cards | Cards | MATCH\nFACT: SERVICE | Card holders, organizers, and aluminum Card Bars | NONE | ABSENT\nFACT: SERVICE | Daily Focus Kits and Starter Kits | Starter Kits | MATCH\nFACT: SERVICE | Journals, including refillable discbound journals | Journals | MATCH\nFACT: SERVICE | Desk accessories such as pen trays | NONE | ABSENT\nFACT: SERVICE | Utility totes and gift cards | The Ugmonk Utility Tote | MATCH\nFACT: CATEGORY | analog tools | analog tools for a distracted world | MATCH\nFACT: OTHER | custom bulk orders for businesses | NONE | ABSENT\nFACT: PERSON | NONE | Jeff | ABSENT\nFACT: DATE | NONE | 2008 | ABSENT\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | ABSENT",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -1154,7 +1158,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: individuals who appreciate minimalist and thoughtfully designed products\nSITE: Analog tools designed to help you focus\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | minimalist and thoughtfully designed products | analog tools for focused, intentional work | MATCH\nFACT: SERVICE | apparel, workspace organization tools, and lifestyle accessories | Analog Card System | CONFLICT\nFACT: PERSON | NONE | Jeff | ABSENT \nFACT: CATEGORY | design enthusiasts, professionals, and consumers | 150,000 people who've gone Analog | MATCH\nFACT: OTHER | combining functionality with a clean, modern aesthetic | Clear Your Head. Own Your Day. | MATCH\nFACT: OTHER | high-quality, aesthetically pleasing items | well-made things | MATCH\nFACT: CATEGORY | individuals who appreciate | people who've gone Analog | MATCH\nFACTS: NONE",
+   "facts": "FACT: CATEGORY | minimalist and thoughtfully designed products | analog tools for focused, intentional work | MATCH\nFACT: SERVICE | apparel, workspace organization tools, and lifestyle accessories | Analog Card System | CONFLICT\nFACT: CATEGORY | design enthusiasts, professionals, and consumers | 150,000 people who've gone Analog | MATCH\nFACT: OTHER | combining functionality with a clean, modern aesthetic | Clear Your Head. Own Your Day. | MATCH \nFACTS: NONE",
    "compats": [
     "NO"
    ],
@@ -1167,8 +1171,13 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: discerning consumers who prioritize thoughtful design\nSITE: Analog tools for focused, intentional work\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | minimalist lifestyle enthusiasts | Ugmonk designs analog tools for focused, intentional work | ABSENT\nFACT: LOCATION | US | Downingtown, PA 19335 USA | MATCH\nFACT: PERSON | Jeff | Hi. I'm Jeff | MATCH\nFACT: DATE | 2008 | I started Ugmonk in 2008 | MATCH\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | CONFLICT\nFACT: PAGE | NONE | Our Story | ABSENT\nFACT: OTHER | premium-priced | No investors. No exit strategy | ABSENT\nFACT: OTHER | Analog system | Analog Card System | MATCH",
-   "compats": [],
+   "facts": "FACT: CATEGORY | design-conscious consumers | analog tools for focused, intentional work | MATCH\nFACT: LOCATION | US | Downingtown, PA 19335 USA | MATCH\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | CONFLICT\nFACT: PERSON | Jeff | Hi. I'm Jeff. | MATCH\nFACT: DATE | 2008 | started Ugmonk in 2008 | MATCH\nFACT: PAGE | NONE | Our Story | CONFLICT\nFACT: OTHER | minimalist lifestyle enthusiasts | Clear Your Head. Own Your Day. | MATCH\nFACT: OTHER | professionals and creatives | 50,000+ | CONFLICT\nFACT: OTHER | quality-over-quantity buyers | No investors. No exit strategy. | MATCH\nFACT: OTHER | productivity-focused individuals | Analog tools designed to help you focus | MATCH\nFACT: OTHER | discerning consumers | Ugmonk exists to be that wink. | MATCH \nFACT: CATEGORY | premium-priced | No investors. No exit strategy. | ABSENT\nFACT: LOCATION | urban and suburban professionals | Downingtown, PA 19335 USA | CONFLICT\nFACT: OTHER | middle to upper-middle class | No investors. No exit strategy. | ABSENT\nFACT: OTHER | 25-45 years old | 150,000 people | CONFLICT\nFACT: OTHER | predominantly male | 150,000 people | CONFLICT",
+   "compats": [
+    "NO",
+    "NO",
+    "NO",
+    "NO"
+   ],
    "verdict": "UNCLEAR"
   },
   {
@@ -1189,7 +1198,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: design-conscious knowledge workers and productivity-focused adults\nSITE: Analog tools designed to help you focus\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | design-conscious knowledge workers | NONE | ABSENT\nFACT: PERSON | Jeff | Hi. I'm Jeff. | MATCH\nFACT: DATE | 2008 | I started Ugmonk in 2008 | MATCH\nFACT: ADDRESS | 806 Dorlan Mill Rd. | 806 Dorlan Mill Rd. | MATCH\nFACT: LOCATION | USA | USA | MATCH\nFACT: PAGE | NONE | Our Story | ABSENT\nFACT: OTHER | ages roughly 25–34 | NONE | ABSENT\nFACT: OTHER | Analog productivity systems | analog tools for focused, intentional work | MATCH",
+   "facts": "FACT: CATEGORY | design-conscious knowledge workers and productivity-focused adults | Ugmonk designs analog tools for focused, intentional work | ABSENT\nFACT: CATEGORY | professionals, entrepreneurs, creatives, software developers, students, and people working from home | NONE | ABSENT\nFACT: SERVICE | analog productivity systems | analog tools for a distracted world | MATCH\nFACT: SERVICE | paper cards and journals | Analog Card System | MATCH\nFACT: PERSON | Jeff | I'm Jeff | MATCH\nFACT: DATE | 2008 | I started Ugmonk in 2008 | MATCH\nFACT: LOCATION | USA | USA | MATCH\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. Downingtown, PA 19335 USA | CONFLICT\nFACT: PAGE | NONE | Our Story | ABSENT\nFACT: OTHER | ages roughly 25–34 | 50,000+ | ABSENT\nFACT: OTHER | male | 150,000 people | ABSENT \nFACT: OTHER | calm, intentional, well-designed, and less dependent on digital devices | Clear Your Head. Own Your Day. | ABSENT",
    "compats": [
     "NO"
    ],
@@ -1202,8 +1211,9 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: not a website for a local business\nSITE: Mailing Address: Ugmonk 806 Dorlan Mill Rd. Downingtown, PA 19335 USA\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | online store | Ugmonk designs analog tools | MATCH\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff. | MATCH\nFACT: LOCATION | global | USA | CONFLICT\nFACT: CATEGORY | minimalist and thoughtfully designed items | analog tools for focused, intentional work | MATCH\nFACT: DATE | founded by Jeff Sheldon | started Ugmonk in 2008 | MATCH\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | ABSENT\nFACT: CATEGORY | clothing, accessories, and home goods | Analog tools designed to help you focus | CONFLICT \nFACT: OTHER | beyond just a local business | We make analog tools for a distracted world | ABSENT",
+   "facts": "FACT: CATEGORY | online store | Ugmonk designs analog tools | MATCH\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff. | MATCH\nFACT: LOCATION | none | Downingtown, PA 19335 USA | CONFLICT\nFACT: DATE | none | started Ugmonk in 2008 | CONFLICT \nFACT: CATEGORY | minimalist and thoughtfully designed items | analog tools for focused, intentional work | MATCH\nFACT: OTHER | global customer base | 150,000 people who've gone Analog | CONFLICT \nFACT: OTHER | variety of products, including clothing, accessories, and home goods | Analog tools designed to help you focus | CONFLICT",
    "compats": [
+    "NO",
     "NO"
    ],
    "verdict": "UNCLEAR"
@@ -1215,8 +1225,10 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, Ugmonk.com is not a local business website\nSITE: Mailing Address: Ugmonk 806 Dorlan Mill Rd. Downingtown, PA 19335 USA\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | online retail brand | Ugmonk designs analog tools | MATCH\nFACT: SERVICE | minimalist products | Analog tools designed to help you focus | MATCH\nFACT: LOCATION | nationally and internationally | USA | CONFLICT\nFACT: CATEGORY | e-commerce business | Ugmonk exists to be that wink | ABSENT\nFACT: OTHER | ships products | Join 150,000 people who've gone Analog | ABSENT\nFACT: PERSON | NONE | Hi. I'm Jeff | ABSENT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. Downingtown, PA 19335 USA | ABSENT\nFACT: DATE | NONE | Seventeen years later | ABSENT",
-   "compats": [],
+   "facts": "FACT: CATEGORY | online retail brand | Ugmonk designs analog tools | MATCH\nFACT: SERVICE | minimalist products | Analog tools designed to help you focus | MATCH\nFACT: LOCATION | nationally and internationally | USA | CONFLICT\nFACT: CATEGORY | e-commerce business | Ugmonk exists to be that wink | ABSENT \nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. Downingtown, PA 19335 USA | ABSENT \nFACT: PERSON | NONE | I'm Jeff | ABSENT \nFACT: DATE | NONE | 2008 | ABSENT \nFACT: CATEGORY | clothing, accessories, and workspace tools | Analog Card System | MATCH",
+   "compats": [
+    "NO"
+   ],
    "verdict": "UNCLEAR"
   },
   {
@@ -1226,7 +1238,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: not primarily a website for a local business\nSITE: Ugmonk 806 Dorlan Mill Rd. Downingtown, PA 19335 USA\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | e-commerce brand | Ugmonk designs analog tools | MATCH \nFACT: CATEGORY | not primarily a website for a local business | We make analog tools for a distracted world | MATCH \nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT \nFACT: PERSON | NONE | I'm Jeff | ABSENT \nFACT: DATE | NONE | started Ugmonk in 2008 | ABSENT \nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd | ABSENT \nFACT: CATEGORY | designs | Ugmonk designs analog tools for focused, intentional work | MATCH \nFACT: OTHER | traditional sense | In a world drowning in notifications and digital noise | ABSENT",
+   "facts": "FACT: CATEGORY | e-commerce brand | Ugmonk designs analog tools | MATCH \nFACT: CATEGORY | not primarily a website for a local business | We make analog tools for a distracted world | MATCH",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -1237,7 +1249,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes—**ugmonk.com is an online store operated by a small, family-run business\nSITE: Ugmonk designs analog tools for focused, intentional work.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | small, family-run business | Ugmonk | MATCH\nFACT: LOCATION | Downingtown, Pennsylvania | Downingtown, PA 19335 USA | MATCH\nFACT: ADDRESS | 806 Dorlan Mill Rd. | 806 Dorlan Mill Rd. | MATCH\nFACT: PERSON | NONE | Jeff | ABSENT\nFACT: DATE | NONE | 2008 | ABSENT\nFACT: CATEGORY | online store | online store | MATCH\nFACT: LOCATION | Pennsylvania | Pennsylvania | MATCH\nFACT: OTHER | designs and sells analog productivity tools | analog tools for focused, intentional work | MATCH",
+   "facts": "FACT: CATEGORY | small, family-run business | Ugmonk exists to be that wink. | ABSENT\nFACT: LOCATION | Downingtown, Pennsylvania | Downingtown, PA 19335 USA | MATCH\nFACT: ADDRESS | 806 Dorlan Mill Rd. | 806 Dorlan Mill Rd. | MATCH\nFACT: CATEGORY | online store | Ugmonk designs analog tools | MATCH\nFACT: CATEGORY | designs and sells analog productivity tools | analog tools for focused, intentional work | MATCH \nFACT: OTHER | ships orders from its Pennsylvania headquarters | NONE | ABSENT\nFACT: PERSON | NONE | Jeff | ABSENT\nFACT: DATE | NONE | 2008 | ABSENT",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -1248,7 +1260,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: offering a range of thoughtfully designed products\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | thoughtfully designed products | analog tools for focused, intentional work | MATCH\nFACT: SERVICE | workspace organization tools | Analog tools designed to help you focus | MATCH\nFACT: CATEGORY | lifestyle accessories | Accessories | MATCH\nFACT: OTHER | minimalist and high-quality items | simple, well-made things | MATCH\nFACT: PERSON | NONE | Jeff | ABSENT\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT\nFACT: DATE | NONE | 2008 | ABSENT\nFACT: CATEGORY | apparel | NONE | CONFLICT",
+   "facts": "FACT: CATEGORY | thoughtfully designed products | analog tools for focused, intentional work | MATCH\nFACT: CATEGORY | minimalist and high-quality items | analog tools for a distracted world | MATCH\nFACT: SERVICE | workspace organization tools | Analog Card System | MATCH\nFACT: SERVICE | lifestyle accessories | Accessories | MATCH\nFACT: CATEGORY | apparel | NONE | ABSENT \nFACT: OTHER | aesthetics with functionality | design should outlast trends | MATCH\nFACT: OTHER | intentional design | intentional work | MATCH\nFACT: OTHER | well-made products | good design should outlast trends | MATCH\nFACTS: NONE",
    "compats": [
     "NO"
    ],
@@ -1261,9 +1273,8 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: an online store that sells **minimalist lifestyle products and apparel**\nSITE: Ugmonk designs analog tools for focused, intentional work.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | online store | Ugmonk designs analog tools | MATCH\nFACT: SERVICE | Analog productivity system | Analog tools designed to help you focus | MATCH\nFACT: SERVICE | minimalist clothing | Ugmonk designs analog tools | CONFLICT\nFACT: PERSON | founder | I'm Jeff | MATCH\nFACT: DATE | 2008 | I started Ugmonk in 2008 | MATCH\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | CONFLICT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd | CONFLICT\nFACT: CATEGORY | premium everyday carry items | Analog tools for focused, intentional work | CONFLICT",
+   "facts": "FACT: CATEGORY | minimalist lifestyle products and apparel | Ugmonk designs analog tools for focused, intentional work. | MATCH\nFACT: SERVICE | Premium everyday carry items | Analog tools designed to help you focus | MATCH\nFACT: SERVICE | Minimalist clothing | Ugmonk designs analog tools for focused, intentional work. | CONFLICT\nFACT: SERVICE | Workspace accessories | NONE | ABSENT\nFACT: PERSON | founder | Hi. I'm Jeff. | MATCH\nFACT: DATE | NONE | 2008 | ABSENT \nFACT: CATEGORY | online store | You can browse products and shop at Ugmonk's online store | MATCH\nFACT: OTHER | Clean, minimalist design | Good design should outlast trends | MATCH\nFACT: OTHER | Quality craftsmanship | well-made things | MATCH\nFACT: OTHER | Functional simplicity | simple, well-made products | MATCH\nFACT: OTHER | Thoughtful, intentional products | the most intentional thing you can do is slow down, pick up a pen, and think on paper | MATCH",
    "compats": [
-    "NO",
     "NO"
    ],
    "verdict": "CORRECT"
@@ -1275,7 +1286,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: sell thoughtfully designed, high-quality, and minimalist products\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | sell thoughtfully designed, high-quality, and minimalist products | Ugmonk designs analog tools for focused, intentional work | ABSENT\nFACT: SERVICE | Apparel | NONE | ABSENT\nFACT: SERVICE | Accessories | NONE | ABSENT\nFACT: SERVICE | Stationery and productivity tools | Analog tools designed to help you focus | MATCH\nFACT: PERSON | NONE | Hi. I'm Jeff | ABSENT\nFACT: DATE | NONE | I started Ugmonk in 2008 | ABSENT\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd | ABSENT",
+   "facts": "FACT: CATEGORY | sell thoughtfully designed, high-quality, and minimalist products | Ugmonk designs analog tools for focused, intentional work | MATCH\nFACT: SERVICE | Apparel | NONE | ABSENT\nFACT: SERVICE | Accessories | NONE | ABSENT\nFACT: SERVICE | Stationery and productivity tools | Analog tools designed to help you focus | MATCH\nFACT: OTHER | online store | You can browse products and shop at Ugmonk's online store | MATCH\nFACT: PERSON | NONE | Jeff | ABSENT\nFACT: DATE | NONE | 2008 | ABSENT\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd | ABSENT\nFACT: CATEGORY | minimalist products | Analog tools for a distracted world | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -1286,7 +1297,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: an online store for minimalist, well-designed analog productivity tools\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | minimalist, well-designed analog productivity tools | analog tools for focused, intentional work | MATCH\nFACT: SERVICE | journals, cards, desk organizers, and accessories | Analog Card System | MATCH\nFACT: CATEGORY | online store | online store | MATCH\nFACT: OTHER | reduce digital distractions | Clear Your Head. Own Your Day. | MATCH\nFACT: PERSON | NONE | Jeff | ABSENT \nFACT: DATE | NONE | 2008 | ABSENT \nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT \nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | ABSENT",
+   "facts": "FACT: CATEGORY | minimalist, well-designed analog productivity tools | analog tools for focused, intentional work | MATCH\nFACT: SERVICE | journals, cards, desk organizers, and accessories | Analog Card System | MATCH\nFACT: OTHER | reduce digital distractions, organize their work, and focus better | help you focus | MATCH \nFACTS: NONE",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -1297,9 +1308,8 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a design-focused brand\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | design-focused brand | designs analog tools for focused, intentional work | CONFLICT\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff | MATCH\nFACT: CATEGORY | apparel, accessories, and home office goods | Analog tools designed to help you focus | CONFLICT\nFACT: DATE | NONE | 2008 | CONFLICT \nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | CONFLICT \nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd | CONFLICT \nFACT: OTHER | minimalist and aesthetically pleasing designs | Analog tools designed to help you focus | CONFLICT \nFACT: OTHER | limited edition items | Just Launched: The Ugmonk Utility Tote | MATCH",
+   "facts": "FACT: CATEGORY | design-focused brand | Ugmonk designs analog tools | CONFLICT\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff | MATCH\nFACT: CATEGORY | apparel, accessories, and home office goods | analog tools for focused, intentional work | CONFLICT\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT \nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd | ABSENT \nFACT: DATE | founded | started Ugmonk in 2008 | MATCH",
    "compats": [
-    "NO",
     "NO",
     "NO"
    ],
@@ -1312,8 +1322,10 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a design-focused lifestyle brand\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | design-focused lifestyle brand | Ugmonk designs analog tools for focused, intentional work. | MATCH\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff. | MATCH\nFACT: SERVICE | Apparel | NONE | ABSENT\nFACT: SERVICE | Workspace & Productivity Tools | Analog tools designed to help you focus | MATCH\nFACT: SERVICE | Everyday Carry Items | The Ugmonk Utility Tote | MATCH\nFACT: OTHER | emphasis on simplicity, quality materials, and timeless design | good design should outlast trends | MATCH\nFACT: OTHER | products designed to reduce clutter and enhance daily life | help you focus | MATCH\nFACT: OTHER | strong focus on craftsmanship and attention to detail | good design should outlast trends | MATCH",
-   "compats": [],
+   "facts": "FACT: CATEGORY | design-focused lifestyle brand | NONE | ABSENT\nFACT: PERSON | Jeff Sheldon | Jeff | MATCH\nFACT: SERVICE | Apparel | NONE | ABSENT\nFACT: SERVICE | Workspace & Productivity Tools | Analog tools for focused, intentional work | MATCH\nFACT: SERVICE | Everyday Carry Items | The Ugmonk Utility Tote | MATCH\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | CONFLICT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | CONFLICT\nFACT: DATE | founded by Jeff Sheldon | started Ugmonk in 2008 | MATCH",
+   "compats": [
+    "NO"
+   ],
    "verdict": "CORRECT"
   },
   {
@@ -1323,8 +1335,10 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: thoughtfully designed, minimalist, and high-quality goods\nSITE: Analog tools designed to help you focus\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | thoughtfully designed, minimalist, and high-quality goods | analog tools for focused, intentional work | ABSENT\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff. | MATCH \nFACT: CATEGORY | online brand | Ugmonk designs analog tools | MATCH \nFACTS: NONE",
-   "compats": [],
+   "facts": "FACT: CATEGORY | thoughtfully designed, minimalist, and high-quality goods | analog tools for focused, intentional work | ABSENT\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff. | MATCH \nFACT: CATEGORY | online brand | Ugmonk designs analog tools | CONFLICT",
+   "compats": [
+    "NO"
+   ],
    "verdict": "UNCLEAR"
   },
   {
@@ -1334,7 +1348,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: a small, family-run design brand\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | design brand | Ugmonk designs analog tools | MATCH\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff | MATCH\nFACT: LOCATION | Downingtown, Pennsylvania | Downingtown, PA 19335 USA | MATCH\nFACT: DATE | 2008 | I started Ugmonk in 2008 | MATCH\nFACT: ADDRESS | 806 Dorlan Mill Rd | 806 Dorlan Mill Rd. | MATCH\nFACT: CATEGORY | sells minimalist, premium analog tools | analog tools for focused, intentional work | MATCH\nFACT: SERVICE | Analog card-based planning system | Analog Card System | MATCH\nFACT: OTHER | family-run | NONE | ABSENT",
+   "facts": "FACT: CATEGORY | design brand | Ugmonk designs analog tools | MATCH\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff. | MATCH\nFACT: LOCATION | Downingtown, Pennsylvania | Downingtown, PA 19335 USA | MATCH\nFACT: ADDRESS | 806 Dorlan Mill Rd. | 806 Dorlan Mill Rd. | MATCH\nFACT: DATE | 2008 | I started Ugmonk in 2008 | MATCH\nFACT: SERVICE | Analog card-based planning system | Analog tools designed to help you focus | MATCH\nFACT: CATEGORY | sells minimalist, premium analog tools | analog tools for focused, intentional work | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -1345,8 +1359,9 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Ugmonk is not a software company\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | lifestyle brand | NONE | ABSENT\nFACT: PERSON | Jeff Sheldon | Jeff | MATCH\nFACT: CATEGORY | minimalist and thoughtfully designed products | analog tools for focused, intentional work | CONFLICT \nFACT: OTHER | apparel, accessories, and home goods | Analog tools designed to help you focus | CONFLICT\nFACT: PERSON | founder | I'm Jeff | MATCH\nFACT: CATEGORY | company | Ugmonk exists to be that wink | ABSENT \nFACT: DATE | NONE | 2008 | ABSENT \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | lifestyle brand | NONE | ABSENT\nFACT: CATEGORY | minimalist and thoughtfully designed products | Analog tools for focused, intentional work | CONFLICT\nFACT: PERSON | Jeff Sheldon | Jeff | MATCH\nFACT: CATEGORY | apparel, accessories, and home goods | Analog tools | CONFLICT \nFACT: OTHER | focus on quality, simplicity, and aesthetic design | good design should outlast trends | CONFLICT",
    "compats": [
+    "NO",
     "NO",
     "NO",
     "NO"
@@ -1360,7 +1375,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: No, Ugmonk is not a software company\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | design and lifestyle brand | Ugmonk designs analog tools for focused, intentional work. | MATCH\nFACT: SERVICE | physical products | Analog tools designed to help you focus | MATCH\nFACT: CATEGORY | not a software company | Ugmonk exists to be that wink. | ABSENT \nFACT: PERSON | NONE | Hi. I'm Jeff. | ABSENT \nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT \nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | ABSENT \nFACT: DATE | NONE | started Ugmonk in 2008 | ABSENT \nFACT: CATEGORY | sells physical goods | Ugmonk designs analog tools for focused, intentional work. | MATCH",
+   "facts": "FACT: CATEGORY | design and lifestyle brand | Ugmonk designs analog tools for focused, intentional work. | MATCH\nFACT: SERVICE | Minimalist apparel | NONE | ABSENT\nFACT: SERVICE | Workspace accessories and desk organizers | Analog tools designed to help you focus | ABSENT\nFACT: SERVICE | Everyday carry items | The Ugmonk Utility Tote | ABSENT\nFACT: SERVICE | Home goods | NONE | ABSENT\nFACT: CATEGORY | not a software company | Ugmonk exists to be that wink. | MATCH \nFACT: PERSON | NONE | Hi. I'm Jeff. | ABSENT\nFACT: DATE | NONE | I started Ugmonk in 2008 | ABSENT\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | ABSENT",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -1371,7 +1386,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Ugmonk.com is not a software company\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | design company | Ugmonk designs analog tools | MATCH\nFACT: CATEGORY | creates and sells high-quality, minimalist physical products | analog tools for focused, intentional work | MATCH \nFACT: SERVICE | Desk accessories | Desk pads, organizers not found but \"analog tools\" include cards, journals | ABSENT\nFACT: SERVICE | Carry goods | \"The Ugmonk Utility Tote\" | MATCH\nFACT: PERSON | NONE | Hi. I'm Jeff | ABSENT\nFACT: DATE | NONE | started Ugmonk in 2008 | ABSENT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | ABSENT\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT",
+   "facts": "FACT: CATEGORY | design company | Ugmonk designs analog tools | MATCH\nFACT: CATEGORY | not a software company | Ugmonk exists to be that wink | MATCH \nFACT: SERVICE | Desk accessories | Analog tools designed to help you focus | MATCH\nFACT: SERVICE | Carry goods | The Ugmonk Utility Tote | MATCH\nFACT: PERSON | Jeff | I'm Jeff | MATCH\nFACT: DATE | 2008 | I started Ugmonk in 2008 | MATCH\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd | CONFLICT \nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | CONFLICT",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -1382,8 +1397,10 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Ugmonk is primarily a design and consumer-products company\nSITE: Ugmonk designs analog tools for focused, intentional work\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | design and consumer-products company | Ugmonk designs analog tools for focused, intentional work. | MATCH\nFACT: LOCATION | USA | Downingtown, PA 19335 USA | MATCH\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | CONFLICT\nFACT: PERSON | Jeff | I'm Jeff. | MATCH\nFACT: DATE | 2008 | I started Ugmonk in 2008 | MATCH\nFACT: CATEGORY | not a software company | No investors. No exit strategy. | ABSENT \nFACT: PAGE | NONE | Shop Best Sellers | ABSENT \nFACT: OTHER | hosted on Shopify | Ugmonk exists to be that wink. | ABSENT",
-   "compats": [],
+   "facts": "FACT: CATEGORY | design and consumer-products company | Ugmonk designs analog tools for focused, intentional work. | MATCH\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | ABSENT\nFACT: PERSON | Jeff | I'm Jeff. | MATCH\nFACT: DATE | 2008 | I started Ugmonk in 2008 | MATCH\nFACT: CATEGORY | not a software company | Ugmonk exists to be that wink. | CONFLICT \nFACT: SERVICE | e-commerce storefront | You can browse products and shop at Ugmonk's online store | MATCH\nFACT: OTHER | hosted on Shopify | hosted on Shopify is not present but Shopify's agent documentation is mentioned | ABSENT\nFACT: OTHER | creates physical “analog tools” | Analog tools designed to help you focus | MATCH\nFACT: OTHER | journals, card-based productivity systems, and workspace products | Analog Card System | MATCH\nFACT: OTHER | does not appear to sell software | No app. | MATCH\nFACT: OTHER | does not operate as a software business | No app. | MATCH",
+   "compats": [
+    "NO"
+   ],
    "verdict": "DENY"
   },
   {
@@ -1393,7 +1410,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: does not have a permanent physical storefront\nSITE: Mailing Address: Ugmonk 806 Dorlan Mill Rd. Downingtown, PA 19335 USA\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | online store | online store | MATCH\nFACT: OTHER | does not have a permanent physical storefront | NONE | ABSENT\nFACT: OTHER | occasionally hosted pop-up shops or events | NONE | ABSENT\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | ABSENT\nFACT: DATE | NONE | 2008 | ABSENT\nFACT: PERSON | NONE | Jeff | ABSENT\nFACT: CATEGORY | NONE | designs analog tools | ABSENT",
+   "facts": "FACT: CATEGORY | online store | Ugmonk designs analog tools | MATCH\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | ABSENT\nFACT: OTHER | does not have a permanent physical storefront | Ugmonk exists to be that wink | ABSENT\nFACT: OTHER | has occasionally hosted pop-up shops or events | NONE | ABSENT\nFACT: PERSON | NONE | I'm Jeff | ABSENT\nFACT: DATE | NONE | Seventeen years later | ABSENT\nFACT: DATE | NONE | 2008 | ABSENT \nFACT: OTHER | check their official website or social media channels | Contact Us | ABSENT",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -1415,8 +1432,10 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: does not have a physical storefront\nSITE: Mailing Address: Ugmonk 806 Dorlan Mill Rd. Downingtown, PA 19335 USA\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | online-only retailer | Ugmonk designs analog tools | MATCH \nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT \nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | ABSENT \nFACT: CATEGORY | designing and selling their products | Ugmonk designs analog tools | MATCH \nFACT: OTHER | operate primarily as an online | on your user's behalf | MATCH \nFACT: OTHER | does not have a physical storefront | NONE | ABSENT \nFACT: OTHER | online-only retailer | The best-selling Analog Card System | MATCH \nFACTS: NONE",
-   "compats": [],
+   "facts": "FACT: CATEGORY | online-only retailer | NONE | ABSENT\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT \nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | ABSENT \nFACT: OTHER | does not have a physical storefront | Ugmonk exists to be that wink. | ABSENT",
+   "compats": [
+    "NO"
+   ],
    "verdict": "DENY"
   },
   {
@@ -1426,7 +1445,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: HEDGED\nCLAIM: Ugmonk does not appear to operate a public physical storefront\nSITE: Mailing Address: Ugmonk 806 Dorlan Mill Rd. Downingtown, PA 19335 USA\nVERDICT: UNSUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | designs analog tools | analog tools for focused, intentional work | MATCH\nFACT: LOCATION | Downingtown, Pennsylvania | Downingtown, PA 19335 USA | MATCH\nFACT: ADDRESS | 806 Dorlan Mill Rd | 806 Dorlan Mill Rd. | MATCH\nFACT: PERSON | Jeff | I'm Jeff | MATCH\nFACT: DATE | 2008 | started Ugmonk in 2008 | MATCH\nFACT: OTHER | headquarters and warehouse | Mailing Address: Ugmonk 806 Dorlan Mill Rd | MATCH\nFACT: SERVICE | sells directly through its website | shop at Ugmonk's online store | MATCH\nFACT: OTHER | ships orders | Contact Us | ABSENT",
+   "facts": "FACT: CATEGORY | design business | designs analog tools for focused, intentional work | MATCH\nFACT: LOCATION | Downingtown, Pennsylvania | Downingtown, PA 19335 USA | MATCH\nFACT: ADDRESS | 806 Dorlan Mill Rd | 806 Dorlan Mill Rd. | MATCH\nFACT: PERSON | NONE | Jeff | ABSENT\nFACT: DATE | NONE | 2008 | ABSENT \nFACT: OTHER | headquarters and warehouse | Mailing Address: Ugmonk 806 Dorlan Mill Rd. | MATCH\nFACT: OTHER | sells directly through its website | shop at Ugmonk's online store | MATCH\nFACT: OTHER | products also available through select boutiques | NONE | ABSENT",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -1448,7 +1467,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Ugmonk is a design studio and lifestyle brand\nSITE: Ugmonk designs analog tools for focused, intentional work.\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | design studio and lifestyle brand | Ugmonk designs analog tools for focused, intentional work. | CONFLICT\nFACT: PERSON | Jeff Sheldon | Hi. I'm Jeff. | MATCH\nFACT: SERVICE | minimalist products | Analog tools designed to help you focus | CONFLICT\nFACT: LOCATION | NONE | Downingtown, PA 19335 USA | ABSENT\nFACT: ADDRESS | NONE | 806 Dorlan Mill Rd. | ABSENT\nFACT: DATE | NONE | 2008 | ABSENT\nFACT: CATEGORY | offers clothing, workspace accessories, and everyday carry items | Analog tools designed to help you focus | CONFLICT\nFACT: OTHER | NONE | Ugmonk exists to be that wink. | ABSENT",
+   "facts": "FACT: CATEGORY | design studio and lifestyle brand | Ugmonk designs analog tools for focused, intentional work. | CONFLICT\nFACT: PERSON | Jeff Sheldon | I'm Jeff. I'm a designer by trade and an entrepreneur by accident. | MATCH\nFACT: CATEGORY | minimalist products | Analog tools designed to help you focus | CONFLICT \nFACT: SERVICE | clothing, workspace accessories, and everyday carry items | Analog tools for a distracted world. | CONFLICT\nFACT: DATE | NONE | 2008 | ABSENT",
    "compats": [
     "NO",
     "NO",
@@ -1518,7 +1537,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: the professional website of **Rachel Queiroz, a clinical psychologist**\nSITE: Rachel Queiroz — Psicóloga Clínica\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | clinical psychologist | Psicóloga Clínica | MATCH\nFACT: PERSON | Rachel Queiroz | Rachel Queiroz | MATCH\nFACT: LOCATION | Maceió, Brazil | Maceió (AL) | MATCH\nFACT: SERVICE | Individual psychotherapy | Psicoterapia individual | MATCH\nFACT: SERVICE | Couples therapy | Psicoterapia para casais | MATCH\nFACT: ADDRESS | NONE | R. Dr. José Afonso de Melo, 118 | ABSENT\nFACT: PHONE | NONE | +55 82 99663-9294 | ABSENT\nFACT: SERVICE | online sessions worldwide | online para o mundo todo | MATCH",
+   "facts": "FACT: CATEGORY | clinical psychologist | Psicóloga Clínica | MATCH\nFACT: PERSON | Rachel Queiroz | Rachel Queiroz | MATCH\nFACT: LOCATION | Maceió, Brazil | Maceió — AL, Brasil | MATCH\nFACT: SERVICE | Individual psychotherapy | Psicoterapia individual | MATCH\nFACT: SERVICE | Couples therapy | Psicoterapia para casais | MATCH\nFACT: SERVICE | In-person appointments | Atendimento particular | MATCH\nFACT: SERVICE | online sessions | online para o mundo todo | MATCH\nFACT: OTHER | professional registration | CRP 15/8276 | MATCH\nFACT: ADDRESS | NONE | R. Dr. José Afonso de Melo, 118 — Sala 701 | ABSENT \nFACT: PHONE | NONE | +55 82 99663-9294 | ABSENT",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -1562,10 +1581,8 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: rachelqueiroz.com offers psychological services\nSITE: Atendimento particular para adultos e casais\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | psychological services | Psicóloga Clínica | MATCH\nFACT: SERVICE | Individual psychotherapy | Psicoterapia individual | MATCH\nFACT: SERVICE | Couples therapy | Psicoterapia para casais | MATCH\nFACT: LOCATION | Maceió, Brazil | Maceió (AL) | MATCH\nFACT: LOCATION | online therapy worldwide | online para o mundo todo | MATCH\nFACT: OTHER | issues including relationships | adultos e casais | CONFLICT\nFACT: OTHER | stress, self-esteem, motivation, and self-knowledge | NONE | ABSENT\nFACT: OTHER | career choices, grief, separation | NONE | ABSENT",
-   "compats": [
-    "NO"
-   ],
+   "facts": "FACT: CATEGORY | psychological services | Psicóloga Clínica | MATCH\nFACT: SERVICE | Individual psychotherapy | Psicoterapia individual | MATCH\nFACT: SERVICE | Couples therapy | Psicoterapia para casais | MATCH\nFACT: LOCATION | Maceió, Brazil | Maceió (AL) | MATCH\nFACT: LOCATION | worldwide | para o mundo todo | MATCH\nFACT: OTHER | issues including relationships | relacionamentos | MATCH\nFACT: OTHER | career choices | desafios específicos | ABSENT\nFACT: OTHER | grief | NONE | ABSENT\nFACT: OTHER | separation | diferenças | ABSENT\nFACT: OTHER | stress | NONE | ABSENT\nFACT: OTHER | self-esteem | NONE | ABSENT\nFACT: OTHER | motivation | NONE | ABSENT\nFACT: OTHER | self-knowledge | autoconhecimento | MATCH",
+   "compats": [],
    "verdict": "CORRECT"
   },
   {
@@ -1610,7 +1627,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: clinical psychology practice\nSITE: Psicóloga Clínica\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | clinical psychology practice | Psicóloga Clínica | MATCH\nFACT: PERSON | Rachel Queiroz | Rachel Queiroz | MATCH\nFACT: SERVICE | individual psychotherapy | Psicoterapia individual | MATCH\nFACT: SERVICE | couples therapy | Psicoterapia para casais | MATCH\nFACT: LOCATION | Maceió, Alagoas | Maceió (AL) | MATCH\nFACT: LOCATION | Brazil | Brasil | MATCH \nFACT: OTHER | in-person appointments | atendimento particular | MATCH\nFACT: OTHER | online appointments | online para o mundo todo | MATCH",
+   "facts": "FACT: CATEGORY | clinical psychology practice | Psicóloga Clínica | MATCH\nFACT: PERSON | Rachel Queiroz | Rachel Queiroz | MATCH\nFACT: SERVICE | individual psychotherapy | Psicoterapia individual | MATCH\nFACT: SERVICE | couples therapy | Psicoterapia para casais | MATCH\nFACT: LOCATION | Maceió, Alagoas | Maceió (AL) | MATCH\nFACT: LOCATION | Brazil | Brasil | MATCH \nFACT: OTHER | in-person appointments | atendimento particular | MATCH\nFACT: OTHER | online appointments | online | MATCH",
    "compats": [],
    "verdict": "CORRECT"
   },
@@ -1687,7 +1704,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: https://www.rachelqueiroz.com\nSITE: https://www.rachelqueiroz.com/\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | Psicóloga Clínica | Psicóloga Clínica | MATCH\nFACT: PERSON | Rachel Queiroz | Rachel Queiroz | MATCH\nFACT: LOCATION | NONE | Maceió | ABSENT \nFACT: PAGE | NONE | Página inicial | ABSENT \nFACT: SERVICE | NONE | Psicoterapia individual | ABSENT \nFACT: ADDRESS | NONE | R. Dr. José Afonso de Melo, 118 | ABSENT \nFACT: PHONE | NONE | +55 82 99663-9294 | ABSENT \nFACTS: NONE",
+   "facts": "FACT: CATEGORY | Psicóloga Clínica | Psicóloga Clínica | MATCH \nFACT: PERSON | Rachel Queiroz | Rachel Queiroz | MATCH \nFACT: LOCATION | NONE | Maceió | ABSENT \nFACT: PAGE | NONE | Página inicial | ABSENT \nFACT: OTHER | https://www.rachelqueiroz.com | https://www.rachelqueiroz.com/ | MATCH",
    "compats": [],
    "verdict": "UNCLEAR"
   },
@@ -1788,10 +1805,8 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Yes\nSITE: Consultório: R. Dr. José Afonso de Melo, 118 — Sala 701\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | psychology clinic | Psicóloga Clínica | MATCH\nFACT: LOCATION | Maceió, Alagoas, Brazil | Maceió (AL) | MATCH\nFACT: ADDRESS | R. Dr. José Afonso de Melo, 118, Room 701 | R. Dr. José Afonso de Melo, 118 — Sala 701 | MATCH\nFACT: SERVICE | online appointments | online para o mundo todo | MATCH\nFACT: LOCATION | worldwide | o mundo todo | MATCH\nFACT: OTHER | physical psychology clinic | consultório em Maceió | MATCH\nFACT: OTHER | online appointments worldwide | online para brasileiros no Brasil e no exterior | CONFLICT\nFACT: ADDRESS | Edifício Harmony Trade Center, Jatiúca, Maceió–AL | Edifício Harmony Trade Center, Jatiúca, Maceió — AL, Brasil | MATCH",
-   "compats": [
-    "NO"
-   ],
+   "facts": "FACT: CATEGORY | psychology clinic | Psicóloga Clínica | MATCH\nFACT: LOCATION | Maceió, Alagoas, Brazil | Maceió (AL) | MATCH\nFACT: ADDRESS | R. Dr. José Afonso de Melo, 118, Room 701 | R. Dr. José Afonso de Melo, 118 — Sala 701 | MATCH\nFACT: LOCATION | worldwide | o mundo todo | MATCH\nFACT: SERVICE | online appointments | online para o mundo todo | MATCH\nFACT: PERSON | NONE | Rachel Queiroz | ABSENT \nFACT: OTHER | physical psychology clinic | consultório em Maceió | MATCH",
+   "compats": [],
    "verdict": "CORRECT"
   },
   {
@@ -1924,7 +1939,7 @@
    "judge": "IDENTITY: SAME\nOTHER: NONE\nANSWERED: YES\nCLAIM: Rachel Queiroz, a clinical psychologist\nSITE: Rachel Queiroz — Psicóloga Clínica\nVERDICT: SUPPORTED",
    "confirm": null,
    "compat": null,
-   "facts": "FACT: CATEGORY | clinical psychologist | Psicóloga Clínica | MATCH\nFACT: PERSON | Rachel Queiroz | Rachel Queiroz | MATCH\nFACT: LOCATION | Maceió, Brazil | Maceió — AL, Brasil | MATCH\nFACT: SERVICE | individual therapy | Psicoterapia individual | MATCH\nFACT: SERVICE | online | online para o mundo todo | MATCH\nFACT: OTHER | relationships, self-esteem, stress, grief, and personal development | NONE | ABSENT \nFACT: OTHER | in person | presencial | MATCH\nFACT: OTHER | couples | casais | MATCH",
+   "facts": "FACT: CATEGORY | clinical psychologist | Psicóloga Clínica | MATCH\nFACT: PERSON | Rachel Queiroz | Rachel Queiroz | MATCH\nFACT: LOCATION | Maceió, Brazil | Maceió — AL, Brasil | MATCH\nFACT: SERVICE | individual therapy for adults and couples | Psicoterapia individual, de casal | MATCH \nFACT: SERVICE | available both in person and online | presencial em Maceió ou online | MATCH \nFACT: OTHER | focus that includes relationships, self-esteem, stress, grief, and personal development | NONE | ABSENT",
    "compats": [],
    "verdict": "CORRECT"
   }

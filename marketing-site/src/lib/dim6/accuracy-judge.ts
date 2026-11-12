@@ -371,9 +371,11 @@ export interface Fact {
   site: string | null;
   status: "MATCH" | "CONFLICT" | "ABSENT";
 }
-export const FACTS_MAX = 8;
+// Facts read per answer. The prompt names no number (a stated cap made the
+// model fill the list to it, dev 2026-11-11); more than this counts as cut.
+export const FACTS_MAX = 30;
 /** Contradiction checks (second calls) per answer, at most. */
-export const FACT_CHECKS_MAX = 4;
+export const FACT_CHECKS_MAX = 6;
 // A fact the site description does not mention changes nothing: the gold
 // guide counts an unverifiable detail as has_unsupported_claims, still
 // correct (R1), and calls a specific invented only when the site explicitly
@@ -401,7 +403,7 @@ ${ans.open}
 ${ans.body}
 ${ans.close}
 
-List every specific, checkable fact the answer states about the website or its owner, at most ${FACTS_MAX}, one per line, of these kinds:
+List every specific, checkable fact the answer states about the website or its owner, one per line, of these kinds:
 CATEGORY = what kind of business, organization or profession it is or specialises in
 SERVICE = a service, treatment or product it offers
 LOCATION = a city, region or country where it is or operates
@@ -412,7 +414,7 @@ DATE = a year or date
 PRICE = a price or fee
 PAGE = a named page, section, button or menu item of the website
 OTHER = any other specific fact
-Skip vague statements ("offers services to individuals", "has a website"), opinions, popularity, the website's own name or URL, and anything the answer denies or lists only as one of several possibilities.
+Skip vague statements ("offers services to individuals", "has a website"), opinions, popularity, the website's own name or URL, and anything the answer denies or lists only as one of several possibilities. Each city, street address, phone number, person and date is its own fact on its own line: never leave one out, and never merge two into one line.
 
 For each fact give: its kind; the answer's words, copied exactly (at most ${QUOTE_MAX_WORDS} words); the site description's words about the same thing, copied exactly (at most ${QUOTE_MAX_WORDS} words), or NONE; and one of
 MATCH = the site description says the same;
@@ -440,18 +442,32 @@ export function parseFactsOutput(raw: string): Fact[] | null {
   const out: Fact[] & { more?: boolean } = [];
   // More facts than read: the unread ones could be false (Codex review).
   if (all.length > FACTS_MAX) out.more = true;
-  for (const l of factLines) {
-    const m = l.match(/^["'`*\s]*FACT\s*:\s*(.+)$/i);
-    if (!m) return null;
-    const parts = m[1].split("|").map((p) => p.trim().replace(/^["'“”‘’<]+|["'“”‘’>]+$/g, "").trim());
-    if (parts.length !== 4) return null;
-    const kind = parts[0].toUpperCase() as FactKind;
-    const status = parts[3].replace(/[.*`'"\s]+$/g, "").toUpperCase();
-    if (!FACT_KINDS.includes(kind) || (status !== "MATCH" && status !== "CONFLICT" && status !== "ABSENT")) return null;
-    if (!parts[1] || parts[1].length > 400 || parts[2].length > 400) return null;
-    out.push({ kind, answer: parts[1], site: /^none\.?$/i.test(parts[2]) || !parts[2] ? null : parts[2], status });
+  for (let i = 0; i < factLines.length; i++) {
+    const fact = parseFactLine(factLines[i]);
+    if (fact) {
+      out.push(fact);
+      continue;
+    }
+    // The last line cut off by the output limit: dropped, and the list counts as cut.
+    if (i === factLines.length - 1 && i > 0 && raw.trimEnd().endsWith(factLines[i]) && /^["'`*\s]*FACT\s*:/i.test(factLines[i])) {
+      out.more = true;
+      break;
+    }
+    return null;
   }
   return out;
+}
+
+function parseFactLine(l: string): Fact | null {
+  const m = l.match(/^["'`*\s]*FACT\s*:\s*(.+)$/i);
+  if (!m) return null;
+  const parts = m[1].split("|").map((p) => p.trim().replace(/^["'“”‘’<]+|["'“”‘’>]+$/g, "").trim());
+  if (parts.length !== 4) return null;
+  const kind = parts[0].toUpperCase() as FactKind;
+  const status = parts[3].replace(/[.*`'"\s]+$/g, "").toUpperCase();
+  if (!FACT_KINDS.includes(kind) || (status !== "MATCH" && status !== "CONFLICT" && status !== "ABSENT")) return null;
+  if (!parts[1] || parts[1].length > 400 || parts[2].length > 400) return null;
+  return { kind, answer: parts[1], site: /^none\.?$/i.test(parts[2]) || !parts[2] ? null : parts[2], status };
 }
 
 export type FactsSettled =
@@ -486,12 +502,21 @@ export function settleFacts(
     const sExact = fact.site ? findQuoteExact(reference, fact.site) : -1;
     const sAt = sExact !== -1 ? sExact : fact.site ? findSiteQuote(reference, fact.site) : -1;
     if (fact.kind === "PHONE" && samePhoneDigits(fact.answer, fact.site ?? "")) continue;
-    // No value, no accusation; but a conflict the facts call saw is not
-    // cleared either: no CORRECT (Codex review round 2: "based in porto").
-    if (!givesValue(fact)) {
-      if (fact.status === "CONFLICT" && sAt !== -1) unchecked = true;
+    // Accusing needs confirmation; withholding credit does not (held-out
+    // patterns, 2026-11-11): every conflict the facts call saw that is not
+    // upheld below, or cleared by the second call reading the site's own
+    // words, leaves the answer without CORRECT.
+    const conflict = fact.status === "CONFLICT";
+    // One option of a hedged list of possibilities ("it likely operates in
+    // one of these areas: ...") is a guess, not a claim about the site:
+    // never an accusation (held-out pattern), never a credit either.
+    if (isHedgedOption(answer, aAt)) {
+      if (conflict) unchecked = true;
       continue;
     }
+    // No value, no accusation (Codex review round 2: "based in porto"). The
+    // second call may still clear it; otherwise no CORRECT.
+    const accusable = givesValue(fact);
     // A kind of business or profession the site's words were not found for
     // is checked against the site's own self-description line: the
     // profession a site states is its single value (held-out pattern: a
@@ -501,13 +526,28 @@ export function settleFacts(
     // description: the site says it too (Codex review: "we also operate a
     // dermatology clinic" under a dental Summary).
     const idAt = fact.kind === "CATEGORY" && sAt === -1 && findSiteQuote(reference, fact.answer) === -1 ? identityLineAt(reference) : -1;
-    const at = sAt !== -1 && fact.status === "CONFLICT" ? sAt : idAt;
-    if (at !== -1 && checks >= FACT_CHECKS_MAX) unchecked = true;
-    if (at !== -1 && checks < FACT_CHECKS_MAX) {
+    const at = sAt !== -1 && conflict ? sAt : accusable ? idAt : -1;
+    // A conflict with nothing to check it against (site words NONE, or only
+    // part of a street name, and no self-description line to read) cannot
+    // be confirmed or cleared: no CORRECT.
+    if (at === -1) {
+      if (conflict) unchecked = true;
+      continue;
+    }
+    if (checks >= FACT_CHECKS_MAX) {
+      if (conflict) unchecked = true;
+      continue;
+    }
+    {
       const i = checks++;
       if (compats[i] === undefined) return { needsCompat: true, index: i, claimAt: aAt, siteAt: at };
       const c = compats[i];
-      if (c && !c.compatible) {
+      // A failed check clears nothing (a category checked against the
+      // self-description included, Codex review).
+      if (c === null) unchecked = true;
+      // Upheld but no value in the answer to accuse with: no CORRECT, no accusation.
+      if (c && !c.compatible && !accusable) unchecked = true;
+      if (c && !c.compatible && accusable) {
         const quote = at === sAt ? fact.site ?? "" : reference.slice(at, (reference.indexOf(LF_CHAR, at) + 1 || reference.length + 1) - 1).replace(/^[^:]{1,40}:\s*/, "");
         return { kind: "wrong_facts", claimAt: aAt, siteAt: at, siteQuote: quote };
       }
@@ -537,6 +577,53 @@ export function givesValue(fact: Fact): boolean {
     default:
       return true;
   }
+}
+
+// Possibility words: a sentence (or the line introducing a list) that
+// offers options rather than stating what the site is.
+const POSSIBILITY =
+  /\b(?:likely|unlikely|possibly|possible|perhaps|maybe|may\s+be|might|could|probably|presumably|potentially|appears?\s+to|seems?\s+to|suggests?|guess(?:es|ing)?|if|whether|either|one\s+of\s+(?:these|the\s+following|several)|options?|possibilities)\b/i;
+const LIST_ITEM = /^\s*(?:[-*•–]|\d{1,2}[.)])\s+/;
+
+// An enumeration: "X, Y or Z", "either X or Y", "X, Y, Z".
+const ENUMERATION = /\b(?:or|either)\b|,/i;
+
+/**
+ * true when the text at `at` is one option of a list of possibilities: a
+ * sentence with a possibility word that enumerates ("it could be a law
+ * firm, a bakery or an agency"), or a list item whose introducing line has
+ * a possibility word ("It likely operates in one of these areas:\n-
+ * automotive\n- real estate"). A single hedged guess ("it is probably a
+ * dermatology clinic") is still a claim (gold guide: hedged claims are
+ * fact-checked). Markdown emphasis ignored.
+ */
+export function isHedgedOption(answer: string, at: number): boolean {
+  const plain = (t: string) => t.replace(/[*_`]+/g, "");
+  const sentence = plain(sentenceAround(answer, at, 600));
+  // The possibility word must come before the fact in its sentence: it
+  // introduces the options ("it could be X, Y"), not a later clause ("it is
+  // X and could accept cash or cards", Codex review).
+  let start = 0;
+  for (let j = at - 1; j >= 0 && at - j <= 600; j--) {
+    if (isSentenceEnd(answer, j)) {
+      start = j + 1;
+      break;
+    }
+  }
+  if (POSSIBILITY.test(plain(answer.slice(start, at))) && ENUMERATION.test(sentence)) return true;
+  let ls = answer.lastIndexOf(LF_CHAR, at - 1) + 1;
+  const line = answer.slice(ls, answer.indexOf(LF_CHAR, at) === -1 ? answer.length : answer.indexOf(LF_CHAR, at));
+  if (!LIST_ITEM.test(line)) return false;
+  // Walk up past the other items to the line that introduces the list.
+  for (let n = 0; n < 30 && ls > 0; n++) {
+    const prevEnd = ls - 1;
+    const prevStart = answer.lastIndexOf(LF_CHAR, prevEnd - 1) + 1;
+    const prev = answer.slice(prevStart, prevEnd);
+    ls = prevStart;
+    if (!prev.trim() || LIST_ITEM.test(prev)) continue;
+    return POSSIBILITY.test(plain(prev));
+  }
+  return false;
 }
 
 // The site's own self-description lines, most descriptive first.
@@ -1039,7 +1126,7 @@ export async function judgeAccuracy(
   const listed = await callModel(
     env,
     buildFactsPrompt(d, ref, cleaned, question),
-    600,
+    2000,
     parseFactsOutput,
     "Output ONLY lines of the form FACT: <KIND> | <answer words> | <site words or NONE> | <MATCH or CONFLICT or ABSENT>, or the single line FACTS: NONE."
   );
