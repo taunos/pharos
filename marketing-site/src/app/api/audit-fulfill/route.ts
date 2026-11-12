@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { constantTimeEqual } from "@/lib/dodo";
+import { publicOrigin } from "@/lib/origin";
 import {
   readAuditSession,
   runAuditFulfillment,
@@ -10,6 +11,7 @@ import {
 import { updateFunnelStatus } from "@/lib/audit-funnel";
 import { errorClass, releaseApAuditClaim } from "@/lib/audit-fulfill-queue-consumer";
 import type { FulfillMessage } from "@/lib/fulfill-queue-consumer";
+import type { AuditFulfillMessage } from "@/lib/audit-fulfill-queue-consumer";
 
 // Test C-A (A3): thin operator-replay wrapper. Paid standalone Audits are
 // fulfilled by the AUDIT_FULFILL_QUEUE consumer, and (Slice Q) so is the ap-
@@ -17,7 +19,11 @@ import type { FulfillMessage } from "@/lib/fulfill-queue-consumer";
 // itself lives in lib/audit-fulfill-run.ts. Slice Q (Q4): impl-day ids are
 // enqueued onto astrant-fulfill (kind "impl_day") and run by its consumer
 // (lib/impl-day-audit-run.ts) instead of inside this request.
-type FulfillEnv = AuditRunEnv & { FULFILL_QUEUE?: Queue<FulfillMessage> };
+type FulfillEnv = AuditRunEnv & {
+  PUBLIC_ORIGIN?: string;
+  FULFILL_QUEUE?: Queue<FulfillMessage>;
+  AUDIT_FULFILL_QUEUE?: Queue<AuditFulfillMessage>;
+};
 
 // F2 v6.1 D19 — parse `impl-day{30|60|90}-impl-{dodo_payment_id}` shape.
 // Returns {day_n, f2_session_id} where f2_session_id is the underlying
@@ -102,6 +108,9 @@ export async function POST(req: Request) {
     // cap is hit, ship `ready` with Dim 6 n/a instead of deferring.
     const result = await runAuditFulfillment(env, sessionId, new URL(req.url).origin, {
       onCap: "partial",
+      // An HTTP request has no enforced wall time, so it may not write a
+      // review-held report (the generation lease assumes a bounded writer).
+      mayGenerateHeld: false,
     });
     switch (result.kind) {
       case "not_found":
@@ -117,6 +126,24 @@ export async function POST(req: Request) {
             error: `session not in fulfilling state (status=${result.kind === "not_yet_paid" ? "awaiting_payment" : result.status})`,
           },
           { status: 400 }
+        );
+      case "held_requires_queue":
+        // Review-held order: hand the run to the queue consumer instead.
+        if (!env.AUDIT_FULFILL_QUEUE) {
+          return NextResponse.json({ ok: false, error: "queue_not_bound" }, { status: 503 });
+        }
+        try {
+          await env.AUDIT_FULFILL_QUEUE.send({ session_id: sessionId, origin: publicOrigin(env, req) });
+        } catch (err) {
+          // No state change: a failed hand-off must not mark the order `error`.
+          console.error(`AUDIT_REVIEW_HELD_ENQUEUE_FAILED session_id=${sessionId} class=${errorClass(err)}`);
+          return NextResponse.json({ ok: false, error: "enqueue failed" }, { status: 503 });
+        }
+        return NextResponse.json({ ok: true, enqueued: true, review_held: true }, { status: 202 });
+      case "generation_in_progress":
+        return NextResponse.json(
+          { ok: false, error: "review-held report generation in progress; retry after the lease" },
+          { status: 409 }
         );
       case "cap_deferred":
         // Unreachable under onCap "partial"; kept for exhaustiveness.

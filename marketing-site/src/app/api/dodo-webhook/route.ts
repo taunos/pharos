@@ -15,6 +15,7 @@ import type { FulfillMessage } from "@/lib/fulfill-queue-consumer";
 import { updateFunnelStatus } from "@/lib/audit-funnel";
 import { buildRightsRecord, scheduleRightsWrite } from "@/lib/dataset-consent";
 import { AUDIT_PRODUCT_ID } from "@/lib/audit-gate";
+import { decideReviewHold, parseReviewHoldCount } from "@/lib/audit-review-hold";
 import { isImplementationCheckoutEnabled } from "@/lib/implementation-gate";
 import { isSubscriptionCheckoutEnabled } from "@/lib/subscription-gate";
 import { parseMaxProbeTargets } from "@/lib/probe-ceiling";
@@ -41,6 +42,8 @@ interface WebhookEnv extends DodoEnvBindings {
   ASTRANT_BASE_URL: string;
   // Test C-A (A3): durable Audit fulfillment producer (astrant-audit-fulfill).
   AUDIT_FULFILL_QUEUE?: Queue<AuditFulfillMessage>;
+  // Review hold count (lib/audit-review-hold.ts); absent → 10.
+  AUDIT_REVIEW_HOLD_COUNT?: string;
   // Test C-B: canonical public origin for the audit enqueue (wrangler var).
   PUBLIC_ORIGIN?: string;
   // Security pass 2026-11-04: the Implementation gate is enforced at the
@@ -401,6 +404,20 @@ export async function POST(req: Request) {
               `[dodo-webhook] audit session_id=${sessionId} already status=${record.status}${record.enqueued_at ? " (enqueued)" : ""}; no enqueue`
             );
           } else {
+            // Review hold: take the slot in PAYMENT order, before the enqueue,
+            // so a delayed queue message cannot lose its place. Fail-closed: a
+            // D1 error returns 500 with no state change, so Dodo retries.
+            // Fulfillment re-calls decideReviewHold (idempotent) as a fallback.
+            if (!sessionId.startsWith("ap-") && !sessionId.startsWith("impl-day")) {
+              try {
+                await decideReviewHold(env.CITATION_DB, sessionId, parseReviewHoldCount(env.AUDIT_REVIEW_HOLD_COUNT));
+              } catch (err) {
+                console.error(
+                  `[dodo-webhook] AUDIT_REVIEW_HOLD_DECIDE_FAILED session_id=${sessionId}: ${err instanceof Error ? err.message : String(err)}`
+                );
+                return NextResponse.json({ ok: false, reason: "hold decision failed" }, { status: 500 });
+              }
+            }
             try {
               if (!env.AUDIT_FULFILL_QUEUE) {
                 throw new Error("AUDIT_FULFILL_QUEUE binding missing");

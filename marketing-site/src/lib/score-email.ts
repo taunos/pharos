@@ -499,7 +499,9 @@ export async function sendAuditReadyEmail(
   env: { RESEND_API_KEY: string; AUDITS: R2Bucket },
   input: AuditReadyInput,
   copy: AuditReadyEmailCopy | null = AUDIT_READY_EMAIL_COPY,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+  // `ambiguous`: the send threw, so Resend may have accepted it (the review
+  // hold keeps its send claim then). Absent = confirmed not sent.
+): Promise<{ ok: true } | { ok: false; error: string; ambiguous?: true }> {
   if (!copy) return { ok: false, error: "copy_not_set" };
   const pdfUrl = `${input.origin}/audit-results/${input.sessionId}/pdf`;
   const resend = new Resend(env.RESEND_API_KEY);
@@ -526,10 +528,18 @@ export async function sendAuditReadyEmail(
       { idempotencyKey: `audit-ready:${input.sessionId}` },
     );
     // Resend v6 does not throw on API errors — it returns { error }.
-    if (result.error) return { ok: false, error: result.error.message };
+    if (result.error) {
+      // The SDK turns fetch/parse failures into { name: "application_error",
+      // statusCode: null }: like a 5xx, the email may have been accepted.
+      const code = (result.error as { statusCode?: number | null }).statusCode;
+      const ambiguous = code === null || code === undefined || code >= 500;
+      return ambiguous
+        ? { ok: false, error: result.error.message, ambiguous: true }
+        : { ok: false, error: result.error.message };
+    }
     return { ok: true };
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    return { ok: false, error: err instanceof Error ? err.message : String(err), ambiguous: true };
   }
 }
 

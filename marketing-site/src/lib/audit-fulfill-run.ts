@@ -38,6 +38,18 @@ import { alertOperator } from "./operator-alerts";
 import { isAuditCheckoutEnabled } from "./audit-gate";
 import { updateFunnelStatus } from "./audit-funnel";
 import { buildRightsRecord, scheduleRightsWrite } from "./dataset-consent";
+import {
+  claimReviewGeneration,
+  claimReviewSend,
+  decideReviewHold,
+  dropReviewGenerationClaim,
+  dropReviewSendClaim,
+  markReviewDelivered,
+  markReviewGenerated,
+  parseReviewHoldCount,
+  readReviewHold,
+  reviewEvidenceKey,
+} from "./audit-review-hold";
 
 export interface AuditRunEnv extends AuditEnv {
   INTERNAL_FULFILL_KEY: string;
@@ -48,6 +60,9 @@ export interface AuditRunEnv extends AuditEnv {
   UNSUBSCRIBE_SECRET: string;
   AUDIT_CHECKOUT_ENABLED?: string;
   OPERATOR_ALERT_EMAIL?: string;
+  // Review hold (lib/audit-review-hold.ts): how many paid standalone orders
+  // are held for review. Absent/malformed → 10 (fail-closed).
+  AUDIT_REVIEW_HOLD_COUNT?: string;
 }
 
 export type AuditRunResult =
@@ -60,6 +75,13 @@ export type AuditRunResult =
   | { kind: "noop_terminal"; status: SessionStatus }
   | { kind: "not_yet_paid" }
   | { kind: "cap_deferred" }
+  // Review hold: another run holds the generation lease for this held order
+  // (still running, or dead with the lease not yet expired). Retry after the
+  // lease (REVIEW_GEN_LEASE_MS).
+  | { kind: "generation_in_progress" }
+  // Review hold: a held order reached generation through a caller that may
+  // not generate held reports (deps.mayGenerateHeld false). Nothing was run.
+  | { kind: "held_requires_queue" }
   // Not in the R2-2 list: an unknown session id (e.g. the R2-8 synthetic
   // queue smoke). Callers log it and treat it as a no-op.
   | { kind: "not_found" };
@@ -70,6 +92,11 @@ export interface AuditRunDeps {
   // operator / ap- wrapper) keeps pre-C-A behaviour: ship `ready` with Dim 6
   // n/a (the cap note) instead of deferring.
   onCap?: "partial" | "defer";
+  // Review hold: only a writer with an enforced lifetime (the Queue consumer,
+  // 15 min wall time) may write a held report's artifacts — the generation
+  // lease relies on it. The HTTP replay passes false and gets
+  // `held_requires_queue` instead (it hands the run to the queue).
+  mayGenerateHeld?: boolean;
   // Injection seam for tests; production callers use the default constant.
   emailCopy?: AuditReadyEmailCopy | null;
 }
@@ -80,10 +107,13 @@ export interface AuditRunDeps {
 export type AuditReadyEmailFailReason = "pdf_not_found" | "copy_not_set" | "send_error";
 export class AuditReadyEmailError extends Error {
   readonly reason: AuditReadyEmailFailReason;
-  constructor(reason: AuditReadyEmailFailReason) {
+  // The send threw: Resend may have accepted it.
+  readonly ambiguous: boolean;
+  constructor(reason: AuditReadyEmailFailReason, ambiguous = false) {
     super("AUDIT_READY_EMAIL_FAILED");
     this.name = "AuditReadyEmailError";
     this.reason = reason;
+    this.ambiguous = ambiguous;
   }
 }
 
@@ -151,21 +181,24 @@ export function providersWithZeroMeasurableCells(dim6: RunDim6Result): ModelId[]
   );
 }
 
-// Standalone buyer email (A4 + R2-5). Throws AuditReadyEmailError on a failed
-// send so the queue retries the email step alone; `ready` is never touched.
-// The operator alert is sent once, by the consumer's final-attempt handling.
-async function deliverBuyerEmail(
+export function reviewHoldLimit(env: { AUDIT_REVIEW_HOLD_COUNT?: string }): number {
+  return parseReviewHoldCount(env.AUDIT_REVIEW_HOLD_COUNT);
+}
+
+export type BuyerEmailOutcome =
+  | "sent"
+  | "already_sent"
+  | "gate_closed"
+  | "review_hold"
+  | "send_in_progress";
+
+async function sendBuyerEmailOrThrow(
   env: AuditRunEnv,
   record: SessionRecord,
   origin: string,
-  copy: AuditReadyEmailCopy | null,
+  copy: AuditReadyEmailCopy,
 ): Promise<void> {
   const sessionId = record.session_id;
-  if (record.email_sent_at) return;
-  if (!isAuditCheckoutEnabled(env) || copy === null) {
-    console.log(`AUDIT_READY_EMAIL_HELD session_id=${sessionId}`);
-    return;
-  }
   const result = await sendAuditReadyEmail(
     env,
     { toEmail: record.email, sessionId, url: record.url, origin },
@@ -173,11 +206,85 @@ async function deliverBuyerEmail(
   );
   if (!result.ok) {
     const reason = classifyAuditReadyEmailError(result.error);
+    // (`ambiguous`: the send may have gone out; see sendAuditReadyEmail.)
     console.error(`AUDIT_READY_EMAIL_FAILED session_id=${sessionId} reason=${reason}`);
-    throw new AuditReadyEmailError(reason);
+    throw new AuditReadyEmailError(reason, result.ambiguous === true);
   }
+}
+
+// Standalone buyer email (A4 + R2-5). Throws AuditReadyEmailError on a failed
+// send so the queue retries the email step alone; `ready` is never touched.
+// The operator alert is sent once, by the consumer's final-attempt handling.
+// Every standalone buyer email goes through here, so the review hold is
+// enforced here: a held, unreleased session is skipped and logged; a released
+// one is sent once, under a D1 send claim (double release / queue duplicate
+// after release → one email).
+export async function deliverBuyerEmail(
+  env: AuditRunEnv,
+  record: SessionRecord,
+  origin: string,
+  copy: AuditReadyEmailCopy | null,
+): Promise<BuyerEmailOutcome> {
+  const sessionId = record.session_id;
+  if (record.email_sent_at) return "already_sent";
+  if (!isAuditCheckoutEnabled(env) || copy === null) {
+    console.log(`AUDIT_READY_EMAIL_HELD session_id=${sessionId}`);
+    return "gate_closed";
+  }
+  const hold = await decideReviewHold(env.CITATION_DB, sessionId, reviewHoldLimit(env));
+  if (hold.held === 1) {
+    if (hold.released_at === null) {
+      console.log(`AUDIT_REVIEW_HOLD_DELIVERY_SKIPPED session_id=${sessionId}`);
+      return "review_hold";
+    }
+    if (hold.delivered_at !== null) {
+      await writeAuditSession(env, { ...record, email_sent_at: hold.delivered_at });
+      return "already_sent";
+    }
+    const claimedAt = Date.now();
+    if (!(await claimReviewSend(env.CITATION_DB, sessionId, claimedAt))) {
+      // Another sender holds the claim, or a send's outcome is unknown.
+      console.log(`AUDIT_REVIEW_SEND_IN_PROGRESS session_id=${sessionId}`);
+      return "send_in_progress";
+    }
+    try {
+      await sendBuyerEmailOrThrow(env, record, origin, copy);
+    } catch (err) {
+      if (err instanceof AuditReadyEmailError && err.ambiguous) {
+        // Outcome unknown: keep the claim (no automatic resend); operator checks Resend.
+        console.error(`AUDIT_REVIEW_SEND_OUTCOME_UNKNOWN session_id=${sessionId}`);
+        await alertOperator(
+          env,
+          "AUDIT_REVIEW_SEND_OUTCOME_UNKNOWN",
+          sessionId,
+          "buyer email send threw; it may have gone out. Send claim left set: check Resend, then clear send_claimed_at to resend",
+        ).catch(() => {});
+      } else {
+        await dropReviewSendClaim(env.CITATION_DB, sessionId, claimedAt).catch(() => {});
+      }
+      throw err;
+    }
+    const sentAt = Date.now();
+    // Email is out. If the marker is not written the send claim stays set (it
+    // never expires), so nothing resends automatically; the operator is told.
+    const marked = await markReviewDelivered(env.CITATION_DB, sessionId, claimedAt, sentAt).catch(() => false);
+    if (!marked) {
+      console.error(`AUDIT_REVIEW_DELIVERED_MARK_FAILED session_id=${sessionId}`);
+      await alertOperator(
+        env,
+        "AUDIT_REVIEW_DELIVERED_MARK_FAILED",
+        sessionId,
+        "buyer email sent but delivered_at not recorded; send claim left set (no automatic resend)",
+      ).catch(() => {});
+    }
+    await writeAuditSession(env, { ...record, email_sent_at: sentAt });
+    console.log(`AUDIT_READY_EMAIL_SENT session_id=${sessionId} review_released=1`);
+    return "sent";
+  }
+  await sendBuyerEmailOrThrow(env, record, origin, copy);
   await writeAuditSession(env, { ...record, email_sent_at: Date.now() });
   console.log(`AUDIT_READY_EMAIL_SENT session_id=${sessionId}`);
+  return "sent";
 }
 
 export async function runAuditFulfillment(
@@ -210,6 +317,14 @@ export async function runAuditFulfillment(
   // status === "fulfilling"
   // R2-4: peek the Dim 6 daily budget BEFORE spending a scan + LLM calls.
   if (deferOnCap && (await isDim6CapReached(env.SESSIONS))) return { kind: "cap_deferred" };
+
+  // Review hold: decide BEFORE any report object exists, so the PDF/JSON/status
+  // gates see the hold row from the moment the PDF is stored. Throws on a D1
+  // error (fail-closed: the queue retries; nothing is delivered).
+  const hold = standalone
+    ? await decideReviewHold(env.CITATION_DB, sessionId, reviewHoldLimit(env))
+    : null;
+  if (hold?.held === 1 && deps.mayGenerateHeld === false) return { kind: "held_requires_queue" };
 
   const scannerScan = await runScan(record.url, env.INTERNAL_FULFILL_KEY, env.SCANNER_SVC);
 
@@ -271,8 +386,22 @@ export async function runAuditFulfillment(
   };
   const html = renderAuditHtml(audit, sessionId);
   const pdf = await generatePdf(env, html);
-  await storePdf(env, sessionId, pdf);
-  await storeJson(env, sessionId, audit);
+
+  // Held report: exactly one run writes its artifacts, and never after it was
+  // generated, so a duplicate run cannot replace what the reviewer read/released.
+  let genClaim: number | null = null;
+  if (hold?.held === 1) {
+    genClaim = Date.now();
+    if (!(await claimReviewGeneration(env.CITATION_DB, sessionId, genClaim))) {
+      const cur = await readReviewHold(env.CITATION_DB, sessionId);
+      if (cur && cur.generated_at === null && cur.released_at === null) {
+        console.log(`AUDIT_REVIEW_GENERATION_IN_PROGRESS session_id=${sessionId}`);
+        return { kind: "generation_in_progress" };
+      }
+      console.log(`AUDIT_REVIEW_GENERATION_SKIPPED session_id=${sessionId} reason=already_generated`);
+      return { kind: "noop_terminal", status: record.status };
+    }
+  }
 
   const next: SessionRecord = {
     ...record,
@@ -283,7 +412,33 @@ export async function runAuditFulfillment(
     composite_score: scan.composite.score,
     grade: scan.composite.grade,
   };
-  await writeAuditSession(env, next);
+  try {
+    if (genClaim !== null) {
+      // Full Dim 6 evidence for the reviewer (cells carry the accuracy-check
+      // fields the report summarises). `summary` = the run result minus its
+      // cells (stored once, below).
+      const summary = dim6.raw ? { ...dim6.raw, cells: undefined } : null;
+      await env.AUDITS.put(
+        reviewEvidenceKey(sessionId),
+        JSON.stringify({ dimension: dim6.dimension, summary, cells: dim6.cells }, null, 2),
+        { httpMetadata: { contentType: "application/json" } },
+      );
+    }
+    await storePdf(env, sessionId, pdf);
+    await storeJson(env, sessionId, audit);
+    await writeAuditSession(env, next);
+  } catch (err) {
+    if (genClaim !== null) {
+      await dropReviewGenerationClaim(env.CITATION_DB, sessionId, genClaim).catch(() => {});
+    }
+    throw err;
+  }
+  if (genClaim !== null && !(await markReviewGenerated(env.CITATION_DB, sessionId, genClaim))) {
+    // Lease lost (expired and retaken). Release requires generated_at, so the
+    // report stays held; the operator checks it by hand.
+    console.error(`AUDIT_REVIEW_GENERATED_MARK_LOST session_id=${sessionId}`);
+    await alertOperator(env, "AUDIT_REVIEW_GENERATED_MARK_LOST", sessionId, "generation lease lost; check before release");
+  }
   await updateFunnelStatus(env.SESSIONS, sessionId, "ready");
   // Best-effort second attempt at the dataset rights record (the webhook
   // tries first). Fire-and-forget with a timeout (the queue handler has no
@@ -365,7 +520,15 @@ export async function runAuditFulfillment(
       console.error(`F3_AUDIT_WELCOME_FAILED session_id=${sessionId} reason=exception`, err);
     }
   } else if (standalone) {
-    await deliverBuyerEmail(env, next, origin, copy);
+    const outcome = await deliverBuyerEmail(env, next, origin, copy);
+    if (outcome === "review_hold") {
+      await alertOperator(
+        env,
+        "AUDIT_REVIEW_HOLD_READY",
+        sessionId,
+        "report generated and held for review; release via POST /api/internal/audit-review",
+      );
+    }
   }
 
   return {

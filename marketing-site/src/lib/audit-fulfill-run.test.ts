@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { AuditReadyEmailCopy } from "./score-email";
 import type { AuditRunEnv } from "./audit-fulfill-run";
+import { createSqliteD1, readMigration } from "./test-support/sqlite-d1";
 
 // Test C-A (A3/A4 + R2-2/R2-4/R2-5) — runAuditFulfillment.
 
@@ -71,6 +72,15 @@ const ALL_MEASURED = [
 
 let store: Map<string, string>;
 
+function citationDb(): D1Database {
+  const sq = createSqliteD1([
+    readMigration("0019_audit_review_holds.sql"),
+    "CREATE TABLE subscriptions (subscription_id TEXT PRIMARY KEY, customer_email TEXT)",
+    "INSERT INTO subscriptions VALUES ('sub_abc123', 'sub@example.com')",
+  ]);
+  return sq.d1;
+}
+
 function makeEnv(extra: Partial<AuditRunEnv> = {}): AuditRunEnv {
   const kv = {
     get: async (k: string) => store.get(k) ?? null,
@@ -89,14 +99,14 @@ function makeEnv(extra: Partial<AuditRunEnv> = {}): AuditRunEnv {
     INTERNAL_FULFILL_KEY: "k",
     PHAROS_CORPUS: {} as D1Database,
     CORPUS_DEAD_LETTER: kv,
-    CITATION_DB: {
-      prepare: () => ({
-        bind: () => ({ first: async () => ({ customer_email: "sub@example.com" }) }),
-      }),
-    } as unknown as D1Database,
+    // Real SQL over migration 0019 (review hold) + the subscriptions lookup.
+    CITATION_DB: citationDb(),
     RESEND_API_KEY: "re_test",
     UNSUBSCRIBE_SECRET: "u",
     AUDIT_CHECKOUT_ENABLED: "true",
+    // These suites predate the review hold: "0" = no hold. The hold itself is
+    // covered in audit-review-hold.test.ts.
+    AUDIT_REVIEW_HOLD_COUNT: "0",
     ...extra,
   };
 }
